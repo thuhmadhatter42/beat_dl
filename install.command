@@ -46,7 +46,17 @@ if python3 -c "import librosa" &>/dev/null; then
     echo "✓ librosa already installed"
 else
     echo "▸ Installing librosa..."
-    pip3 install librosa --break-system-packages
+    # --prefer-binary avoids compiling llvmlite from source, which fails on many systems
+    pip3 install librosa --break-system-packages --prefer-binary
+    if ! python3 -c "import librosa" &>/dev/null; then
+        echo ""
+        echo "❌ librosa failed to install."
+        echo "   Try running this in Terminal and then re-run install.command:"
+        echo "   brew install llvm"
+        echo ""
+        read -p "Press Enter to close..."
+        exit 1
+    fi
 fi
 
 # ── Permissions ─────────────────────────────────────────────────────────────
