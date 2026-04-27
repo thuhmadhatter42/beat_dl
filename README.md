@@ -1,6 +1,6 @@
 # beat_dl
 
-Download YouTube beats as MP3s, auto-tagged with BPM and key.
+Download YouTube beats as WAVs, auto-tagged with BPM and key.
 
 Tested and working on both Apple Silicon and Intel Macs.
 
@@ -19,7 +19,7 @@ Tested and working on both Apple Silicon and Intel Macs.
 **Double-click `run.command`** to start.
 
 Paste a YouTube URL when prompted. After each download:
-- Audio is saved as MP3 to `~/Downloads`
+- Audio is saved as WAV to `~/Downloads`
 - BPM is detected by analyzing the loudest 60 seconds of the track
 - The top 3 most likely keys are shown with confidence percentages
 - The file is automatically renamed with BPM and keys included
@@ -28,7 +28,7 @@ Paste a YouTube URL when prompted. After each download:
 ```
 Input URL: https://www.youtube.com/watch?v=...
 Downloading...
-Downloaded: Veeze x Lil Yachty type beat (142.0 BPM Cm D# Gm).mp3
+Downloaded: Veeze x Lil Yachty type beat (142.0 BPM Cm D# Gm).wav
 Key: Cm (48.3%) | D# (31.2%) | Gm (20.5%)
 ```
 
@@ -51,7 +51,7 @@ This works on both Apple Silicon and Intel Macs.
 | `install.command` | Double-click once to install everything |
 | `run.command` | Double-click to run |
 | `run.sh` | Main loop — called by run.command |
-| `downloader.py` | Downloads audio from YouTube as MP3 |
+| `downloader.py` | Downloads audio from YouTube as WAV |
 | `bpm.py` | Detects BPM and key from an audio file |
 
 The Python scripts also work standalone if you need them:
