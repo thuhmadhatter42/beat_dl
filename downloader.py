@@ -5,122 +5,33 @@ Usage: python3 downloader.py
 """
 
 import sys
-import json
 import shutil
-import subprocess
 from pathlib import Path
 
-DOWNLOADS = Path.home() / "Downloads"
+import yt_dlp
 
-# Strategies tried silently in order until one works.
-_STRATEGIES = [
-    ["--cookies-from-browser", "firefox"],
-    ["--cookies-from-browser", "safari"],
-    ["--cookies-from-browser", "chrome"],
-    ["--extractor-args", "youtube:player_client=android"],
-    ["--extractor-args", "youtube:player_client=web"],
-    [],
-]
+AUDIO_FORMAT = "wav"  # "wav" or "mp3"
+
+DOWNLOADS = Path.home() / "Downloads"
 
 
 # ── Dependency check ──────────────────────────────────────────────────────────
 
 def check_deps():
     missing = []
-    if not shutil.which("yt-dlp"):
-        missing.append(("yt-dlp", "brew install yt-dlp   or   pip install yt-dlp"))
     if not shutil.which("ffmpeg"):
         missing.append(("ffmpeg", "brew install ffmpeg   or   https://ffmpeg.org/download.html"))
     return missing
 
 
-# ── yt-dlp subprocess wrapper ─────────────────────────────────────────────────
-
-def _run(*args):
-    result = subprocess.run(
-        ["yt-dlp"] + list(args),
-        capture_output=True,
-        text=True,
-    )
-    return result.returncode, result.stdout, result.stderr
-
-
-def fetch_info(url, extra_args=()):
-    code, out, err = _run("--dump-json", "--no-playlist", *extra_args, url)
-    if code != 0 or not out.strip():
-        return None, (out + err).splitlines()
-    try:
-        return json.loads(out.strip().splitlines()[-1]), []
-    except (json.JSONDecodeError, ValueError):
-        return None, (out + err).splitlines()
-
-
-def download_audio(url, fmt_selector, outtmpl, extra_args=()):
-    """
-    Download audio. Returns (success, path_or_none, fmt_id, abr, error_lines).
-    success=True whenever yt-dlp exits 0, regardless of whether we captured the path.
-    """
-    cmd_args = [
-        "-f", fmt_selector,
-        "-o", outtmpl,
-        "--no-playlist",
-        "--quiet",       # Keeps stdout clean for --print parsing
-        "--no-progress",
-        "--extract-audio",
-        "--audio-format", "mp3",
-        "--audio-quality", "0",
-        "--print", "after_move:filepath",
-        "--print", "%(format_id)s",
-        "--print", "%(abr)s",
-    ] + list(extra_args) + [url]
-
-    code, out, err = _run(*cmd_args)
-
-    if code != 0:
-        return False, None, None, 0.0, (out + err).splitlines()
-
-    # Exit 0 = success. Parse --print output from stdout.
-    lines = (out or "").strip().splitlines()
-    filepath = lines[0].strip() if len(lines) > 0 else None
-    fmt_id   = lines[1].strip() if len(lines) > 1 else None
-    abr_raw  = lines[2].strip() if len(lines) > 2 else "0"
-
-    try:
-        abr = float(abr_raw) if abr_raw not in ("", "NA", "none", "None") else 0.0
-    except ValueError:
-        abr = 0.0
-
-    # Resolve path: use --print result if it exists, otherwise glob for the file.
-    path = None
-    if filepath:
-        p = Path(filepath)
-        if p.exists():
-            path = p
-
-    if path is None:
-        # --print sometimes doesn't fire (e.g. already-cached, certain extractors).
-        # Fall back: find the most recently modified file matching the title stem.
-        stem = Path(outtmpl).stem.replace(".%(ext)s", "").replace("%", "")
-        # outtmpl looks like /Users/.../Title.%(ext)s — stem is "Title"
-        base = Path(outtmpl).parent
-        stem_clean = Path(outtmpl).name.replace(".%(ext)s", "")
-        matches = sorted(base.glob(f"{stem_clean}.*"), key=lambda p: p.stat().st_mtime, reverse=True)
-        if matches:
-            path = matches[0]
-
-    return True, path, fmt_id, abr, []
-
-
-# ── Format analysis ───────────────────────────────────────────────────────────
-
 # ── Error translation ─────────────────────────────────────────────────────────
 
-def explain_error(lines, url=""):
-    text = " ".join(lines).lower()
+def explain_error(text, url=""):
+    text = text.lower()
     if "private video" in text:
         return "That video is private and cannot be downloaded."
     if "age" in text and ("restrict" in text or "confirm" in text):
-        return "That video is age-restricted. Open YouTube in Firefox and sign in, then retry."
+        return "That video is age-restricted. Sign in to YouTube in your browser and retry."
     if "not available" in text or "unavailable" in text:
         return "That video is unavailable in your region or has been removed."
     if "urlopen error" in text or "network" in text or "connection" in text:
@@ -128,17 +39,12 @@ def explain_error(lines, url=""):
     if "no video formats" in text or "requested format" in text:
         return "No downloadable audio format was found for that video."
     if "sign in" in text or "login" in text or "bot" in text:
-        return "YouTube is blocking the download. Open YouTube in Firefox, sign in, then retry."
+        return "YouTube is blocking the download. Sign in to YouTube in your browser and retry."
     if "copyright" in text:
         return "This video is blocked due to a copyright claim."
     if url and not url.startswith("http"):
         return "That doesn't look like a valid URL — paste a full https:// link."
-    if lines:
-        for line in reversed(lines):
-            line = line.strip()
-            if line and "github.com" not in line and "yt-dlp -U" not in line:
-                return f"Download failed: {line}"
-    return "Download failed for an unknown reason."
+    return f"Download failed: {text.strip()}" if text.strip() else "Download failed for an unknown reason."
 
 
 def safe_name(text):
@@ -147,76 +53,82 @@ def safe_name(text):
     return text.strip(". ") or "audio"
 
 
-# ── Main ──────────────────────────────────────────────────────────────────────
+# ── BPM + key tagging ────────────────────────────────────────────────────────
+
+def tag_with_bpm(path: Path, silent: bool) -> Path:
+    """Analyze path, rename to include BPM and top 3 keys, return new path."""
+    try:
+        from bpm import analyze, check_deps as bpm_check
+        if not bpm_check():
+            return path
+        if not silent:
+            print("Analyzing...")
+        bpm, keys = analyze(path)
+        key_str = " ".join(k for k, _ in keys)
+        new_name = f"{path.stem} ({bpm} BPM {key_str}){path.suffix}"
+        new_path = path.parent / new_name
+        path.rename(new_path)
+        if not silent:
+            top = keys[0]
+            rest = keys[1:]
+            key_display = f"{top[0]} ({top[1]}%)" + "".join(f" | {k} ({c}%)" for k, c in rest)
+            print(f"Key: {key_display}")
+        return new_path
+    except Exception:
+        return path
+
+
+# ── Download ──────────────────────────────────────────────────────────────────
 
 def run_download(url, silent=False):
     """
-    Download one URL. Returns the output Path on success, None on failure.
-    If silent=True, errors go to stderr and only the filepath is printed to stdout
-    (for use when called from a shell script).
+    Download one URL, analyze BPM + key, rename the file.
+    Returns the final output Path on success, None on failure.
+    If silent=True, only the final filepath is printed to stdout.
     """
-    info = None
-    meta_err = []
-    working_extra = None
+    ydl_opts = {
+        "format": "bestaudio/best",
+        "outtmpl": str(DOWNLOADS / "%(title)s.%(ext)s"),
+        "quiet": True,
+        "no_warnings": True,
+        "postprocessors": [
+            {
+                "key": "FFmpegExtractAudio",
+                "preferredcodec": AUDIO_FORMAT,
+            }
+        ],
+    }
 
-    for extra in _STRATEGIES:
-        try:
-            info, meta_err = fetch_info(url, extra_args=extra)
-        except Exception as exc:
-            meta_err = [str(exc)]
-            info = None
-        if info:
-            working_extra = extra
-            break
+    try:
+        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+            if not silent:
+                print("Downloading...")
+            info = ydl.extract_info(url, download=True)
+            entry = info["entries"][0] if "entries" in info else info
+            pre_path = ydl.prepare_filename(entry)
+            out_path = Path(pre_path).with_suffix(f".{AUDIO_FORMAT}")
 
-    if not info:
-        msg = explain_error(meta_err, url)
-        if silent:
-            print(msg, file=sys.stderr)
-        else:
-            print(msg)
+            if not out_path.exists():
+                msg = f"Expected file not found: {out_path}"
+                print(msg, file=sys.stderr if silent else sys.stdout)
+                return None
+
+            final_path = tag_with_bpm(out_path, silent)
+
+            if not silent:
+                print(f"Downloaded: {final_path.name}")
+            else:
+                print(str(final_path))
+            return final_path
+
+    except yt_dlp.utils.DownloadError as e:
+        msg = explain_error(str(e), url)
+        print(msg, file=sys.stderr if silent else sys.stdout)
         return None
-
-    title = safe_name(info.get("title") or "audio")
-    if not silent:
-        print("Downloading...")
-    baseline_tmpl = str(DOWNLOADS / f"{title}.%(ext)s")
-    last_err = []
-
-    strategies_to_try = [working_extra] + [s for s in _STRATEGIES if s != working_extra]
-
-    success = False
-    bl_path = None
-
-    for extra in strategies_to_try:
-        try:
-            success, bl_path, _, _, last_err = download_audio(
-                url, "bestaudio/best", baseline_tmpl, extra_args=extra
-            )
-        except Exception as exc:
-            last_err = [str(exc)]
-            success = False
-        if success:
-            break
-
-    if not success:
-        msg = explain_error(last_err, url)
-        if silent:
-            print(msg, file=sys.stderr)
-        else:
-            print(msg)
+    except Exception as e:
+        msg = f"Download failed: {e}"
+        print(msg, file=sys.stderr if silent else sys.stdout)
         return None
-
-    if silent:
-        # Print only the filepath so the caller can capture it
-        print(str(bl_path) if bl_path else "")
-    else:
-        if bl_path:
-            print(f"Downloaded: {bl_path.name}")
-        else:
-            print(f"Downloaded to: {DOWNLOADS}")
-
-    return bl_path
 
 
 def main():
@@ -234,15 +146,13 @@ def main():
         result = run_download(url, silent=True)
         sys.exit(0 if result else 1)
 
-    # Interactive loop mode
-    while True:
-        try:
-            url = input("\nInput URL: ").strip()
-        except (EOFError, KeyboardInterrupt):
-            print()
-            break
-        if not url:
-            break
+    # Interactive mode
+    try:
+        url = input("Input URL: ").strip()
+    except (EOFError, KeyboardInterrupt):
+        print()
+        sys.exit(0)
+    if url:
         run_download(url, silent=False)
 
 
