@@ -6,11 +6,9 @@ Tested and working on both Apple Silicon and Intel Macs.
 
 ## Setup
 
-**Double-click `install.command`** — it handles everything:
-- Installs Homebrew (if not already installed)
-- Installs yt-dlp and ffmpeg via Homebrew
-- Installs librosa for BPM and key detection
-- Makes all scripts executable
+**Double-click `run.command`.** On first launch it installs anything missing (Homebrew, yt-dlp, ffmpeg, librosa) and then starts. `install.command` still exists if you want to install without starting the app.
+
+Every launch re-checks that the tools are present (instant, no network). yt-dlp is the only one that goes stale, so it's upgraded once a week, and again automatically if a download fails.
 
 > **First time opening a `.command` file?** macOS will block it since it wasn't downloaded from the App Store. Just **right-click → Open** the first time, then it'll work normally after that.
 
@@ -65,7 +63,8 @@ This works on both Apple Silicon and Intel Macs.
 
 | File | Description |
 |------|-------------|
-| `install.command` | Double-click once to install everything |
+| `install.command` | Install deps without starting the app (optional) |
+| `deps.sh` | Dependency check/install, used by both launchers |
 | `run.command` | Double-click to run |
 | `run.sh` | Main loop — called by run.command |
 | `downloader.py` | Downloads audio from YouTube as MP3 |

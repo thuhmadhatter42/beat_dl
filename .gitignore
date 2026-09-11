@@ -21,3 +21,5 @@ env/
 Thumbs.db
 
 *.log
+
+.last-ytdlp-upgrade

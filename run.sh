@@ -3,6 +3,10 @@
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 LOG_FILE="$HOME/Downloads/($(date +%-y-%-m-%-d)) Youtube DL LINKS.txt"
 
+source "$SCRIPT_DIR/deps.sh"
+ensure_deps
+maybe_upgrade_ytdlp
+
 log_download() {
     printf "Input URL: %s\n" "$url" >> "$LOG_FILE"
     printf "Downloaded: %s\n\n" "$1" >> "$LOG_FILE"
@@ -19,7 +23,16 @@ while true; do
     filepath=$(python3 "$SCRIPT_DIR/downloader.py" "$url")
 
     if [ $? -ne 0 ] || [ -z "$filepath" ]; then
-        continue
+        # A failed download is usually a stale yt-dlp. Upgrade once and retry.
+        if [ -z "$upgraded_this_run" ]; then
+            upgraded_this_run=1
+            upgrade_ytdlp
+            echo "Retrying..."
+            filepath=$(python3 "$SCRIPT_DIR/downloader.py" "$url")
+        fi
+        if [ $? -ne 0 ] || [ -z "$filepath" ]; then
+            continue
+        fi
     fi
 
     # Detect BPM + key (4 lines: BPM, key1, key2, key3)
