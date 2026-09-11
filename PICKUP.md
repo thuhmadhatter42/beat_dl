@@ -1,23 +1,20 @@
 # PICKUP — beat_dl
 
-## CURRENT STATE — 2026-09-11 01:34
+## CURRENT STATE — 2026-09-11 06:02
 
-**What this is:** YouTube → MP3 downloader with BPM/key tagging. Bash loop (run.sh) + downloader.py (yt-dlp) + bpm.py (Essentia, librosa fallback). Launched by double-clicking run.command or the `beat` alias.
+**What this is:** YouTube → MP3 downloader with BPM/key tagging. Bash loop (run.sh) + downloader.py (yt-dlp) + bpm.py (Essentia TempoCNN for BPM, Essentia HPCP + bgate for key; librosa only where essentia has no wheel). Launched by run.command or the `beat` alias. Also called by the Jownloader Brave extension (`~/dev/brave_img-downloader/extension`) through a native host that pipes a URL into run.sh.
 
-**Git:** main = origin/main = a5c3e94, tree clean.
+**Git:** main = origin/main = 80d4b55, tree clean, pushed.
 
-**Landed 2026-09-10/11:**
-- ae70d59: missing librosa no longer bakes its error into the filename.
-- a5c3e94: deps.sh — presence check + install every launch; yt-dlp upgrade weekly (stamp `.last-ytdlp-upgrade`) and on download failure with one retry. README updated.
+**Landed 2026-09-11:**
+- 0c8c57c: BPM 30% → 87.5% Acc1 (40 GiantSteps clips), key 43.6% → 79.5% exact (39 GS+ clips), ~2 s/track. Model `models/deeptemp-k16-3.pb` vendored (CC BY-NC-SA). Research + re-runnable benches in `docs/research/` (datasets git-ignored; `fetch.sh` re-downloads).
+- 80d4b55: deps.sh installs ONE analyzer, auto-picked: essentia-tensorflow if it imports on this Mac, else librosa (+ numba repair). Root cause of "no tags at all" since 2026-09-08 was numba lagging numpy 2.5.3.
+- librosa's `beat_track` segfaults on py3.14 + numba 0.67 → fallback uses `librosa.feature.tempo`.
 
-**Landed 2026-09-11 (committed 0c8c57c + follow-up, pushed):** bpm.py key detection replaced — essentia HPCP36 + bgate, real top-3,
-agreement+margin confidence (85.1 / 79.5 % GS+ vs 55.4 / 43.6 old; bench: `docs/research/key-bench/bench.py bpmpy`). Single
-essentia decode feeds TempoCNN + key (BPM output unchanged). librosa = fallback only; its BPM path now uses
-`librosa.feature.tempo` because `beat_track` segfaults here (py3.14 + numba 0.67). deps.sh: numba-import guard
-(`pip3 install -U numba` when it lags numpy). README updated. Not committed — J to review/commit.
+**Open — J must answer:**
+1. Trap octave: filename carries 70 or 140 as the model hears it. Should it always be doubled (or halved)? No rule until J says.
+2. Studio-E-2 (user studioe, NOT Intel): needs the pull. Repo path there unknown — `alias beat` shows it. Command given to J:
+   `git -C "$(dirname "$(alias beat | sed -E "s/.*[='\"]([^'\"]*run\.(sh|command)).*/\1/")")" pull && beat`
+   First run prints "✓ essentia" (macOS ≥ 15) or "✓ librosa". Then one download should get a "(NN BPM key key key)" name. One old bad file to hand-rename in its ~/Downloads: "Roddy Ricch - The Box _Official Audio_ (Missing: librosa … ).mp3".
 
-**Next (in order):**
-1. On Studio-E-2 (user studioe): `git -C <beat_dl path> pull` then run `beat`. Confirm it prints "✓ essentia" (or "✓ librosa" if no essentia build) and the next download gets a "(NN BPM key key key)" name. Rename the one bad file in its ~/Downloads ("Roddy Ricch - The Box _Official Audio_ (Missing: librosa … ).mp3").
-2. iMessage watcher: invoke superpowers:writing-plans on docs/superpowers/specs/2026-06-05-imessage-watcher-design.md, then implement (watch.command, watcher.sh, process_url.sh factored out of run.sh, BEAT_DL_OUTDIR override in downloader.py, .watch_state.json + watcher.log git-ignored). Test setup: `brew install steipete/tap/imsg`, grant Terminal Automation→Messages + Accessibility.
-
-**Open questions for J:** none.
+**Next:** nothing queued beyond the two open items. iMessage watcher spec (docs/superpowers/specs/2026-06-05-imessage-watcher-design.md) still has no plan/implementation.
