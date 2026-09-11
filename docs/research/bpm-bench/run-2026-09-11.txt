@@ -1,0 +1,709 @@
+[current] 3863498.LOFI hip-hop          ref= 150.0 est=  99.38 -- 2.5s
+[current] 4633603.LOFI hip-hop          ref= 139.0 est=  92.29 -- 0.2s
+[current] 3958395.LOFI funk-r-and-b     ref= 136.0 est= 136.00 A1 0.2s
+[current] 3733281.LOFI reggae-dub       ref=  70.0 est= 143.55 A2 0.2s
+[current] 1874244.LOFI reggae-dub       ref=  71.0 est=  92.29 -- 0.1s
+[current] 3892740.LOFI pop-rock         ref= 129.0 est= 129.20 A1 0.2s
+[current] 1743969.LOFI pop-rock         ref=  79.0 est= 161.50 A2 0.2s
+[current] 3151015.LOFI pop-rock         ref= 174.0 est= 172.27 A1 0.2s
+[current] 4093555.LOFI glitch-hop       ref=  92.0 est= 123.05 -- 0.1s
+[current] 3983645.LOFI glitch-hop       ref= 110.0 est= 112.35 A1 0.1s
+[current] 5070846.LOFI glitch-hop       ref= 110.0 est= 112.35 A1 0.2s
+[current] 4714481.LOFI glitch-hop       ref= 112.0 est= 152.00 -- 0.2s
+[current] 4468729.LOFI glitch-hop       ref= 160.0 est= 161.50 A1 0.1s
+[current] 4703149.LOFI glitch-hop       ref= 110.0 est= 112.35 A1 0.1s
+[current] 1839656.LOFI dubstep          ref= 140.0 est=  92.29 -- 0.1s
+[current] 4936740.LOFI dubstep          ref= 142.0 est=  92.29 -- 0.1s
+[current] 3577628.LOFI dubstep          ref= 139.0 est= 112.35 -- 0.1s
+[current] 4163587.LOFI dubstep          ref= 127.0 est= 123.05 A1 0.2s
+[current] 3875632.LOFI dubstep          ref= 139.0 est=  92.29 -- 0.2s
+[current] 4020698.LOFI dubstep          ref= 141.0 est= 143.55 A1 0.1s
+[current] 210560.LOFI chill-out        ref=  78.0 est= 161.50 A2 0.1s
+[current] 4091609.LOFI chill-out        ref=  80.0 est= 161.50 A2 0.2s
+[current] 1885798.LOFI chill-out        ref= 101.0 est= 136.00 -- 0.1s
+[current] 3658743.LOFI chill-out        ref= 144.0 est=  71.78 A2 0.1s
+[current] 172384.LOFI chill-out        ref=  84.0 est= 172.27 A2 0.2s
+[current] 426992.LOFI breaks           ref= 167.0 est= 112.35 -- 0.1s
+[current] 4694833.LOFI breaks           ref= 144.0 est= 143.55 A1 0.1s
+[current] 4800274.LOFI breaks           ref= 141.0 est=  92.29 -- 0.2s
+[current] 4773948.LOFI breaks           ref= 139.0 est=  69.84 A2 0.2s
+[current] 3467867.LOFI drum-and-bass    ref= 170.0 est= 172.27 A1 0.1s
+[current] 672063.LOFI drum-and-bass    ref= 174.0 est= 117.45 -- 0.1s
+[current] 3907042.LOFI drum-and-bass    ref= 170.0 est=  86.13 A2 0.2s
+[current] 2725286.LOFI drum-and-bass    ref= 174.0 est= 117.45 -- 0.1s
+[current] 4331667.LOFI drum-and-bass    ref= 174.0 est=  86.13 A2 0.2s
+[current] 5261461.LOFI house            ref= 174.0 est= 117.45 -- 0.2s
+[current] 2013128.LOFI house            ref= 127.0 est=  63.02 A2 0.2s
+[current] 5135326.LOFI house            ref= 130.0 est= 103.36 -- 0.1s
+[current] 1791554.LOFI techno           ref= 125.0 est= 172.27 -- 0.1s
+[current] 2677224.LOFI techno           ref= 127.0 est=  83.35 -- 0.2s
+[current] 2726353.LOFI techno           ref= 117.0 est= 117.45 A1 0.2s
+== current: 8.3s total
+[librosa_tempo_full] 3863498.LOFI hip-hop          ref= 150.0 est=  99.38 -- 0.2s
+[librosa_tempo_full] 4633603.LOFI hip-hop          ref= 139.0 est= 143.55 A1 0.2s
+[librosa_tempo_full] 3958395.LOFI funk-r-and-b     ref= 136.0 est= 136.00 A1 0.2s
+[librosa_tempo_full] 3733281.LOFI reggae-dub       ref=  70.0 est= 143.55 A2 0.2s
+[librosa_tempo_full] 1874244.LOFI reggae-dub       ref=  71.0 est=  92.29 -- 0.2s
+[librosa_tempo_full] 3892740.LOFI pop-rock         ref= 129.0 est= 129.20 A1 0.2s
+[librosa_tempo_full] 1743969.LOFI pop-rock         ref=  79.0 est= 161.50 A2 0.2s
+[librosa_tempo_full] 3151015.LOFI pop-rock         ref= 174.0 est= 117.45 -- 0.2s
+[librosa_tempo_full] 4093555.LOFI glitch-hop       ref=  92.0 est= 123.05 -- 0.2s
+[librosa_tempo_full] 3983645.LOFI glitch-hop       ref= 110.0 est= 112.35 A1 0.2s
+[librosa_tempo_full] 5070846.LOFI glitch-hop       ref= 110.0 est= 112.35 A1 0.2s
+[librosa_tempo_full] 4714481.LOFI glitch-hop       ref= 112.0 est= 112.35 A1 0.2s
+[librosa_tempo_full] 4468729.LOFI glitch-hop       ref= 160.0 est= 107.67 -- 0.2s
+[librosa_tempo_full] 4703149.LOFI glitch-hop       ref= 110.0 est= 112.35 A1 0.2s
+[librosa_tempo_full] 1839656.LOFI dubstep          ref= 140.0 est=  92.29 -- 0.2s
+[librosa_tempo_full] 4936740.LOFI dubstep          ref= 142.0 est=  92.29 -- 0.2s
+[librosa_tempo_full] 3577628.LOFI dubstep          ref= 139.0 est= 143.55 A1 0.2s
+[librosa_tempo_full] 4163587.LOFI dubstep          ref= 127.0 est= 123.05 A1 0.2s
+[librosa_tempo_full] 3875632.LOFI dubstep          ref= 139.0 est=  92.29 -- 0.2s
+[librosa_tempo_full] 4020698.LOFI dubstep          ref= 141.0 est= 143.55 A1 0.3s
+[librosa_tempo_full] 210560.LOFI chill-out        ref=  78.0 est= 103.36 -- 0.2s
+[librosa_tempo_full] 4091609.LOFI chill-out        ref=  80.0 est= 161.50 A2 0.2s
+[librosa_tempo_full] 1885798.LOFI chill-out        ref= 101.0 est= 136.00 -- 0.2s
+[librosa_tempo_full] 3658743.LOFI chill-out        ref= 144.0 est= 143.55 A1 0.3s
+[librosa_tempo_full] 172384.LOFI chill-out        ref=  84.0 est= 172.27 A2 0.2s
+[librosa_tempo_full] 426992.LOFI breaks           ref= 167.0 est= 112.35 -- 0.2s
+[librosa_tempo_full] 4694833.LOFI breaks           ref= 144.0 est= 143.55 A1 0.2s
+[librosa_tempo_full] 4800274.LOFI breaks           ref= 141.0 est=  92.29 -- 0.2s
+[librosa_tempo_full] 4773948.LOFI breaks           ref= 139.0 est= 143.55 A1 0.2s
+[librosa_tempo_full] 3467867.LOFI drum-and-bass    ref= 170.0 est=  86.13 A2 0.2s
+[librosa_tempo_full] 672063.LOFI drum-and-bass    ref= 174.0 est= 117.45 -- 0.2s
+[librosa_tempo_full] 3907042.LOFI drum-and-bass    ref= 170.0 est= 172.27 A1 0.2s
+[librosa_tempo_full] 2725286.LOFI drum-and-bass    ref= 174.0 est= 117.45 -- 0.2s
+[librosa_tempo_full] 4331667.LOFI drum-and-bass    ref= 174.0 est= 117.45 -- 0.3s
+[librosa_tempo_full] 5261461.LOFI house            ref= 174.0 est= 117.45 -- 0.3s
+[librosa_tempo_full] 2013128.LOFI house            ref= 127.0 est=  83.35 -- 0.2s
+[librosa_tempo_full] 5135326.LOFI house            ref= 130.0 est= 103.36 -- 0.2s
+[librosa_tempo_full] 1791554.LOFI techno           ref= 125.0 est=  99.38 -- 0.2s
+[librosa_tempo_full] 2677224.LOFI techno           ref= 127.0 est= 123.05 A1 0.3s
+[librosa_tempo_full] 2726353.LOFI techno           ref= 117.0 est= 117.45 A1 0.2s
+== librosa_tempo_full: 9.1s total
+[librosa_multiwin] 3863498.LOFI hip-hop          ref= 150.0 est=  99.38 -- 0.3s
+[librosa_multiwin] 4633603.LOFI hip-hop          ref= 139.0 est=  92.29 -- 0.3s
+[librosa_multiwin] 3958395.LOFI funk-r-and-b     ref= 136.0 est=  68.00 A2 0.3s
+[librosa_multiwin] 3733281.LOFI reggae-dub       ref=  70.0 est= 143.55 A2 0.3s
+[librosa_multiwin] 1874244.LOFI reggae-dub       ref=  71.0 est=  92.29 -- 0.3s
+[librosa_multiwin] 3892740.LOFI pop-rock         ref= 129.0 est= 129.20 A1 0.3s
+[librosa_multiwin] 1743969.LOFI pop-rock         ref=  79.0 est=  78.30 A1 0.3s
+[librosa_multiwin] 3151015.LOFI pop-rock         ref= 174.0 est=  86.13 A2 0.3s
+[librosa_multiwin] 4093555.LOFI glitch-hop       ref=  92.0 est= 123.05 -- 0.3s
+[librosa_multiwin] 3983645.LOFI glitch-hop       ref= 110.0 est=  89.10 -- 0.3s
+[librosa_multiwin] 5070846.LOFI glitch-hop       ref= 110.0 est= 112.35 A1 0.3s
+[librosa_multiwin] 4714481.LOFI glitch-hop       ref= 112.0 est= 112.35 A1 0.4s
+[librosa_multiwin] 4468729.LOFI glitch-hop       ref= 160.0 est= 107.67 -- 0.4s
+[librosa_multiwin] 4703149.LOFI glitch-hop       ref= 110.0 est= 112.35 A1 0.2s
+[librosa_multiwin] 1839656.LOFI dubstep          ref= 140.0 est=  69.84 A2 0.3s
+[librosa_multiwin] 4936740.LOFI dubstep          ref= 142.0 est=  92.29 -- 0.3s
+[librosa_multiwin] 3577628.LOFI dubstep          ref= 139.0 est=  92.29 -- 0.3s
+[librosa_multiwin] 4163587.LOFI dubstep          ref= 127.0 est=  63.02 A2 0.3s
+[librosa_multiwin] 3875632.LOFI dubstep          ref= 139.0 est=  92.29 -- 0.3s
+[librosa_multiwin] 4020698.LOFI dubstep          ref= 141.0 est=  69.84 A2 0.3s
+[librosa_multiwin] 210560.LOFI chill-out        ref=  78.0 est=  78.30 A1 0.3s
+[librosa_multiwin] 4091609.LOFI chill-out        ref=  80.0 est= 161.50 A2 0.3s
+[librosa_multiwin] 1885798.LOFI chill-out        ref= 101.0 est= 136.00 -- 0.3s
+[librosa_multiwin] 3658743.LOFI chill-out        ref= 144.0 est=  71.78 A2 0.3s
+[librosa_multiwin] 172384.LOFI chill-out        ref=  84.0 est=  83.35 A1 0.3s
+[librosa_multiwin] 426992.LOFI breaks           ref= 167.0 est=  83.35 A2 0.3s
+[librosa_multiwin] 4694833.LOFI breaks           ref= 144.0 est=  95.70 -- 0.3s
+[librosa_multiwin] 4800274.LOFI breaks           ref= 141.0 est=  92.29 -- 0.3s
+[librosa_multiwin] 4773948.LOFI breaks           ref= 139.0 est=  69.84 A2 0.3s
+[librosa_multiwin] 3467867.LOFI drum-and-bass    ref= 170.0 est=  86.13 A2 0.3s
+[librosa_multiwin] 672063.LOFI drum-and-bass    ref= 174.0 est= 117.45 -- 0.3s
+[librosa_multiwin] 3907042.LOFI drum-and-bass    ref= 170.0 est=  86.13 A2 0.3s
+[librosa_multiwin] 2725286.LOFI drum-and-bass    ref= 174.0 est=  86.13 A2 0.3s
+[librosa_multiwin] 4331667.LOFI drum-and-bass    ref= 174.0 est=  86.13 A2 0.3s
+[librosa_multiwin] 5261461.LOFI house            ref= 174.0 est= 117.45 -- 0.3s
+[librosa_multiwin] 2013128.LOFI house            ref= 127.0 est=  63.02 A2 0.3s
+[librosa_multiwin] 5135326.LOFI house            ref= 130.0 est=  64.60 A2 0.3s
+[librosa_multiwin] 1791554.LOFI techno           ref= 125.0 est=  63.02 A2 0.3s
+[librosa_multiwin] 2677224.LOFI techno           ref= 127.0 est=  83.35 -- 0.3s
+[librosa_multiwin] 2726353.LOFI techno           ref= 117.0 est= 117.45 A1 0.3s
+== librosa_multiwin: 11.4s total
+[librosa_multiwin_folded] 3863498.LOFI hip-hop          ref= 150.0 est=  99.38 -- 0.3s
+[librosa_multiwin_folded] 4633603.LOFI hip-hop          ref= 139.0 est=  92.29 -- 0.3s
+[librosa_multiwin_folded] 3958395.LOFI funk-r-and-b     ref= 136.0 est=  68.00 A2 0.3s
+[librosa_multiwin_folded] 3733281.LOFI reggae-dub       ref=  70.0 est= 143.55 A2 0.3s
+[librosa_multiwin_folded] 1874244.LOFI reggae-dub       ref=  71.0 est=  92.29 -- 0.3s
+[librosa_multiwin_folded] 3892740.LOFI pop-rock         ref= 129.0 est= 129.20 A1 0.3s
+[librosa_multiwin_folded] 1743969.LOFI pop-rock         ref=  79.0 est=  78.30 A1 0.3s
+[librosa_multiwin_folded] 3151015.LOFI pop-rock         ref= 174.0 est=  86.13 A2 0.3s
+[librosa_multiwin_folded] 4093555.LOFI glitch-hop       ref=  92.0 est= 123.05 -- 0.3s
+[librosa_multiwin_folded] 3983645.LOFI glitch-hop       ref= 110.0 est=  89.10 -- 0.3s
+[librosa_multiwin_folded] 5070846.LOFI glitch-hop       ref= 110.0 est= 112.35 A1 0.3s
+[librosa_multiwin_folded] 4714481.LOFI glitch-hop       ref= 112.0 est= 112.35 A1 0.3s
+[librosa_multiwin_folded] 4468729.LOFI glitch-hop       ref= 160.0 est= 107.67 -- 0.3s
+[librosa_multiwin_folded] 4703149.LOFI glitch-hop       ref= 110.0 est= 112.35 A1 0.2s
+[librosa_multiwin_folded] 1839656.LOFI dubstep          ref= 140.0 est=  69.84 A2 0.3s
+[librosa_multiwin_folded] 4936740.LOFI dubstep          ref= 142.0 est=  92.29 -- 0.3s
+[librosa_multiwin_folded] 3577628.LOFI dubstep          ref= 139.0 est=  92.29 -- 0.3s
+[librosa_multiwin_folded] 4163587.LOFI dubstep          ref= 127.0 est=  63.02 A2 0.3s
+[librosa_multiwin_folded] 3875632.LOFI dubstep          ref= 139.0 est=  92.29 -- 0.3s
+[librosa_multiwin_folded] 4020698.LOFI dubstep          ref= 141.0 est=  69.84 A2 0.3s
+[librosa_multiwin_folded] 210560.LOFI chill-out        ref=  78.0 est=  78.30 A1 0.3s
+[librosa_multiwin_folded] 4091609.LOFI chill-out        ref=  80.0 est= 161.50 A2 0.3s
+[librosa_multiwin_folded] 1885798.LOFI chill-out        ref= 101.0 est= 136.00 -- 0.3s
+[librosa_multiwin_folded] 3658743.LOFI chill-out        ref= 144.0 est=  71.78 A2 0.3s
+[librosa_multiwin_folded] 172384.LOFI chill-out        ref=  84.0 est=  83.35 A1 0.3s
+[librosa_multiwin_folded] 426992.LOFI breaks           ref= 167.0 est=  83.35 A2 0.3s
+[librosa_multiwin_folded] 4694833.LOFI breaks           ref= 144.0 est=  95.70 -- 0.3s
+[librosa_multiwin_folded] 4800274.LOFI breaks           ref= 141.0 est=  92.29 -- 0.3s
+[librosa_multiwin_folded] 4773948.LOFI breaks           ref= 139.0 est=  69.84 A2 0.3s
+[librosa_multiwin_folded] 3467867.LOFI drum-and-bass    ref= 170.0 est=  86.13 A2 0.3s
+[librosa_multiwin_folded] 672063.LOFI drum-and-bass    ref= 174.0 est= 117.45 -- 0.3s
+[librosa_multiwin_folded] 3907042.LOFI drum-and-bass    ref= 170.0 est=  86.13 A2 0.3s
+[librosa_multiwin_folded] 2725286.LOFI drum-and-bass    ref= 174.0 est=  86.13 A2 0.3s
+[librosa_multiwin_folded] 4331667.LOFI drum-and-bass    ref= 174.0 est=  86.13 A2 0.3s
+[librosa_multiwin_folded] 5261461.LOFI house            ref= 174.0 est= 117.45 -- 0.3s
+[librosa_multiwin_folded] 2013128.LOFI house            ref= 127.0 est=  63.02 A2 0.3s
+[librosa_multiwin_folded] 5135326.LOFI house            ref= 130.0 est=  64.60 A2 0.3s
+[librosa_multiwin_folded] 1791554.LOFI techno           ref= 125.0 est=  63.02 A2 0.3s
+[librosa_multiwin_folded] 2677224.LOFI techno           ref= 127.0 est=  83.35 -- 0.3s
+[librosa_multiwin_folded] 2726353.LOFI techno           ref= 117.0 est= 117.45 A1 0.3s
+== librosa_multiwin_folded: 10.7s total
+[essentia_re2013] 3863498.LOFI hip-hop          ref= 150.0 est=  73.74 A2 2.1s
+[essentia_re2013] 4633603.LOFI hip-hop          ref= 139.0 est= 140.00 A1 1.3s
+[essentia_re2013] 3958395.LOFI funk-r-and-b     ref= 136.0 est=  67.44 A2 1.3s
+[essentia_re2013] 3733281.LOFI reggae-dub       ref=  70.0 est= 140.04 A2 1.3s
+[essentia_re2013] 1874244.LOFI reggae-dub       ref=  71.0 est=  93.03 -- 1.4s
+[essentia_re2013] 3892740.LOFI pop-rock         ref= 129.0 est= 128.18 A1 1.3s
+[essentia_re2013] 1743969.LOFI pop-rock         ref=  79.0 est= 155.84 A2 1.3s
+[essentia_re2013] 3151015.LOFI pop-rock         ref= 174.0 est=  86.97 A2 1.4s
+[essentia_re2013] 4093555.LOFI glitch-hop       ref=  92.0 est=  91.91 A1 1.4s
+[essentia_re2013] 3983645.LOFI glitch-hop       ref= 110.0 est= 110.03 A1 1.3s
+[essentia_re2013] 5070846.LOFI glitch-hop       ref= 110.0 est= 109.96 A1 1.4s
+[essentia_re2013] 4714481.LOFI glitch-hop       ref= 112.0 est= 147.70 -- 1.4s
+[essentia_re2013] 4468729.LOFI glitch-hop       ref= 160.0 est= 106.48 -- 1.3s
+[essentia_re2013] 4703149.LOFI glitch-hop       ref= 110.0 est= 110.09 A1 1.2s
+[essentia_re2013] 1839656.LOFI dubstep          ref= 140.0 est= 139.95 A1 1.3s
+[essentia_re2013] 4936740.LOFI dubstep          ref= 142.0 est= 139.99 A1 1.3s
+[essentia_re2013] 3577628.LOFI dubstep          ref= 139.0 est= 140.01 A1 1.3s
+[essentia_re2013] 4163587.LOFI dubstep          ref= 127.0 est= 126.03 A1 1.3s
+[essentia_re2013] 3875632.LOFI dubstep          ref= 139.0 est= 139.93 A1 1.3s
+[essentia_re2013] 4020698.LOFI dubstep          ref= 141.0 est= 140.02 A1 1.3s
+[essentia_re2013] 210560.LOFI chill-out        ref=  78.0 est= 161.55 A2 1.4s
+[essentia_re2013] 4091609.LOFI chill-out        ref=  80.0 est= 161.50 A2 1.3s
+[essentia_re2013] 1885798.LOFI chill-out        ref= 101.0 est= 132.59 -- 1.3s
+[essentia_re2013] 3658743.LOFI chill-out        ref= 144.0 est= 144.04 A1 1.4s
+[essentia_re2013] 172384.LOFI chill-out        ref=  84.0 est= 166.60 A2 1.3s
+[essentia_re2013] 426992.LOFI breaks           ref= 167.0 est= 166.23 A1 1.3s
+[essentia_re2013] 4694833.LOFI breaks           ref= 144.0 est= 142.95 A1 1.4s
+[essentia_re2013] 4800274.LOFI breaks           ref= 141.0 est=  92.81 -- 1.4s
+[essentia_re2013] 4773948.LOFI breaks           ref= 139.0 est= 139.87 A1 1.3s
+[essentia_re2013] 3467867.LOFI drum-and-bass    ref= 170.0 est=  85.88 A2 1.4s
+[essentia_re2013] 672063.LOFI drum-and-bass    ref= 174.0 est=  87.54 A2 1.4s
+[essentia_re2013] 3907042.LOFI drum-and-bass    ref= 170.0 est=  85.01 A2 1.4s
+[essentia_re2013] 2725286.LOFI drum-and-bass    ref= 174.0 est=  87.45 A2 1.4s
+[essentia_re2013] 4331667.LOFI drum-and-bass    ref= 174.0 est=  87.17 A2 1.5s
+[essentia_re2013] 5261461.LOFI house            ref= 174.0 est= 116.67 -- 1.4s
+[essentia_re2013] 2013128.LOFI house            ref= 127.0 est= 125.81 A1 1.6s
+[essentia_re2013] 5135326.LOFI house            ref= 130.0 est=  64.98 A2 1.5s
+[essentia_re2013] 1791554.LOFI techno           ref= 125.0 est=  63.05 A2 1.3s
+[essentia_re2013] 2677224.LOFI techno           ref= 127.0 est=  84.01 -- 1.3s
+[essentia_re2013] 2726353.LOFI techno           ref= 117.0 est= 117.51 A1 1.3s
+== essentia_re2013: 55.3s total
+[essentia_degara] 3863498.LOFI hip-hop          ref= 150.0 est=  98.26 -- 0.4s
+[essentia_degara] 4633603.LOFI hip-hop          ref= 139.0 est= 140.00 A1 0.4s
+[essentia_degara] 3958395.LOFI funk-r-and-b     ref= 136.0 est= 134.96 A1 0.4s
+[essentia_degara] 3733281.LOFI reggae-dub       ref=  70.0 est= 140.04 A2 0.4s
+[essentia_degara] 1874244.LOFI reggae-dub       ref=  71.0 est=  93.03 -- 0.4s
+[essentia_degara] 3892740.LOFI pop-rock         ref= 129.0 est= 128.06 A1 0.4s
+[essentia_degara] 1743969.LOFI pop-rock         ref=  79.0 est= 156.07 A2 0.4s
+[essentia_degara] 3151015.LOFI pop-rock         ref= 174.0 est= 172.27 A1 0.4s
+[essentia_degara] 4093555.LOFI glitch-hop       ref=  92.0 est= 122.58 -- 0.4s
+[essentia_degara] 3983645.LOFI glitch-hop       ref= 110.0 est= 110.03 A1 0.5s
+[essentia_degara] 5070846.LOFI glitch-hop       ref= 110.0 est= 110.00 A1 0.4s
+[essentia_degara] 4714481.LOFI glitch-hop       ref= 112.0 est= 140.29 -- 0.4s
+[essentia_degara] 4468729.LOFI glitch-hop       ref= 160.0 est= 106.48 -- 0.4s
+[essentia_degara] 4703149.LOFI glitch-hop       ref= 110.0 est= 109.94 A1 0.3s
+[essentia_degara] 1839656.LOFI dubstep          ref= 140.0 est= 139.95 A1 0.4s
+[essentia_degara] 4936740.LOFI dubstep          ref= 142.0 est= 139.78 A1 0.4s
+[essentia_degara] 3577628.LOFI dubstep          ref= 139.0 est= 140.01 A1 0.4s
+[essentia_degara] 4163587.LOFI dubstep          ref= 127.0 est= 126.03 A1 0.4s
+[essentia_degara] 3875632.LOFI dubstep          ref= 139.0 est= 140.06 A1 0.4s
+[essentia_degara] 4020698.LOFI dubstep          ref= 141.0 est= 139.94 A1 0.4s
+[essentia_degara] 210560.LOFI chill-out        ref=  78.0 est= 156.28 A2 0.4s
+[essentia_degara] 4091609.LOFI chill-out        ref=  80.0 est= 161.50 A2 0.4s
+[essentia_degara] 1885798.LOFI chill-out        ref= 101.0 est= 129.39 -- 0.4s
+[essentia_degara] 3658743.LOFI chill-out        ref= 144.0 est= 144.04 A1 0.4s
+[essentia_degara] 172384.LOFI chill-out        ref=  84.0 est= 166.43 A2 0.4s
+[essentia_degara] 426992.LOFI breaks           ref= 167.0 est= 166.16 A1 0.4s
+[essentia_degara] 4694833.LOFI breaks           ref= 144.0 est= 142.95 A1 0.4s
+[essentia_degara] 4800274.LOFI breaks           ref= 141.0 est=  92.81 -- 0.4s
+[essentia_degara] 4773948.LOFI breaks           ref= 139.0 est= 139.87 A1 0.4s
+[essentia_degara] 3467867.LOFI drum-and-bass    ref= 170.0 est=  85.70 A2 0.4s
+[essentia_degara] 672063.LOFI drum-and-bass    ref= 174.0 est=  87.54 A2 0.4s
+[essentia_degara] 3907042.LOFI drum-and-bass    ref= 170.0 est=  84.99 A2 0.4s
+[essentia_degara] 2725286.LOFI drum-and-bass    ref= 174.0 est=  87.45 A2 0.4s
+[essentia_degara] 4331667.LOFI drum-and-bass    ref= 174.0 est= 172.27 A1 0.4s
+[essentia_degara] 5261461.LOFI house            ref= 174.0 est= 172.27 A1 0.4s
+[essentia_degara] 2013128.LOFI house            ref= 127.0 est= 125.81 A1 0.4s
+[essentia_degara] 5135326.LOFI house            ref= 130.0 est=  64.98 A2 0.4s
+[essentia_degara] 1791554.LOFI techno           ref= 125.0 est=  63.05 A2 0.4s
+[essentia_degara] 2677224.LOFI techno           ref= 127.0 est=  83.91 -- 0.4s
+[essentia_degara] 2726353.LOFI techno           ref= 117.0 est= 117.59 A1 0.4s
+== essentia_degara: 16.1s total
+[   INFO   ] On connection Flux::flux → IIR::signal:
+[   INFO   ] BUFFER SIZE MISMATCH: max=0 - asked for read size 4096
+[   INFO   ] resizing buffer to 36040/4505
+[   INFO   ] FrameCutter: dropping incomplete frame
+[essentia_percival] 3863498.LOFI hip-hop          ref= 150.0 est=  74.09 A2 0.5s
+[   INFO   ] On connection Flux::flux → IIR::signal:
+[   INFO   ] BUFFER SIZE MISMATCH: max=0 - asked for read size 4096
+[   INFO   ] resizing buffer to 36040/4505
+[   INFO   ] FrameCutter: dropping incomplete frame
+[essentia_percival] 4633603.LOFI hip-hop          ref= 139.0 est=  69.84 A2 0.5s
+[   INFO   ] On connection Flux::flux → IIR::signal:
+[   INFO   ] BUFFER SIZE MISMATCH: max=0 - asked for read size 4096
+[   INFO   ] resizing buffer to 36040/4505
+[   INFO   ] FrameCutter: dropping incomplete frame
+[essentia_percival] 3958395.LOFI funk-r-and-b     ref= 136.0 est= 135.11 A1 0.5s
+[   INFO   ] On connection Flux::flux → IIR::signal:
+[   INFO   ] BUFFER SIZE MISMATCH: max=0 - asked for read size 4096
+[   INFO   ] resizing buffer to 36040/4505
+[   INFO   ] FrameCutter: dropping incomplete frame
+[essentia_percival] 3733281.LOFI reggae-dub       ref=  70.0 est= 139.67 A2 0.5s
+[   INFO   ] On connection Flux::flux → IIR::signal:
+[   INFO   ] BUFFER SIZE MISMATCH: max=0 - asked for read size 4096
+[   INFO   ] resizing buffer to 36040/4505
+[   INFO   ] FrameCutter: dropping incomplete frame
+[essentia_percival] 1874244.LOFI reggae-dub       ref=  71.0 est=  93.54 -- 0.5s
+[   INFO   ] On connection Flux::flux → IIR::signal:
+[   INFO   ] BUFFER SIZE MISMATCH: max=0 - asked for read size 4096
+[   INFO   ] resizing buffer to 36040/4505
+[   INFO   ] FrameCutter: dropping incomplete frame
+[essentia_percival] 3892740.LOFI pop-rock         ref= 129.0 est= 128.40 A1 0.5s
+[   INFO   ] On connection Flux::flux → IIR::signal:
+[   INFO   ] BUFFER SIZE MISMATCH: max=0 - asked for read size 4096
+[   INFO   ] resizing buffer to 36040/4505
+[   INFO   ] FrameCutter: dropping incomplete frame
+[essentia_percival] 1743969.LOFI pop-rock         ref=  79.0 est=  78.30 A1 0.5s
+[   INFO   ] On connection Flux::flux → IIR::signal:
+[   INFO   ] BUFFER SIZE MISMATCH: max=0 - asked for read size 4096
+[   INFO   ] resizing buffer to 36040/4505
+[   INFO   ] FrameCutter: dropping incomplete frame
+[essentia_percival] 3151015.LOFI pop-rock         ref= 174.0 est=  86.86 A2 0.5s
+[   INFO   ] On connection Flux::flux → IIR::signal:
+[   INFO   ] BUFFER SIZE MISMATCH: max=0 - asked for read size 4096
+[   INFO   ] resizing buffer to 36040/4505
+[   INFO   ] FrameCutter: dropping incomplete frame
+[essentia_percival] 4093555.LOFI glitch-hop       ref=  92.0 est=  91.88 A1 0.5s
+[   INFO   ] On connection Flux::flux → IIR::signal:
+[   INFO   ] BUFFER SIZE MISMATCH: max=0 - asked for read size 4096
+[   INFO   ] resizing buffer to 36040/4505
+[   INFO   ] FrameCutter: dropping incomplete frame
+[essentia_percival] 3983645.LOFI glitch-hop       ref= 110.0 est= 109.96 A1 0.5s
+[   INFO   ] On connection Flux::flux → IIR::signal:
+[   INFO   ] BUFFER SIZE MISMATCH: max=0 - asked for read size 4096
+[   INFO   ] resizing buffer to 36040/4505
+[   INFO   ] FrameCutter: dropping incomplete frame
+[essentia_percival] 5070846.LOFI glitch-hop       ref= 110.0 est= 109.96 A1 0.5s
+[   INFO   ] On connection Flux::flux → IIR::signal:
+[   INFO   ] BUFFER SIZE MISMATCH: max=0 - asked for read size 4096
+[   INFO   ] resizing buffer to 36040/4505
+[   INFO   ] FrameCutter: dropping incomplete frame
+[essentia_percival] 4714481.LOFI glitch-hop       ref= 112.0 est= 149.80 -- 0.5s
+[   INFO   ] On connection Flux::flux → IIR::signal:
+[   INFO   ] BUFFER SIZE MISMATCH: max=0 - asked for read size 4096
+[   INFO   ] resizing buffer to 36040/4505
+[   INFO   ] FrameCutter: dropping incomplete frame
+[essentia_percival] 4468729.LOFI glitch-hop       ref= 160.0 est=  80.12 A2 0.5s
+[   INFO   ] On connection Flux::flux → IIR::signal:
+[   INFO   ] BUFFER SIZE MISMATCH: max=0 - asked for read size 4096
+[   INFO   ] resizing buffer to 36040/4505
+[   INFO   ] FrameCutter: dropping incomplete frame
+[essentia_percival] 4703149.LOFI glitch-hop       ref= 110.0 est= 109.96 A1 0.4s
+[   INFO   ] On connection Flux::flux → IIR::signal:
+[   INFO   ] BUFFER SIZE MISMATCH: max=0 - asked for read size 4096
+[   INFO   ] resizing buffer to 36040/4505
+[   INFO   ] FrameCutter: dropping incomplete frame
+[essentia_percival] 1839656.LOFI dubstep          ref= 140.0 est= 139.67 A1 0.5s
+[   INFO   ] On connection Flux::flux → IIR::signal:
+[   INFO   ] BUFFER SIZE MISMATCH: max=0 - asked for read size 4096
+[   INFO   ] resizing buffer to 36040/4505
+[   INFO   ] FrameCutter: dropping incomplete frame
+[essentia_percival] 4936740.LOFI dubstep          ref= 142.0 est= 139.67 A1 0.5s
+[   INFO   ] On connection Flux::flux → IIR::signal:
+[   INFO   ] BUFFER SIZE MISMATCH: max=0 - asked for read size 4096
+[   INFO   ] resizing buffer to 36040/4505
+[   INFO   ] FrameCutter: dropping incomplete frame
+[essentia_percival] 3577628.LOFI dubstep          ref= 139.0 est=  69.84 A2 0.6s
+[   INFO   ] On connection Flux::flux → IIR::signal:
+[   INFO   ] BUFFER SIZE MISMATCH: max=0 - asked for read size 4096
+[   INFO   ] resizing buffer to 36040/4505
+[   INFO   ] FrameCutter: dropping incomplete frame
+[essentia_percival] 4163587.LOFI dubstep          ref= 127.0 est= 126.05 A1 0.6s
+[   INFO   ] On connection Flux::flux → IIR::signal:
+[   INFO   ] BUFFER SIZE MISMATCH: max=0 - asked for read size 4096
+[   INFO   ] resizing buffer to 36040/4505
+[   INFO   ] FrameCutter: dropping incomplete frame
+[essentia_percival] 3875632.LOFI dubstep          ref= 139.0 est=  70.07 A2 0.6s
+[   INFO   ] On connection Flux::flux → IIR::signal:
+[   INFO   ] BUFFER SIZE MISMATCH: max=0 - asked for read size 4096
+[   INFO   ] resizing buffer to 36040/4505
+[   INFO   ] FrameCutter: dropping incomplete frame
+[essentia_percival] 4020698.LOFI dubstep          ref= 141.0 est= 139.67 A1 0.6s
+[   INFO   ] On connection Flux::flux → IIR::signal:
+[   INFO   ] BUFFER SIZE MISMATCH: max=0 - asked for read size 4096
+[   INFO   ] resizing buffer to 36040/4505
+[   INFO   ] FrameCutter: dropping incomplete frame
+[essentia_percival] 210560.LOFI chill-out        ref=  78.0 est=  78.90 A1 0.5s
+[   INFO   ] On connection Flux::flux → IIR::signal:
+[   INFO   ] BUFFER SIZE MISMATCH: max=0 - asked for read size 4096
+[   INFO   ] resizing buffer to 36040/4505
+[   INFO   ] FrameCutter: dropping incomplete frame
+[essentia_percival] 4091609.LOFI chill-out        ref=  80.0 est=  80.12 A1 0.6s
+[   INFO   ] On connection Flux::flux → IIR::signal:
+[   INFO   ] BUFFER SIZE MISMATCH: max=0 - asked for read size 4096
+[   INFO   ] resizing buffer to 36040/4505
+[   INFO   ] FrameCutter: dropping incomplete frame
+[essentia_percival] 1885798.LOFI chill-out        ref= 101.0 est= 135.11 -- 0.6s
+[   INFO   ] On connection Flux::flux → IIR::signal:
+[   INFO   ] BUFFER SIZE MISMATCH: max=0 - asked for read size 4096
+[   INFO   ] resizing buffer to 36040/4505
+[   INFO   ] FrameCutter: dropping incomplete frame
+[essentia_percival] 3658743.LOFI chill-out        ref= 144.0 est=  72.03 A2 0.6s
+[   INFO   ] On connection Flux::flux → IIR::signal:
+[   INFO   ] BUFFER SIZE MISMATCH: max=0 - asked for read size 4096
+[   INFO   ] resizing buffer to 36040/4505
+[   INFO   ] FrameCutter: dropping incomplete frame
+[essentia_percival] 172384.LOFI chill-out        ref=  84.0 est=  84.03 A1 0.5s
+[   INFO   ] On connection Flux::flux → IIR::signal:
+[   INFO   ] BUFFER SIZE MISMATCH: max=0 - asked for read size 4096
+[   INFO   ] resizing buffer to 36040/4505
+[   INFO   ] FrameCutter: dropping incomplete frame
+[essentia_percival] 426992.LOFI breaks           ref= 167.0 est=  83.35 A2 0.5s
+[   INFO   ] On connection Flux::flux → IIR::signal:
+[   INFO   ] BUFFER SIZE MISMATCH: max=0 - asked for read size 4096
+[   INFO   ] resizing buffer to 36040/4505
+[   INFO   ] FrameCutter: dropping incomplete frame
+[essentia_percival] 4694833.LOFI breaks           ref= 144.0 est=  95.70 -- 0.6s
+[   INFO   ] On connection Flux::flux → IIR::signal:
+[   INFO   ] BUFFER SIZE MISMATCH: max=0 - asked for read size 4096
+[   INFO   ] resizing buffer to 36040/4505
+[   INFO   ] FrameCutter: dropping incomplete frame
+[essentia_percival] 4800274.LOFI breaks           ref= 141.0 est=  93.12 -- 0.5s
+[   INFO   ] On connection Flux::flux → IIR::signal:
+[   INFO   ] BUFFER SIZE MISMATCH: max=0 - asked for read size 4096
+[   INFO   ] resizing buffer to 36040/4505
+[   INFO   ] FrameCutter: dropping incomplete frame
+[essentia_percival] 4773948.LOFI breaks           ref= 139.0 est= 139.67 A1 0.6s
+[   INFO   ] On connection Flux::flux → IIR::signal:
+[   INFO   ] BUFFER SIZE MISMATCH: max=0 - asked for read size 4096
+[   INFO   ] resizing buffer to 36040/4505
+[   INFO   ] FrameCutter: dropping incomplete frame
+[essentia_percival] 3467867.LOFI drum-and-bass    ref= 170.0 est=  86.13 A2 0.5s
+[   INFO   ] On connection Flux::flux → IIR::signal:
+[   INFO   ] BUFFER SIZE MISMATCH: max=0 - asked for read size 4096
+[   INFO   ] resizing buffer to 36040/4505
+[   INFO   ] FrameCutter: dropping incomplete frame
+[essentia_percival] 672063.LOFI drum-and-bass    ref= 174.0 est=  87.59 A2 0.6s
+[   INFO   ] On connection Flux::flux → IIR::signal:
+[   INFO   ] BUFFER SIZE MISMATCH: max=0 - asked for read size 4096
+[   INFO   ] resizing buffer to 36040/4505
+[   INFO   ] FrameCutter: dropping incomplete frame
+[essentia_percival] 3907042.LOFI drum-and-bass    ref= 170.0 est=  84.72 A2 0.5s
+[   INFO   ] On connection Flux::flux → IIR::signal:
+[   INFO   ] BUFFER SIZE MISMATCH: max=0 - asked for read size 4096
+[   INFO   ] resizing buffer to 36040/4505
+[   INFO   ] FrameCutter: dropping incomplete frame
+[essentia_percival] 2725286.LOFI drum-and-bass    ref= 174.0 est=  87.59 A2 0.5s
+[   INFO   ] On connection Flux::flux → IIR::signal:
+[   INFO   ] BUFFER SIZE MISMATCH: max=0 - asked for read size 4096
+[   INFO   ] resizing buffer to 36040/4505
+[   INFO   ] FrameCutter: dropping incomplete frame
+[essentia_percival] 4331667.LOFI drum-and-bass    ref= 174.0 est=  86.86 A2 0.5s
+[   INFO   ] On connection Flux::flux → IIR::signal:
+[   INFO   ] BUFFER SIZE MISMATCH: max=0 - asked for read size 4096
+[   INFO   ] resizing buffer to 36040/4505
+[   INFO   ] FrameCutter: dropping incomplete frame
+[essentia_percival] 5261461.LOFI house            ref= 174.0 est=  87.59 A2 0.5s
+[   INFO   ] On connection Flux::flux → IIR::signal:
+[   INFO   ] BUFFER SIZE MISMATCH: max=0 - asked for read size 4096
+[   INFO   ] resizing buffer to 36040/4505
+[   INFO   ] FrameCutter: dropping incomplete frame
+[essentia_percival] 2013128.LOFI house            ref= 127.0 est= 126.05 A1 0.6s
+[   INFO   ] On connection Flux::flux → IIR::signal:
+[   INFO   ] BUFFER SIZE MISMATCH: max=0 - asked for read size 4096
+[   INFO   ] resizing buffer to 36040/4505
+[   INFO   ] FrameCutter: dropping incomplete frame
+[essentia_percival] 5135326.LOFI house            ref= 130.0 est= 130.01 A1 0.5s
+[   INFO   ] On connection Flux::flux → IIR::signal:
+[   INFO   ] BUFFER SIZE MISMATCH: max=0 - asked for read size 4096
+[   INFO   ] resizing buffer to 36040/4505
+[   INFO   ] FrameCutter: dropping incomplete frame
+[essentia_percival] 1791554.LOFI techno           ref= 125.0 est= 126.05 A1 0.6s
+[   INFO   ] On connection Flux::flux → IIR::signal:
+[   INFO   ] BUFFER SIZE MISMATCH: max=0 - asked for read size 4096
+[   INFO   ] resizing buffer to 36040/4505
+[   INFO   ] FrameCutter: dropping incomplete frame
+[essentia_percival] 2677224.LOFI techno           ref= 127.0 est= 126.05 A1 0.5s
+[   INFO   ] On connection Flux::flux → IIR::signal:
+[   INFO   ] BUFFER SIZE MISMATCH: max=0 - asked for read size 4096
+[   INFO   ] resizing buffer to 36040/4505
+[   INFO   ] FrameCutter: dropping incomplete frame
+[essentia_percival] 2726353.LOFI techno           ref= 117.0 est= 117.45 A1 0.6s
+== essentia_percival: 21.3s total
+[   INFO   ] TensorflowPredict: Successfully loaded graph file: `/private/tmp/claude-501/-Users-jshriver-dev-brave-img-downloader/9dd8b903-6239-40d7-9559-aca3cd64d3c4/scratchpad/bpm-research/models/deepsquare-k16-3.pb`
+WARNING: All log messages before absl::InitializeLog() is called are written to STDERR
+I0000 00:00:1789120758.998941 7960755 mlir_graph_optimization_pass.cc:437] MLIR V1 optimization pass is not enabled
+[tempocnn_deepsquare] 3863498.LOFI hip-hop          ref= 150.0 est=  74.00 A2 1.2s
+[   INFO   ] TensorflowPredict: Successfully loaded graph file: `/private/tmp/claude-501/-Users-jshriver-dev-brave-img-downloader/9dd8b903-6239-40d7-9559-aca3cd64d3c4/scratchpad/bpm-research/models/deepsquare-k16-3.pb`
+[tempocnn_deepsquare] 4633603.LOFI hip-hop          ref= 139.0 est= 140.00 A1 1.0s
+[   INFO   ] TensorflowPredict: Successfully loaded graph file: `/private/tmp/claude-501/-Users-jshriver-dev-brave-img-downloader/9dd8b903-6239-40d7-9559-aca3cd64d3c4/scratchpad/bpm-research/models/deepsquare-k16-3.pb`
+[tempocnn_deepsquare] 3958395.LOFI funk-r-and-b     ref= 136.0 est= 135.00 A1 1.0s
+[   INFO   ] TensorflowPredict: Successfully loaded graph file: `/private/tmp/claude-501/-Users-jshriver-dev-brave-img-downloader/9dd8b903-6239-40d7-9559-aca3cd64d3c4/scratchpad/bpm-research/models/deepsquare-k16-3.pb`
+[tempocnn_deepsquare] 3733281.LOFI reggae-dub       ref=  70.0 est= 140.00 A2 1.0s
+[   INFO   ] TensorflowPredict: Successfully loaded graph file: `/private/tmp/claude-501/-Users-jshriver-dev-brave-img-downloader/9dd8b903-6239-40d7-9559-aca3cd64d3c4/scratchpad/bpm-research/models/deepsquare-k16-3.pb`
+[tempocnn_deepsquare] 1874244.LOFI reggae-dub       ref=  71.0 est=  70.00 A1 1.0s
+[   INFO   ] TensorflowPredict: Successfully loaded graph file: `/private/tmp/claude-501/-Users-jshriver-dev-brave-img-downloader/9dd8b903-6239-40d7-9559-aca3cd64d3c4/scratchpad/bpm-research/models/deepsquare-k16-3.pb`
+[tempocnn_deepsquare] 3892740.LOFI pop-rock         ref= 129.0 est= 128.00 A1 1.0s
+[   INFO   ] TensorflowPredict: Successfully loaded graph file: `/private/tmp/claude-501/-Users-jshriver-dev-brave-img-downloader/9dd8b903-6239-40d7-9559-aca3cd64d3c4/scratchpad/bpm-research/models/deepsquare-k16-3.pb`
+[tempocnn_deepsquare] 1743969.LOFI pop-rock         ref=  79.0 est=  78.00 A1 0.9s
+[   INFO   ] TensorflowPredict: Successfully loaded graph file: `/private/tmp/claude-501/-Users-jshriver-dev-brave-img-downloader/9dd8b903-6239-40d7-9559-aca3cd64d3c4/scratchpad/bpm-research/models/deepsquare-k16-3.pb`
+[tempocnn_deepsquare] 3151015.LOFI pop-rock         ref= 174.0 est=  87.00 A2 1.0s
+[   INFO   ] TensorflowPredict: Successfully loaded graph file: `/private/tmp/claude-501/-Users-jshriver-dev-brave-img-downloader/9dd8b903-6239-40d7-9559-aca3cd64d3c4/scratchpad/bpm-research/models/deepsquare-k16-3.pb`
+[tempocnn_deepsquare] 4093555.LOFI glitch-hop       ref=  92.0 est=  92.00 A1 1.0s
+[   INFO   ] TensorflowPredict: Successfully loaded graph file: `/private/tmp/claude-501/-Users-jshriver-dev-brave-img-downloader/9dd8b903-6239-40d7-9559-aca3cd64d3c4/scratchpad/bpm-research/models/deepsquare-k16-3.pb`
+[tempocnn_deepsquare] 3983645.LOFI glitch-hop       ref= 110.0 est= 110.00 A1 0.9s
+[   INFO   ] TensorflowPredict: Successfully loaded graph file: `/private/tmp/claude-501/-Users-jshriver-dev-brave-img-downloader/9dd8b903-6239-40d7-9559-aca3cd64d3c4/scratchpad/bpm-research/models/deepsquare-k16-3.pb`
+[tempocnn_deepsquare] 5070846.LOFI glitch-hop       ref= 110.0 est= 110.00 A1 0.9s
+[   INFO   ] TensorflowPredict: Successfully loaded graph file: `/private/tmp/claude-501/-Users-jshriver-dev-brave-img-downloader/9dd8b903-6239-40d7-9559-aca3cd64d3c4/scratchpad/bpm-research/models/deepsquare-k16-3.pb`
+[tempocnn_deepsquare] 4714481.LOFI glitch-hop       ref= 112.0 est= 112.00 A1 0.9s
+[   INFO   ] TensorflowPredict: Successfully loaded graph file: `/private/tmp/claude-501/-Users-jshriver-dev-brave-img-downloader/9dd8b903-6239-40d7-9559-aca3cd64d3c4/scratchpad/bpm-research/models/deepsquare-k16-3.pb`
+[tempocnn_deepsquare] 4468729.LOFI glitch-hop       ref= 160.0 est= 160.00 A1 1.0s
+[   INFO   ] TensorflowPredict: Successfully loaded graph file: `/private/tmp/claude-501/-Users-jshriver-dev-brave-img-downloader/9dd8b903-6239-40d7-9559-aca3cd64d3c4/scratchpad/bpm-research/models/deepsquare-k16-3.pb`
+[tempocnn_deepsquare] 4703149.LOFI glitch-hop       ref= 110.0 est= 110.00 A1 0.9s
+[   INFO   ] TensorflowPredict: Successfully loaded graph file: `/private/tmp/claude-501/-Users-jshriver-dev-brave-img-downloader/9dd8b903-6239-40d7-9559-aca3cd64d3c4/scratchpad/bpm-research/models/deepsquare-k16-3.pb`
+[tempocnn_deepsquare] 1839656.LOFI dubstep          ref= 140.0 est= 140.00 A1 0.9s
+[   INFO   ] TensorflowPredict: Successfully loaded graph file: `/private/tmp/claude-501/-Users-jshriver-dev-brave-img-downloader/9dd8b903-6239-40d7-9559-aca3cd64d3c4/scratchpad/bpm-research/models/deepsquare-k16-3.pb`
+[tempocnn_deepsquare] 4936740.LOFI dubstep          ref= 142.0 est= 140.00 A1 0.9s
+[   INFO   ] TensorflowPredict: Successfully loaded graph file: `/private/tmp/claude-501/-Users-jshriver-dev-brave-img-downloader/9dd8b903-6239-40d7-9559-aca3cd64d3c4/scratchpad/bpm-research/models/deepsquare-k16-3.pb`
+[tempocnn_deepsquare] 3577628.LOFI dubstep          ref= 139.0 est= 140.00 A1 0.9s
+[   INFO   ] TensorflowPredict: Successfully loaded graph file: `/private/tmp/claude-501/-Users-jshriver-dev-brave-img-downloader/9dd8b903-6239-40d7-9559-aca3cd64d3c4/scratchpad/bpm-research/models/deepsquare-k16-3.pb`
+[tempocnn_deepsquare] 4163587.LOFI dubstep          ref= 127.0 est=  94.00 -- 0.9s
+[   INFO   ] TensorflowPredict: Successfully loaded graph file: `/private/tmp/claude-501/-Users-jshriver-dev-brave-img-downloader/9dd8b903-6239-40d7-9559-aca3cd64d3c4/scratchpad/bpm-research/models/deepsquare-k16-3.pb`
+[tempocnn_deepsquare] 3875632.LOFI dubstep          ref= 139.0 est= 140.00 A1 0.9s
+[   INFO   ] TensorflowPredict: Successfully loaded graph file: `/private/tmp/claude-501/-Users-jshriver-dev-brave-img-downloader/9dd8b903-6239-40d7-9559-aca3cd64d3c4/scratchpad/bpm-research/models/deepsquare-k16-3.pb`
+[tempocnn_deepsquare] 4020698.LOFI dubstep          ref= 141.0 est= 140.00 A1 0.9s
+[   INFO   ] TensorflowPredict: Successfully loaded graph file: `/private/tmp/claude-501/-Users-jshriver-dev-brave-img-downloader/9dd8b903-6239-40d7-9559-aca3cd64d3c4/scratchpad/bpm-research/models/deepsquare-k16-3.pb`
+[tempocnn_deepsquare] 210560.LOFI chill-out        ref=  78.0 est= 158.00 A2 0.9s
+[   INFO   ] TensorflowPredict: Successfully loaded graph file: `/private/tmp/claude-501/-Users-jshriver-dev-brave-img-downloader/9dd8b903-6239-40d7-9559-aca3cd64d3c4/scratchpad/bpm-research/models/deepsquare-k16-3.pb`
+[tempocnn_deepsquare] 4091609.LOFI chill-out        ref=  80.0 est= 160.00 A2 0.9s
+[   INFO   ] TensorflowPredict: Successfully loaded graph file: `/private/tmp/claude-501/-Users-jshriver-dev-brave-img-downloader/9dd8b903-6239-40d7-9559-aca3cd64d3c4/scratchpad/bpm-research/models/deepsquare-k16-3.pb`
+[tempocnn_deepsquare] 1885798.LOFI chill-out        ref= 101.0 est= 101.00 A1 0.9s
+[   INFO   ] TensorflowPredict: Successfully loaded graph file: `/private/tmp/claude-501/-Users-jshriver-dev-brave-img-downloader/9dd8b903-6239-40d7-9559-aca3cd64d3c4/scratchpad/bpm-research/models/deepsquare-k16-3.pb`
+[tempocnn_deepsquare] 3658743.LOFI chill-out        ref= 144.0 est= 144.00 A1 0.9s
+[   INFO   ] TensorflowPredict: Successfully loaded graph file: `/private/tmp/claude-501/-Users-jshriver-dev-brave-img-downloader/9dd8b903-6239-40d7-9559-aca3cd64d3c4/scratchpad/bpm-research/models/deepsquare-k16-3.pb`
+[tempocnn_deepsquare] 172384.LOFI chill-out        ref=  84.0 est=  84.00 A1 0.9s
+[   INFO   ] TensorflowPredict: Successfully loaded graph file: `/private/tmp/claude-501/-Users-jshriver-dev-brave-img-downloader/9dd8b903-6239-40d7-9559-aca3cd64d3c4/scratchpad/bpm-research/models/deepsquare-k16-3.pb`
+[tempocnn_deepsquare] 426992.LOFI breaks           ref= 167.0 est= 167.00 A1 0.9s
+[   INFO   ] TensorflowPredict: Successfully loaded graph file: `/private/tmp/claude-501/-Users-jshriver-dev-brave-img-downloader/9dd8b903-6239-40d7-9559-aca3cd64d3c4/scratchpad/bpm-research/models/deepsquare-k16-3.pb`
+[tempocnn_deepsquare] 4694833.LOFI breaks           ref= 144.0 est= 143.00 A1 0.9s
+[   INFO   ] TensorflowPredict: Successfully loaded graph file: `/private/tmp/claude-501/-Users-jshriver-dev-brave-img-downloader/9dd8b903-6239-40d7-9559-aca3cd64d3c4/scratchpad/bpm-research/models/deepsquare-k16-3.pb`
+[tempocnn_deepsquare] 4800274.LOFI breaks           ref= 141.0 est= 139.00 A1 1.0s
+[   INFO   ] TensorflowPredict: Successfully loaded graph file: `/private/tmp/claude-501/-Users-jshriver-dev-brave-img-downloader/9dd8b903-6239-40d7-9559-aca3cd64d3c4/scratchpad/bpm-research/models/deepsquare-k16-3.pb`
+[tempocnn_deepsquare] 4773948.LOFI breaks           ref= 139.0 est= 140.00 A1 0.9s
+[   INFO   ] TensorflowPredict: Successfully loaded graph file: `/private/tmp/claude-501/-Users-jshriver-dev-brave-img-downloader/9dd8b903-6239-40d7-9559-aca3cd64d3c4/scratchpad/bpm-research/models/deepsquare-k16-3.pb`
+[tempocnn_deepsquare] 3467867.LOFI drum-and-bass    ref= 170.0 est= 172.00 A1 0.9s
+[   INFO   ] TensorflowPredict: Successfully loaded graph file: `/private/tmp/claude-501/-Users-jshriver-dev-brave-img-downloader/9dd8b903-6239-40d7-9559-aca3cd64d3c4/scratchpad/bpm-research/models/deepsquare-k16-3.pb`
+[tempocnn_deepsquare] 672063.LOFI drum-and-bass    ref= 174.0 est= 175.00 A1 0.9s
+[   INFO   ] TensorflowPredict: Successfully loaded graph file: `/private/tmp/claude-501/-Users-jshriver-dev-brave-img-downloader/9dd8b903-6239-40d7-9559-aca3cd64d3c4/scratchpad/bpm-research/models/deepsquare-k16-3.pb`
+[tempocnn_deepsquare] 3907042.LOFI drum-and-bass    ref= 170.0 est= 170.00 A1 0.9s
+[   INFO   ] TensorflowPredict: Successfully loaded graph file: `/private/tmp/claude-501/-Users-jshriver-dev-brave-img-downloader/9dd8b903-6239-40d7-9559-aca3cd64d3c4/scratchpad/bpm-research/models/deepsquare-k16-3.pb`
+[tempocnn_deepsquare] 2725286.LOFI drum-and-bass    ref= 174.0 est= 175.00 A1 0.8s
+[   INFO   ] TensorflowPredict: Successfully loaded graph file: `/private/tmp/claude-501/-Users-jshriver-dev-brave-img-downloader/9dd8b903-6239-40d7-9559-aca3cd64d3c4/scratchpad/bpm-research/models/deepsquare-k16-3.pb`
+[tempocnn_deepsquare] 4331667.LOFI drum-and-bass    ref= 174.0 est= 174.00 A1 0.8s
+[   INFO   ] TensorflowPredict: Successfully loaded graph file: `/private/tmp/claude-501/-Users-jshriver-dev-brave-img-downloader/9dd8b903-6239-40d7-9559-aca3cd64d3c4/scratchpad/bpm-research/models/deepsquare-k16-3.pb`
+[tempocnn_deepsquare] 5261461.LOFI house            ref= 174.0 est=  87.00 A2 0.9s
+[   INFO   ] TensorflowPredict: Successfully loaded graph file: `/private/tmp/claude-501/-Users-jshriver-dev-brave-img-downloader/9dd8b903-6239-40d7-9559-aca3cd64d3c4/scratchpad/bpm-research/models/deepsquare-k16-3.pb`
+[tempocnn_deepsquare] 2013128.LOFI house            ref= 127.0 est= 126.00 A1 0.8s
+[   INFO   ] TensorflowPredict: Successfully loaded graph file: `/private/tmp/claude-501/-Users-jshriver-dev-brave-img-downloader/9dd8b903-6239-40d7-9559-aca3cd64d3c4/scratchpad/bpm-research/models/deepsquare-k16-3.pb`
+[tempocnn_deepsquare] 5135326.LOFI house            ref= 130.0 est= 130.00 A1 0.8s
+[   INFO   ] TensorflowPredict: Successfully loaded graph file: `/private/tmp/claude-501/-Users-jshriver-dev-brave-img-downloader/9dd8b903-6239-40d7-9559-aca3cd64d3c4/scratchpad/bpm-research/models/deepsquare-k16-3.pb`
+[tempocnn_deepsquare] 1791554.LOFI techno           ref= 125.0 est= 126.00 A1 0.9s
+[   INFO   ] TensorflowPredict: Successfully loaded graph file: `/private/tmp/claude-501/-Users-jshriver-dev-brave-img-downloader/9dd8b903-6239-40d7-9559-aca3cd64d3c4/scratchpad/bpm-research/models/deepsquare-k16-3.pb`
+[tempocnn_deepsquare] 2677224.LOFI techno           ref= 127.0 est= 126.00 A1 0.9s
+[   INFO   ] TensorflowPredict: Successfully loaded graph file: `/private/tmp/claude-501/-Users-jshriver-dev-brave-img-downloader/9dd8b903-6239-40d7-9559-aca3cd64d3c4/scratchpad/bpm-research/models/deepsquare-k16-3.pb`
+[tempocnn_deepsquare] 2726353.LOFI techno           ref= 117.0 est= 118.00 A1 0.9s
+== tempocnn_deepsquare: 36.7s total
+[   INFO   ] TensorflowPredict: Successfully loaded graph file: `/private/tmp/claude-501/-Users-jshriver-dev-brave-img-downloader/9dd8b903-6239-40d7-9559-aca3cd64d3c4/scratchpad/bpm-research/models/deeptemp-k16-3.pb`
+[tempocnn_deeptemp] 3863498.LOFI hip-hop          ref= 150.0 est= 148.00 A1 0.9s
+[   INFO   ] TensorflowPredict: Successfully loaded graph file: `/private/tmp/claude-501/-Users-jshriver-dev-brave-img-downloader/9dd8b903-6239-40d7-9559-aca3cd64d3c4/scratchpad/bpm-research/models/deeptemp-k16-3.pb`
+[tempocnn_deeptemp] 4633603.LOFI hip-hop          ref= 139.0 est= 140.00 A1 0.8s
+[   INFO   ] TensorflowPredict: Successfully loaded graph file: `/private/tmp/claude-501/-Users-jshriver-dev-brave-img-downloader/9dd8b903-6239-40d7-9559-aca3cd64d3c4/scratchpad/bpm-research/models/deeptemp-k16-3.pb`
+[tempocnn_deeptemp] 3958395.LOFI funk-r-and-b     ref= 136.0 est= 135.00 A1 0.8s
+[   INFO   ] TensorflowPredict: Successfully loaded graph file: `/private/tmp/claude-501/-Users-jshriver-dev-brave-img-downloader/9dd8b903-6239-40d7-9559-aca3cd64d3c4/scratchpad/bpm-research/models/deeptemp-k16-3.pb`
+[tempocnn_deeptemp] 3733281.LOFI reggae-dub       ref=  70.0 est=  70.00 A1 0.8s
+[   INFO   ] TensorflowPredict: Successfully loaded graph file: `/private/tmp/claude-501/-Users-jshriver-dev-brave-img-downloader/9dd8b903-6239-40d7-9559-aca3cd64d3c4/scratchpad/bpm-research/models/deeptemp-k16-3.pb`
+[tempocnn_deeptemp] 1874244.LOFI reggae-dub       ref=  71.0 est=  70.00 A1 0.8s
+[   INFO   ] TensorflowPredict: Successfully loaded graph file: `/private/tmp/claude-501/-Users-jshriver-dev-brave-img-downloader/9dd8b903-6239-40d7-9559-aca3cd64d3c4/scratchpad/bpm-research/models/deeptemp-k16-3.pb`
+[tempocnn_deeptemp] 3892740.LOFI pop-rock         ref= 129.0 est= 128.00 A1 0.8s
+[   INFO   ] TensorflowPredict: Successfully loaded graph file: `/private/tmp/claude-501/-Users-jshriver-dev-brave-img-downloader/9dd8b903-6239-40d7-9559-aca3cd64d3c4/scratchpad/bpm-research/models/deeptemp-k16-3.pb`
+[tempocnn_deeptemp] 1743969.LOFI pop-rock         ref=  79.0 est= 157.00 A2 0.8s
+[   INFO   ] TensorflowPredict: Successfully loaded graph file: `/private/tmp/claude-501/-Users-jshriver-dev-brave-img-downloader/9dd8b903-6239-40d7-9559-aca3cd64d3c4/scratchpad/bpm-research/models/deeptemp-k16-3.pb`
+[tempocnn_deeptemp] 3151015.LOFI pop-rock         ref= 174.0 est=  87.00 A2 0.8s
+[   INFO   ] TensorflowPredict: Successfully loaded graph file: `/private/tmp/claude-501/-Users-jshriver-dev-brave-img-downloader/9dd8b903-6239-40d7-9559-aca3cd64d3c4/scratchpad/bpm-research/models/deeptemp-k16-3.pb`
+[tempocnn_deeptemp] 4093555.LOFI glitch-hop       ref=  92.0 est=  92.00 A1 0.8s
+[   INFO   ] TensorflowPredict: Successfully loaded graph file: `/private/tmp/claude-501/-Users-jshriver-dev-brave-img-downloader/9dd8b903-6239-40d7-9559-aca3cd64d3c4/scratchpad/bpm-research/models/deeptemp-k16-3.pb`
+[tempocnn_deeptemp] 3983645.LOFI glitch-hop       ref= 110.0 est= 110.00 A1 0.8s
+[   INFO   ] TensorflowPredict: Successfully loaded graph file: `/private/tmp/claude-501/-Users-jshriver-dev-brave-img-downloader/9dd8b903-6239-40d7-9559-aca3cd64d3c4/scratchpad/bpm-research/models/deeptemp-k16-3.pb`
+[tempocnn_deeptemp] 5070846.LOFI glitch-hop       ref= 110.0 est= 110.00 A1 0.8s
+[   INFO   ] TensorflowPredict: Successfully loaded graph file: `/private/tmp/claude-501/-Users-jshriver-dev-brave-img-downloader/9dd8b903-6239-40d7-9559-aca3cd64d3c4/scratchpad/bpm-research/models/deeptemp-k16-3.pb`
+[tempocnn_deeptemp] 4714481.LOFI glitch-hop       ref= 112.0 est= 112.00 A1 0.8s
+[   INFO   ] TensorflowPredict: Successfully loaded graph file: `/private/tmp/claude-501/-Users-jshriver-dev-brave-img-downloader/9dd8b903-6239-40d7-9559-aca3cd64d3c4/scratchpad/bpm-research/models/deeptemp-k16-3.pb`
+[tempocnn_deeptemp] 4468729.LOFI glitch-hop       ref= 160.0 est= 160.00 A1 0.8s
+[   INFO   ] TensorflowPredict: Successfully loaded graph file: `/private/tmp/claude-501/-Users-jshriver-dev-brave-img-downloader/9dd8b903-6239-40d7-9559-aca3cd64d3c4/scratchpad/bpm-research/models/deeptemp-k16-3.pb`
+[tempocnn_deeptemp] 4703149.LOFI glitch-hop       ref= 110.0 est= 110.00 A1 0.8s
+[   INFO   ] TensorflowPredict: Successfully loaded graph file: `/private/tmp/claude-501/-Users-jshriver-dev-brave-img-downloader/9dd8b903-6239-40d7-9559-aca3cd64d3c4/scratchpad/bpm-research/models/deeptemp-k16-3.pb`
+[tempocnn_deeptemp] 1839656.LOFI dubstep          ref= 140.0 est= 140.00 A1 0.8s
+[   INFO   ] TensorflowPredict: Successfully loaded graph file: `/private/tmp/claude-501/-Users-jshriver-dev-brave-img-downloader/9dd8b903-6239-40d7-9559-aca3cd64d3c4/scratchpad/bpm-research/models/deeptemp-k16-3.pb`
+[tempocnn_deeptemp] 4936740.LOFI dubstep          ref= 142.0 est= 140.00 A1 0.8s
+[   INFO   ] TensorflowPredict: Successfully loaded graph file: `/private/tmp/claude-501/-Users-jshriver-dev-brave-img-downloader/9dd8b903-6239-40d7-9559-aca3cd64d3c4/scratchpad/bpm-research/models/deeptemp-k16-3.pb`
+[tempocnn_deeptemp] 3577628.LOFI dubstep          ref= 139.0 est= 140.00 A1 0.8s
+[   INFO   ] TensorflowPredict: Successfully loaded graph file: `/private/tmp/claude-501/-Users-jshriver-dev-brave-img-downloader/9dd8b903-6239-40d7-9559-aca3cd64d3c4/scratchpad/bpm-research/models/deeptemp-k16-3.pb`
+[tempocnn_deeptemp] 4163587.LOFI dubstep          ref= 127.0 est= 126.00 A1 0.8s
+[   INFO   ] TensorflowPredict: Successfully loaded graph file: `/private/tmp/claude-501/-Users-jshriver-dev-brave-img-downloader/9dd8b903-6239-40d7-9559-aca3cd64d3c4/scratchpad/bpm-research/models/deeptemp-k16-3.pb`
+[tempocnn_deeptemp] 3875632.LOFI dubstep          ref= 139.0 est= 140.00 A1 0.8s
+[   INFO   ] TensorflowPredict: Successfully loaded graph file: `/private/tmp/claude-501/-Users-jshriver-dev-brave-img-downloader/9dd8b903-6239-40d7-9559-aca3cd64d3c4/scratchpad/bpm-research/models/deeptemp-k16-3.pb`
+[tempocnn_deeptemp] 4020698.LOFI dubstep          ref= 141.0 est= 140.00 A1 0.8s
+[   INFO   ] TensorflowPredict: Successfully loaded graph file: `/private/tmp/claude-501/-Users-jshriver-dev-brave-img-downloader/9dd8b903-6239-40d7-9559-aca3cd64d3c4/scratchpad/bpm-research/models/deeptemp-k16-3.pb`
+[tempocnn_deeptemp] 210560.LOFI chill-out        ref=  78.0 est= 158.00 A2 0.8s
+[   INFO   ] TensorflowPredict: Successfully loaded graph file: `/private/tmp/claude-501/-Users-jshriver-dev-brave-img-downloader/9dd8b903-6239-40d7-9559-aca3cd64d3c4/scratchpad/bpm-research/models/deeptemp-k16-3.pb`
+[tempocnn_deeptemp] 4091609.LOFI chill-out        ref=  80.0 est= 160.00 A2 0.8s
+[   INFO   ] TensorflowPredict: Successfully loaded graph file: `/private/tmp/claude-501/-Users-jshriver-dev-brave-img-downloader/9dd8b903-6239-40d7-9559-aca3cd64d3c4/scratchpad/bpm-research/models/deeptemp-k16-3.pb`
+[tempocnn_deeptemp] 1885798.LOFI chill-out        ref= 101.0 est= 101.00 A1 0.8s
+[   INFO   ] TensorflowPredict: Successfully loaded graph file: `/private/tmp/claude-501/-Users-jshriver-dev-brave-img-downloader/9dd8b903-6239-40d7-9559-aca3cd64d3c4/scratchpad/bpm-research/models/deeptemp-k16-3.pb`
+[tempocnn_deeptemp] 3658743.LOFI chill-out        ref= 144.0 est= 144.00 A1 0.8s
+[   INFO   ] TensorflowPredict: Successfully loaded graph file: `/private/tmp/claude-501/-Users-jshriver-dev-brave-img-downloader/9dd8b903-6239-40d7-9559-aca3cd64d3c4/scratchpad/bpm-research/models/deeptemp-k16-3.pb`
+[tempocnn_deeptemp] 172384.LOFI chill-out        ref=  84.0 est= 168.00 A2 0.8s
+[   INFO   ] TensorflowPredict: Successfully loaded graph file: `/private/tmp/claude-501/-Users-jshriver-dev-brave-img-downloader/9dd8b903-6239-40d7-9559-aca3cd64d3c4/scratchpad/bpm-research/models/deeptemp-k16-3.pb`
+[tempocnn_deeptemp] 426992.LOFI breaks           ref= 167.0 est= 166.00 A1 0.8s
+[   INFO   ] TensorflowPredict: Successfully loaded graph file: `/private/tmp/claude-501/-Users-jshriver-dev-brave-img-downloader/9dd8b903-6239-40d7-9559-aca3cd64d3c4/scratchpad/bpm-research/models/deeptemp-k16-3.pb`
+[tempocnn_deeptemp] 4694833.LOFI breaks           ref= 144.0 est= 143.00 A1 0.8s
+[   INFO   ] TensorflowPredict: Successfully loaded graph file: `/private/tmp/claude-501/-Users-jshriver-dev-brave-img-downloader/9dd8b903-6239-40d7-9559-aca3cd64d3c4/scratchpad/bpm-research/models/deeptemp-k16-3.pb`
+[tempocnn_deeptemp] 4800274.LOFI breaks           ref= 141.0 est= 140.00 A1 0.8s
+[   INFO   ] TensorflowPredict: Successfully loaded graph file: `/private/tmp/claude-501/-Users-jshriver-dev-brave-img-downloader/9dd8b903-6239-40d7-9559-aca3cd64d3c4/scratchpad/bpm-research/models/deeptemp-k16-3.pb`
+[tempocnn_deeptemp] 4773948.LOFI breaks           ref= 139.0 est= 140.00 A1 0.8s
+[   INFO   ] TensorflowPredict: Successfully loaded graph file: `/private/tmp/claude-501/-Users-jshriver-dev-brave-img-downloader/9dd8b903-6239-40d7-9559-aca3cd64d3c4/scratchpad/bpm-research/models/deeptemp-k16-3.pb`
+[tempocnn_deeptemp] 3467867.LOFI drum-and-bass    ref= 170.0 est= 173.00 A1 0.8s
+[   INFO   ] TensorflowPredict: Successfully loaded graph file: `/private/tmp/claude-501/-Users-jshriver-dev-brave-img-downloader/9dd8b903-6239-40d7-9559-aca3cd64d3c4/scratchpad/bpm-research/models/deeptemp-k16-3.pb`
+[tempocnn_deeptemp] 672063.LOFI drum-and-bass    ref= 174.0 est= 175.00 A1 0.8s
+[   INFO   ] TensorflowPredict: Successfully loaded graph file: `/private/tmp/claude-501/-Users-jshriver-dev-brave-img-downloader/9dd8b903-6239-40d7-9559-aca3cd64d3c4/scratchpad/bpm-research/models/deeptemp-k16-3.pb`
+[tempocnn_deeptemp] 3907042.LOFI drum-and-bass    ref= 170.0 est= 169.00 A1 0.8s
+[   INFO   ] TensorflowPredict: Successfully loaded graph file: `/private/tmp/claude-501/-Users-jshriver-dev-brave-img-downloader/9dd8b903-6239-40d7-9559-aca3cd64d3c4/scratchpad/bpm-research/models/deeptemp-k16-3.pb`
+[tempocnn_deeptemp] 2725286.LOFI drum-and-bass    ref= 174.0 est= 175.00 A1 0.8s
+[   INFO   ] TensorflowPredict: Successfully loaded graph file: `/private/tmp/claude-501/-Users-jshriver-dev-brave-img-downloader/9dd8b903-6239-40d7-9559-aca3cd64d3c4/scratchpad/bpm-research/models/deeptemp-k16-3.pb`
+[tempocnn_deeptemp] 4331667.LOFI drum-and-bass    ref= 174.0 est= 174.00 A1 0.8s
+[   INFO   ] TensorflowPredict: Successfully loaded graph file: `/private/tmp/claude-501/-Users-jshriver-dev-brave-img-downloader/9dd8b903-6239-40d7-9559-aca3cd64d3c4/scratchpad/bpm-research/models/deeptemp-k16-3.pb`
+[tempocnn_deeptemp] 5261461.LOFI house            ref= 174.0 est= 175.00 A1 0.8s
+[   INFO   ] TensorflowPredict: Successfully loaded graph file: `/private/tmp/claude-501/-Users-jshriver-dev-brave-img-downloader/9dd8b903-6239-40d7-9559-aca3cd64d3c4/scratchpad/bpm-research/models/deeptemp-k16-3.pb`
+[tempocnn_deeptemp] 2013128.LOFI house            ref= 127.0 est= 126.00 A1 0.8s
+[   INFO   ] TensorflowPredict: Successfully loaded graph file: `/private/tmp/claude-501/-Users-jshriver-dev-brave-img-downloader/9dd8b903-6239-40d7-9559-aca3cd64d3c4/scratchpad/bpm-research/models/deeptemp-k16-3.pb`
+[tempocnn_deeptemp] 5135326.LOFI house            ref= 130.0 est= 130.00 A1 0.9s
+[   INFO   ] TensorflowPredict: Successfully loaded graph file: `/private/tmp/claude-501/-Users-jshriver-dev-brave-img-downloader/9dd8b903-6239-40d7-9559-aca3cd64d3c4/scratchpad/bpm-research/models/deeptemp-k16-3.pb`
+[tempocnn_deeptemp] 1791554.LOFI techno           ref= 125.0 est= 126.00 A1 0.8s
+[   INFO   ] TensorflowPredict: Successfully loaded graph file: `/private/tmp/claude-501/-Users-jshriver-dev-brave-img-downloader/9dd8b903-6239-40d7-9559-aca3cd64d3c4/scratchpad/bpm-research/models/deeptemp-k16-3.pb`
+[tempocnn_deeptemp] 2677224.LOFI techno           ref= 127.0 est= 126.00 A1 0.8s
+[   INFO   ] TensorflowPredict: Successfully loaded graph file: `/private/tmp/claude-501/-Users-jshriver-dev-brave-img-downloader/9dd8b903-6239-40d7-9559-aca3cd64d3c4/scratchpad/bpm-research/models/deeptemp-k16-3.pb`
+[tempocnn_deeptemp] 2726353.LOFI techno           ref= 117.0 est= 118.00 A1 0.8s
+== tempocnn_deeptemp: 32.3s total
+/private/tmp/claude-501/-Users-jshriver-dev-brave-img-downloader/9dd8b903-6239-40d7-9559-aca3cd64d3c4/scratchpad/bpm-research/venv/lib/python3.14/site-packages/torch/nn/modules/conv.py:560: UserWarning: Using padding='same' with even kernel lengths and odd dilation may require a zero-padded copy of the input be created (Triggered internally at /Users/runner/work/pytorch/pytorch/aten/src/ATen/native/Convolution.cpp:1105.)
+  return F.conv2d(
+Model weights already exist.
+[deeprhythm] 3863498.LOFI hip-hop          ref= 150.0 est= 147.00 A1 4.8s
+[deeprhythm] 4633603.LOFI hip-hop          ref= 139.0 est= 139.00 A1 2.6s
+[deeprhythm] 3958395.LOFI funk-r-and-b     ref= 136.0 est= 134.00 A1 2.6s
+[deeprhythm] 3733281.LOFI reggae-dub       ref=  70.0 est= 139.00 A2 2.6s
+[deeprhythm] 1874244.LOFI reggae-dub       ref=  71.0 est= 139.00 A2 2.6s
+[deeprhythm] 3892740.LOFI pop-rock         ref= 129.0 est= 128.00 A1 2.6s
+[deeprhythm] 1743969.LOFI pop-rock         ref=  79.0 est=  78.00 A1 2.6s
+[deeprhythm] 3151015.LOFI pop-rock         ref= 174.0 est=  86.00 A2 2.6s
+[deeprhythm] 4093555.LOFI glitch-hop       ref=  92.0 est=  92.00 A1 2.9s
+[deeprhythm] 3983645.LOFI glitch-hop       ref= 110.0 est= 109.00 A1 2.7s
+[deeprhythm] 5070846.LOFI glitch-hop       ref= 110.0 est= 109.00 A1 2.7s
+[deeprhythm] 4714481.LOFI glitch-hop       ref= 112.0 est= 112.00 A1 2.6s
+[deeprhythm] 4468729.LOFI glitch-hop       ref= 160.0 est=  80.00 A2 2.7s
+[deeprhythm] 4703149.LOFI glitch-hop       ref= 110.0 est= 109.00 A1 2.6s
+[deeprhythm] 1839656.LOFI dubstep          ref= 140.0 est= 139.00 A1 2.7s
+[deeprhythm] 4936740.LOFI dubstep          ref= 142.0 est= 139.00 A1 2.4s
+[deeprhythm] 3577628.LOFI dubstep          ref= 139.0 est= 139.00 A1 2.5s
+[deeprhythm] 4163587.LOFI dubstep          ref= 127.0 est= 126.00 A1 2.6s
+[deeprhythm] 3875632.LOFI dubstep          ref= 139.0 est= 139.00 A1 2.6s
+[deeprhythm] 4020698.LOFI dubstep          ref= 141.0 est= 139.00 A1 2.6s
+[deeprhythm] 210560.LOFI chill-out        ref=  78.0 est=  78.00 A1 2.6s
+[deeprhythm] 4091609.LOFI chill-out        ref=  80.0 est=  80.00 A1 2.6s
+[deeprhythm] 1885798.LOFI chill-out        ref= 101.0 est= 100.00 A1 2.6s
+[deeprhythm] 3658743.LOFI chill-out        ref= 144.0 est= 143.00 A1 2.6s
+[deeprhythm] 172384.LOFI chill-out        ref=  84.0 est=  83.00 A1 2.6s
+[deeprhythm] 426992.LOFI breaks           ref= 167.0 est=  83.00 A2 2.7s
+[deeprhythm] 4694833.LOFI breaks           ref= 144.0 est= 143.00 A1 2.6s
+[deeprhythm] 4800274.LOFI breaks           ref= 141.0 est= 139.00 A1 2.6s
+[deeprhythm] 4773948.LOFI breaks           ref= 139.0 est= 139.00 A1 2.6s
+[deeprhythm] 3467867.LOFI drum-and-bass    ref= 170.0 est=  86.00 A2 2.6s
+[deeprhythm] 672063.LOFI drum-and-bass    ref= 174.0 est=  87.00 A2 2.6s
+[deeprhythm] 3907042.LOFI drum-and-bass    ref= 170.0 est=  84.00 A2 2.6s
+[deeprhythm] 2725286.LOFI drum-and-bass    ref= 174.0 est=  87.00 A2 2.6s
+[deeprhythm] 4331667.LOFI drum-and-bass    ref= 174.0 est=  86.00 A2 2.6s
+[deeprhythm] 5261461.LOFI house            ref= 174.0 est=  87.00 A2 2.6s
+[deeprhythm] 2013128.LOFI house            ref= 127.0 est= 126.00 A1 2.6s
+[deeprhythm] 5135326.LOFI house            ref= 130.0 est= 129.00 A1 2.6s
+[deeprhythm] 1791554.LOFI techno           ref= 125.0 est= 126.00 A1 2.6s
+[deeprhythm] 2677224.LOFI techno           ref= 127.0 est= 126.00 A1 2.6s
+[deeprhythm] 2726353.LOFI techno           ref= 117.0 est= 117.00 A1 2.6s
+== deeprhythm: 106.7s total
+[beat_this] 3863498.LOFI hip-hop          ref= 150.0 est=  73.17 A2 2.5s
+[beat_this] 4633603.LOFI hip-hop          ref= 139.0 est= 136.36 A1 2.0s
+[beat_this] 3958395.LOFI funk-r-and-b     ref= 136.0 est= 136.36 A1 2.1s
+[beat_this] 3733281.LOFI reggae-dub       ref=  70.0 est=  69.77 A1 2.1s
+[beat_this] 1874244.LOFI reggae-dub       ref=  71.0 est= 142.86 A2 2.1s
+[beat_this] 3892740.LOFI pop-rock         ref= 129.0 est= 130.43 A1 2.1s
+[beat_this] 1743969.LOFI pop-rock         ref=  79.0 est= 157.89 A2 2.2s
+[beat_this] 3151015.LOFI pop-rock         ref= 174.0 est=  88.24 A2 2.2s
+[beat_this] 4093555.LOFI glitch-hop       ref=  92.0 est=  90.91 A1 2.4s
+[beat_this] 3983645.LOFI glitch-hop       ref= 110.0 est= 111.11 A1 2.2s
+[beat_this] 5070846.LOFI glitch-hop       ref= 110.0 est= 111.11 A1 2.1s
+[beat_this] 4714481.LOFI glitch-hop       ref= 112.0 est= 142.86 -- 2.1s
+[beat_this] 4468729.LOFI glitch-hop       ref= 160.0 est=  81.08 A2 2.1s
+[beat_this] 4703149.LOFI glitch-hop       ref= 110.0 est= 111.11 A1 2.1s
+[beat_this] 1839656.LOFI dubstep          ref= 140.0 est= 142.86 A1 2.1s
+[beat_this] 4936740.LOFI dubstep          ref= 142.0 est= 136.36 A1 2.1s
+[beat_this] 3577628.LOFI dubstep          ref= 139.0 est= 142.86 A1 2.0s
+[beat_this] 4163587.LOFI dubstep          ref= 127.0 est= 125.00 A1 2.1s
+[beat_this] 3875632.LOFI dubstep          ref= 139.0 est= 136.36 A1 1.9s
+[beat_this] 4020698.LOFI dubstep          ref= 141.0 est= 142.86 A1 2.0s
+[beat_this] 210560.LOFI chill-out        ref=  78.0 est=  78.95 A1 2.0s
+[beat_this] 4091609.LOFI chill-out        ref=  80.0 est=  81.08 A1 2.0s
+[beat_this] 1885798.LOFI chill-out        ref= 101.0 est= 100.00 A1 1.9s
+[beat_this] 3658743.LOFI chill-out        ref= 144.0 est=  73.17 A2 2.1s
+[beat_this] 172384.LOFI chill-out        ref=  84.0 est=  83.33 A1 2.1s
+[beat_this] 426992.LOFI breaks           ref= 167.0 est= 166.67 A1 2.1s
+[beat_this] 4694833.LOFI breaks           ref= 144.0 est= 142.86 A1 2.1s
+[beat_this] 4800274.LOFI breaks           ref= 141.0 est= 142.86 A1 2.0s
+[beat_this] 4773948.LOFI breaks           ref= 139.0 est= 142.86 A1 2.0s
+[beat_this] 3467867.LOFI drum-and-bass    ref= 170.0 est= 166.67 A1 2.0s
+[beat_this] 672063.LOFI drum-and-bass    ref= 174.0 est= 176.47 A1 2.0s
+[beat_this] 3907042.LOFI drum-and-bass    ref= 170.0 est= 166.67 A1 2.0s
+[beat_this] 2725286.LOFI drum-and-bass    ref= 174.0 est=  88.24 A2 2.2s
+[beat_this] 4331667.LOFI drum-and-bass    ref= 174.0 est= 176.47 A1 2.2s
+[beat_this] 5261461.LOFI house            ref= 174.0 est= 176.47 A1 2.1s
+[beat_this] 2013128.LOFI house            ref= 127.0 est= 125.00 A1 2.0s
+[beat_this] 5135326.LOFI house            ref= 130.0 est= 130.43 A1 2.0s
+[beat_this] 1791554.LOFI techno           ref= 125.0 est= 300.00 -- 2.0s
+[beat_this] 2677224.LOFI techno           ref= 127.0 est= 125.00 A1 2.1s
+[beat_this] 2726353.LOFI techno           ref= 117.0 est= 120.00 A1 2.2s
+== beat_this: 83.6s total
+
+method                     Acc1   Acc2   mean s/track
+current                     30.0%  55.0%  0.21
+librosa_tempo_full          40.0%  52.5%  0.23
+librosa_multiwin            20.0%  62.5%  0.29
+librosa_multiwin_folded     20.0%  62.5%  0.27
+essentia_re2013             45.0%  82.5%  1.38
+essentia_degara             52.5%  80.0%  0.40
+essentia_percival           50.0%  87.5%  0.53
+tempocnn_deepsquare         82.5%  97.5%  0.92
+tempocnn_deeptemp           87.5% 100.0%  0.81
+deeprhythm                  72.5% 100.0%  2.67
+beat_this                   77.5%  95.0%  2.09

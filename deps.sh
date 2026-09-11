@@ -19,6 +19,17 @@ have_librosa() {
     python3 -c "import importlib.util,sys; sys.exit(0 if importlib.util.find_spec('librosa') else 1)" 2>/dev/null
 }
 
+have_essentia() {
+    # essentia-tensorflow (TempoCNN BPM + HPCP key detector); same find_spec trick
+    python3 -c "import importlib.util,sys; sys.exit(0 if importlib.util.find_spec('essentia') else 1)" 2>/dev/null
+}
+
+numba_imports() {
+    # librosa needs numba, and numba refuses to import when it lags numpy (seen 2026-09-11:
+    # numpy 2.5.3 needed numba >= 0.67). ~0.5 s; a full "import librosa.beat" would be ~3 s.
+    python3 -c "import numba" 2>/dev/null
+}
+
 # Installs whatever is missing. Prints nothing when everything is present.
 ensure_deps() {
     load_brew
@@ -36,13 +47,31 @@ ensure_deps() {
         fi
     done
 
+    if ! have_essentia; then
+        echo "▸ Installing essentia-tensorflow (BPM + key detector)..."
+        # Single wheel, no compile. Do NOT also install plain "essentia": same package dir, this one is a superset.
+        pip3 install essentia-tensorflow --break-system-packages --prefer-binary
+        if ! have_essentia; then
+            echo "❌ essentia-tensorflow failed to install. BPM/key will fall back to librosa (less accurate)."
+        fi
+    fi
+
+    # librosa is the fallback only (used when essentia-tensorflow is missing); keep it installable.
     if ! have_librosa; then
-        echo "▸ Installing librosa..."
+        echo "▸ Installing librosa (fallback analyzer)..."
         # --prefer-binary avoids compiling llvmlite from source, which fails on many systems
         pip3 install librosa --break-system-packages --prefer-binary
         if ! have_librosa; then
-            echo "❌ librosa failed to install. BPM/key detection will be skipped."
+            echo "❌ librosa failed to install. Fine as long as essentia-tensorflow is present."
             echo "   Try:  brew install llvm   then run install.command again."
+        fi
+    fi
+
+    if have_librosa && ! numba_imports; then
+        echo "▸ Updating numba (librosa's numba lags numpy)..."
+        pip3 install -U numba --break-system-packages --prefer-binary
+        if ! numba_imports; then
+            echo "❌ numba still does not import. librosa fallback is unusable; essentia path unaffected."
         fi
     fi
 

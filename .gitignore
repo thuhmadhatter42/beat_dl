@@ -23,3 +23,11 @@ Thumbs.db
 *.log
 
 .last-ytdlp-upgrade
+
+# benchmark datasets/models fetched by docs/research/*/fetch.sh — never commit
+docs/research/*/audio/
+docs/research/*/gs/
+docs/research/*/gsplus/
+docs/research/*/giantsteps-key-dataset-master/
+docs/research/*/models/
+docs/research/*/*.zip
