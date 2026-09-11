@@ -47,32 +47,33 @@ ensure_deps() {
         fi
     done
 
-    if ! have_essentia; then
-        echo "▸ Installing essentia-tensorflow (BPM + key detector)..."
-        # Single wheel, no compile. Do NOT also install plain "essentia": same package dir, this one is a superset.
-        pip3 install essentia-tensorflow --break-system-packages --prefer-binary
-        if ! have_essentia; then
-            echo "❌ essentia-tensorflow failed to install. BPM/key will fall back to librosa (less accurate)."
+    # One analyzer, picked automatically. bpm.py uses whichever is installed:
+    #   essentia-tensorflow (best; needs a wheel for this Mac's macOS/CPU/Python)
+    #   librosa             (fallback; installs almost everywhere)
+    if ! have_essentia && ! have_librosa; then
+        echo "▸ Installing the BPM/key analyzer..."
+        if pip3 install essentia-tensorflow --break-system-packages --prefer-binary >/dev/null 2>&1 \
+           && python3 -c "import essentia.standard" >/dev/null 2>&1; then
+            echo "  ✓ essentia (TempoCNN + HPCP)"
+        else
+            pip3 uninstall -y essentia-tensorflow >/dev/null 2>&1
+            echo "  no essentia build for this Mac — installing librosa instead"
+            # --prefer-binary avoids compiling llvmlite from source
+            pip3 install librosa --break-system-packages --prefer-binary >/dev/null 2>&1
+            if have_librosa; then
+                echo "  ✓ librosa"
+            else
+                echo "❌ Neither analyzer installed. Downloads still work; no BPM/key tags."
+                echo "   Try:  brew install llvm   then run install.command again."
+            fi
         fi
     fi
 
-    # librosa is the fallback only (used when essentia-tensorflow is missing); keep it installable.
-    if ! have_librosa; then
-        echo "▸ Installing librosa (fallback analyzer)..."
-        # --prefer-binary avoids compiling llvmlite from source, which fails on many systems
-        pip3 install librosa --break-system-packages --prefer-binary
-        if ! have_librosa; then
-            echo "❌ librosa failed to install. Fine as long as essentia-tensorflow is present."
-            echo "   Try:  brew install llvm   then run install.command again."
-        fi
-    fi
-
-    if have_librosa && ! numba_imports; then
-        echo "▸ Updating numba (librosa's numba lags numpy)..."
-        pip3 install -U numba --break-system-packages --prefer-binary
-        if ! numba_imports; then
-            echo "❌ numba still does not import. librosa fallback is unusable; essentia path unaffected."
-        fi
+    # librosa's numba refuses to import when it lags numpy (seen 2026-09-11)
+    if ! have_essentia && have_librosa && ! numba_imports; then
+        echo "▸ Repairing librosa (numba/numpy mismatch)..."
+        pip3 install -U numba --break-system-packages --prefer-binary >/dev/null 2>&1
+        numba_imports || echo "❌ librosa still broken; no BPM/key tags until fixed."
     fi
 
     chmod +x "$DEPS_DIR"/run.sh "$DEPS_DIR"/run.command "$DEPS_DIR"/install.command 2>/dev/null
