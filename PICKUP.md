@@ -2,7 +2,7 @@
 
 ## CURRENT STATE — 2026-09-11 06:02
 
-**What this is:** YouTube → MP3 downloader with BPM/key tagging. Bash loop (run.sh) + downloader.py (yt-dlp) + bpm.py (Essentia TempoCNN for BPM, Essentia HPCP + bgate for key; librosa only where essentia has no wheel). Launched by run.command or the `beat` alias. Also called by the Jownloader Brave extension (`~/dev/brave_img-downloader/extension`) through a native host that pipes a URL into run.sh.
+**What this is:** YouTube → MP3 downloader with BPM/key tagging. Bash loop (run.sh) + downloader.py (yt-dlp) + bpm.py (Essentia TempoCNN for BPM, Essentia HPCP + bgate for key; librosa only where essentia has no wheel). Launched by run.command or the `beat` alias. Also called by the Jownloader Brave extension (`~/dev/jownloader/extension`) through a native host that pipes a URL into run.sh.
 
 **Git:** main = origin/main = 80d4b55, tree clean, pushed.
 
