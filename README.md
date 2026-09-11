@@ -23,6 +23,23 @@ Paste a YouTube URL when prompted. After each download:
 - BPM is detected by analyzing the loudest 60 seconds of the track
 - The top 3 most likely keys are shown with confidence percentages
 - The file is automatically renamed with BPM and keys included
+- Each successful download is appended to `~/Downloads/(YY-M-D) Youtube DL LINKS.txt` as an `Input URL` / `Downloaded` entry
+
+For example, downloads on May 12, 2026 are logged to:
+
+```text
+~/Downloads/(26-5-12) Youtube DL LINKS.txt
+```
+
+The link log looks like this:
+
+```text
+Input URL: https://www.youtube.com/watch?v=...
+Downloaded: Veeze x Lil Yachty type beat (142.0 BPM Cm D# Gm).mp3
+
+Input URL: https://www.youtube.com/watch?v=...
+Downloaded: Another Beat Name (95.0 BPM Am C Em).mp3
+```
 
 **Example output:**
 ```

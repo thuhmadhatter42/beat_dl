@@ -16,7 +16,7 @@ def check_deps():
         import numpy    # noqa
         return True
     except ImportError:
-        print("Missing: librosa — install with:  pip3 install librosa --break-system-packages")
+        print("Missing: librosa — install with:  pip3 install librosa --break-system-packages", file=sys.stderr)
         return False
 
 

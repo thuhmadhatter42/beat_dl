@@ -1,6 +1,12 @@
 #!/bin/bash
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+LOG_FILE="$HOME/Downloads/($(date +%-y-%-m-%-d)) Youtube DL LINKS.txt"
+
+log_download() {
+    printf "Input URL: %s\n" "$url" >> "$LOG_FILE"
+    printf "Downloaded: %s\n\n" "$1" >> "$LOG_FILE"
+}
 
 while true; do
     printf "\nInput URL: "
@@ -18,7 +24,7 @@ while true; do
 
     # Detect BPM + key (4 lines: BPM, key1, key2, key3)
     echo "Analyzing..."
-    analysis=$(python3 "$SCRIPT_DIR/bpm.py" "$filepath" 2>/dev/null)
+    analysis=$(python3 "$SCRIPT_DIR/bpm.py" "$filepath" 2>/dev/null) || analysis=""
 
     bpm=$(echo "$analysis" | sed -n '1p')
     key1=$(echo "$analysis" | sed -n '2p')
@@ -35,10 +41,14 @@ while true; do
         stem="${base%.*}"
         newpath="$dir/$stem (${bpm} BPM $k1 $k2 $k3).$ext"
         mv "$filepath" "$newpath"
-        echo "Downloaded: $(basename "$newpath")"
+        downloaded_name="$(basename "$newpath")"
+        echo "Downloaded: $downloaded_name"
         echo "Key: $key1 | $key2 | $key3"
+        log_download "$downloaded_name"
     else
-        echo "Downloaded: $(basename "$filepath")"
+        downloaded_name="$(basename "$filepath")"
+        echo "Downloaded: $downloaded_name"
+        log_download "$downloaded_name"
     fi
 
 done
