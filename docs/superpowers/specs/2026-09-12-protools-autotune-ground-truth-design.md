@@ -226,6 +226,9 @@ silently retried.
    Presence proves nothing. Only an ACTIVE instance with retune speed ≠ off on all 3 lead tracks,
    all agreeing, makes the key certain. Bypassed-on-all-3 → row kept with `reliable=0`, reason
    "autotune bypassed", never used as a label.
+   J, 20:03: "if the song doesn't use autotune, the majority of the Auto-Tune plug-ins will be
+   turned off (inactive or bypassed)" — such a session is simply not useful to us, since the key
+   was never found. Inactive/bypassed instances are the signal that the song wasn't tuned.
 5. **Purpose, in J's words:** "a massive source of beats where we know for a 100 % fact what the
    BPM and key are" — the largest such resource he knows of. Every session that yields a label
    also contributes its FULL bounce (vocals + beat: the newest mix/demo bounce in that session's

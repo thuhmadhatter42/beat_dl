@@ -233,20 +233,18 @@ isolated from other system sound — directly reusing the pattern in
 *Go/no-go:* isolate one app playing music while a second app plays unrelated noise; keybar reads
 only the first app's audio.
 
-## 8. Open questions for J
+## 8. J's decisions (2026-09-12 20:03) + remaining questions
 
-1. Which OS API path should phase 1 target first — global exclude-tap (simplest, matches "system
-   output on outs 1-2" literally) or borrowing Artemis's per-app tap from day one? This spec
-   assumes global-tap-first, per-app in phase 4 — confirm that ordering is right.
-2. Should the BPM/key readout persist across songs (a history list) or always show only the
-   current song? Changes whether state needs a store at all in phase 1.
-3. Octave/latency tradeoff (§4): is a lower-confidence reading at ~20-30 s acceptable, or should
-   the menu bar show nothing until a higher-confidence full-track-equivalent pass completes later
-   (accurate but late)? This decides the whole re-analysis cadence.
-4. Repo name — `keybar`, `tonewatch`, or something else?
-5. Should Sofia (2013 Mac Pro, macOS 12.7 per `/Users/jshriver/artemis/.claude/rules/console-model.md`)
-   be a target at all? It cannot run the tap API (needs 14.2+) or essentia-tensorflow's py3.14
-   wheel (needs macOS ≥ 15) — this app may simply be MacBook-only.
+- **Readout confidence:** no rough early guess. While analyzing, the menu-bar item shows a loading
+  state (e.g. "· · ·" or a spinner glyph) and stays that way until the detector is confident; then
+  it flips to "140 · A min". Never show a number that may change.
+- Sofia is not a target (macOS 12.7.6, verified live 2026-09-12).
+
+Remaining:
+1. Phase 1 uses the global system-output tap (matches "outs 1-2" literally); Artemis-style per-app
+   taps come in phase 4. Confirm that order.
+2. Show only the current song, or keep a history list of past songs' BPM/key?
+3. Repo name: `keybar`, `tonewatch`, or yours.
 
 ## 9. Risks
 
