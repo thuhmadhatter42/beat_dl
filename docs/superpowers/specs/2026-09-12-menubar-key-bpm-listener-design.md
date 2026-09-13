@@ -239,12 +239,17 @@ only the first app's audio.
   state (e.g. "· · ·" or a spinner glyph) and stays that way until the detector is confident; then
   it flips to "140 · A min". Never show a number that may change.
 - Sofia is not a target (macOS 12.7.6, verified live 2026-09-12).
+- **History list (J, 20:19): yes.** Every song the app has read gets a row (time, BPM, key,
+  Camelot, title if Now Playing gave one). Collapsed by default. Lives in the panel as a
+  disclosure section at the bottom ("History ▸") or a sidebar that slides open from the panel's
+  edge; either way not open until clicked, and the open/closed state is remembered. Persist to a
+  STRICT SQLite table in Application Support so it survives relaunch; clicking a row re-shows that
+  song's key relations in the panel.
 
 Remaining:
 1. Phase 1 uses the global system-output tap (matches "outs 1-2" literally); Artemis-style per-app
    taps come in phase 4. Confirm that order.
-2. Show only the current song, or keep a history list of past songs' BPM/key?
-3. Repo name: `keybar`, `tonewatch`, or yours.
+2. Repo name: `keybar`, `tonewatch`, or yours.
 
 ## 9. Risks
 
