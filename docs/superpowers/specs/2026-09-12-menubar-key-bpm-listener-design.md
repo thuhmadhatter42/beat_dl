@@ -1,4 +1,4 @@
-# Menu-Bar Key/BPM Listener — Design Spec
+# Orion — menu-bar BPM / key listener (design)
 
 **Date:** 2026-09-12 · **Status:** Draft, for J's review — nothing built yet.
 
@@ -43,11 +43,11 @@ Confirmed by reading Artemis's own shipped, working code (not invented):
   Listing apps uses `kAudioHardwarePropertyProcessObjectList` (cited in
   `/Users/jshriver/artemis/BUILD-LOG.md:246` and used through taps.m).
 
-**What keybar needs is different: the whole main-outs mix, not one app.** That is the
+**What Orion needs is different: the whole main-outs mix, not one app.** That is the
 *global* tap variant, `initStereoGlobalTapButExcludeProcesses:` — confirmed via WebSearch
 (Apple's own `AudioHardwareCreateProcessTap(_:_:)` doc page, and the sample project
 insidegui/AudioCap, https://github.com/insidegui/AudioCap) as a real `CATapDescription`
-initializer: exclusive=false semantics, tap everything except the PIDs you name (pass keybar's
+initializer: exclusive=false semantics, tap everything except the PIDs you name (pass Orion's
 own pid, or none). It mixes down to stereo the same way Artemis's per-app tap does. Wrap it in a
 private, unstacked `AudioHardwareCreateAggregateDevice` whose **main sub-device is the current
 default output device** (the "interface"), same dict shape Artemis already uses, and read the
@@ -64,7 +64,7 @@ until it's actually called in Xcode and the symbol resolves.
 **Reuse verdict: pattern, not artifact.** Artemis has no library target, XPC service, or shared
 framework around its tap code — `taps.m`/`apptap.m` are compiled straight into the monolithic
 `artemis` binary (`app/build.sh`), with no public header meant for another process to link. There
-is nothing to `import` or link from keybar. What transfers is the *proven pattern* (the exact
+is nothing to `import` or link from Orion. What transfers is the *proven pattern* (the exact
 aggregate-device dictionary shape, the drift-compensation keys, the mixdown gain-compensation math
 in `art_taps_makeup_gain`, taps.h:403-437, and the "first tap raises the System Audio Recording
 prompt, signing identity must stay stable" lesson, taps.h:60-63) — copy and adapt the ~150 lines
@@ -80,11 +80,11 @@ directly, since at that point it is the same problem Artemis already solved.
 **Permissions:** first tap creation raises the system "System Audio Recording" TCC prompt — same
 one Artemis's users see (taps.h:60-63). Artemis's `Info.plist` carries
 `NSAudioCaptureUsageDescription` (and `NSMicrophoneUsageDescription`) — confirmed at
-`/Users/jshriver/artemis/app/build.sh:70-72` — keybar's Info.plist needs the same key with its own
+`/Users/jshriver/artemis/app/build.sh:70-72` — Orion's Info.plist needs the same key with its own
 usage string. No sandbox entitlement is involved: Artemis is not App-Sandboxed (it is
 self-signed/Developer-ID style, see §7), and the permission is TCC-gated by a **stable signing
 identity**, not an entitlement — an ad-hoc signature (`codesign -s -`) changes every build and
-re-prompts the user every time (`app/build.sh:110-119`), which keybar must avoid the same way
+re-prompts the user every time (`app/build.sh:110-119`), which Orion must avoid the same way
 Artemis does (a fixed self-signed cert in the login keychain, `app/build.sh:113`).
 
 ## 4. Analysis
@@ -160,7 +160,7 @@ replaces it (per §5's manual-override rule, a user override sticks over this to
    the plug-in window, current detected pitch highlighted, and notes can be clicked on/off to
    build a custom scale; only the described behavior is used here, no screenshot was available to
    copy pixel-for-pixel — treat the visual as "one octave of piano keys, clickable, one highlighted"
-   and design keybar's version to that description, not a traced image).
+   and design Orion's version to that description, not a traced image).
    - Starts **chromatic**: all 12 keys active/lit.
    - **Click** a key → play that pitch as a synth tone (AVAudioEngine + AVAudioUnitSampler or a
      simple oscillator node) so the user can play along with the song and by ear rule notes out.
@@ -206,7 +206,7 @@ Shown next to the key line in the panel, e.g. "A minor · 8A".
 
 Not a folder under `beat_dl` — this is a standalone macOS app with its own build/sign/release
 cycle, unrelated to beat_dl's download pipeline; a sibling repo. Proposed names (J picks):
-**`keybar`** or **`tonewatch`**. Version file `VERSION` at repo root, starting `0.1.0`, every edit
+**Orion** (J, 2026-09-12 20:24) — repo `/Users/jshriver/dev/orion`, bundle `Orion.app`. Version file `VERSION` at repo root, starting `0.1.0`, every edit
 +1 on the last number per J's global scheme (`~/.claude/CLAUDE.md` — "0.x.y until the first real
 ship... every edit is a new version").
 
@@ -230,7 +230,7 @@ within 3-4 clicks on a test song; auto-set fires once, sticks until a genuinely 
 (`initStereoMixdownOfProcesses:` + app listing) so a specific app (e.g. just Spotify) can be
 isolated from other system sound — directly reusing the pattern in
 `/Users/jshriver/artemis/app/src/taps/taps.m` and `apptap.m`.
-*Go/no-go:* isolate one app playing music while a second app plays unrelated noise; keybar reads
+*Go/no-go:* isolate one app playing music while a second app plays unrelated noise; Orion reads
 only the first app's audio.
 
 ## 8. J's decisions (2026-09-12 20:03) + remaining questions
@@ -249,7 +249,6 @@ only the first app's audio.
 Remaining:
 1. Phase 1 uses the global system-output tap (matches "outs 1-2" literally); Artemis-style per-app
    taps come in phase 4. Confirm that order.
-2. Repo name: `keybar`, `tonewatch`, or yours.
 
 ## 9. Risks
 
