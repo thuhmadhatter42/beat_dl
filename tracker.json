@@ -1,0 +1,214 @@
+{
+  "title": "beat_dl — the whole job",
+  "subtitle": "YouTube → MP3 with BPM/key tagging, March 2026 → now. Refresh: edit tracker.json, then python3 ~/.claude/skills/progress-tracker/build_tracker.py tracker.json",
+  "stamp": "2026-09-12 22:55",
+  "statuses": [
+    {
+      "key": "done",
+      "label": "Done",
+      "color": "#2ecc71",
+      "list": "Done — finished and verified"
+    },
+    {
+      "key": "run",
+      "label": "Running now",
+      "color": "#f5b942",
+      "list": null
+    },
+    {
+      "key": "queue",
+      "label": "Queued — starts without J",
+      "color": "#4a8cf0",
+      "list": "Queued — runs on its own"
+    },
+    {
+      "key": "plan",
+      "label": "Planned — needs a human",
+      "color": "#0f9488",
+      "list": "Planned — decided, waiting on J or another person"
+    },
+    {
+      "key": "idea",
+      "label": "Idea / decision pending",
+      "color": "#9b6cf0",
+      "list": "Ideas / decisions J has not made"
+    }
+  ],
+  "items": [
+    {
+      "status": "done",
+      "title": "First cut",
+      "size": "2 commits",
+      "detail": "yt-dlp → MP3 into ~/Downloads, driven by a bash loop (run.sh) you feed URLs. Commits 58c71ba + 87e9615, 2026-03-24.",
+      "weight": 3
+    },
+    {
+      "status": "done",
+      "title": "Double-click launchers",
+      "size": "",
+      "detail": "run.command / install.command so it opens from Finder, no terminal. README documents the right-click→Open unsigned-app step. Shipped with the first cut.",
+      "weight": 1
+    },
+    {
+      "status": "done",
+      "title": "Chrome cookie auth",
+      "size": "",
+      "detail": "YouTube now demands a sign-in; the tool pulls cookies from a logged-in Chrome automatically. Documented in README §YouTube Login Requirement.",
+      "weight": 2
+    },
+    {
+      "status": "done",
+      "title": "Daily link log",
+      "size": "",
+      "detail": "Every success appends an Input URL / Downloaded pair to ~/Downloads/(YY-M-D) Youtube DL LINKS.txt. Format shown in README.",
+      "weight": 1
+    },
+    {
+      "status": "done",
+      "title": "BPM + key tagging (librosa)",
+      "size": "",
+      "detail": "bpm.py detects tempo and key and renames the file \"name (142.0 BPM Cm D# Gm).mp3\". Later measured at 30% exact BPM / 43.6% exact key — the baseline the September rewrite beat.",
+      "weight": 4
+    },
+    {
+      "status": "done",
+      "title": "Messages DB dig",
+      "size": "",
+      "detail": "Pulled the YouTube links out of the CCASH2 / DOUBLE CUP threads straight from the macOS Messages DB and scoped the download+heart loop. .remember/today-2026-06-05.done.md, Jun 5.",
+      "weight": 2
+    },
+    {
+      "status": "done",
+      "title": "iMessage watcher spec",
+      "size": "",
+      "detail": "Design approved (pending review): a link from CCASH2 or DOUBLE CUP downloads itself through beat_dl and answers with a 👍 tapback. docs/superpowers/specs/2026-06-05-imessage-watcher-design.md, commit e236dd4.",
+      "weight": 3
+    },
+    {
+      "status": "done",
+      "title": "Tag errors in filenames",
+      "size": "",
+      "detail": "The miss: from Sep 8 a missing librosa baked its own error text into the MP3 name (\"Roddy Ricch - The Box (Missing: librosa …).mp3\") and J only found it on Studio-E-2. Fixed ae70d59, Sep 10 — it now fails cleanly instead.",
+      "weight": 2
+    },
+    {
+      "status": "done",
+      "title": "Root cause: numba vs numpy",
+      "size": "",
+      "detail": "\"No tags at all\" since Sep 8 traced to numba lagging numpy 2.5.3, which broke librosa's import. deps.sh now repairs the pair. PICKUP 2026-09-11.",
+      "weight": 2
+    },
+    {
+      "status": "done",
+      "title": "deps self-install every launch",
+      "size": "",
+      "detail": "a5c3e94, Sep 10: every launch checks brew / yt-dlp / ffmpeg / analyzer and installs what is missing; yt-dlp upgrades weekly off a .last-ytdlp-upgrade stamp and again after a failed download, then retries once. J took the 7-day interval over his own 48 h idea.",
+      "weight": 5
+    },
+    {
+      "status": "done",
+      "title": "BPM research + bench",
+      "size": "40 clips",
+      "detail": "docs/research/bpm-detection-research.md with a re-runnable GiantSteps bench (docs/research/bpm-bench/, run-2026-09-11.txt): Essentia TempoCNN deeptemp-k16-3 87.5% Acc1 / 100% Acc2 vs 30% / 55% for the old code, ~1.7 s per track, no torch.",
+      "weight": 5
+    },
+    {
+      "status": "done",
+      "title": "Key research + bench",
+      "size": "39 clips",
+      "detail": "docs/research/key-detection-research.md + key-bench/: Essentia HPCP 36-bin with detuning correction scored against Faraldo bgate profiles = 85.1 MIREX / 79.5% exact vs 55.4 / 43.6% for the librosa Krumhansl method. Same wheel fixes both.",
+      "weight": 5
+    },
+    {
+      "status": "done",
+      "title": "Essentia detectors shipped",
+      "size": "~2 s/track",
+      "detail": "0c8c57c, Sep 11 04:16: TempoCNN for BPM and HPCP+bgate for key, replacing librosa. Model models/deeptemp-k16-3.pb vendored in the repo (CC BY-NC-SA, offline).",
+      "weight": 6
+    },
+    {
+      "status": "done",
+      "title": "Top-3 key + confidence",
+      "size": "92%",
+      "detail": "Filenames and output now carry three candidate keys with a percentage from segment agreement and score margin; the true key is in the top 3 on 92% of the benchmark. Stated in README as measured, not as a calibrated probability.",
+      "weight": 3
+    },
+    {
+      "status": "done",
+      "title": "One analyzer, auto-picked",
+      "size": "",
+      "detail": "80d4b55, Sep 11 04:20: deps.sh installs essentia-tensorflow if it imports on that Mac, else librosa plus the numba repair — never both. Keeps Intel Macs working.",
+      "weight": 3
+    },
+    {
+      "status": "done",
+      "title": "librosa segfault fallback",
+      "size": "",
+      "detail": "librosa.beat_track segfaults on py3.14 + numba 0.67, so the librosa path uses librosa.feature.tempo instead. PICKUP 2026-09-11.",
+      "weight": 1
+    },
+    {
+      "status": "done",
+      "title": "Jownloader feeds it",
+      "size": "",
+      "detail": "The Brave extension (renamed ~/dev/brave_img-downloader → ~/dev/jownloader, commit 109a745 Sep 11) pipes a YouTube URL through a native host into run.sh, so beat_dl runs without the paste loop.",
+      "weight": 3
+    },
+    {
+      "status": "done",
+      "title": "Pushed to GitHub",
+      "size": "14 commits",
+      "detail": "github.com/thuhmadhatter42/beat_dl — verified 2026-09-12 21:28: main == origin/main at a1046d6, working tree clean, 0 commits ahead.",
+      "weight": 1
+    },
+    {
+      "status": "done",
+      "title": "Auto-Tune harvester spec",
+      "size": "",
+      "detail": "1b65912 + 57dfcd3, Sep 12: read-only design for harvesting (beat-only WAV, key, BPM) triples out of J's own mixed Pro Tools sessions, where Auto-Tune's Key+Scale is already ground truth — in-domain hip-hop/R&B instead of the EDM-only public sets. A bypassed Auto-Tune counts as untuned. Nothing run against Pro Tools.",
+      "weight": 4
+    },
+    {
+      "status": "done",
+      "title": "Orion spec",
+      "size": "",
+      "detail": "b804057 + a1046d6, Sep 12: menu-bar app that listens to the interface main outs, shows \"140 · A min\" live, opens a panel with Camelot code and a playable piano roll; loading state until confident, collapsed history list persisted. Draft for J's review — nothing built.",
+      "weight": 4
+    },
+    {
+      "status": "plan",
+      "title": "Studio-E-2 pull + verify",
+      "size": "1 Mac",
+      "detail": "Needs J at that machine (user studioe, not the Intel one): git -C \"$(dirname \"$(alias beat | sed -E \"s/.*[='\\\"]([^'\\\"]*run\\.(sh|command)).*/\\1/\")\")\" pull && beat — first run should print \"✓ essentia\" or \"✓ librosa\" and the next download should land a \"(NN BPM key key key)\" name. Also the one bad file in its ~/Downloads to hand-rename. This is also the only untested fresh-machine install path.",
+      "weight": 2
+    },
+    {
+      "status": "plan",
+      "title": "iMessage watcher build",
+      "size": "",
+      "detail": "Spec approved Jun 5, still no plan and no code. Gated on J: brew install steipete/tap/imsg, then Terminal → Automation→Messages + Accessibility grants. Then watch.command, watcher.sh, process_url.sh factored out of run.sh, BEAT_DL_OUTDIR in downloader.py, .watch_state.json + watcher.log git-ignored.",
+      "weight": 6
+    },
+    {
+      "status": "idea",
+      "title": "Trap octave rule",
+      "size": "",
+      "detail": "Open question 1 in PICKUP: the filename carries 70 or 140 as the model hears it. Should trap tempos always be doubled — or always halved? No rule until J says.",
+      "weight": 1
+    },
+    {
+      "status": "plan",
+      "title": "Build Orion",
+      "size": "",
+      "detail": "Spec reviewed by J 2026-09-12 20:24: named Orion, history list collapsed + persisted, loading state until confident. Waiting on J's \"go\" for phase 1 (global audio tap + \"140 · A min\" readout in the bar). Repo will be ~/dev/orion.",
+      "weight": 6
+    },
+    {
+      "status": "plan",
+      "title": "Harvest the PT catalog",
+      "size": "thousands of sessions",
+      "detail": "Trial pass = 5 sessions on Sofia, one at a time, from Arc-1 → 1-mixes. Gated on J plugging the iLok (Antares bundle) and Arc-1 into Sofia and saying go. Session 1 tests CId_ExportSessionInfoAsText, then one insert click + screenshot, checked by eye. Plan in spec §5.",
+      "weight": 5
+    }
+  ]
+}
