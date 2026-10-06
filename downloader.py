@@ -28,9 +28,9 @@ _STRATEGIES = [
 def check_deps():
     missing = []
     if not shutil.which("yt-dlp"):
-        missing.append(("yt-dlp", "brew install yt-dlp   or   pip install yt-dlp"))
+        missing.append(("yt-dlp", "double-click install.command"))
     if not shutil.which("ffmpeg"):
-        missing.append(("ffmpeg", "brew install ffmpeg   or   https://ffmpeg.org/download.html"))
+        missing.append(("ffmpeg", "double-click install.command"))
     return missing
 
 

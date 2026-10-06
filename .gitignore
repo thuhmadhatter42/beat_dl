@@ -23,6 +23,7 @@ Thumbs.db
 *.log
 
 .last-ytdlp-upgrade
+bin/
 
 # benchmark datasets/models fetched by docs/research/*/fetch.sh — never commit
 docs/research/*/audio/

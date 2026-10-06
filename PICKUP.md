@@ -14,7 +14,7 @@
 **Next — each gated on J:**
 1. **Harvester trial** (5 sessions on Sofia): J plugs the iLok and Arc-1 into Sofia and says go. Session 1 = text export only, then one insert click + one screenshot, verified by eye; sessions 2–5 one at a time. Plan in spec §5.
 2. **Orion phase 1**: J says go → superpowers:writing-plans from the spec, create `~/dev/orion`, build tap + menu-bar readout.
-3. **Studio-E-2** (user studioe): `git -C "$(dirname "$(alias beat | sed -E "s/.*[='\"]([^'\"]*run\.(sh|command)).*/\1/")")" pull && beat` — first run prints "✓ essentia" or "✓ librosa"; next download gets a "(NN BPM key key key)" name. Hand-rename the one bad file in its ~/Downloads ("Roddy Ricch - The Box _Official Audio_ (Missing: librosa … ).mp3").
+3. **Studio-E-2** (user studioe): `cd ~/beat_dl && git pull && beat` (alias is `cd && cd beat_dl && ./run…`) — first run prints "✓ essentia" or "✓ librosa"; next download gets a "(NN BPM key key key)" name. Hand-rename the one bad file in its ~/Downloads ("Roddy Ricch - The Box _Official Audio_ (Missing: librosa … ).mp3").
 4. **iMessage watcher**: spec `docs/superpowers/specs/2026-06-05-imessage-watcher-design.md`, no plan or code yet. Needs `brew install steipete/tap/imsg` + Terminal Automation→Messages + Accessibility.
 
 **Open — only J can answer:**
