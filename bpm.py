@@ -1,7 +1,11 @@
 #!/usr/bin/env python3
 """
 BPM + Key detector.
-BPM: Essentia TempoCNN (models/deeptemp-k16-3.pb) on the whole track.
+BPM: Essentia TempoCNN (models/deeptemp-k16-3.pb) on the whole track. Two back ends, same numbers:
+     - essentia-tensorflow: essentia.standard.TempoCNN + AudioLoader (today's path)
+     - legacy essentia (no TensorFlow, no ffmpeg; old Macs): tempocnn_np.py (numpy port, weights in
+       models/deeptemp-k16-3.npz) and decoding through the bundled ffmpeg CLI, set up to give the
+       same samples AudioLoader gives (fixed-point mp3 decoder -> s16 -> /32768).
 Key: Essentia HPCP (36 bins, spectral whitening, detuning correction) on the whole track,
      correlated against Faraldo's 'bgate' EDM profiles for all 24 keys -> real top-3 with a
      confidence from segment agreement + margin (docs/research/key-detection-research.md).
@@ -14,7 +18,9 @@ Usage: python3 bpm.py <filepath>
 import sys
 from pathlib import Path
 
-TEMPOCNN_MODEL = Path(__file__).resolve().parent / "models" / "deeptemp-k16-3.pb"
+HERE = Path(__file__).resolve().parent
+TEMPOCNN_MODEL = HERE / "models" / "deeptemp-k16-3.pb"
+TEMPOCNN_WEIGHTS = HERE / "models" / "deeptemp-k16-3.npz"
 NOTES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B']
 
 # Key profiles (index 0 = tonic). bgate/edma: Faraldo et al., essentia src/algorithms/tonal/key.cpp
@@ -119,12 +125,54 @@ def top3_with_confidence(scores, agree):
 
 # ---------------------------------------------------------------- essentia path (main)
 
+def _tool(name):
+    """The bundled ffmpeg/ffprobe in ./bin, else whatever is on PATH."""
+    import shutil
+    p = HERE / "bin" / name
+    return str(p) if p.is_file() else shutil.which(name)
+
+
+def decode_ffmpeg(filepath):
+    """AudioLoader stand-in for the legacy (ffmpeg-less) essentia build: returns (stereo (n, 2) float32,
+    sample rate, channels) exactly as essentia-tensorflow's AudioLoader does. That AudioLoader is
+    ffmpeg 2.8, whose default mp3 decoder is the fixed-point one (s16 output -> float / 32768, clipped
+    to +-1); `-c:a mp3` picks the same decoder in any newer ffmpeg (bit-identical on all 80 bench
+    tracks). Other codecs are decoded to float like AudioLoader does."""
+    import json
+    import subprocess
+    import numpy as np
+    ffmpeg, ffprobe = _tool("ffmpeg"), _tool("ffprobe")
+    if not ffmpeg or not ffprobe:
+        raise RuntimeError("ffmpeg/ffprobe not found (expected in ./bin)")
+    info = json.loads(subprocess.run(
+        [ffprobe, "-v", "error", "-select_streams", "a:0", "-show_entries",
+         "stream=codec_name,sample_rate,channels", "-of", "json", str(filepath)],
+        capture_output=True, check=True).stdout)["streams"][0]
+    sr, nch = int(info["sample_rate"]), min(int(info["channels"]), 2)
+    mp3 = info.get("codec_name") == "mp3"
+    cmd = [ffmpeg, "-nostdin", "-v", "error"] + (["-c:a", "mp3"] if mp3 else []) + \
+          ["-i", str(filepath), "-map", "0:a:0", "-ac", str(nch), "-f", "s16le" if mp3 else "f32le",
+           "-c:a", "pcm_s16le" if mp3 else "pcm_f32le", "-"]
+    raw = subprocess.run(cmd, capture_output=True, check=True).stdout
+    if mp3:
+        x = np.frombuffer(raw, np.int16).astype(np.float32) / np.float32(32768)
+    else:
+        x = np.frombuffer(raw, np.float32).copy()
+    x = x.reshape(-1, nch)
+    stereo = np.ascontiguousarray(x if nch == 2 else np.repeat(x, 2, axis=1), dtype=np.float32)
+    return stereo, float(sr), nch
+
+
 def load_audio_essentia(filepath):
     """Decode once; return (audio @ 44100 for HPCP, audio @ 11025 for TempoCNN).
     Same chain MonoLoader uses internally (AudioLoader -> MonoMixer -> Resample), so both arrays are
-    byte-identical to MonoLoader(sampleRate=...) while decoding the file only once."""
+    byte-identical to MonoLoader(sampleRate=...) while decoding the file only once.
+    The legacy essentia build has no AudioLoader; decode_ffmpeg gives the same samples."""
     import essentia.standard as es
-    audio, sr, nch, *_ = es.AudioLoader(filename=str(filepath), computeMD5=False)()
+    if hasattr(es, 'AudioLoader'):
+        audio, sr, nch, *_ = es.AudioLoader(filename=str(filepath), computeMD5=False)()
+    else:
+        audio, sr, nch = decode_ffmpeg(filepath)
     mono = es.MonoMixer()(audio, nch)
     a_key = mono if sr == KEY_SR else es.Resample(inputSampleRate=sr, outputSampleRate=KEY_SR)(mono)
     a_bpm = mono if sr == TEMPOCNN_SR else es.Resample(inputSampleRate=sr, outputSampleRate=TEMPOCNN_SR)(mono)
@@ -137,7 +185,11 @@ def detect_bpm_essentia(audio_11k):
     vs 30% for librosa beat_track (docs/research/bpm-detection-research.md).
     """
     import essentia.standard as es
-    global_bpm, _local_bpm, _local_prob = es.TempoCNN(graphFilename=str(TEMPOCNN_MODEL))(audio_11k)
+    if hasattr(es, 'TempoCNN'):
+        global_bpm, _local_bpm, _local_prob = es.TempoCNN(graphFilename=str(TEMPOCNN_MODEL))(audio_11k)
+    else:                                   # legacy essentia: same network in numpy
+        import tempocnn_np
+        global_bpm, _local_bpm, _local_prob = tempocnn_np.tempo(audio_11k)
     return round(float(global_bpm), 1)
 
 
@@ -238,13 +290,18 @@ def detect_keys_librosa(y, sr):
 
 # ---------------------------------------------------------------- entry
 
+def _tempocnn_model_present():
+    import essentia.standard as es
+    return (TEMPOCNN_MODEL if hasattr(es, 'TempoCNN') else TEMPOCNN_WEIGHTS).is_file()
+
+
 def analyze(filepath):
     if _have_essentia():
         a_key, a_bpm = load_audio_essentia(filepath)
         keys = detect_keys_essentia(a_key)
-        if TEMPOCNN_MODEL.is_file():
+        if _tempocnn_model_present():
             return detect_bpm_essentia(a_bpm), keys
-        _warn(f"TempoCNN model missing at {TEMPOCNN_MODEL}; BPM via librosa fallback")
+        _warn("TempoCNN model missing in models/; BPM via librosa fallback")
         import librosa
         y, sr = librosa.load(str(filepath), mono=True)
         return detect_bpm_librosa(get_loud_section(y, sr), sr), keys

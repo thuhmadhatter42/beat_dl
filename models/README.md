@@ -22,3 +22,10 @@ Attribution: "TempoCNN deeptemp-k16-3 model by the Music Technology Group, Unive
 Fabra (Essentia), based on Schreiber & Müller 2018. Licensed CC BY-NC-SA 4.0." The model is
 vendored here unmodified for personal, non-commercial use; this license applies to the
 model file only, not to the rest of this repository (see ../LICENSE).
+
+## deeptemp-k16-3.npz
+
+The same model's weights as numpy arrays, for `tempocnn_np.py` (the TensorFlow-free TempoCNN used
+with the legacy essentia build on old Macs). Generated from `deeptemp-k16-3.pb` by
+`tools/build-old-mac/extract-tempocnn-weights.py`, which also checks the layer graph. It is a
+format conversion of the model above, under the same CC BY-NC-SA 4.0 license and attribution.
