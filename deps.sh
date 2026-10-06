@@ -6,17 +6,13 @@ DEPS_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 STAMP="$DEPS_DIR/.last-ytdlp-upgrade"
 UPGRADE_EVERY_DAYS=7
 
-# yt-dlp, ffmpeg and ffprobe live in ./bin as standalone binaries, owned by whoever
-# cloned the repo. No Homebrew: a brew owned by another Mac user can't install or
-# upgrade anything, and a brew upgrade can break brew's yt-dlp (seen 2026-10-06).
+# yt-dlp, ffmpeg and ffprobe ship inside the repo (vendor/) and run from ./bin.
+# No Homebrew: a brew owned by another Mac user can't install or upgrade anything,
+# and a brew upgrade broke brew's yt-dlp on Studio-E-2 (2026-10-06).
+# vendor/ is tracked; bin/ is not, so yt-dlp can self-update without dirtying git pull.
+VENDOR_DIR="$DEPS_DIR/vendor"
 BIN_DIR="$DEPS_DIR/bin"
 export PATH="$BIN_DIR:$PATH"
-YTDLP_URL="https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp_macos"
-# Static macOS builds, ffmpeg 9.0.2 (ffmpeg doesn't go stale, so pinned)
-case "$(uname -m)" in
-    arm64) FFMPEG_BASE="https://ffmpeg.martin-riedl.de/download/macos/arm64/1789931890_9.0.2" ;;
-    *)     FFMPEG_BASE="https://ffmpeg.martin-riedl.de/download/macos/amd64/1789931006_9.0.2" ;;
-esac
 
 load_brew() {
     if [ -f /opt/homebrew/bin/brew ]; then
@@ -44,22 +40,15 @@ numba_imports() {
 
 runs() { "$BIN_DIR/$1" -version &>/dev/null || "$BIN_DIR/$1" --version &>/dev/null; }
 
-install_ytdlp() {
-    echo "▸ Installing yt-dlp..."
-    curl -fsSL "$YTDLP_URL" -o "$BIN_DIR/yt-dlp" && chmod +x "$BIN_DIR/yt-dlp"
-    runs yt-dlp || echo "❌ yt-dlp didn't install. Check the internet connection and run again."
-}
-
-install_ffmpeg_tool() {  # $1 = ffmpeg | ffprobe
-    echo "▸ Installing $1..."
-    local tmp; tmp="$(mktemp -d)"
-    if curl -fsSL "$FFMPEG_BASE/$1.zip" -o "$tmp/$1.zip" \
-       && [ "$(shasum -a 256 "$tmp/$1.zip" | cut -d' ' -f1)" = "$(curl -fsSL "$FFMPEG_BASE/$1.zip.sha256" | cut -d' ' -f1)" ] \
-       && unzip -oq "$tmp/$1.zip" -d "$tmp"; then
-        mv -f "$tmp/$1" "$BIN_DIR/$1" && chmod +x "$BIN_DIR/$1"
+# Copies a bundled tool from vendor/ into bin/. ffmpeg 9.0.2 static builds, one zip per CPU.
+install_tool() {  # $1 = yt-dlp | ffmpeg | ffprobe
+    if [ "$1" = yt-dlp ]; then
+        cp -f "$VENDOR_DIR/yt-dlp" "$BIN_DIR/yt-dlp"
+    else
+        unzip -oq "$VENDOR_DIR/macos-$(uname -m)/$1.zip" -d "$BIN_DIR"
     fi
-    rm -rf "$tmp"
-    runs "$1" || echo "❌ $1 didn't install. Check the internet connection and run again."
+    chmod +x "$BIN_DIR/$1" 2>/dev/null
+    runs "$1" || echo "❌ $1 won't run on this Mac."
 }
 
 # Installs whatever is missing. Prints nothing when everything is present.
@@ -68,9 +57,8 @@ ensure_deps() {
     export PATH="$BIN_DIR:$PATH"
     mkdir -p "$BIN_DIR"
 
-    runs yt-dlp || install_ytdlp
-    for tool in ffmpeg ffprobe; do
-        runs "$tool" || install_ffmpeg_tool "$tool"
+    for tool in yt-dlp ffmpeg ffprobe; do
+        runs "$tool" || install_tool "$tool"
     done
 
     # One analyzer, picked automatically. bpm.py uses whichever is installed:
@@ -108,7 +96,7 @@ ensure_deps() {
 # Upgrades yt-dlp (the only dep that goes stale) and stamps the time.
 upgrade_ytdlp() {
     echo "▸ Updating yt-dlp..."
-    "$BIN_DIR/yt-dlp" -U >/dev/null 2>&1 || install_ytdlp
+    "$BIN_DIR/yt-dlp" -U >/dev/null 2>&1
     touch "$STAMP"
 }
 
