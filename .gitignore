@@ -32,3 +32,6 @@ docs/research/*/gsplus/
 docs/research/*/giantsteps-key-dataset-master/
 docs/research/*/models/
 docs/research/*/*.zip
+
+# agent worktrees
+.claude/worktrees/
