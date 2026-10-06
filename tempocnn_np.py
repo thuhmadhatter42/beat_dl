@@ -60,16 +60,10 @@ def patches(bands):
     """VectorRealToTensor(lastPatchMode='discard', patchHopSize=128) + TensorNormalize('standard', 0).
     Returns (n, 40, 256, 1) float32 (batch, mels, time, channel)."""
     b = np.asarray(bands, dtype=np.float32)
-    if len(b) >= PATCH:
-        n = (len(b) - PATCH) // PATCH_HOP + 1
-        P = np.stack([b[i * PATCH_HOP:i * PATCH_HOP + PATCH] for i in range(n)])
-    elif len(b) > 0:
-        # essentia's TF path has no defined output here (no patch at all); tile the frames
-        # cyclically like lastPatchMode='repeat' so very short clips still get an estimate
-        P = b[np.arange(PATCH) % len(b)][None]
-    else:
-        raise ValueError("TempoCNN: audio too short (no analysis frames)")
-    n = len(P)
+    n = (len(b) - PATCH) // PATCH_HOP + 1 if len(b) >= PATCH else 0
+    if n == 0:                                          # < 256 frames (~11.9 s): no patch at all
+        return np.zeros((0, N_MELS, PATCH, 1), np.float32)
+    P = np.stack([b[i * PATCH_HOP:i * PATCH_HOP + PATCH] for i in range(n)])
     flat = P.reshape(n, -1)
     mean = flat.mean(axis=1, dtype=np.float32)
     std = np.sqrt(((flat - mean[:, None]) ** 2).sum(axis=1, dtype=np.float32) / np.float32(flat.shape[1]))
@@ -115,7 +109,10 @@ def predict(P):
 
 def aggregate(pred):
     """essentia TempoCNN 'majority': per-patch argmax (first max) + 30; the most-voted BPM wins,
-    ties go to the candidate seen first."""
+    ties go to the candidate seen first. No patches (clip under ~12 s) -> 0.0, which is what
+    essentia-tensorflow returns there too (measured on a 5 s mp3)."""
+    if len(pred) == 0:
+        return 0.0, np.zeros(0, np.float32), np.zeros(0, np.float32)
     idx = pred.argmax(axis=1)
     local = (idx + BPM_OFFSET).astype(np.float32)
     probs = pred[np.arange(len(pred)), idx]
@@ -134,4 +131,5 @@ def aggregate(pred):
 def tempo(audio_11k):
     """Drop-in for essentia.standard.TempoCNN(graphFilename=deeptemp-k16-3.pb)(audio_11k):
     returns (globalTempo, localTempo, localTempoProbabilities)."""
-    return aggregate(predict(patches(mel_bands(audio_11k))))
+    P = patches(mel_bands(audio_11k))
+    return aggregate(predict(P) if len(P) else np.zeros((0, 256), np.float32))
