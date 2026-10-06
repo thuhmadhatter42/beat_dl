@@ -20,7 +20,7 @@ while true; do
 
     echo "Downloading..."
 
-    filepath=$(python3 "$SCRIPT_DIR/downloader.py" "$url")
+    filepath=$("$PY" "$SCRIPT_DIR/downloader.py" "$url")
 
     if [ $? -ne 0 ] || [ -z "$filepath" ]; then
         # A failed download is usually a stale yt-dlp. Upgrade once and retry.
@@ -28,7 +28,7 @@ while true; do
             upgraded_this_run=1
             upgrade_ytdlp
             echo "Retrying..."
-            filepath=$(python3 "$SCRIPT_DIR/downloader.py" "$url")
+            filepath=$("$PY" "$SCRIPT_DIR/downloader.py" "$url")
         fi
         if [ $? -ne 0 ] || [ -z "$filepath" ]; then
             continue
@@ -37,7 +37,7 @@ while true; do
 
     # Detect BPM + key (4 lines: BPM, key1, key2, key3)
     echo "Analyzing..."
-    analysis=$(python3 "$SCRIPT_DIR/bpm.py" "$filepath" 2>/dev/null) || analysis=""
+    analysis=$("$PY" "$SCRIPT_DIR/bpm.py" "$filepath" 2>/dev/null) || analysis=""
 
     bpm=$(echo "$analysis" | sed -n '1p')
     key1=$(echo "$analysis" | sed -n '2p')
