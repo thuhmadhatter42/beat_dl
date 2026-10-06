@@ -4,7 +4,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 LOG_FILE="$HOME/Downloads/($(date +%-y-%-m-%-d)) Youtube DL LINKS.txt"
 
 source "$SCRIPT_DIR/deps.sh"
-ensure_deps
+ensure_deps || exit 1
 maybe_upgrade_ytdlp
 
 log_download() {

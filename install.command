@@ -8,7 +8,7 @@ echo "━━━━━━━━━━━━━━━━━━━━━━━━�
 echo ""
 
 source ./deps.sh
-ensure_deps
+ensure_deps || exit 1
 upgrade_ytdlp
 
 echo ""

@@ -18,9 +18,10 @@ Every launch re-checks that the tools are present (instant, no network). yt-dlp 
 
 Paste a YouTube URL when prompted. After each download:
 - Audio is saved as MP3 to `~/Downloads`
-- BPM is detected on the whole track with Essentia's TempoCNN neural net (`models/deeptemp-k16-3.pb`, ships in the repo, runs offline; 87.5% exact-tempo accuracy on the benchmark in `docs/research/` vs 30% for the old librosa method). If essentia-tensorflow is missing it falls back to librosa.
+- BPM is detected on the whole track with Essentia's TempoCNN neural net (weights in `models/deeptemp-k16-3.npz`, run in numpy by `tempocnn_np.py`, offline; 87.5% exact-tempo accuracy on the benchmark in `docs/research/` vs 30% for the old librosa method). Same numbers as Essentia's TensorFlow TempoCNN on all 80 bench tracks.
 - Key is detected on the whole track with Essentia's HPCP chroma (36-bin, spectral whitening, detuning correction) scored against Faraldo's EDM `bgate` profiles for all 24 keys — 85.1 MIREX-weighted / 79.5% exact on the GiantSteps+ benchmark in `docs/research/` vs 55.4 / 43.6% for the old librosa Krumhansl method. The top 3 keys are printed with a confidence percentage: the first is from segment agreement + score margin (measured on 39 EDM clips with this exact code: ≥ 85% shown → 85% right, 70–85% → 75%; not a calibrated probability), the other two share what's left. Truth is in the top 3 on 92% of the benchmark.
-- The analyzer never touches the system Python or pip: everything runs from `bin/python`. Works on macOS 11+ (Apple Silicon and Intel).
+- The analyzer never touches the system Python, pip or `~/.local`: everything runs from `bin/python`. Essentia is our own build (`tools/build-old-mac/essentia.sh`) without TensorFlow, ffmpeg or SDL.
+- **Runs on every Apple Silicon Mac (macOS 11+) and Intel Macs on macOS 10.15+.** First launch checks the macOS version and chip and installs the build of each tool that runs there; after a macOS update it switches by itself. ffmpeg: arm64 9.0.2 on macOS 12+, our arm64 7.1.1 build on macOS 11 (`tools/build-old-mac/ffmpeg-arm64.sh`), evermeet 7.1.1 on Intel.
 - The file is automatically renamed with BPM and keys included
 - Each successful download is appended to `~/Downloads/(YY-M-D) Youtube DL LINKS.txt` as an `Input URL` / `Downloaded` entry
 
