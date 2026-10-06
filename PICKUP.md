@@ -1,34 +1,31 @@
 # PICKUP — beat_dl
 
-## CURRENT STATE — 2026-10-06 15:30
+## CURRENT STATE — 2026-10-06 17:00
 
-**What this is:** YouTube → MP3 downloader with BPM/key tagging. Bash loop (run.sh) + downloader.py (yt-dlp) + bpm.py (Essentia TempoCNN for BPM, Essentia HPCP + bgate for key). Launched by run.command or the `beat` alias. Also called by the Jownloader Brave extension (`~/dev/jownloader/extension`) through a native host that pipes a URL into run.sh. Progress page: `PROGRESS-TRACKER.html` (source `tracker.json`; rebuild with `python3 ~/.claude/skills/progress-tracker/build_tracker.py tracker.json`).
+**What this is:** YouTube → MP3 downloader with BPM/key tagging. Bash loop (run.sh) + downloader.py (yt-dlp) + bpm.py (Essentia HPCP + bgate for key, TempoCNN for BPM). Launched by run.command or the `beat` alias. Also called by the Jownloader Brave extension (`~/dev/jownloader/extension`) through a native host that pipes a URL into run.sh. Progress page: `PROGRESS-TRACKER.html` (source `tracker.json`; rebuild with `python3 ~/.claude/skills/progress-tracker/build_tracker.py tracker.json`).
 
-**Git:** main = origin/main, pushed. Last code commit 570695e (2026-10-06 13:45).
+**Git:** main = origin/main = f5d462b (pushed 2026-10-06 ~16:55), clean.
 
-**J's goal (2026-10-06 15:23):** beat_dl must work on ANYONE's Mac. Every dependency ships in the repo (no brew, no pip, no network except yt-dlp's own -U), and first run checks the macOS version + CPU and picks, per component, a build that runs on that Mac. "macOS 14 doesn't support XYZ" must never happen again.
+**J's goal (2026-10-06), DONE:** beat_dl works on anyone's Mac: every dependency ships in `vendor/`, no brew, no pip from the network, no system Python. First launch reads macOS version + chip and installs the build that runs there.
 
-**Everything that ships in `vendor/` now (all installed into gitignored `bin/` by deps.sh `ensure_deps`, with visible progress):**
-- `vendor/yt-dlp` — universal yt-dlp_macos. Measured minos: arm64 11.0, x86_64 10.13.
-- `vendor/macos-{arm64,x86_64}/{ffmpeg,ffprobe}.zip` — martin-riedl.de static 9.0.2. Measured minos 12.0 both arches → TOO NEW for macOS 11 / Intel 10.15–11.
-- `vendor/macos-{arm64,x86_64}/python.tar.gz` — python-build-standalone cpython-3.11.17+20261003 install_only_stripped (sha256 checked against upstream SHA256SUMS). Minos arm64 11.0, x86_64 10.15. Unpacked to `bin/python`; run.sh calls `"$PY"` (= bin/python/bin/python3) for downloader.py and bpm.py.
-- `vendor/macos-{arm64,x86_64}/wheels/` — essentia-tensorflow 2.1b6.dev1110 cp311 (split into `.part-aa/.part-ab` at 60 MB for GitHub's 100 MB limit; joined at install), numpy 1.26.4, pyyaml 6.0.3, six 1.17.0. pip installs them with `--no-index`. Measured minos (real Mach-O, wheel tags lie): arm64 13.1 (libtensorflow_framework; libx264/x265/libyaml 13.0), x86_64 12.1.
-- **So today it runs on:** Apple Silicon macOS 13.1+, Intel macOS 12.1+. Target: Apple Silicon 11.0+ (all of them), Intel 10.15+ (my default floor, not confirmed by J).
+**How it works now (deps.sh `ensure_deps`, every launch):**
+- `MACOS=$(sw_vers -productVersion)`; `CPU` from `sysctl hw.optional.arm64` (right even in a Rosetta terminal). Below macOS 10.15 → "❌ beat_dl needs macOS 10.15 or newer" and run.sh exits.
+- `bin/.picks` = `macos=… cpu=… ffmpeg=… analyzer=essentia-notf-1`. If it differs (new Mac, macOS update, analyzer bump) → bin/ffmpeg, bin/ffprobe, bin/python are dropped and reinstalled. Bump `ANALYZER_BUILD` in deps.sh whenever the vendored analyzer changes.
+- ffmpeg/ffprobe: `vendor/macos-arm64/` 9.0.2 (martin-riedl) on arm64 macOS ≥ 12.0; `vendor/macos-arm64-legacy/` our 7.1.1 minimal static build (minos 11.0, built by `tools/build-old-mac/ffmpeg-arm64.sh`) below 12; `vendor/macos-x86_64/` evermeet 7.1.1 (minos 10.9) on Intel.
+- yt-dlp: `vendor/yt-dlp` universal (floor 10.15); self-updates in bin/ weekly + once on a failed download; an update that won't run is rolled back to the vendored copy.
+- Analyzer: `vendor/macos-<cpu>/python.tar.gz` (python-build-standalone 3.11.17) + `vendor/macos-<cpu>/wheels/` = OUR essentia wheel (`tools/build-old-mac/essentia.sh`, essentia commit 77a6a954 = dev1110, no TensorFlow/ffmpeg/SDL, static, minos arm64 11.0 / x86_64 10.15, links only libc++/libSystem) + numpy 1.26.4, pyyaml, six. `pip install --no-user --no-index`; `PYTHONNOUSERSITE=1 PIP_CONFIG_FILE=/dev/null`, PYTHONPATH/PYTHONHOME unset.
+- bpm.py: when essentia has no TempoCNN/AudioLoader (our build), it decodes with ./bin/ffmpeg (`-c:a mp3` fixed-point decoder → s16 ÷ 32768, matches the old AudioLoader sample for sample) and runs TempoCNN in numpy (`tempocnn_np.py`, weights `models/deeptemp-k16-3.npz`, extractor `tools/build-old-mac/extract-tempocnn-weights.py`). The TF path still works if a TF essentia is present (e.g. brew python on the MBP for the benchmarks).
+- Accuracy: our build vs the essentia-tensorflow path on the 80 bench tracks (docs/research/bpm-bench + key-bench audio): BPM 80/80, top-3 keys 80/80, confidences 80/80, both arches. Non-mp3 inputs can differ slightly (old ffmpeg kept encoder padding); beat_dl only writes mp3.
+- Why the PyPI wheels were dropped: they needed macOS 13.1 (arm64) / 12.1 (Intel), and their bundled libSDL-1.2 pops "Fatal error! Cannot continue! Failed loading SDL2 library." and hangs on any Mac without Homebrew's SDL2 (MBP and Studio-E-2 only worked because both have brew sdl2-compat).
 
-**In flight (2026-10-06 15:28):** one Sonnet agent ("T3 Old-macOS build hunt", worktree isolation, recon only) is finding + measuring older builds: ffmpeg/ffprobe static with arm64 minos ≤ 11.0 and x86_64 ≤ 10.15; essentia-tensorflow versions (dev871/1032/1110/1177/1389) for arm64 11–13.0 and Intel 10.15–12.0, else plain `essentia` wheels (BPM falls back to RhythmExtractor2013, key unchanged); yt-dlp `-U` vs yt-dlp_macos_legacy on old macOS. Its downloads go to `<scratchpad>/oldmac/` (session scratchpad, gone after this session — if the agent's report is lost, rerun the hunt). Grade it after review: `python3 ~/.claude/scripts/agent-grade.py grade last pass|fix|fail "<why>"`; remove its worktree.
+**Tested 2026-10-06:** forced tiers on the MBP (native, arm64 11.7, x86_64 12.7, x86_64 10.15 under Rosetta, x86_64 10.14 refusal) + real Intel run on Sofia (macOS 12.7.6): every download named "(77.0 BPM D# D#m G#)", key line `D# (76.1%) | D#m (14.0%) | G# (2.8%)` everywhere. Not testable on hardware here: Apple Silicon macOS 11/12, Intel 10.15/11 (minos headers + forced tiers only). The pip-isolation fix came after the Sofia run; verified on the MBP with a `user = true` pip.conf (nothing went to ~/.local).
 
-**Next (build, after the agent reports):**
-1. Vendor the extra tiers as `vendor/macos-<arch>/<component>/<tier>/…` (or similar) with a small manifest listing each build's measured minos.
-2. deps.sh first run: read `sw_vers -productVersion` and native CPU (`sysctl -n hw.optional.arm64`, so a Rosetta terminal still gets arm64), pick per component the newest build whose minos ≤ this Mac; record what was picked in `bin/` so later launches skip the work; print one loud line if a component has no build for this Mac.
-3. Launch check stays (J 15:23: "I'd rather make sure it works"). It runs once per launch, not per download: `runs` executes yt-dlp/ffmpeg/ffprobe `--version` (~8 s total, mostly yt-dlp's one-file unpack) and reinstalls a missing/broken tool; `have_essentia` checks bin/python. yt-dlp is the only thing that needs updates (weekly `-U` + once on a failed download); ffmpeg/python/essentia never need updating.
-4. Test each tier: fresh copy + bare PATH (`env -i HOME=$HOME PATH=/usr/bin:/bin:/usr/sbin:/sbin bash ./run.sh`) on this MBP; Sofia (Intel, macOS 12.7.6, `~/.claude/scripts/ssh-rc js-mac-pro '…'`) covers the Intel path. Test URL J gave: https://www.youtube.com/watch?v=TL_EX-hDXfo (77.0 BPM D#). Trash every test download.
+**Owed / open:**
+1. **Sofia test litter (needs J's OK; a move was refused by the permission classifier for the test agent):** `~/.local/lib/python3.11/` (all of it created 16:45 by the test: essentia, numpy, pyyaml, six, yaml), `~/.local/bin/f2py`, `~/Downloads/(26-10-6) Youtube DL LINKS.txt` (didn't exist before the test; 2 test lines), `/tmp/sofia-allmac-run.sh`. Command for J: `! ~/.claude/scripts/ssh-rc js-mac-pro 'mv ~/.local/lib/python3.11 ~/.local/bin/f2py ~/Downloads/"(26-10-6) Youtube DL LINKS.txt" /tmp/sofia-allmac-run.sh ~/.Trash/'`
+2. MBP: today's `~/Downloads/(26-10-6) Youtube DL LINKS.txt` got 12 test lines appended by the tier tests (file is J's, left as is).
+3. Studio-E-2 and the MBP pick up f5d462b on their next `git pull` + `beat`: the picks change forces a one-time analyzer reinstall (under a minute).
+4. Later, only when J says go: **harvester trial** (iLok + Arc-1 on Sofia; spec `docs/superpowers/specs/2026-09-12-protools-autotune-ground-truth-design.md` §5) and **Orion phase 1** (spec `docs/superpowers/specs/2026-09-12-menubar-key-bpm-listener-design.md`, repo `~/dev/orion`).
 
-**Verified 2026-10-06:**
-- MBP: fresh copy, no brew on PATH → analyzer setup + download + tag in 42 s ("77.0 BPM D# D#m G#"). Test file trashed. MBP's own `bin/python` not created yet — J was running `beat` at 15:23, which does the one-time setup.
-- Studio-E-2 (arm64, macOS 14.1.1, user studioe; ssh key auth now works): git pull → 570695e, analyzer installed, J's test at 13:48 tagged "77.0 BPM D# D#m G#". Test file moved to its ~/.Trash. Root cause there: PyPI's newest essentia wheel needs macOS 15 and the old deps.sh hid pip's failure; plus an orphaned `brew reinstall yt-dlp` was compiling Rust/LLVM from source for an hour at load 20 (gone by 13:46).
+**Plan done:** `docs/superpowers/plans/2026-10-06-old-mac-support.md` + `-TOC.md`, all boxes ticked.
 
-**Still open, later (J 15:23: "yes, later"):**
-1. **Harvester trial** (5 sessions on Sofia): J plugs the iLok and Arc-1 into Sofia and says go. Spec `docs/superpowers/specs/2026-09-12-protools-autotune-ground-truth-design.md` §5.
-2. **Orion phase 1** (menu-bar BPM/key listener): J says go → superpowers:writing-plans from `docs/superpowers/specs/2026-09-12-menubar-key-bpm-listener-design.md`, repo `~/dev/orion`.
-
-**Closed by J 2026-10-06 — never raise again:** Studio-E-2 old `beat` window; the 13:38 "152.0 BPM" file in Studio-E-2 Downloads; the trap 70/140 rule (J halves/doubles by ear, leave the detector as is); the iMessage watcher (one-off, not doing it).
+**Closed by J 2026-10-06 — never raise again:** Studio-E-2 old `beat` window; the 13:38 "152.0 BPM" file in Studio-E-2 Downloads; the trap 70/140 rule (J halves/doubles by ear); the iMessage watcher (one-off, not doing it).
