@@ -1,0 +1,156 @@
+id,path,bpm,artist,kind,key
+pt0001,audio11k/0001.wav,95,7b3df763be,beat,C minor
+pt0001m,audio11k/0001_mix.wav,95,7b3df763be,mix,C minor
+pt0003,audio11k/0003.wav,120,dcad455779,beat,E minor
+pt0003m,audio11k/0003_mix.wav,120,dcad455779,mix,E minor
+pt0004,audio11k/0004.wav,134.7,0d5b61b8a2,beat,
+pt0004m,audio11k/0004_mix.wav,134.7,0d5b61b8a2,mix,
+pt0005,audio11k/0005.wav,152,d13945e2cc,beat,D minor
+pt0005m,audio11k/0005_mix.wav,152,d13945e2cc,mix,D minor
+pt0007,audio11k/0007.wav,130,84b3400950,beat,
+pt0007m,audio11k/0007_mix.wav,130,84b3400950,mix,
+pt0009,audio11k/0009.wav,180,988e4bd4c1,beat,
+pt0009m,audio11k/0009_mix.wav,180,988e4bd4c1,mix,
+pt0010,audio11k/0010.wav,170,66449b1687,beat,
+pt0010m,audio11k/0010_mix.wav,170,66449b1687,mix,
+pt0011,audio11k/0011.wav,189,0a2fa71158,beat,B minor
+pt0011m,audio11k/0011_mix.wav,189,0a2fa71158,mix,B minor
+pt0012,audio11k/0012.wav,88,4a9b50774c,beat,F major
+pt0012m,audio11k/0012_mix.wav,88,4a9b50774c,mix,F major
+pt0013,audio11k/0013.wav,159,54d0ba07f8,beat,
+pt0013m,audio11k/0013_mix.wav,159,54d0ba07f8,mix,
+pt0014,audio11k/0014.wav,104,7b3df763be,beat,C minor
+pt0014m,audio11k/0014_mix.wav,104,7b3df763be,mix,C minor
+pt0015,audio11k/0015.wav,145,3b6f422b59,beat,
+pt0015m,audio11k/0015_mix.wav,145,3b6f422b59,mix,
+pt0017,audio11k/0017.wav,111,f411272858,beat,
+pt0017m,audio11k/0017_mix.wav,111,f411272858,mix,
+pt0018,audio11k/0018.wav,139,38389d787f,beat,
+pt0018m,audio11k/0018_mix.wav,139,38389d787f,mix,
+pt0019,audio11k/0019.wav,181,6ae837282c,beat,
+pt0019m,audio11k/0019_mix.wav,181,6ae837282c,mix,
+pt0022,audio11k/0022.wav,120,6681dbd93b,beat,
+pt0022m,audio11k/0022_mix.wav,120,6681dbd93b,mix,
+pt0023,audio11k/0023.wav,134,b87b7705d5,beat,
+pt0023m,audio11k/0023_mix.wav,134,b87b7705d5,mix,
+pt0024,audio11k/0024.wav,80,f4bff0227b,beat,F# minor
+pt0024m,audio11k/0024_mix.wav,80,f4bff0227b,mix,F# minor
+pt0025,audio11k/0025.wav,121,2f0b20cda0,beat,Eb minor
+pt0025m,audio11k/0025_mix.wav,121,2f0b20cda0,mix,Eb minor
+pt0026,audio11k/0026.wav,75,e1c45ada49,beat,
+pt0026m,audio11k/0026_mix.wav,75,e1c45ada49,mix,
+pt0027,audio11k/0027.wav,137,26931966bd,beat,
+pt0029,audio11k/0029.wav,103,e9602b6ac4,beat,
+pt0029m,audio11k/0029_mix.wav,103,e9602b6ac4,mix,
+pt0030,audio11k/0030.wav,89,0f948943c9,beat,Eb minor
+pt0030m,audio11k/0030_mix.wav,89,0f948943c9,mix,Eb minor
+pt0033,audio11k/0033.wav,105,8143116b23,beat,
+pt0033m,audio11k/0033_mix.wav,105,8143116b23,mix,
+pt0034,audio11k/0034.wav,71.8595,9a108c93cd,beat,Eb minor
+pt0034m,audio11k/0034_mix.wav,71.8595,9a108c93cd,mix,Eb minor
+pt0035,audio11k/0035.wav,165,b13474b655,beat,
+pt0035m,audio11k/0035_mix.wav,165,b13474b655,mix,
+pt0036,audio11k/0036.wav,149,d82719ea46,beat,
+pt0036m,audio11k/0036_mix.wav,149,d82719ea46,mix,
+pt0037,audio11k/0037.wav,150,a24d601189,beat,B major
+pt0037m,audio11k/0037_mix.wav,150,a24d601189,mix,B major
+pt0039,audio11k/0039.wav,135,dcad455779,beat,B minor
+pt0039m,audio11k/0039_mix.wav,135,dcad455779,mix,B minor
+pt0040,audio11k/0040.wav,123,6f51c27ead,beat,
+pt0040m,audio11k/0040_mix.wav,123,6f51c27ead,mix,
+pt0041,audio11k/0041.wav,109,0d5b61b8a2,beat,
+pt0041m,audio11k/0041_mix.wav,109,0d5b61b8a2,mix,
+pt0042,audio11k/0042.wav,82,8ec4cc6be2,beat,E minor
+pt0042m,audio11k/0042_mix.wav,82,8ec4cc6be2,mix,E minor
+pt0043,audio11k/0043.wav,170,8c41577ee7,beat,G# minor
+pt0043m,audio11k/0043_mix.wav,170,8c41577ee7,mix,G# minor
+pt0044,audio11k/0044.wav,140,0a2fa71158,beat,C minor
+pt0044m,audio11k/0044_mix.wav,140,0a2fa71158,mix,C minor
+pt0045,audio11k/0045.wav,160,4a9b50774c,beat,
+pt0045m,audio11k/0045_mix.wav,160,4a9b50774c,mix,
+pt0047,audio11k/0047.wav,100,7b3df763be,beat,Bb minor
+pt0047m,audio11k/0047_mix.wav,100,7b3df763be,mix,Bb minor
+pt0048,audio11k/0048.wav,150,3b6f422b59,beat,C major
+pt0048m,audio11k/0048_mix.wav,150,3b6f422b59,mix,C major
+pt0049,audio11k/0049.wav,137,77dac70477,beat,C# minor
+pt0049m,audio11k/0049_mix.wav,137,77dac70477,mix,C# minor
+pt0051,audio11k/0051.wav,156,b87b7705d5,beat,
+pt0051m,audio11k/0051_mix.wav,156,b87b7705d5,mix,
+pt0052,audio11k/0052.wav,154,f4bff0227b,beat,
+pt0052m,audio11k/0052_mix.wav,154,f4bff0227b,mix,
+pt0053,audio11k/0053.wav,84,e1c45ada49,beat,
+pt0053m,audio11k/0053_mix.wav,84,e1c45ada49,mix,
+pt0054,audio11k/0054.wav,100,57fe7cbf68,beat,Bb minor
+pt0054m,audio11k/0054_mix.wav,100,57fe7cbf68,mix,Bb minor
+pt0055,audio11k/0055.wav,102,0f948943c9,beat,
+pt0055m,audio11k/0055_mix.wav,102,0f948943c9,mix,
+pt0056,audio11k/0056.wav,163,e266d77e86,beat,G minor
+pt0056m,audio11k/0056_mix.wav,163,e266d77e86,mix,G minor
+pt0057,audio11k/0057.wav,117,d13945e2cc,beat,E minor
+pt0057m,audio11k/0057_mix.wav,117,d13945e2cc,mix,E minor
+pt0058,audio11k/0058.wav,162,d82719ea46,beat,
+pt0058m,audio11k/0058_mix.wav,162,d82719ea46,mix,
+pt0060,audio11k/0060.wav,110,dcad455779,beat,
+pt0060m,audio11k/0060_mix.wav,110,dcad455779,mix,
+pt0061,audio11k/0061.wav,139,0d5b61b8a2,beat,G minor
+pt0061m,audio11k/0061_mix.wav,139,0d5b61b8a2,mix,G minor
+pt0064,audio11k/0064.wav,92,0a2fa71158,beat,A minor
+pt0064m,audio11k/0064_mix.wav,92,0a2fa71158,mix,A minor
+pt0065,audio11k/0065.wav,125,4a9b50774c,beat,
+pt0065m,audio11k/0065_mix.wav,125,4a9b50774c,mix,
+pt0066,audio11k/0066.wav,125,54d0ba07f8,beat,
+pt0066m,audio11k/0066_mix.wav,125,54d0ba07f8,mix,
+pt0067,audio11k/0067.wav,105,7b3df763be,beat,C minor
+pt0067m,audio11k/0067_mix.wav,105,7b3df763be,mix,C minor
+pt0068,audio11k/0068.wav,140,3b6f422b59,beat,E minor
+pt0068m,audio11k/0068_mix.wav,140,3b6f422b59,mix,E minor
+pt0069,audio11k/0069.wav,150,77dac70477,beat,
+pt0069m,audio11k/0069_mix.wav,150,77dac70477,mix,
+pt0071,audio11k/0071.wav,84,e1c45ada49,beat,F# minor
+pt0071m,audio11k/0071_mix.wav,84,e1c45ada49,mix,F# minor
+pt0074,audio11k/0074.wav,160,a24d601189,beat,
+pt0074m,audio11k/0074_mix.wav,160,a24d601189,mix,
+pt0076,audio11k/0076.wav,116,0d5b61b8a2,beat,
+pt0076m,audio11k/0076_mix.wav,116,0d5b61b8a2,mix,
+pt0077,audio11k/0077.wav,138.74,8c41577ee7,beat,
+pt0077m,audio11k/0077_mix.wav,138.74,8c41577ee7,mix,
+pt0078,audio11k/0078.wav,80,4a9b50774c,beat,
+pt0078m,audio11k/0078_mix.wav,80,4a9b50774c,mix,
+pt0079,audio11k/0079.wav,161,54d0ba07f8,beat,
+pt0079m,audio11k/0079_mix.wav,161,54d0ba07f8,mix,
+pt0080,audio11k/0080.wav,148,7b3df763be,beat,
+pt0080m,audio11k/0080_mix.wav,148,7b3df763be,mix,
+pt0081,audio11k/0081.wav,175,3b6f422b59,beat,
+pt0081m,audio11k/0081_mix.wav,175,3b6f422b59,mix,
+pt0082,audio11k/0082.wav,94.5,f4bff0227b,beat,
+pt0082m,audio11k/0082_mix.wav,94.5,f4bff0227b,mix,
+pt0083,audio11k/0083.wav,60,d13945e2cc,beat,
+pt0083m,audio11k/0083_mix.wav,60,d13945e2cc,mix,
+pt0085,audio11k/0085.wav,100,8c41577ee7,beat,
+pt0085m,audio11k/0085_mix.wav,100,8c41577ee7,mix,
+pt0086,audio11k/0086.wav,130,54d0ba07f8,beat,
+pt0086m,audio11k/0086_mix.wav,130,54d0ba07f8,mix,
+pt0087,audio11k/0087.wav,155,7b3df763be,beat,
+pt0087m,audio11k/0087_mix.wav,155,7b3df763be,mix,
+pt0090,audio11k/0090.wav,156,dcad455779,beat,F# minor
+pt0090m,audio11k/0090_mix.wav,156,dcad455779,mix,F# minor
+pt0091,audio11k/0091.wav,144,8c41577ee7,beat,
+pt0091m,audio11k/0091_mix.wav,144,8c41577ee7,mix,
+pt0092,audio11k/0092.wav,93,54d0ba07f8,beat,Eb minor
+pt0092m,audio11k/0092_mix.wav,93,54d0ba07f8,mix,Eb minor
+pt0093,audio11k/0093.wav,160,7b3df763be,beat,
+pt0093m,audio11k/0093_mix.wav,160,7b3df763be,mix,
+pt0094,audio11k/0094.wav,154,3b6f422b59,beat,
+pt0094m,audio11k/0094_mix.wav,154,3b6f422b59,mix,
+pt0095,audio11k/0095.wav,125,d13945e2cc,beat,G# minor
+pt0095m,audio11k/0095_mix.wav,125,d13945e2cc,mix,G# minor
+pt0096,audio11k/0096.wav,130,8c41577ee7,beat,
+pt0096m,audio11k/0096_mix.wav,130,8c41577ee7,mix,
+pt0098,audio11k/0098.wav,178,7b3df763be,beat,C minor
+pt0098m,audio11k/0098_mix.wav,178,7b3df763be,mix,C minor
+pt0099,audio11k/0099.wav,140,3b6f422b59,beat,
+pt0099m,audio11k/0099_mix.wav,140,3b6f422b59,mix,
+pt0100,audio11k/0100.wav,125,d13945e2cc,beat,
+pt0100m,audio11k/0100_mix.wav,125,d13945e2cc,mix,
+pt0101,audio11k/0101.wav,140,8c41577ee7,beat,
+pt0101m,audio11k/0101_mix.wav,140,8c41577ee7,mix,

@@ -1,0 +1,29 @@
+id,path,bpm,artist,kind,key
+pt0003,audio11k/0003.wav,120,dcad455779,beat,E minor
+pt0003m,audio11k/0003_mix.wav,120,dcad455779,mix,E minor
+pt0005,audio11k/0005.wav,152,d13945e2cc,beat,D minor
+pt0005m,audio11k/0005_mix.wav,152,d13945e2cc,mix,D minor
+pt0022,audio11k/0022.wav,120,6681dbd93b,beat,
+pt0022m,audio11k/0022_mix.wav,120,6681dbd93b,mix,
+pt0025,audio11k/0025.wav,121,2f0b20cda0,beat,Eb minor
+pt0025m,audio11k/0025_mix.wav,121,2f0b20cda0,mix,Eb minor
+pt0037,audio11k/0037.wav,150,a24d601189,beat,B major
+pt0037m,audio11k/0037_mix.wav,150,a24d601189,mix,B major
+pt0039,audio11k/0039.wav,135,dcad455779,beat,B minor
+pt0039m,audio11k/0039_mix.wav,135,dcad455779,mix,B minor
+pt0044,audio11k/0044.wav,140,0a2fa71158,beat,C minor
+pt0044m,audio11k/0044_mix.wav,140,0a2fa71158,mix,C minor
+pt0045,audio11k/0045.wav,160,4a9b50774c,beat,
+pt0045m,audio11k/0045_mix.wav,160,4a9b50774c,mix,
+pt0054,audio11k/0054.wav,100,57fe7cbf68,beat,Bb minor
+pt0054m,audio11k/0054_mix.wav,100,57fe7cbf68,mix,Bb minor
+pt0057,audio11k/0057.wav,117,d13945e2cc,beat,E minor
+pt0057m,audio11k/0057_mix.wav,117,d13945e2cc,mix,E minor
+pt0058,audio11k/0058.wav,162,d82719ea46,beat,
+pt0058m,audio11k/0058_mix.wav,162,d82719ea46,mix,
+pt0061,audio11k/0061.wav,139,0d5b61b8a2,beat,G minor
+pt0061m,audio11k/0061_mix.wav,139,0d5b61b8a2,mix,G minor
+pt0074,audio11k/0074.wav,160,a24d601189,beat,
+pt0074m,audio11k/0074_mix.wav,160,a24d601189,mix,
+pt0080,audio11k/0080.wav,148,7b3df763be,beat,
+pt0080m,audio11k/0080_mix.wav,148,7b3df763be,mix,
