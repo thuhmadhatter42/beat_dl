@@ -21,7 +21,7 @@
 **Tested 2026-10-06:** forced tiers on the MBP (native, arm64 11.7, x86_64 12.7, x86_64 10.15 under Rosetta, x86_64 10.14 refusal) + real Intel run on Sofia (macOS 12.7.6): every download named "(77.0 BPM D# D#m G#)", key line `D# (76.1%) | D#m (14.0%) | G# (2.8%)` everywhere. Not testable on hardware here: Apple Silicon macOS 11/12, Intel 10.15/11 (minos headers + forced tiers only). The pip-isolation fix came after the Sofia run; verified on the MBP with a `user = true` pip.conf (nothing went to ~/.local).
 
 **Owed / open:**
-1. **Sofia test litter (needs J's OK; a move was refused by the permission classifier for the test agent):** `~/.local/lib/python3.11/` (all of it created 16:45 by the test: essentia, numpy, pyyaml, six, yaml), `~/.local/bin/f2py`, `~/Downloads/(26-10-6) Youtube DL LINKS.txt` (didn't exist before the test; 2 test lines), `/tmp/sofia-allmac-run.sh`. Command for J: `! ~/.claude/scripts/ssh-rc js-mac-pro 'mv ~/.local/lib/python3.11 ~/.local/bin/f2py ~/Downloads/"(26-10-6) Youtube DL LINKS.txt" /tmp/sofia-allmac-run.sh ~/.Trash/'`
+1. Sofia test litter: moved to Sofia's ~/.Trash by J 2026-10-06 17:05, checked (all 4 paths gone).
 2. MBP: today's `~/Downloads/(26-10-6) Youtube DL LINKS.txt` got 12 test lines appended by the tier tests (file is J's, left as is).
 3. Studio-E-2 and the MBP pick up f5d462b on their next `git pull` + `beat`: the picks change forces a one-time analyzer reinstall (under a minute).
 4. Later, only when J says go: **harvester trial** (iLok + Arc-1 on Sofia; spec `docs/superpowers/specs/2026-09-12-protools-autotune-ground-truth-design.md` §5) and **Orion phase 1** (spec `docs/superpowers/specs/2026-09-12-menubar-key-bpm-listener-design.md`, repo `~/dev/orion`).
