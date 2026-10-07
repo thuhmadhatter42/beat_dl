@@ -1,103 +1,172 @@
-"""Pixel-based watcher for exactly four Pro Tools dialogs on Sofia (AppleScript is
--600 over ssh, so SEE the screen): UAD -> OK, Session Notes -> No,
-Missing Files -> OK, Save Changes -> Don't Save. Clicks nothing else, ever.
+"""Dialog clicker for unattended Pro Tools runs on Sofia. J approved exactly four auto-clicks
+(2026-10-06):  UAD -> OK, Session Notes -> No, Missing Files -> OK, Save -> Don't Save.
+Nothing else is ever pressed.
 
-Run on Sofia: ~/ProTools SDK/stem-bouncer/.venv/bin/python dialog_clicker.py [--dry-run] [--once]
-Approach reused from ~/xobaloo/stems_work/xo_clicker2.py (not edited): screencapture
-region + gray title strip / body signature + Quartz CGEvent click.
+How (v2): AppleScript/System Events is -600 over ssh on Sofia, and CGWindowList returns nothing
+there, but the Accessibility API itself works (the venv's python binary holds the Accessibility
+grant). Every 2 s:
+- read Pro Tools' AX windows: title, static texts, buttons (shallow walk);
+- skip Edit:/Mix:/Plug-in: windows and anything >= 1000x800;
+- a window whose title/text matches a whitelist entry AND has the named button -> press that
+  button (AXPress; if AXPress fails, a Quartz click at the button's centre);
+- if a dialog exists while another app (Terminal) is frontmost -> activate Pro Tools
+  (NSRunningApplication, no click), at most once per 10 s, so screenshots see it;
+- any other PT window with OK/Yes/No/Save-style buttons -> logged once as UNKNOWN, a screenshot
+  kept on Sofia (~/pt-harvest/shots/), ~/pt-harvest/BLOCKED written. Progress windows (Cancel
+  only) are ignored.
+Logs carry labels, sizes and coordinates only, never window text (names rule, J 2026-10-06).
 
-CALIBRATION STATUS (honest):
-  Missing Files, Session Notes: geometry copied from xo_clicker2 (verified 2026-08-29).
-  UAD, Save Changes: button=None until calibrated from a real capture. Detection of
-  those two is logged ("UNCALIBRATED, not clicking") but no click is sent. Fill the
-  region/button below from a screenshot taken while the dialog is up.
-Anything not matching a signature is left alone.
+usage: dialog_clicker.py [--dry-run] [--once]   (run with ~/pt-harvest/.venv/bin/python)
 """
-import subprocess, time, datetime, os, sys
+import datetime, os, re, subprocess, sys, time
+from pathlib import Path
 
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 DRY = "--dry-run" in sys.argv
 ONCE = "--once" in sys.argv
-SHOT = "/tmp/pt_dialog_region.png"
+H = Path.home() / "pt-harvest"
+BLOCKED = H / "BLOCKED"
 
-# (label, region xywh, title strip in-region, body patch in-region, extra patch or None, button xy or None)
-DIALOGS = [
-    ("Missing Files -> OK", (949, 305, 660, 210), (10, 2, 640, 18), (30, 50, 300, 80), None, (1558, 498)),
-    ("Session Notes -> No", (1046, 233, 470, 425), (10, 2, 460, 18), (30, 60, 200, 120), (30, 370, 200, 40), (1364, 649)),
-    # UNCALIBRATED: UAD "plug-ins are disabled because no UAD hardware" sits ~x 810-1020, y 530-610
-    ("UAD -> OK", (780, 480, 300, 200), (10, 2, 280, 18), (20, 40, 260, 100), None, None),
-    # UNCALIBRATED: Save Changes -> Don't Save
-    ("Save Changes -> Don't Save", (700, 300, 520, 300), (10, 2, 500, 18), (20, 40, 400, 100), None, None),
+# (label, title-or-text regex, button title regex) — the whole whitelist
+KNOWN = [
+    ("UAD -> OK", r"\bUAD\b", r"^OK$"),
+    ("Session Notes -> No", r"Session\s*Notes", r"^No$"),
+    ("Missing Files -> OK", r"Missing\s*Files|files?\s+(are|is)\s+missing|could\s+not\s+be\s+found", r"^OK$"),
+    ("Save -> Don't Save", r"save\s+(the\s+)?changes|want\s+to\s+save", r"^Don.?t\s*Save$"),
 ]
+DIALOG_BTN = re.compile(r"^(OK|Yes|No|Don.?t\s*Save|Continue|Retry|Quit|Save|Open|Done|Skip.*|Ignore|Close|Relink.*|Manually.*)$", re.I)
+_last_activate = 0.0
+_unknown_seen = set()
 
 
 def log(m):
     print(f"{datetime.datetime.now().isoformat(timespec='seconds')} {m}", flush=True)
 
 
-def grab(region):
-    r = subprocess.run(["screencapture", "-x", "-R", ",".join(str(v) for v in region), SHOT],
-                       capture_output=True)
-    if r.returncode != 0 or not os.path.exists(SHOT):
+def _ax(el, attr):
+    import ApplicationServices as AS
+    err, v = AS.AXUIElementCopyAttributeValue(el, attr, None)
+    return v if err == 0 else None
+
+
+def _pt_app():
+    from AppKit import NSWorkspace
+    import ApplicationServices as AS
+    for a in NSWorkspace.sharedWorkspace().runningApplications():
+        if str(a.localizedName() or "").startswith("Pro Tools"):
+            return AS.AXUIElementCreateApplication(a.processIdentifier())
+    return None
+
+
+def _xy(v, kind):
+    import ApplicationServices as AS
+    if v is None:
         return None
-    from PIL import Image
-    return Image.open(SHOT).convert("RGB")
+    ok, val = AS.AXValueGetValue(v, kind, None)
+    return val if ok else None
 
 
-def mean_rgb(img, box):
-    data = list(img.crop(box).resize((8, 8)).getdata())
-    return tuple(sum(c[i] for c in data) / len(data) for i in range(3))
+def windows():
+    """-> [{'title','texts','buttons':[(title, element)], 'pos', 'size'}] for PT windows."""
+    import ApplicationServices as AS
+    app = _pt_app()
+    if app is None:
+        return []
+    out = []
+    for w in _ax(app, "AXWindows") or []:
+        pos = _xy(_ax(w, "AXPosition"), AS.kAXValueCGPointType)
+        size = _xy(_ax(w, "AXSize"), AS.kAXValueCGSizeType)
+        d = {"title": str(_ax(w, "AXTitle") or ""), "texts": [], "buttons": [], "el": w,
+             "pos": (pos.x, pos.y) if pos else (0, 0), "size": (size.width, size.height) if size else (0, 0)}
+        stack = [(k, 1) for k in (_ax(w, "AXChildren") or [])]
+        while stack:
+            el, depth = stack.pop()
+            role = _ax(el, "AXRole")
+            if role == "AXButton":
+                d["buttons"].append((str(_ax(el, "AXTitle") or ""), el))
+            elif role == "AXStaticText":
+                d["texts"].append(str(_ax(el, "AXValue") or ""))
+            if depth < 3 and role in ("AXGroup", "AXScrollArea", "AXSplitGroup", "AXTabGroup", "AXLayoutArea"):
+                stack += [(k, depth + 1) for k in (_ax(el, "AXChildren") or [])]
+        out.append(d)
+    return out
 
 
-def grayish(rgb, lo, hi, tol=14):
-    m = sum(rgb) / 3
-    return lo <= m <= hi and max(abs(c - m) for c in rgb) <= tol
-
-
-def click(x, y):
+def press(el) -> bool:
+    import ApplicationServices as AS
+    if AS.AXUIElementPerformAction(el, "AXPress") == 0:
+        return True
     import Quartz
-    mv = Quartz.CGEventCreateMouseEvent(None, Quartz.kCGEventMouseMoved, (x, y), Quartz.kCGMouseButtonLeft)
-    Quartz.CGEventPost(Quartz.kCGHIDEventTap, mv); time.sleep(0.15)
-    for t in (Quartz.kCGEventLeftMouseDown, Quartz.kCGEventLeftMouseUp):
-        ev = Quartz.CGEventCreateMouseEvent(None, t, (x, y), Quartz.kCGMouseButtonLeft)
-        Quartz.CGEventPost(Quartz.kCGHIDEventTap, ev); time.sleep(0.06)
+    p = _xy(_ax(el, "AXPosition"), AS.kAXValueCGPointType)
+    s = _xy(_ax(el, "AXSize"), AS.kAXValueCGSizeType)
+    if not (p and s):
+        return False
+    x, y = p.x + s.width / 2, p.y + s.height / 2
+    for t in (Quartz.kCGEventMouseMoved, Quartz.kCGEventLeftMouseDown, Quartz.kCGEventLeftMouseUp):
+        Quartz.CGEventPost(Quartz.kCGHIDEventTap, Quartz.CGEventCreateMouseEvent(None, t, (x, y), Quartz.kCGMouseButtonLeft))
+        time.sleep(0.08)
+    return True
+
+
+def is_dialog(d) -> bool:
+    if d["title"].startswith(("Edit:", "Mix:", "Plug-in:")):
+        return False
+    w, h = d["size"]
+    return not (w >= 1000 and h >= 800)
 
 
 def scan_once():
-    """Return list of labels matched (and click calibrated ones unless --dry-run)."""
-    hits = []
-    for label, region, ts, bp, extra, btn in DIALOGS:
-        img = grab(region)
-        if img is None:
-            continue
-        s = img.width / region[2]
-        box = lambda r: tuple(int(v * s) for v in (r[0], r[1], r[0] + r[2], r[1] + r[3]))
-        t, b = mean_rgb(img, box(ts)), mean_rgb(img, box(bp))
-        ok = grayish(t, 225, 250) and grayish(b, 185, 245)
-        if ok and extra is not None:
-            ok = grayish(mean_rgb(img, box(extra)), 175, 245)
-        if not ok:
-            continue
-        hits.append(label)
-        if btn is None:
-            log(f"{label}: signature matched but UNCALIBRATED, not clicking")
-        elif DRY:
-            log(f"{label}: matched (dry-run, would click {btn})")
-        else:
-            log(f"{label}: clicking {btn} (title={tuple(round(x) for x in t)} body={tuple(round(x) for x in b)})")
-            click(*btn)
-            time.sleep(2)
-        break  # one dialog per pass; rescan
-    return hits
+    global _last_activate
+    import hlib
+    dialogs = [d for d in windows() if is_dialog(d)]
+    if not dialogs:
+        return None
+    if not hlib.frontmost().startswith("Pro Tools") and time.time() - _last_activate > 10:
+        _last_activate = time.time()
+        ok = hlib.bring_pt_forward()
+        log(f"Pro Tools window behind another app: activated PT -> frontmost={'PT' if ok else 'other'}")
+    for d in dialogs:
+        text = d["title"] + "\n" + "\n".join(d["texts"])
+        for label, trx, brx in KNOWN:
+            if not re.search(trx, text, re.I):
+                continue
+            btn = next((el for t, el in d["buttons"] if re.match(brx, t.strip(), re.I)), None)
+            if btn is None:
+                continue
+            if DRY:
+                log(f"{label}: matched (dry-run) dialog {d['size'][0]:.0f}x{d['size'][1]:.0f}")
+            else:
+                ok = press(btn)
+                log(f"{label}: pressed={ok} dialog {d['size'][0]:.0f}x{d['size'][1]:.0f} at {d['pos'][0]:.0f},{d['pos'][1]:.0f}")
+                time.sleep(1.5)
+            return label
+        btnish = [t for t, _ in d["buttons"] if DIALOG_BTN.match(t.strip())]
+        if btnish:
+            sig = (round(d["size"][0] / 10), round(d["size"][1] / 10), len(d["buttons"]))
+            if sig not in _unknown_seen:
+                _unknown_seen.add(sig)
+                keep = H / "shots" / f"unknown-{datetime.datetime.now():%m%d-%H%M%S}.png"
+                keep.parent.mkdir(parents=True, exist_ok=True)
+                subprocess.run(["screencapture", "-x", str(keep)])
+                BLOCKED.write_text(f"{datetime.datetime.now().isoformat(timespec='seconds')} unknown PT dialog "
+                                   f"{d['size'][0]:.0f}x{d['size'][1]:.0f} at {d['pos'][0]:.0f},{d['pos'][1]:.0f}, "
+                                   f"{len(d['buttons'])} buttons; shot {keep.name}\n")
+                log(f"UNKNOWN PT dialog {d['size'][0]:.0f}x{d['size'][1]:.0f} at {d['pos'][0]:.0f},{d['pos'][1]:.0f} "
+                    f"({len(btnish)} dialog-style buttons): not pressing; BLOCKED written; shot {keep.name}")
+            return "unknown"
+    return None
 
 
 if __name__ == "__main__":
-    log(f"dialog_clicker up (dry={DRY}, once={ONCE})")
+    log(f"dialog_clicker v2 up (dry={DRY}, once={ONCE}, pid={os.getpid()})")
+    if not ONCE:
+        (H / "clicker.pid").write_text(str(os.getpid()))
     while True:
         try:
             scan_once()
         except Exception as e:
-            log(f"err {type(e).__name__}: {e}")
+            log(f"err {type(e).__name__}")
         if ONCE:
             break
-        time.sleep(5)
-    os._exit(0)
+        time.sleep(2)
+    sys.stdout.flush(); os._exit(0)
