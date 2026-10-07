@@ -87,8 +87,24 @@ def _apps(match):
 
 
 def _pt_app():
-    a = _apps(lambda n: n.startswith("Pro Tools"))
-    return a[0] if a else None
+    """The Pro Tools application itself (regular app whose executable is .../MacOS/Pro Tools), never a
+    helper that is also named 'Pro Tools…' (seen after a relaunch 2026-10-07: an accessory-policy process
+    with no AX windows was picked first and every Edit-window read came back empty)."""
+    from AppKit import NSWorkspace
+    import ApplicationServices as AS
+    for a in NSWorkspace.sharedWorkspace().runningApplications():
+        if not str(a.localizedName() or "").startswith("Pro Tools") or a.activationPolicy() != 0:
+            continue
+        exe = a.executableURL()
+        if exe is not None and not str(exe.path()).endswith("/MacOS/Pro Tools"):
+            continue
+        el = AS.AXUIElementCreateApplication(a.processIdentifier())
+        try:
+            AS.AXUIElementSetMessagingTimeout(el, 6.0)
+        except Exception:
+            pass
+        return el
+    return None
 
 
 # Licence helpers that pop up over a session open (seen 2026-10-07 05:00): declining keeps everything as it
