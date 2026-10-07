@@ -1,10 +1,10 @@
 # PICKUP — beat_dl
 
-## CURRENT STATE — 2026-10-06 17:00
+## CURRENT STATE — 2026-10-06 21:40
 
 **What this is:** YouTube → MP3 downloader with BPM/key tagging. Bash loop (run.sh) + downloader.py (yt-dlp) + bpm.py (Essentia HPCP + bgate for key, TempoCNN for BPM). Launched by run.command or the `beat` alias. Also called by the Jownloader Brave extension (`~/dev/jownloader/extension`) through a native host that pipes a URL into run.sh. Progress page: `PROGRESS-TRACKER.html` (source `tracker.json`; rebuild with `python3 ~/.claude/skills/progress-tracker/build_tracker.py tracker.json`).
 
-**Git:** main = origin/main = f5d462b (pushed 2026-10-06 ~16:55), clean.
+**Git:** main = origin/main, clean. Code commit f5d462b (2026-10-06 ~16:55); later commits are state saves. No agents or worktrees running (stale tier-test agent stopped 21:05).
 
 **J's goal (2026-10-06), DONE:** beat_dl works on anyone's Mac: every dependency ships in `vendor/`, no brew, no pip from the network, no system Python. First launch reads macOS version + chip and installs the build that runs there.
 
