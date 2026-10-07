@@ -2,11 +2,14 @@
 
   harvest.py one N [--already-open] [--keep-open]   full pipeline for manifest #N
   harvest.py batch [--target 200] [--max-n 323]     resumable loop over the manifest until --target usable rows
+  harvest.py mix N                                   back-fill: print only the full mix of a done row
   harvest.py status                                  counts from the DB
 
 Per session: open (dialog_clicker.py runs alongside) -> toolbar OCR (Tempo/Meter) + crops ->
-session info exported in Bars|Beats and Samples (EDL tempo + flatness) -> Beat Buss folder ->
-8 s probe bounce -> full beat bounce to ~/pt-harvest/audio/NNNN.wav -> 11025 Hz mono copy ->
+session info exported in Bars|Beats and Samples (EDL tempo + flatness) -> beat finder v2 (beatfind.py:
+folders, output buses, names, plug-ins, clips) -> 8 s probes LISTENED to (audiocheck.py: beat probe +
+complement) -> full beat bounce to ~/pt-harvest/audio/NNNN.wav -> full mix (nothing soloed) to
+audio/NNNN_mix.wav -> 11025 Hz mono copies ->
 close WITHOUT saving (always, even on error) -> one DB row + one JSONL line.
 
 Names rule (J 2026-10-06): sessions are NNNN + sha1 only. The sha1->path map is manifest.json on
@@ -19,6 +22,8 @@ from collections import Counter
 from pathlib import Path
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import audiocheck
+import beatfind
 import hlib
 from hlib import H
 
@@ -30,8 +35,10 @@ INFO = H / "info"
 LOGDIR = H / "logs"
 STOP = H / "STOP"
 OPEN_TIMEOUT = 1500       # ARA restore alone took 607 s on the first session
+WATCHDOG_S = 1800        # after the open completes (healthy sessions finish in < 12 min)
 USABLE = ("confirmed", "tempo-only")
 KEY_READ = "--no-key" not in sys.argv
+MIX = "--no-mix" not in sys.argv          # J 01:08: also print the full mix of every usable session
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS sessions (
@@ -39,7 +46,7 @@ CREATE TABLE IF NOT EXISTS sessions (
     ptx_sha1            TEXT NOT NULL UNIQUE,  -- sha1 of the .ptx path (map on Sofia only)
     artist              TEXT,                  -- opaque: sha1(artist folder name)[:10]
     checked_at          TEXT NOT NULL,         -- local time
-    status              TEXT NOT NULL,         -- ok | skip-no-beat-buss | silent | error-*
+    status              TEXT NOT NULL,         -- ok | excluded-checked | skip-no-beat | skip-beat-unsure | silent | error-* (v1: skip-no-beat-buss)
     autotune_key        TEXT,
     autotune_scale_raw  TEXT,
     retune_speeds       TEXT,
@@ -67,7 +74,7 @@ CREATE TABLE IF NOT EXISTS sessions (
     producer_bpms       TEXT,                  -- JSON array, from beat clip names (never beat_dl's own '(NN.N BPM ..)')
     beatdl_estimate     REAL,                  -- decimal 'NN.N BPM' estimate in the beat clip names, if any
     tempo_from_estimate INTEGER,               -- 1 = session tempo equals that estimate (J set the grid from it: circular for training)
-    beat_source         TEXT,                  -- 'Beat Buss' folder, or 'Beat track' (no folder: track named Beat/Instrumental)
+    beat_source         TEXT,                  -- v2: folder | name | bus | inferred (v1: 'Beat Buss' / 'Beat track')
     beat_wav_path       TEXT,                  -- audio/NNNN.wav on Sofia (11 kHz copy audio11k/NNNN.wav)
     beat_mean_db        REAL,
     probe_mean_db       REAL,
@@ -75,7 +82,17 @@ CREATE TABLE IF NOT EXISTS sessions (
     screenshot_paths    TEXT,                  -- JSON array, crops/ on Sofia
     discovery_method    TEXT,
     elapsed_s           REAL,
-    notes               TEXT
+    notes               TEXT,
+    finder_version      INTEGER,               -- beatfind.FINDER_VERSION that decided this row (NULL = name-only v1)
+    beat_confidence     TEXT,                  -- high | medium | low (beat finder, after the listening checks)
+    beat_check          TEXT,                  -- JSON: audiocheck verdicts of the beat probes + the complement
+    old_rule            INTEGER,               -- 1 = the v1 name-only rule would also have found a beat
+    mix_wav_path        TEXT,                  -- audio/NNNN_mix.wav on Sofia (full mix, nothing soloed; 11k copy audio11k/NNNN_mix.wav)
+    mix_mean_db         REAL,
+    mix_duration_s      REAL,
+    mix_note            TEXT,
+    mix_resid_db        REAL,                  -- level of (mix - beat) on the 11k copies; < mix_mean_db - 40 = mix is just the beat
+    drive               TEXT                   -- arch1 | allmixes
 ) STRICT;
 """
 
@@ -91,10 +108,15 @@ def db():
     return con
 
 
+def _jd(o):
+    """json default: numpy scalars -> python."""
+    return o.item() if hasattr(o, "item") else str(o)
+
+
 def log_jsonl(rec: dict):
     LOGDIR.mkdir(parents=True, exist_ok=True)
     with open(LOGDIR / f"harvest-{time.strftime('%y-%-m-%-d')}.jsonl", "a") as f:
-        f.write(json.dumps(rec) + "\n")
+        f.write(json.dumps(rec, default=_jd) + "\n")
 
 
 def say(*a):
@@ -165,22 +187,15 @@ def _base(name: str) -> str:
     return name
 
 
-def stage_beat_meta(tl, info):
-    """Beat folder + its tracks; comments and producer BPMs from the beat tracks only."""
-    folder, kids = hlib.beat_tree(tl)
-    if folder is not None:
-        solo = [(folder["name"], folder["id"])]; src = "Beat Buss"
-    else:
-        # no Beat Buss folder (older/simple templates): live audio tracks named exactly "Beat"/"Beats"/
-        # "Instrumental" (optionally numbered) are the beat. Soloed by name (all <= 31 chars).
-        kids = [t for t in tl if t["type"] == "TType_Audio" and hlib.is_beat_track(t["name"])
-                and not hlib.attr(t, "is_inactive") and not hlib.attr(t, "is_muted") and hlib.attr(t, "contains_clips")]
-        if not kids:
-            return None
-        solo = [(k["name"], k["id"]) for k in kids]; src = "Beat track"
-    kid_names = {k["name"] for k in kids}
-    active_audio = {k["name"] for k in kids if k["type"] == "TType_Audio" and not hlib.attr(k, "is_inactive")
-                    and not hlib.attr(k, "is_muted") and hlib.attr(k, "contains_clips")}
+def stage_beat_meta(c, tl, info):
+    """Beat finder v2 (beatfind.py): which tracks are the beat; comments and producer BPMs from them.
+    -> (meta | None, finder result)"""
+    outs = hlib.track_outputs(c, tl)
+    res = beatfind.find(tl, info["sa"], outs, info["sr"] or 48000.0)
+    if not res.get("found"):
+        return None, res
+    kid_names = set(res["comment_names"]) | {t["name"] for t in res["tracks"]}
+    active_audio = {t["name"] for t in res["tracks"]}
     comments, clipnames, max_end = [], [], 0
     for tb, ts in zip(info["bb"]["tracks"], info["sa"]["tracks"]):
         nm = _base(tb["name"])
@@ -198,9 +213,11 @@ def stage_beat_meta(tl, info):
                     pass
     parsed = [hlib.parse_comment(cm) for cm in comments]
     parsed = [p | {"raw": cm} for p, cm in zip(parsed, comments) if p["key"] or p["bpm"]]
-    return {"solo": solo, "beat_source": src, "n_tracks": len(kids), "n_active_audio": len(active_audio),
+    return {"solo": res["solo"], "method": res["method"], "beat_source": res["beat_source"],
+            "confidence": res["confidence"], "legacy": res.get("legacy", False), "finder": res,
+            "n_tracks": len(res["tracks"]), "n_active_audio": len(active_audio),
             "comments": parsed, "producer_bpms": hlib.producer_bpms(clipnames), "max_end": max_end,
-            "estimates": hlib.estimate_bpms(clipnames)}
+            "estimates": hlib.estimate_bpms(clipnames)}, res
 
 
 _LEAD = re.compile(r"hook|verse|\bld\b|\blead\b|\bmain\b|\blv\b", re.I)
@@ -294,82 +311,274 @@ def _stage_autotune(n, tl) -> dict:
     return out
 
 
-def stage_bounce(c, n, meta, sr):
-    """Probe 8 s, then the full beat. Solo the Beat Buss folder by name, read back, restore."""
+def _probe(c, n, src, a, sr, tempo, tag="probe"):
+    """8 s offline print at sample a on output src -> (status, mean_db, audiocheck features)."""
+    hlib.set_selection_samples(c, a, int(a + 8 * sr))
+    st, body = hlib.export_mix(c, str(AUDIO), f"{tag}-{n:04d}", int(sr), src, timeout=600)
+    pp = AUDIO / f"{tag}-{n:04d}.wav"
+    fe = None
+    if pp.exists():
+        try:
+            fe = audiocheck.features(pp, tempo)
+        except Exception as ex:
+            fe = {"mean_db": hlib.mean_db(pp), "err": type(ex).__name__}
+        pp.unlink()
+    db_ = fe.get("mean_db") if fe else None
+    return st, db_, fe
+
+
+def _brief(fe):
+    if not fe:
+        return None
+    v = audiocheck.verdict(fe) if fe.get("mean_db") is not None and "sub" in fe else ("silent", 0, "")
+    return {"v": v[0], "s": v[1], "db": fe.get("mean_db"), "sub": fe.get("sub"), "voice": fe.get("voice"),
+            "pulse": fe.get("pulse", fe.get("pulse_any"))}
+
+
+def stage_bounce(c, n, meta, sr, tempo=None, probe_only=False):
+    """Isolate a beat set (solo the folder / solo the beat tracks / fallback: mute everything else), LISTEN
+    to 8 s probes (audiocheck) and to the complement (beat muted), then print the full beat. When the finder's
+    set fails the ears, its fallback sets (beatfind alt_sets: non-vocal tracks) get the same test.
+    Restores every solo/mute it touched. -> dict"""
     AUDIO.mkdir(exist_ok=True); AUDIO11.mkdir(exist_ok=True)
-    out = {"probe_db": None, "mean_db": None, "path": None, "dur": None, "note": None}
+    out = {"probe_db": None, "mean_db": None, "path": None, "dur": None, "note": None, "source": None,
+           "sel": None, "check": {}, "confidence": meta["confidence"], "skip": None, "beat_source": meta["beat_source"]}
     srcs = hlib.export_sources(c)
-    source = hlib.pick_source(srcs) or (srcs[0] if srcs else None)
-    if not source:
+    source0 = hlib.pick_source(srcs) or (srcs[0] if srcs else None)
+    if not source0:
         out["note"] = "no output sources listed"
         return out
-    tl = hlib.tracks(c)
-    prior = [t["name"] for t in tl if hlib.attr(t, "is_soloed")]
+    fin = meta["finder"]
+    prior = [t["name"] for t in hlib.tracks(c) if hlib.attr(t, "is_soloed")]
+    state = {"muted": [], "soloed": []}
     for p in prior:
         hlib.solo(c, p, False)
-    try:
-        for nm, _ in meta["solo"]:
-            hlib.solo(c, nm, True)
+
+    def note(s):
+        out["note"] = (out["note"] + "; " if out["note"] else "") + s
+
+    def isolate(cand, mode):
+        for nm in state["soloed"]:
+            hlib.solo(c, nm, False)
+        state["soloed"] = []
+        if state["muted"]:
+            hlib.mute(c, state["muted"], False); state["muted"] = []
+        if mode == "none":
+            return True
+        if mode == "mute-others":
+            names = list(dict.fromkeys(cand["others_live"] + fin.get("click_aux", [])))
+            if names and hlib.mute(c, names, True) == "Completed":
+                state["muted"] = names
+            return True
+        for nm, _ in cand["solo"]:
+            hlib.solo(c, nm, True); state["soloed"].append(nm)
         now_tl = {t["id"]: t for t in hlib.tracks(c)}
-        if not all(hlib.attr(now_tl.get(i, {}), "is_soloed") for _, i in meta["solo"]):
-            out["note"] = f"{meta['beat_source']} solo did not read back"
-            return out
-        end = meta["max_end"]
+        return all(hlib.attr(now_tl.get(i, {}), "is_soloed") for _, i in cand["solo"])
+
+    def listen(cand, tag):
+        """-> (verdict dict, ok_mode, source, end) for one candidate set; verdict has 'skip' or not."""
+        end = cand["max_end"] or meta["max_end"]
+        chk = {"set": tag, "n_tracks": len(cand["solo"]) if cand["method"] != "solo" else None}
         if end <= sr * 10:
-            out["note"] = "beat clips end before 10 s"
-            return out
-        def probe(src, frac):
-            a = int(end * frac)
-            hlib.set_selection_samples(c, a, int(a + 8 * sr))
-            st, body = hlib.export_mix(c, str(AUDIO), f"probe-{n:04d}", int(sr), src, timeout=600)
-            pp = AUDIO / f"probe-{n:04d}.wav"
-            db_ = hlib.mean_db(pp) if pp.exists() else None
-            if pp.exists():
-                pp.unlink()
-            return st, db_
-        # rule zero: probe before a full print (2 spots in case the 1st is a gap); if the usual output
-        # prints silence, try the session's other outputs (some masters feed a print chain / other I/O)
-        tried = []
-        for src in [source] + [x for x in srcs if x != source][:4]:
-            for frac in (0.5, 0.25):
-                st, db_ = probe(src, frac)
-                tried.append(f"{src}:{db_}")
-                out["probe_db"] = db_
-                if st == "Completed" and db_ is not None and db_ > -50:
+            chk["skip"] = "beat clips end before 10 s"
+            return chk, None, None, end
+        modes = ["solo", "mute-others"]          # v7: the Beat Buss folder too (its solo printed -240 dB on #88)
+        tried, ok_mode, src_ok, pdb = [], None, None, None
+        for mode in modes:
+            if not isolate(cand, mode):
+                tried.append(f"{mode}:no-readback"); continue
+            for src in [source0] + [x for x in srcs if x != source0][:4]:
+                for frac in (0.5, 0.25):
+                    st, db_, fe = _probe(c, n, src, int(end * frac), sr, tempo)
+                    tried.append(f"{mode}/{frac}:{db_}")
+                    pdb = db_
+                    if st == "Completed" and db_ is not None and db_ > -50:
+                        chk["probe_a"] = _brief(fe)
+                        break
+                if pdb is not None and pdb > -50:
+                    src_ok = src
                     break
-            if out["probe_db"] is not None and out["probe_db"] > -50:
-                if src != source:
-                    out["note"] = f"beat printed on output '{src}' (not '{source}')"
-                source = src
+            if src_ok:
+                ok_mode = mode
                 break
-        if out["probe_db"] is None or out["probe_db"] <= -50:
-            for nm, _ in meta["solo"]:
-                hlib.solo(c, nm, False)
-            st, mix_db = probe(source, 0.5)
-            out["note"] = (f"silent probe (SSL session?); probes {tried}; unsoloed mix probe {mix_db} dB "
-                           f"on '{source}'")
+        chk["probe_db"] = pdb
+        if ok_mode is None:
+            isolate(cand, "none")
+            st, mix_db, _ = _probe(c, n, source0, int(end * 0.5), sr, None)
+            chk["skip"] = f"silent probe (SSL session?); probes {tried}; unsoloed mix probe {mix_db} dB on '{source0}'"
+            chk["silent"] = True
+            chk["mix_silent"] = bool(mix_db is None or mix_db <= -50)
+            return chk, None, None, end
+        chk["mode"] = ok_mode
+        st, db_, fe = _probe(c, n, src_ok, int(end * 0.75), sr, tempo)
+        chk["probe_b"] = _brief(fe)
+        isolate(cand, "none")
+        comp = None
+        names = [nm for nm, _ in cand["solo"]] if cand["method"] != "solo" else [t["name"] for t in fin["tracks"]]
+        if hlib.mute(c, names, True) == "Completed":
+            state["muted"] = list(names)
+            st, db_, fe = _probe(c, n, src_ok, int(end * 0.5), sr, tempo)
+            comp = _brief(fe) or {"v": "silent"}
+            if comp.get("db") is None or comp["db"] <= -50:
+                comp["v"] = "silent"
+            chk["complement"] = comp
+            hlib.mute(c, state["muted"], False); state["muted"] = []
+        vs = [(chk.get(k) or {}).get("v") for k in ("probe_a", "probe_b")]
+        cand_ok = "beat" in vs and "vocal" not in vs
+        cv = comp["v"] if comp else None
+        conf = cand["confidence"]
+        # a silent complement (nothing outside the set sounds: beat-only session, or vocals muted) is fine when
+        # both beat probes are clearly beats with next to no voice-band energy (no vocals inside the set)
+        vocal_free = all((chk.get(k) or {}).get("v") == "beat" and ((chk.get(k) or {}).get("voice") or 1) < 0.15
+                         for k in ("probe_a", "probe_b"))
+        if not cand["legacy"]:
+            if not cand_ok:
+                chk["skip"] = f"beat probes not beat-like ({vs})"
+            elif conf == "low":
+                if cv == "vocal":
+                    conf = "medium"
+                elif cv == "silent" and vocal_free:
+                    conf = "medium"; chk["note"] = "complement silent, beat probes vocal-free"
+                else:
+                    chk["skip"] = f"low-confidence beat set and complement {cv}"
+            elif conf == "medium" and cv == "silent" and vocal_free:
+                chk["note"] = "complement silent, beat probes vocal-free"
+            elif conf == "medium" and cv in ("silent", "beat", None):
+                chk["skip"] = f"inferred beat set, complement {cv}"
+            elif conf == "high" and cv in ("silent", "beat"):
+                chk["note"] = f"complement {cv}"
+        elif "vocal" in vs and "beat" not in vs:
+            chk["skip"] = f"v1-rule beat probes vocal-like ({vs})"
+        elif "vocal" in vs:
+            chk["note"] = "legacy beat probe vocal-like"
+        chk["conf"] = conf
+        return chk, ok_mode, src_ok, end
+
+    try:
+        primary = {"solo": meta["solo"], "method": meta["method"], "beat_source": meta["beat_source"],
+                   "confidence": meta["confidence"], "legacy": meta["legacy"],
+                   "others_live": fin.get("others_live", []), "max_end": fin.get("max_end") or meta["max_end"]}
+        cands = [("primary", primary)] + [(f"alt{i + 1}", a) for i, a in enumerate(fin.get("alts") or [])]
+        win = None
+        tries = []
+        for tag, cand in cands:
+            chk, mode, src, end = listen(cand, tag)
+            tries.append(chk)
+            if not chk.get("skip"):
+                win = (tag, cand, chk, mode, src, end)
+                break
+            if chk.get("mix_silent"):
+                break                              # the whole session prints digital silence: no set will help
+        out["check"] = tries[-1] if len(tries) == 1 else {"tries": tries, **(win[2] if win else {})}
+        if win is None:
+            last = tries[-1]
+            if tries[0].get("silent"):
+                note(tries[0]["skip"])                       # status 'silent' (as v1)
+            else:
+                out["skip"] = "; ".join(f"{t['set']}: {t['skip']}" for t in tries)
+            out["probe_db"] = last.get("probe_db")
             return out
-        hlib.set_selection_samples(c, 0, int(min(end + sr, end * 1.02)))
+        tag, cand, chk, mode, source, end = win
+        out.update(probe_db=chk.get("probe_db"), confidence=chk["conf"], source=source, beat_source=cand["beat_source"])
+        if tag != "primary":
+            note(f"beat = fallback set {tag} ({len(cand['solo'])} non-vocal tracks), accepted by ear")
+        if chk.get("note"):
+            note(chk["note"])
+        if source != source0:
+            note(f"beat printed on output '{source}' (not '{source0}')")
+        if probe_only:
+            return out
+        isolate(cand, mode)
+        sel = (0, int(min(end + sr, end * 1.02)))
+        out["sel"] = sel
+        hlib.set_selection_samples(c, *sel)
         st, body = hlib.export_mix(c, str(AUDIO), f"{n:04d}", int(sr), source, timeout=3600)
         wav = AUDIO / f"{n:04d}.wav"
         if st != "Completed" or not wav.exists():
-            out["note"] = f"export {st}"
+            note(f"export {st}")
             return out
         out["mean_db"] = hlib.mean_db(wav)
         out["dur"] = hlib.duration_s(wav)
         if out["mean_db"] is None or out["mean_db"] <= -50:
-            out["note"] = "silent bounce (SSL session?)"
+            note("silent bounce (SSL session?)")
             wav.unlink()
             return out
         out["path"] = f"audio/{n:04d}.wav"
         if not hlib.to_11k(wav, AUDIO11 / f"{n:04d}.wav"):
-            out["note"] = "11k copy failed"
+            note("11k copy failed")
         return out
     finally:
-        for nm, _ in meta["solo"]:
-            hlib.solo(c, nm, False)
+        try:
+            for nm in state["soloed"]:
+                hlib.solo(c, nm, False)
+            if state["muted"]:
+                hlib.mute(c, state["muted"], False)
+        finally:
+            for p in prior:
+                hlib.solo(c, p, True)
+
+
+def mix_resid_db(n) -> float | None:
+    """Level of (mix - beat) on the 11 kHz copies (both printed from sample 0 over one span): what the
+    beat lacks, i.e. the vocals. Near silence = the mix is just the beat (vocals muted/absent)."""
+    try:
+        import numpy as np
+        a, b = AUDIO11 / f"{n:04d}_mix.wav", AUDIO11 / f"{n:04d}.wav"
+        if not (a.exists() and b.exists()):
+            return None
+        xm, xb = audiocheck.load(a), audiocheck.load(b)
+        L = min(len(xm), len(xb))
+        r = xm[:L] - xb[:L]
+        return round(float(20 * np.log10(np.sqrt(np.mean(r * r)) + 1e-12)), 1)
+    except Exception:
+        return None
+
+
+def stage_mix(c, n, sr, sel, source=None) -> dict:
+    """J 01:08: the FULL MIX of the same span, nothing soloed, the session's normal main output.
+    The session's own solo state is restored afterwards. -> {path, mean_db, dur, note}"""
+    out = {"path": None, "mean_db": None, "dur": None, "note": None, "resid_db": None}
+    srcs = hlib.export_sources(c)
+    cand = [s for s in ([source] if source else []) + [hlib.pick_source(srcs)] + srcs if s]
+    cand = list(dict.fromkeys(cand))
+    if not cand:
+        out["note"] = "mix: no output sources"; return out
+    prior = [t["name"] for t in hlib.tracks(c) if hlib.attr(t, "is_soloed")]
+    for p in prior:
+        hlib.solo(c, p, False)
+    notes = [f"session had {len(prior)} solo(s): mix printed unsoloed"] if prior else []
+    try:
+        if any(hlib.attr(t, "is_soloed") for t in hlib.tracks(c)):
+            out["note"] = "mix: a solo would not clear"; return out
+        use = None
+        for src in cand[:5]:
+            st, db_, _ = _probe(c, n, src, int((sel[0] + sel[1]) / 2), sr, None, tag="mixprobe")
+            if st == "Completed" and db_ is not None and db_ > -50:
+                use = src; break
+        if use is None:
+            out["note"] = "mix: silent probe on every output"; return out
+        if source and use != source:
+            notes.append(f"mix printed on output '{use}'")
+        hlib.set_selection_samples(c, *sel)
+        st, _ = hlib.export_mix(c, str(AUDIO), f"{n:04d}_mix", int(sr), use, timeout=3600)
+        wav = AUDIO / f"{n:04d}_mix.wav"
+        if st != "Completed" or not wav.exists():
+            out["note"] = f"mix export {st}"; return out
+        out["mean_db"] = hlib.mean_db(wav); out["dur"] = hlib.duration_s(wav)
+        if out["mean_db"] is None or out["mean_db"] <= -50:
+            wav.unlink(); out["note"] = "mix: silent bounce"; return out
+        out["path"] = f"audio/{n:04d}_mix.wav"
+        if not hlib.to_11k(wav, AUDIO11 / f"{n:04d}_mix.wav"):
+            notes.append("mix 11k copy failed")
+        out["resid_db"] = mix_resid_db(n)
+        if out["resid_db"] is not None and out["resid_db"] < out["mean_db"] - 40:
+            notes.append("mix == beat (no vocals heard: residual < -40 dB)")
+        return out
+    finally:
         for p in prior:
             hlib.solo(c, p, True)
+        if notes:
+            out["note"] = "; ".join(([out["note"]] if out["note"] else []) + notes)
 
 
 def stage_close(c):
@@ -387,7 +596,8 @@ def run_one(n, already_open=False, keep_open=False) -> dict:
     e = hlib.entry(n)
     t0 = time.time()
     rec = {"id": n, "ptx_sha1": e["sha1"], "artist": e["artist_hash"], "checked_at": hlib.now(),
-           "status": "error", "reliable": 0, "discovery_method": "mdfind", "notes": []}
+           "status": "error", "reliable": 0, "discovery_method": "mdfind", "notes": [],
+           "drive": e.get("drive", "arch1")}
     c = hlib.client()
     opened = already_open
     try:
@@ -400,6 +610,18 @@ def run_one(n, already_open=False, keep_open=False) -> dict:
                 opened = hlib.session_open(c)
                 return rec
             opened = True
+        # watchdog: a healthy session needs < 12 min after the open; past WATCHDOG_S Pro Tools is stuck (busy
+        # relink search, licence helper, AX walk of a huge session): kill it so every blocking call fails fast,
+        # the row becomes an error and batch() relaunches Pro Tools (plan §6: hung > 10 min -> kill, relaunch)
+        import threading
+
+        def _wd():
+            say(f"#{n:04d} watchdog: still in the session {WATCHDOG_S // 60} min after the open: killing Pro Tools")
+            subprocess.run(["screencapture", "-x", str(H / "shots" / f"watchdog-{n:04d}.png")])
+            subprocess.run(["pkill", "-9", "-f", r"Pro Tools[^/]*\.app/Contents/MacOS/Pro Tools$"])
+            rec["_wd_fired"] = True
+        wd = threading.Timer(WATCHDOG_S, _wd); wd.daemon = True; wd.start()
+        rec["_wd"] = wd
         scr = stage_screen(n)
         meter = scr["ax_meter"]
         rec.update(session_tempo=scr["ax_tempo"], tempo_raw=scr["ax_tempo_raw"], meter=meter,
@@ -413,11 +635,18 @@ def run_one(n, already_open=False, keep_open=False) -> dict:
         info = stage_info(c, n, bpb)
         rec.update(edl_tempo=info["edl_tempo"], edl_points=info["edl_points"], edl_on_line=info["edl_on_line"])
         tl = hlib.tracks(c)
-        meta = stage_beat_meta(tl, info)
+        meta, fres = stage_beat_meta(c, tl, info)
+        rec.update(finder_version=beatfind.FINDER_VERSION, old_rule=int(bool(fres.get("old_rule"))))
+        say(f"#{n:04d} finder: " + " ".join(beatfind.table(fres)))
+        if True:                                       # name-free per-track evidence, for diagnosis
+            log_jsonl({"id": n, "kind": "finder-rows", "checked_at": hlib.now(), "why": fres.get("why"),
+                       "rows": fres.get("rows"), "dead": fres.get("dead")})
         if meta is None:
-            rec["status"] = "skip-no-beat-buss"
+            rec["status"] = "skip-no-beat"
+            rec["notes"].append(f"finder: {fres.get('why')}")
             return rec
         rec["beat_source"] = meta["beat_source"]
+        rec["beat_confidence"] = meta["confidence"]
         cm = next((p for p in meta["comments"] if p["bpm"] or p["key"]), None)
         if cm:
             rec.update(beat_comment=cm["raw"], comment_bpm=cm["bpm"], comment_key=cm["key"])
@@ -451,7 +680,7 @@ def run_one(n, already_open=False, keep_open=False) -> dict:
             flat = 0; rec["notes"].append("EDL tempo != session tempo")
         bpm, src, conf = hlib.label(tempo, flat, rec.get("comment_bpm"), meta["producer_bpms"])
         rec.update(bpm=bpm, bpm_source=src, bpm_confidence=conf, tempo_map_flat=flat)
-        if KEY_READ:
+        if KEY_READ and conf in USABLE:          # excluded rows: no key read, no prints (time)
             try:
                 at = stage_autotune(n, tl, c)
                 rec.update(autotune_key=at["key"], autotune_scale_raw=at["scale_raw"], reliable=at["reliable"],
@@ -472,12 +701,25 @@ def run_one(n, already_open=False, keep_open=False) -> dict:
             rec.update(key=ck, key_source="comment")
         elif ak:
             rec.update(key=ak, key_source="autotune")
-        b = stage_bounce(c, n, meta, info["sr"])
+        b = stage_bounce(c, n, meta, info["sr"], tempo, probe_only=conf not in USABLE)
         rec.update(beat_wav_path=b["path"], beat_mean_db=b["mean_db"], probe_mean_db=b["probe_db"],
-                   beat_duration_s=b["dur"])
+                   beat_duration_s=b["dur"], beat_confidence=b["confidence"], beat_check=json.dumps(b["check"], default=_jd),
+                   beat_source=b["beat_source"])
+        say(f"#{n:04d} listen: {json.dumps(b['check'], default=_jd)}")
         if b["note"]:
             rec["notes"].append(b["note"])
+        if b["skip"]:
+            short = "end before 10 s" in b["skip"] and "not beat-like" not in b["skip"]
+            rec["status"] = "skip-beat-short" if short else "skip-beat-unsure"; rec["notes"].append(b["skip"])
+            return rec
+        if conf not in USABLE and b["check"].get("probe_a"):
+            rec["status"] = "excluded-checked"          # beat found + listened to; BPM label unusable: no print
+            return rec
         rec["status"] = "ok" if b["path"] else ("silent" if b["note"] and "silent" in b["note"] else "error-bounce")
+        if b["path"] and conf in USABLE and MIX:
+            m = stage_mix(c, n, info["sr"], b["sel"], b["source"])
+            rec.update(mix_wav_path=m["path"], mix_mean_db=m["mean_db"], mix_duration_s=m["dur"], mix_note=m["note"],
+                       mix_resid_db=m.get("resid_db"))
         return rec
     except BaseException as ex:
         rec["status"] = f"error-{type(ex).__name__}"
@@ -492,6 +734,11 @@ def run_one(n, already_open=False, keep_open=False) -> dict:
                 rec["close"] = stage_close(c)
             except BaseException as ex:
                 rec["close"] = f"error {type(ex).__name__}"
+        wd = rec.pop("_wd", None)
+        if wd is not None:
+            wd.cancel()
+        if rec.pop("_wd_fired", False):
+            rec["notes"].append("watchdog killed Pro Tools")
         rec["elapsed_s"] = round(time.time() - t0, 1)
         try:
             w = source_writes(e["ptx"], t0 - 1)
@@ -501,6 +748,59 @@ def run_one(n, already_open=False, keep_open=False) -> dict:
             pass
         rec["notes"] = "; ".join(rec["notes"]) if isinstance(rec["notes"], list) else rec["notes"]
         save(rec)
+
+
+def run_mix_only(n) -> str:
+    """Back-fill (J 01:08): re-open a done session and print ONLY its full mix over the beat's span
+    (the beat bounce started at 0 and lasted beat_duration_s). Updates the mix_* columns of the row."""
+    e = hlib.entry(n)
+    con = db()
+    dur, = con.execute("SELECT beat_duration_s FROM sessions WHERE id=?", (n,)).fetchone()
+    con.close()
+    c = hlib.client()
+    t0 = time.time()
+    m = {"path": None, "mean_db": None, "dur": None, "note": None}
+    opened = False
+    try:
+        st, secs = stage_open(c, e)
+        say(f"#{n:04d} mix-only open {st} {secs}s")
+        if st != "Completed":
+            m["note"] = f"mix-only: open {st}"
+            opened = hlib.session_open(c)
+            return "error-open"
+        opened = True
+        sr = float(hlib.parse_info(hlib.export_info(c, "TLType_Samples"))["header"].get("SAMPLE RATE", "0") or 0)
+        if not sr or not dur:
+            m["note"] = "mix-only: no sample rate / beat duration"; return "error"
+        m = stage_mix(c, n, sr, (0, int(round(dur * sr))))
+        return "ok" if m["path"] else "fail"
+    except BaseException as ex:
+        m["note"] = f"mix-only error {type(ex).__name__}: {hlib.redact(str(ex))[:120]}"
+        say("EXC", hlib.redact(traceback.format_exc())[-600:])
+        if isinstance(ex, KeyboardInterrupt):
+            raise
+        return "error"
+    finally:
+        if opened:
+            try:
+                stage_close(c)
+            except BaseException:
+                pass
+        try:
+            w = source_writes(e["ptx"], t0 - 1)
+        except Exception:
+            w = 0
+        con = db()
+        con.execute("UPDATE sessions SET mix_wav_path=?, mix_mean_db=?, mix_duration_s=?, mix_resid_db=?, mix_note=? "
+                    "WHERE id=?",
+                    (m["path"], m["mean_db"], m["dur"], m.get("resid_db"),
+                     "; ".join(x for x in (m["note"], "back-filled", f"PT wrote {w} file(s) on the source drive" if w else None) if x),
+                     n))
+        con.commit(); con.close()
+        log_jsonl({"id": n, "kind": "mix-backfill", "checked_at": hlib.now(), "mix_mean_db": m["mean_db"],
+                   "mix_duration_s": m["dur"], "note": m["note"], "elapsed_s": round(time.time() - t0, 1)})
+        say(f"#{n:04d} mix-only {m['path'] is not None} mix_dB={m['mean_db']} dur={m['dur']} {round(time.time() - t0)}s "
+            f"note={m['note']}")
 
 
 def source_writes(ptx: str, since: float) -> int:
@@ -540,56 +840,117 @@ def save(rec):
     log_jsonl({k: rec.get(k) for k in ("id", "ptx_sha1", "checked_at", "status", "bpm", "bpm_confidence",
                                         "bpm_source", "session_tempo", "edl_tempo", "edl_on_line", "tempo_map_flat",
                                         "comment_bpm", "comment_key", "key", "beat_mean_db", "probe_mean_db",
-                                        "beat_duration_s", "open_s", "close", "elapsed_s", "notes")})
+                                        "beat_duration_s", "open_s", "close", "elapsed_s", "notes", "drive",
+                                        "finder_version", "beat_source", "beat_confidence", "beat_check", "old_rule",
+                                        "mix_mean_db", "mix_duration_s", "mix_resid_db", "mix_note")})
     say(f"#{rec['id']:04d} {rec['status']} tempo={rec.get('session_tempo')} edl={rec.get('edl_tempo')} "
         f"flat={rec.get('tempo_map_flat')} comment={rec.get('beat_comment')} -> bpm={rec.get('bpm')} "
-        f"{rec.get('bpm_confidence')} ({rec.get('bpm_source')}) key={rec.get('key')} wav_dB={rec.get('beat_mean_db')} "
-        f"{rec.get('elapsed_s')}s close={rec.get('close')} notes={rec.get('notes')}")
+        f"{rec.get('bpm_confidence')} ({rec.get('bpm_source')}) key={rec.get('key')} "
+        f"beat={rec.get('beat_source')}/{rec.get('beat_confidence')} wav_dB={rec.get('beat_mean_db')} "
+        f"mix_dB={rec.get('mix_mean_db')} {rec.get('elapsed_s')}s close={rec.get('close')} notes={rec.get('notes')} "
+        f"mix_note={rec.get('mix_note')}")
+
+
+USABLE_SQL = "beat_wav_path IS NOT NULL AND bpm_confidence IN ('confirmed','tempo-only')"
 
 
 def usable_count(con):
-    return con.execute(f"SELECT count(*) FROM sessions WHERE beat_wav_path IS NOT NULL AND bpm_confidence IN "
-                       f"('confirmed','tempo-only')").fetchone()[0]
+    return con.execute(f"SELECT count(*) FROM sessions WHERE {USABLE_SQL}").fetchone()[0]
 
 
 def relaunch_pt():
     say("killing Pro Tools (hung) and relaunching")
-    subprocess.run(["pkill", "-9", "-f", "Pro Tools.app/Contents/MacOS/Pro Tools"])
+    subprocess.run(["pkill", "-9", "-f", r"Pro Tools[^/]*\.app/Contents/MacOS/Pro Tools$"])
     time.sleep(10)
     r = subprocess.run([str(H / ".venv/bin/python"), str(H / "pt_launch.py"), "100"], capture_output=True, text=True)
     say("relaunch:", r.stdout.strip().splitlines()[-1:] if r.stdout else r.returncode)
     time.sleep(20)
+    for _ in range(18):                 # PTSL answers only once the Dashboard is closed (dialog_clicker does it)
+        try:
+            hlib.session_open(hlib.client())
+            say("relaunch: PTSL answering"); return
+        except Exception:
+            time.sleep(10)
+    say("relaunch: PTSL still not answering after 3 min")
+
+
+def _gate():
+    """-> rc to stop with, or None to go on."""
+    if STOP.exists():
+        say("STOP file present: stopping"); return 0
+    b = blocked()
+    if b:
+        say("BLOCKED:", b); return 3
+    if not hlib._port_open() or not subprocess.run(["pgrep", "-f", r"Pro Tools[^/]*\.app/Contents/MacOS/Pro Tools$"],
+                                                   capture_output=True).stdout.strip():
+        say("Pro Tools is not running: launching it")
+        relaunch_pt()
+    c = hlib.client()
+    if hlib.session_open(c):
+        hlib.close_no_save(c)
+    return None
+
+
+def _after_error(n, status, notes, fails_in_row):
+    if status in ("error-open", "error-_InactiveRpcError", "error-PtslError") or "deadline" in str(notes).lower() \
+            or "watchdog" in str(notes):
+        shot = H / "shots" / f"error-{n:04d}.png"
+        subprocess.run(["screencapture", "-x", str(shot)])
+        if blocked():
+            say("BLOCKED after error:", blocked()); return 3
+        relaunch_pt()
+    if fails_in_row >= 4:
+        say("4 errors in a row: stopping for a human look"); return 4
+    return None
 
 
 def batch(target=200, max_n=10**6):
     con = db()
     done = {r[0] for r in con.execute("SELECT id FROM sessions WHERE status NOT LIKE 'error%'")}
     tries = {r[0]: r[1] for r in con.execute("SELECT id, notes FROM sessions WHERE status LIKE 'error%'")}
+    backfill = [r[0] for r in con.execute(f"SELECT id FROM sessions WHERE {USABLE_SQL} AND mix_wav_path IS NULL "
+                                          f"AND mix_note IS NULL ORDER BY id")]
     con.close()
     fails_in_row = 0
-    say(f"batch start: {len(done)} done, target {target} usable")
-    for e in hlib.manifest():
+    man = hlib.manifest()
+    say(f"batch start: {len(done)} done, target {target} usable; manifest {len(man)}; "
+        f"mix back-fill {len(backfill) if MIX else 0}")
+    # 1. J 01:08: full-mix back-fill for usable rows printed before the mix existed
+    for n in (backfill if MIX else []):
+        rc = _gate()
+        if rc is not None:
+            return rc
+        r = run_mix_only(n)
+        fails_in_row = fails_in_row + 1 if r.startswith("error") else 0
+        if r.startswith("error"):
+            rc = _after_error(n, "error-open" if r == "error-open" else "error", "", fails_in_row)
+            if rc is not None:
+                return rc
+    # 2. the manifest in order; rows the v1 name-only rule skipped are re-run with the v2 finder
+    for e in man:
         n = e["n"]
         if n > max_n:
             continue
         con = db()
-        r = con.execute("SELECT status, notes FROM sessions WHERE id=?", (n,)).fetchone()
+        r = con.execute("SELECT status, notes, finder_version, bpm_confidence FROM sessions WHERE id=?", (n,)).fetchone()
         con.close()
-        if r and not r[0].startswith("error"):
+        # rows an older finder skipped get one more look by a newer finder (unusable BPM labels excepted)
+        # (finder v5 was the last change to which tracks are found; later versions only change the ears)
+        requeue = bool(r and ((r[0] in ("skip-no-beat-buss", "skip-no-beat") and (r[2] or 0) < 5) or
+                              (r[0] == "skip-beat-unsure" and r[3] in USABLE and (r[2] or 0) < beatfind.FINDER_VERSION) or
+                              (r[0] == "silent" and r[3] in USABLE and (r[2] or 0) < 7)))
+        if r and not r[0].startswith("error") and not requeue:
             continue                                   # done (re-read every time: rows may be dropped to redo)
         if n in tries and "retried" in (tries[n] or ""):
             continue
         con = db(); u = usable_count(con); con.close()
         if u >= target:
             say(f"target reached: {u} usable rows"); return 0
-        if STOP.exists():
-            say("STOP file present: stopping"); return 0
-        b = blocked()
-        if b:
-            say("BLOCKED:", b); return 3
-        c = hlib.client()
-        if hlib.session_open(c):
-            hlib.close_no_save(c)
+        rc = _gate()
+        if rc is not None:
+            return rc
+        if requeue:
+            say(f"#{n:04d} re-queued (an older finder skipped it: {r[0]})")
         rec = run_one(n)
         if n in tries:
             con = db()
@@ -597,14 +958,9 @@ def batch(target=200, max_n=10**6):
             con.commit(); con.close()
         if rec["status"].startswith("error"):
             fails_in_row += 1
-            if rec["status"] in ("error-open", "error-_InactiveRpcError", "error-PtslError") or "deadline" in str(rec.get("notes")).lower():
-                shot = H / "shots" / f"error-{n:04d}.png"
-                subprocess.run(["screencapture", "-x", str(shot)])
-                if blocked():
-                    say("BLOCKED after error:", blocked()); return 3
-                relaunch_pt()
-            if fails_in_row >= 4:
-                say("4 errors in a row: stopping for a human look"); return 4
+            rc = _after_error(n, rec["status"], rec.get("notes"), fails_in_row)
+            if rc is not None:
+                return rc
         else:
             fails_in_row = 0
     con = db(); u = usable_count(con); con.close()
@@ -615,23 +971,42 @@ def status():
     con = db()
     for r in con.execute("SELECT status, bpm_confidence, count(*) FROM sessions GROUP BY 1,2 ORDER BY 3 DESC"):
         print(r)
-    print("usable", usable_count(con))
+    u = usable_count(con)
+    conf = con.execute(f"SELECT count(*) FROM sessions WHERE {USABLE_SQL} AND bpm_confidence='confirmed'").fetchone()[0]
+    key = con.execute(f"SELECT count(*) FROM sessions WHERE {USABLE_SQL} AND key IS NOT NULL").fetchone()[0]
+    mix = con.execute(f"SELECT count(*) FROM sessions WHERE {USABLE_SQL} AND mix_wav_path IS NOT NULL").fetchone()[0]
+    print(f"usable {u} (confirmed {conf}, tempo-only {u - conf}, with key {key}); with full mix {mix}")
+    for r in con.execute(f"SELECT coalesce(beat_source,'-'), coalesce(beat_confidence,'-'), count(*) FROM sessions "
+                         f"WHERE {USABLE_SQL} GROUP BY 1,2 ORDER BY 3 DESC"):
+        print("  beat source", r)
+    for r in con.execute("SELECT coalesce(drive,'arch1'), count(*) FROM sessions GROUP BY 1"):
+        print("  drive", r)
     r = con.execute("SELECT avg(elapsed_s), max(id) FROM sessions").fetchone()
     print("avg s/session", round(r[0] or 0), "last id", r[1])
 
 
 if __name__ == "__main__":
     cmd = sys.argv[1]
+    rc = 0
     try:
         if cmd == "one":
             run_one(int(sys.argv[2]), "--already-open" in sys.argv, "--keep-open" in sys.argv)
+        elif cmd == "mix":
+            run_mix_only(int(sys.argv[2]))
         elif cmd == "batch":
             a = sys.argv
             rc = batch(int(a[a.index("--target") + 1]) if "--target" in a else 200,
                        int(a[a.index("--max-n") + 1]) if "--max-n" in a else 10**6)
-            sys.stdout.flush(); os._exit(rc)
+        elif cmd == "resid":                       # fill mix_resid_db where both 11k files exist
+            con = db()
+            for (n,) in con.execute("SELECT id FROM sessions WHERE mix_wav_path IS NOT NULL AND mix_resid_db IS NULL").fetchall():
+                r = mix_resid_db(n)
+                con.execute("UPDATE sessions SET mix_resid_db=? WHERE id=?", (r, n)); con.commit()
+                print(f"#{n:04d} resid {r}")
+            con.close()
         elif cmd == "status":
             status()
     except BaseException as ex:
         print("ERR", type(ex).__name__, hlib.redact(ex)[:300])
-    sys.stdout.flush(); os._exit(0)
+        rc = 1 if cmd == "batch" else 0          # a crashed batch is restarted by run_batch.sh (rc 0 = done)
+    sys.stdout.flush(); os._exit(rc)
