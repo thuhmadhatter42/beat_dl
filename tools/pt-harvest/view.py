@@ -25,9 +25,13 @@ thumb_w = int(opt("--thumb", "480"))
 crop = opt("--crop")
 scale = float(opt("--scale", "2"))
 masks = opt("--mask", multi=True)
+src = opt("--from")
 full = Path.home() / "pt-harvest" / "shots" / f"full-{tag}.png"
 full.parent.mkdir(parents=True, exist_ok=True)
-subprocess.run(["screencapture", "-x", str(full)], check=True)
+if src:
+    full = Path.home() / "pt-harvest" / src
+else:
+    subprocess.run(["screencapture", "-x", str(full)], check=True)
 img = Image.open(full).convert("RGB")
 if img.size[0] != 1920:
     img = img.resize((1920, int(img.size[1] * 1920 / img.size[0])))

@@ -27,7 +27,8 @@ bg)  # sv.sh bg <logname> <script.py> [args] -> nohup on Sofia, log ~/pt-harvest
 wait)  # sv.sh wait <logname> <maxsec> <regex> -> poll ~/pt-harvest/logs/<logname>.log (+ clicker.log) until regex matches
     lg="$2"; max="$3"; rx="$4"; t0=$(date +%s)
     while :; do
-        o=$("$RC" $HOST "cd ~/pt-harvest && grep -h -E '$rx' logs/$lg.log logs/clicker.log 2>/dev/null | tail -5")
+        # only lines after the last batch (re)start count
+        o=$("$RC" $HOST "cd ~/pt-harvest && { awk '/harvest batch start/{b=\"\"} {b=b \$0 \"\\n\"} END{printf \"%s\", b}' logs/$lg.log; } | grep -h -E '$rx' | tail -5")
         [ -n "$o" ] && { echo "$o"; echo "after $(( $(date +%s) - t0 ))s"; exit 0; }
         [ $(( $(date +%s) - t0 )) -ge "$max" ] && { echo "timeout ${max}s"; exit 1; }
         sleep 6

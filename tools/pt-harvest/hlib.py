@@ -60,6 +60,10 @@ def safe_track_name(name: str) -> str:
     return n if (n.lower() in STRUCTURAL or (len(n) <= 24 and _STRUCT_RX.match(n))) else "<t>"
 
 
+def is_beat_track(name: str) -> bool:
+    return bool(re.fullmatch(r"\s*(beats?|instrumental|inst)(\s*[-_.]?\s*\d{1,2})?\s*", name, re.I))
+
+
 def is_beat_buss(name: str) -> bool:
     """J (spec §7.2): the beat folder is 'Beat Buss'. Accept spelling variants of beat + bus."""
     return bool(re.fullmatch(r"\s*beats?\s*bus{1,2}\s*", name, re.I))
@@ -605,9 +609,18 @@ def read_autotune(button, shot_path) -> dict:
         toks = ocr(crop(img, body, 2.0))
         key = _below(toks, r"Key", r"^[A-G]\s*[#♯b♭]?$")
         if not key:
-            raw = _value_under(bimg, toks, r"Key", 2.0, dy=(4, 30), dx=28) or ""
-            m = re.match(r"^\s*([A-G])\s*([#♯b♭])?", raw)
-            key = (m[1] + (m[2] or "")) if m else None
+            # Vision is flaky on a lone glyph: vote over several boxes under the label, need >= 2 agreeing
+            from collections import Counter as _C
+            votes = _C()
+            for dx, dy in ((20, (4, 30)), (28, (4, 30)), (40, (4, 30)), (20, (2, 40)), (40, (2, 40)), (34, (6, 34))):
+                raw = _value_under(bimg, toks, r"Key", 2.0, dy=dy, dx=dx) or ""
+                m = re.match(r"^\s*([A-G])\s*([#♯b♭])?", raw)
+                if m:
+                    votes[m[1] + (m[2] or "")] += 1
+            if votes:
+                k, v = votes.most_common(1)[0]
+                key = k if v >= 2 else None
+                res["key_votes"] = dict(votes)
         scale = _below(toks, r"Scale", r"^(" + "|".join(_SCALES) + r")\b")
         rs = _below(toks, r"Retune\s*Speed", r"^\d{1,3}(\.\d)?$", max_dy=260, max_dx=90)
         if rs is None:

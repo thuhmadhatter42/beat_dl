@@ -67,6 +67,7 @@ CREATE TABLE IF NOT EXISTS sessions (
     producer_bpms       TEXT,                  -- JSON array, from beat clip names (never beat_dl's own '(NN.N BPM ..)')
     beatdl_estimate     REAL,                  -- decimal 'NN.N BPM' estimate in the beat clip names, if any
     tempo_from_estimate INTEGER,               -- 1 = session tempo equals that estimate (J set the grid from it: circular for training)
+    beat_source         TEXT,                  -- 'Beat Buss' folder, or 'Beat track' (no folder: track named Beat/Instrumental)
     beat_wav_path       TEXT,                  -- audio/NNNN.wav on Sofia (11 kHz copy audio11k/NNNN.wav)
     beat_mean_db        REAL,
     probe_mean_db       REAL,
@@ -167,8 +168,16 @@ def _base(name: str) -> str:
 def stage_beat_meta(tl, info):
     """Beat folder + its tracks; comments and producer BPMs from the beat tracks only."""
     folder, kids = hlib.beat_tree(tl)
-    if folder is None:
-        return None
+    if folder is not None:
+        solo = [(folder["name"], folder["id"])]; src = "Beat Buss"
+    else:
+        # no Beat Buss folder (older/simple templates): live audio tracks named exactly "Beat"/"Beats"/
+        # "Instrumental" (optionally numbered) are the beat. Soloed by name (all <= 31 chars).
+        kids = [t for t in tl if t["type"] == "TType_Audio" and hlib.is_beat_track(t["name"])
+                and not hlib.attr(t, "is_inactive") and not hlib.attr(t, "is_muted") and hlib.attr(t, "contains_clips")]
+        if not kids:
+            return None
+        solo = [(k["name"], k["id"]) for k in kids]; src = "Beat track"
     kid_names = {k["name"] for k in kids}
     active_audio = {k["name"] for k in kids if k["type"] == "TType_Audio" and not hlib.attr(k, "is_inactive")
                     and not hlib.attr(k, "is_muted") and hlib.attr(k, "contains_clips")}
@@ -189,7 +198,7 @@ def stage_beat_meta(tl, info):
                     pass
     parsed = [hlib.parse_comment(cm) for cm in comments]
     parsed = [p | {"raw": cm} for p, cm in zip(parsed, comments) if p["key"] or p["bpm"]]
-    return {"folder": folder, "n_tracks": len(kids), "n_active_audio": len(active_audio),
+    return {"solo": solo, "beat_source": src, "n_tracks": len(kids), "n_active_audio": len(active_audio),
             "comments": parsed, "producer_bpms": hlib.producer_bpms(clipnames), "max_end": max_end,
             "estimates": hlib.estimate_bpms(clipnames)}
 
@@ -198,9 +207,28 @@ _LEAD = re.compile(r"hook|verse|\bld\b|\blead\b|\bmain\b|\blv\b", re.I)
 _NOT_LEAD = re.compile(r"\b(ad|ads|adlib|ad ?libs?|bg|bgv|bgs|dbl|dub|dubs|harm|harmony|harmonies|ref|fx|vrb|verb)\b", re.I)
 
 
-def stage_autotune(n, tl) -> dict:
+def stage_autotune(n, tl, c=None) -> dict:
     """Spec §2.4/§2.5: read Key/Scale/Retune from up to 3 active Auto-Tune instances on live lead
-    vocal tracks. Reliable = >=2 reads, none bypassed, none effectively off, all agree."""
+    vocal tracks. Reliable = >=2 reads, none bypassed, none effectively off, all agree.
+    Closed folders hide their tracks' strips from the Edit window (and its AX tree), so closed
+    folders are opened first (view state only; the session is never saved) and closed again after."""
+    opened = []
+    if c is not None:
+        closed = [t["name"] for t in tl if t["type"] in ("TType_RoutingFolder", "TType_BasicFolder")
+                  and not hlib.attr(t, "is_open")]
+        if closed:
+            st, _ = c.status_of("CId_SetTrackOpenState", {"track_names": closed, "enabled": True})
+            if st == "Completed":
+                opened = closed
+                time.sleep(1.5)
+    try:
+        return _stage_autotune(n, tl)
+    finally:
+        if opened:
+            c.status_of("CId_SetTrackOpenState", {"track_names": opened, "enabled": False})
+
+
+def _stage_autotune(n, tl) -> dict:
     by_name = {t["name"]: t for t in tl}
     by_id = {t["id"]: t for t in tl}
 
@@ -272,12 +300,12 @@ def stage_bounce(c, n, meta, sr):
     prior = [t["name"] for t in tl if hlib.attr(t, "is_soloed")]
     for p in prior:
         hlib.solo(c, p, False)
-    fname = meta["folder"]["name"]
     try:
-        hlib.solo(c, fname, True)
-        soloed = hlib.attr(next(t for t in hlib.tracks(c) if t["id"] == meta["folder"]["id"]), "is_soloed")
-        if not soloed:
-            out["note"] = "Beat Buss solo did not read back"
+        for nm, _ in meta["solo"]:
+            hlib.solo(c, nm, True)
+        now_tl = {t["id"]: t for t in hlib.tracks(c)}
+        if not all(hlib.attr(now_tl.get(i, {}), "is_soloed") for _, i in meta["solo"]):
+            out["note"] = f"{meta['beat_source']} solo did not read back"
             return out
         end = meta["max_end"]
         if end <= sr * 10:
@@ -297,7 +325,18 @@ def stage_bounce(c, n, meta, sr):
             if out["probe_db"] > -50:
                 break
         if out["probe_db"] <= -50:
-            out["note"] = "silent probe (SSL session?)"
+            # tell "beat isolation is silent" from "this output prints silence at all" (SSL / print-chain)
+            for nm, _ in meta["solo"]:
+                hlib.solo(c, nm, False)
+            a = int(end * 0.5)
+            hlib.set_selection_samples(c, a, int(a + 8 * sr))
+            st, body = hlib.export_mix(c, str(AUDIO), f"probe-{n:04d}", int(sr), source, timeout=600)
+            pp = AUDIO / f"probe-{n:04d}.wav"
+            mix_db = hlib.mean_db(pp) if pp.exists() else None
+            if pp.exists():
+                pp.unlink()
+            out["note"] = (f"silent probe (SSL session?); unsoloed mix probe {mix_db} dB on output '{source}' "
+                           f"({len(srcs)} outputs)")
             return out
         hlib.set_selection_samples(c, 0, int(min(end + sr, end * 1.02)))
         st, body = hlib.export_mix(c, str(AUDIO), f"{n:04d}", int(sr), source, timeout=3600)
@@ -316,7 +355,8 @@ def stage_bounce(c, n, meta, sr):
             out["note"] = "11k copy failed"
         return out
     finally:
-        hlib.solo(c, fname, False)
+        for nm, _ in meta["solo"]:
+            hlib.solo(c, nm, False)
         for p in prior:
             hlib.solo(c, p, True)
 
@@ -366,6 +406,7 @@ def run_one(n, already_open=False, keep_open=False) -> dict:
         if meta is None:
             rec["status"] = "skip-no-beat-buss"
             return rec
+        rec["beat_source"] = meta["beat_source"]
         cm = next((p for p in meta["comments"] if p["bpm"] or p["key"]), None)
         if cm:
             rec.update(beat_comment=cm["raw"], comment_bpm=cm["bpm"], comment_key=cm["key"])
@@ -395,7 +436,7 @@ def run_one(n, already_open=False, keep_open=False) -> dict:
         rec.update(bpm=bpm, bpm_source=src, bpm_confidence=conf, tempo_map_flat=flat)
         if KEY_READ:
             try:
-                at = stage_autotune(n, tl)
+                at = stage_autotune(n, tl, c)
                 rec.update(autotune_key=at["key"], autotune_scale_raw=at["scale_raw"], reliable=at["reliable"],
                            retune_speeds=json.dumps(at["speeds"]), autotune_product=json.dumps(at["products"]),
                            disagreement_detail=at["detail"],
@@ -512,8 +553,13 @@ def batch(target=200, max_n=10**6):
     say(f"batch start: {len(done)} done, target {target} usable")
     for e in hlib.manifest():
         n = e["n"]
-        if n > max_n or n in done:
+        if n > max_n:
             continue
+        con = db()
+        r = con.execute("SELECT status, notes FROM sessions WHERE id=?", (n,)).fetchone()
+        con.close()
+        if r and not r[0].startswith("error"):
+            continue                                   # done (re-read every time: rows may be dropped to redo)
         if n in tries and "retried" in (tries[n] or ""):
             continue
         con = db(); u = usable_count(con); con.close()
