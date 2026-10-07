@@ -2,7 +2,8 @@
 # Sofia: wait up to $1 s for a NEW line in logs/batch.log (written after this starts) matching $2
 # (default: trouble). Prints the match (short) or "quiet <n>s"; then the last 3 results.
 cd "$HOME/pt-harvest" || exit 1
-max=${1:-570}; rx=${2:-'EXC|BLOCKED|errors in a row|watchdog|gave up|8 crashes|exited rc=[^0]|target reached|exhausted'}
+max=${1:-570}; rx='EXC|BLOCKED|errors in a row|watchdog|gave up|8 crashes|exited rc=[^0]|target reached|exhausted'
+[ "$2" = results ] && rx="#[0-9]{4} (ok|skip|excluded|silent|error)|$rx"
 start=$(wc -l < logs/batch.log); t0=$(date +%s)
 while :; do
     hit=$(tail -n +$((start + 1)) logs/batch.log | grep -E -m1 "$rx")
