@@ -20,6 +20,7 @@ while stack:
     txt = " | ".join(f"{k}={v}" for k, v in vals.items() if isinstance(v, str) and v)
     if pat.search(txt):
         m = [f"{k}~{pat.search(v)[0]}" for k, v in vals.items() if isinstance(v, str) and pat.search(v)]
+        m += [f"{k}={v}" for k, v in vals.items() if isinstance(v, str) and re.fullmatch(r"[\d.:/| ]{1,16}", v)]
         hits.append((depth, str(role), path, m, [k for k, v in vals.items() if isinstance(v, str) and v]))
     if depth < 12:
         kids = dc._ax(el, "AXChildren") or []

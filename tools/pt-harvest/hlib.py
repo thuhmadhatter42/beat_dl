@@ -182,9 +182,10 @@ def edl_points(info_bb: dict, info_samples: dict, beats_per_bar: int) -> list[tu
     return sorted(pts)
 
 
-def edl_tempo(points, sr: float, tol_s=0.003):
-    """Theil-Sen slope of samples vs beats -> tempo. Flat if >=90 % of points sit within tol_s of
-    the line (a tempo change bends the line). -> (tempo|None, flat 0/1/None, n_points, frac_on_line)"""
+def edl_tempo(points, sr: float, tol_beats=1 / 16):
+    """Theil-Sen slope of samples vs beats -> tempo. Flat if >=90 % of points sit within a 16th
+    note of the line (a real tempo change bends it by far more; PT's tick rounding and small
+    wobbles do not). -> (tempo|None, flat 0/1/None, n_points, frac_on_line)"""
     import statistics
     pts = [p for p in points if p[0] > 0]
     if len(pts) < 4:
@@ -195,7 +196,7 @@ def edl_tempo(points, sr: float, tol_s=0.003):
         return None, None, len(pts), None
     spb = statistics.median(slopes)                      # samples per beat
     icpt = statistics.median(s - spb * b for b, s in pts)
-    on = sum(1 for b, s in pts if abs(s - (icpt + spb * b)) <= tol_s * sr) / len(pts)
+    on = sum(1 for b, s in pts if abs(s - (icpt + spb * b)) <= tol_beats * spb) / len(pts)
     tempo = 60.0 * sr / spb
     return round(tempo, 4), (1 if on >= 0.9 else 0), len(pts), round(on, 3)
 
@@ -203,7 +204,9 @@ def edl_tempo(points, sr: float, tol_s=0.003):
 # ---------- labels ----------
 NOTE = r"([A-G](?:#|b|♯|♭)?)"
 _BEATDL = re.compile(r"\(\s*\d{2,3}\.\d\s*BPM\s+[A-G][^)]*\)", re.I)  # our own estimate: never a label
-_PROD_BPM = re.compile(r"(?<![\d.])(\d{2,3}(?:\.\d+)?)\s*-?\s*bpm\b", re.I)
+# producer BPMs are whole numbers ("140bpm", "140 BPM"); a decimal ("134.7 bpm") is an estimate
+# (beat_dl's style or similar) and never counts as an independent source
+_PROD_BPM = re.compile(r"(?<![\d.])(\d{2,3})(?![\d.])\s*-?\s*bpm\b", re.I)
 
 
 def producer_bpms(names: list[str]) -> list[float]:
@@ -215,6 +218,16 @@ def producer_bpms(names: list[str]) -> list[float]:
             if 50 <= v <= 220:
                 vals.append(v)
     return sorted(set(vals))
+
+
+def estimate_bpms(names: list[str]) -> list[float]:
+    """Decimal 'NN.N BPM' tokens (beat_dl's estimate style) -> used only to FLAG a session tempo
+    that was copied from an estimate, never as a label source."""
+    vals = set()
+    for nm in names:
+        for m in re.finditer(r"(?<![\d.])(\d{2,3}\.\d+)\s*bpm\b", nm, re.I):
+            vals.add(float(m[1]))
+    return sorted(vals)
 
 
 def parse_comment(c: str) -> dict:
@@ -416,6 +429,212 @@ def read_toolbar(img) -> dict:
     mr = _right_of(toks, "Meter", r"\d{1,2}\s*/\s*\d{1,2}")
     return {"tempo": float(tr) if tr else None, "tempo_raw": tr,
             "meter": mr.replace(" ", "") if mr else None}
+
+
+def ax_edit_tempo() -> dict:
+    """Tempo straight from the Edit window's Accessibility tree (no screen needed):
+    the 'Tempo value' text field, the 'Tempo' table (one row per tempo event) and the Meter value."""
+    import dialog_clicker as dc
+    out = {"ax_tempo": None, "ax_tempo_raw": None, "tempo_events": None, "tempo_event_values": [], "ax_meter": None,
+           "edit_frame": None}
+    edit = next((d for d in dc.windows() if d["title"].startswith("Edit:")), None)
+    if edit is None:
+        return out
+    out["edit_frame"] = (*edit["pos"], *edit["size"])
+
+    def kids(el):
+        return dc._ax(el, "AXChildren") or []
+
+    def walk(el, depth, maxd):
+        yield el
+        if depth < maxd:
+            for k in kids(el):
+                yield from walk(k, depth + 1, maxd)
+    for el in walk(edit["el"], 0, 2):
+        role = dc._ax(el, "AXRole"); title = str(dc._ax(el, "AXTitle") or "")
+        if role == "AXTextField" and title.startswith("Tempo"):
+            raw = str(dc._ax(el, "AXValue") or "").strip()
+            m = re.search(r"\d{2,3}(?:\.\d+)?", raw)
+            out["ax_tempo_raw"] = raw
+            out["ax_tempo"] = float(m[0]) if m else None
+            import ApplicationServices as AS
+            p = dc._xy(dc._ax(el, "AXPosition"), AS.kAXValueCGPointType)
+            s = dc._xy(dc._ax(el, "AXSize"), AS.kAXValueCGSizeType)
+            if p and s:
+                out["tempo_field_frame"] = (int(p.x), int(p.y), int(s.width), int(s.height))
+        elif role == "AXButton" and title.startswith("Meter") and out["ax_meter"] is None:
+            v = str(dc._ax(el, "AXValue") or "")
+            m = re.search(r"\b(\d{1,2}/\d{1,2})\b", v)
+            out["ax_meter"] = m[1] if m else None
+        elif role == "AXTable" and title.startswith("Tempo"):
+            rows = dc._ax(el, "AXRows") or []
+            out["tempo_events"] = len(rows)
+            vals = []
+            for r in rows[:50]:
+                for c in walk(r, 0, 3):
+                    v = dc._ax(c, "AXValue")
+                    if isinstance(v, str) and re.fullmatch(r"\s*\d{2,3}\.\d+\s*", v):
+                        vals.append(float(v)); break
+            out["tempo_event_values"] = vals
+    return out
+
+
+# ---------- Auto-Tune key read (spec §2.4) ----------
+_NOTE_RX = re.compile(r"^([A-G])\s*([#♯b♭]?)$")
+_SCALES = ("Major", "Minor", "Chromatic", "Dorian", "Phrygian", "Lydian", "Mixolydian", "Locrian", "Aeolian",
+           "Ionian", "Harmonic Minor", "Melodic Minor", "Blues", "Pentatonic")
+
+
+def _below(toks, label_rx, val_rx, max_dy=80, max_dx=70):
+    labs = [t for t in toks if re.fullmatch(label_rx, t[0].strip(), re.I)]
+    for L in labs:
+        lx = L[2] + L[4] / 2; ly = L[3] + L[5]
+        c = [t for t in toks if t is not L and 0 <= t[3] - ly <= max_dy and abs(t[2] + t[4] / 2 - lx) <= max_dx
+             and re.search(val_rx, t[0].strip(), re.I)]
+        if c:
+            return min(c, key=lambda t: t[3])[0].strip()
+    return None
+
+
+def ocr_small(pil_img, scale=5):
+    """OCR for 1-3 character values (Vision drops lone glyphs at native size): grayscale, invert to
+    dark-on-light, upscale, pad. -> joined text."""
+    from PIL import Image, ImageOps
+    g = ImageOps.invert(pil_img.convert("L"))
+    g = g.resize((g.width * scale, g.height * scale), Image.LANCZOS)
+    pad = Image.new("L", (g.width + 200, g.height + 200), 255)
+    pad.paste(g, (100, 100))
+    return " ".join(t[0] for t in ocr(pad.convert("RGB"))).strip()
+
+
+def _value_under(img, toks, label_rx, sc, dy=(4, 44), dx=50):
+    """Value box under a label in the body crop (coords /sc back to the 1x body image)."""
+    for L in toks:
+        if re.fullmatch(label_rx, L[0].strip(), re.I):
+            cx = (L[2] + L[4] / 2) / sc; by = (L[3] + L[5]) / sc
+            box = (int(cx - dx), int(by + dy[0]), int(cx + dx), int(by + dy[1]))
+            return ocr_small(img.crop(box))
+    return None
+
+
+def edit_strips():
+    """-> {track name: [AX insert-assignment buttons whose value names Auto-Tune, with slot letter]}"""
+    import dialog_clicker as dc
+    edit = next((d for d in dc.windows() if d["title"].startswith("Edit:")), None)
+    out = {}
+    if edit is None:
+        return out
+    for s in dc._ax(edit["el"], "AXChildren") or []:
+        if dc._ax(s, "AXRole") != "AXGroup":
+            continue
+        name = str(dc._ax(s, "AXTitle") or "")
+        name = re.sub(r" - [A-Za-z ]*Track\s*$", "", name)      # strip title = "<track> - Audio Track "
+        for g in dc._ax(s, "AXChildren") or []:
+            if "Insert" not in str(dc._ax(g, "AXTitle") or ""):
+                continue
+            for b in dc._ax(g, "AXChildren") or []:
+                t = str(dc._ax(b, "AXTitle") or ""); v = str(dc._ax(b, "AXValue") or "")
+                if t.startswith("Insert Assignment") and re.search(r"Auto-?Tune", v, re.I):
+                    out.setdefault(name, []).append((t[-1], v, b))
+    return out
+
+
+def plugin_window():
+    import dialog_clicker as dc
+    return next((d for d in dc.windows() if d["title"].startswith("Plug-in:")), None)
+
+
+def close_plugin_window():
+    import dialog_clicker as dc
+    import ApplicationServices as AS
+    for _ in range(3):
+        w = plugin_window()
+        if w is None:
+            return True
+        cb = dc._ax(w["el"], "AXCloseButton")
+        if cb is not None:
+            AS.AXUIElementPerformAction(cb, "AXPress")
+        time.sleep(1)
+    return plugin_window() is None
+
+
+def read_autotune(button, shot_path) -> dict:
+    """Open one Auto-Tune insert (AXPress on its insert-assignment button), read product, bypass,
+    Key, Scale, Retune Speed from the plug-in window, close it. Returns a dict; values None when
+    not read confidently (never guessed)."""
+    import ApplicationServices as AS
+    import dialog_clicker as dc
+    res = {"product": None, "bypassed": None, "key": None, "scale": None, "retune": None, "ok": False}
+    close_plugin_window()
+    if AS.AXUIElementPerformAction(button, "AXPress") != 0:
+        res["err"] = "press failed"; return res
+    w = None
+    for _ in range(10):
+        time.sleep(0.5)
+        w = plugin_window()
+        if w:
+            break
+    if not w:
+        res["err"] = "no plug-in window"; return res
+    try:
+        time.sleep(1.5)                       # let the GUI paint
+        stack = [(w["el"], 0)]
+        bypass_el = None
+        while stack:
+            el, d = stack.pop()
+            t = str(dc._ax(el, "AXTitle") or "")
+            if t.startswith("Plugin Selector"):
+                res["product"] = str(dc._ax(el, "AXValue") or "")
+            elif t == "Effect Bypass":
+                bypass_el = el
+            if d < 4:
+                stack += [(k, d + 1) for k in (dc._ax(el, "AXChildren") or [])]
+        img = screenshot(shot_path)
+        x, y = int(w["pos"][0]), int(w["pos"][1])
+        ww, wh = int(w["size"][0]), int(w["size"][1])
+        if bypass_el is not None:
+            p = dc._xy(dc._ax(bypass_el, "AXPosition"), AS.kAXValueCGPointType)
+            s = dc._xy(dc._ax(bypass_el, "AXSize"), AS.kAXValueCGSizeType)
+            if p and s and s.width > 4:
+                px = img.crop((int(p.x) + 2, int(p.y) + 2, int(p.x + s.width) - 2, int(p.y + s.height) - 2)).resize((1, 1)).getpixel((0, 0))
+                res["bypass_rgb"] = px
+                # lit BYPASS is orange/yellow; unlit is grey
+                res["bypassed"] = bool(px[0] > 150 and px[0] - px[2] > 60)
+        body = (x, y + 75, ww, max(wh - 75, 10))
+        bimg = crop(img, body, 1.0)
+        toks = ocr(crop(img, body, 2.0))
+        key = _below(toks, r"Key", r"^[A-G]\s*[#♯b♭]?$")
+        if not key:
+            raw = _value_under(bimg, toks, r"Key", 2.0, dy=(4, 30), dx=28) or ""
+            m = re.match(r"^\s*([A-G])\s*([#♯b♭])?", raw)
+            key = (m[1] + (m[2] or "")) if m else None
+        scale = _below(toks, r"Scale", r"^(" + "|".join(_SCALES) + r")\b")
+        rs = _below(toks, r"Retune\s*Speed", r"^\d{1,3}(\.\d)?$", max_dy=260, max_dx=90)
+        if rs is None:
+            raw = _value_under(bimg, toks, r"Retune\s*Speed", 2.0, dy=(95, 125), dx=30) or ""
+            m = re.search(r"\d{1,3}", raw.replace("O", "0").replace("o", "0"))
+            rs = m[0] if m else None
+        if key:
+            m = _NOTE_RX.match(key.replace(" ", ""))
+            res["key"] = (m[1] + m[2].replace("♯", "#").replace("♭", "b")) if m else None
+        res["scale"] = scale
+        res["retune"] = float(rs) if rs else None
+        res["ok"] = bool(res["key"] and res["scale"])
+        crop(img, body, 1.0).save(shot_path)     # keep only the plug-in body (Sofia only)
+        return res
+    finally:
+        close_plugin_window()
+
+
+def key_label(note: str, scale: str):
+    if not note or not scale:
+        return None
+    s = scale.lower()
+    if s.startswith("major") or s == "ionian":
+        return f"{note} major"
+    if s.startswith("minor") or s == "aeolian":
+        return f"{note} minor"
+    return None                                  # modes etc.: kept raw, not a major/minor label
 
 
 def bring_pt_forward():

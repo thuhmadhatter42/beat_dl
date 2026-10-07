@@ -14,7 +14,7 @@ Sofia. Nothing written to the DB, log or stdout carries a song/artist/track/file
 Never saves a session. Never writes to the source drive (bounces go to ~/pt-harvest/audio).
 """
 from __future__ import annotations
-import json, os, signal, sqlite3, subprocess, sys, time, traceback
+import json, os, re, signal, sqlite3, subprocess, sys, time, traceback
 from collections import Counter
 from pathlib import Path
 
@@ -31,6 +31,7 @@ LOGDIR = H / "logs"
 STOP = H / "STOP"
 OPEN_TIMEOUT = 1500       # ARA restore alone took 607 s on the first session
 USABLE = ("confirmed", "tempo-only")
+KEY_READ = "--no-key" not in sys.argv
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS sessions (
@@ -43,6 +44,7 @@ CREATE TABLE IF NOT EXISTS sessions (
     autotune_scale_raw  TEXT,
     retune_speeds       TEXT,
     autotune_product    TEXT,
+    autotune_reads      TEXT,                  -- JSON: per instance slot/product/bypass rgb/key/scale/retune
     reliable            INTEGER NOT NULL,      -- 1 = Auto-Tune key read reliable (spec §2.5)
     disagreement_detail TEXT,
     key                 TEXT,                  -- best key label ('D minor')
@@ -50,8 +52,10 @@ CREATE TABLE IF NOT EXISTS sessions (
     bpm                 REAL,
     bpm_source          TEXT,
     bpm_confidence      TEXT,                  -- confirmed | tempo-only | excluded
-    session_tempo       REAL,                  -- toolbar OCR
-    tempo_raw           TEXT,
+    session_tempo       REAL,                  -- Edit window AX Tempo field
+    tempo_raw           TEXT,                  -- AX Tempo field text
+    ocr_tempo           REAL,                  -- OCR of the on-screen Tempo field (cross-check)
+    tempo_events        INTEGER,               -- rows in the AX Tempo table
     meter               TEXT,
     edl_tempo           REAL,                  -- from EDL Bars|Beats vs Samples
     edl_points          INTEGER,
@@ -61,6 +65,8 @@ CREATE TABLE IF NOT EXISTS sessions (
     comment_bpm         REAL,
     comment_key         TEXT,
     producer_bpms       TEXT,                  -- JSON array, from beat clip names (never beat_dl's own '(NN.N BPM ..)')
+    beatdl_estimate     REAL,                  -- decimal 'NN.N BPM' estimate in the beat clip names, if any
+    tempo_from_estimate INTEGER,               -- 1 = session tempo equals that estimate (J set the grid from it: circular for training)
     beat_wav_path       TEXT,                  -- audio/NNNN.wav on Sofia (11 kHz copy audio11k/NNNN.wav)
     beat_mean_db        REAL,
     probe_mean_db       REAL,
@@ -76,6 +82,11 @@ CREATE TABLE IF NOT EXISTS sessions (
 def db():
     con = sqlite3.connect(DB)
     con.executescript(SCHEMA)
+    have = {r[1] for r in con.execute("PRAGMA table_info(sessions)")}
+    for m in re.finditer(r"^\s{4}(\w+)\s+(TEXT|REAL|INTEGER)\b", SCHEMA, re.M):   # additive migration
+        if m[1] not in have:
+            con.execute(f"ALTER TABLE sessions ADD COLUMN {m[1]} {m[2]}")
+    con.commit()
     return con
 
 
@@ -107,21 +118,30 @@ def stage_open(c, e):
 
 
 def stage_screen(n):
-    """Toolbar OCR + crops. PT must be frontmost (activated, no click)."""
+    """Tempo from the Edit window's AX tree (primary), cross-checked by OCR of the on-screen Tempo
+    field. The evidence crop is the Tempo field alone (no names in it)."""
     CROPS.mkdir(parents=True, exist_ok=True)
     hlib.bring_pt_forward()
     time.sleep(2)
-    full = H / "shots" / f"full-{n:04d}.png"
+    ax = hlib.ax_edit_tempo()
+    full = H / "shots" / f"full-{n:04d}.png"       # Sofia only (has names in it)
     full.parent.mkdir(exist_ok=True)
     img = hlib.screenshot(full)
-    tb = hlib.read_toolbar(img)
-    p1 = CROPS / f"{n:04d}-toolbar.png"
-    p2 = CROPS / f"{n:04d}-rulers.png"
-    hlib.crop(img, hlib.TOOLBAR, 1.0).save(p1)
-    hlib.crop(img, hlib.RULERS, 1.0).save(p2)
-    tb["front"] = hlib.frontmost()
-    tb["shots"] = [str(p1.relative_to(H)), str(p2.relative_to(H))]
-    return tb
+    ax["ocr_tempo"] = None
+    ax["shots"] = []
+    fr = ax.get("tempo_field_frame")
+    if fr and fr[2] > 10 and 0 <= fr[0] < 1920 and 0 <= fr[1] < 1080:
+        box = (max(fr[0] - 70, 0), max(fr[1] - 4, 0), fr[2] + 80, fr[3] + 8)
+        crop = hlib.crop(img, box, 3.0)
+        p = CROPS / f"{n:04d}-tempo.png"
+        crop.save(p)
+        ax["shots"].append(str(p.relative_to(H)))
+        toks = hlib.ocr(crop)
+        nums = [re.search(r"\d{2,3}\.\d{2,4}", t[0]) for t in toks]
+        nums = [float(m[0]) for m in nums if m]
+        ax["ocr_tempo"] = nums[0] if nums else None
+    ax["front"] = hlib.frontmost()
+    return ax
 
 
 def stage_info(c, n, beats_per_bar):
@@ -170,7 +190,73 @@ def stage_beat_meta(tl, info):
     parsed = [hlib.parse_comment(cm) for cm in comments]
     parsed = [p | {"raw": cm} for p, cm in zip(parsed, comments) if p["key"] or p["bpm"]]
     return {"folder": folder, "n_tracks": len(kids), "n_active_audio": len(active_audio),
-            "comments": parsed, "producer_bpms": hlib.producer_bpms(clipnames), "max_end": max_end}
+            "comments": parsed, "producer_bpms": hlib.producer_bpms(clipnames), "max_end": max_end,
+            "estimates": hlib.estimate_bpms(clipnames)}
+
+
+_LEAD = re.compile(r"hook|verse|\bld\b|\blead\b|\bmain\b|\blv\b", re.I)
+_NOT_LEAD = re.compile(r"\b(ad|ads|adlib|ad ?libs?|bg|bgv|bgs|dbl|dub|dubs|harm|harmony|harmonies|ref|fx|vrb|verb)\b", re.I)
+
+
+def stage_autotune(n, tl) -> dict:
+    """Spec §2.4/§2.5: read Key/Scale/Retune from up to 3 active Auto-Tune instances on live lead
+    vocal tracks. Reliable = >=2 reads, none bypassed, none effectively off, all agree."""
+    by_name = {t["name"]: t for t in tl}
+    by_id = {t["id"]: t for t in tl}
+
+    def in_vocals(t):
+        cur = t
+        while cur.get("parent_folder_id") in by_id:
+            cur = by_id[cur["parent_folder_id"]]
+            if re.search(r"vocal\s*stem|all\s*vox", cur["name"], re.I):
+                return True
+        return False
+    strips = hlib.edit_strips()
+    cands = []
+    why = Counter()
+    for name, btns in strips.items():
+        t = by_name.get(name)
+        if not t:
+            why["no-track-match"] += 1; continue
+        off = next((k for k in ("is_inactive", "is_muted", "is_hidden") if hlib.attr(t, k)), None)
+        if off:
+            why[off] += 1; continue
+        if t["type"] != "TType_Audio" or not hlib.attr(t, "contains_clips"):
+            why["not-audio-or-no-clips"] += 1; continue
+        if _NOT_LEAD.search(name):
+            why["not-lead-name"] += 1; continue
+        why["candidate"] += 1
+        rank = (0 if _LEAD.search(name) else 1, 0 if in_vocals(t) else 1, t.get("index", 999))
+        cands.append((rank, name, btns[0]))
+    cands.sort()
+    out = {"n_candidates": len(cands), "reads": [], "filter": dict(why), "n_strips": len(strips)}
+    for i, (rank, name, (slot, val, b)) in enumerate(cands[:3]):
+        r = hlib.read_autotune(b, CROPS / f"{n:04d}-autotune-{i}.png")
+        r["slot"] = slot; r["lead_named"] = rank[0] == 0
+        out["reads"].append(r)
+    reads = [r for r in out["reads"] if r.get("ok")]
+    out["products"] = [r.get("product") for r in out["reads"]]
+    out["speeds"] = [r.get("retune") for r in out["reads"]]
+    keys = {(r["key"], (r["scale"] or "").lower()) for r in reads}
+    off = [r for r in reads if r.get("bypassed") or (r.get("product") and "Pro" in r["product"] and (r.get("retune") or 0) >= 100)]
+    out["reliable"] = int(len(reads) >= 2 and not off and len(keys) == 1)
+    if keys and len(keys) == 1:
+        k, s = next(iter(keys))
+        out["key"] = hlib.key_label(k, s); out["scale_raw"] = f"{k} {s}"
+    else:
+        out["key"] = None; out["scale_raw"] = "; ".join(f"{k} {s}" for k, s in sorted(keys)) or None
+    det = []
+    if len(keys) > 1:
+        det.append("keys disagree: " + ", ".join(f"{k} {s}" for k, s in sorted(keys)))
+    if off:
+        det.append(f"{len(off)} bypassed/off")
+    if len(reads) < len(out["reads"]):
+        det.append(f"{len(out['reads']) - len(reads)} unread")
+    if len(out["reads"]) < 2:
+        det.append(f"only {len(out['reads'])} lead Auto-Tune instance(s) "
+                   f"({out['n_strips']} strips with Auto-Tune; {out['filter']})")
+    out["detail"] = "; ".join(det) or None
+    return out
 
 
 def stage_bounce(c, n, meta, sr):
@@ -264,16 +350,17 @@ def run_one(n, already_open=False, keep_open=False) -> dict:
                 return rec
             opened = True
         scr = stage_screen(n)
-        rec.update(session_tempo=scr["tempo"], tempo_raw=scr["tempo_raw"], meter=scr["meter"],
+        meter = scr["ax_meter"]
+        rec.update(session_tempo=scr["ax_tempo"], tempo_raw=scr["ax_tempo_raw"], meter=meter,
+                   ocr_tempo=scr["ocr_tempo"], tempo_events=scr["tempo_events"],
                    screenshot_paths=json.dumps(scr["shots"]))
         if not scr["front"].startswith("Pro Tools"):
             rec["notes"].append("PT not frontmost at screenshot")
-        bpb = int(scr["meter"].split("/")[0]) if scr["meter"] and scr["meter"].split("/")[1] == "4" else 4
-        if scr["meter"] and scr["meter"] != "4/4":
-            rec["notes"].append(f"meter {scr['meter']}")
+        bpb = int(meter.split("/")[0]) if meter and meter.split("/")[1] == "4" else 4
+        if meter and meter != "4/4":
+            rec["notes"].append(f"meter {meter}")
         info = stage_info(c, n, bpb)
-        rec.update(edl_tempo=info["edl_tempo"], edl_points=info["edl_points"], edl_on_line=info["edl_on_line"],
-                   tempo_map_flat=info["edl_flat"])
+        rec.update(edl_tempo=info["edl_tempo"], edl_points=info["edl_points"], edl_on_line=info["edl_on_line"])
         tl = hlib.tracks(c)
         meta = stage_beat_meta(tl, info)
         if meta is None:
@@ -285,19 +372,48 @@ def run_one(n, already_open=False, keep_open=False) -> dict:
         if len(meta["comments"]) > 1:
             rec["notes"].append(f"{len(meta['comments'])} beat comments")
         rec["producer_bpms"] = json.dumps(meta["producer_bpms"])
-        # tempo: OCR is the reading; the EDL must agree when it has enough points
-        tempo = scr["tempo"]
-        if tempo is None and info["edl_tempo"] and info["edl_flat"] == 1:
-            tempo = round(info["edl_tempo"], 2); rec["notes"].append("tempo from EDL (OCR failed)")
-        if tempo and info["edl_tempo"] and not hlib.agree(tempo, info["edl_tempo"], 0.002):
-            rec["notes"].append("OCR tempo != EDL tempo")
-            flat = 0
-        else:
-            flat = info["edl_flat"]
+        if meta["estimates"]:
+            rec["beatdl_estimate"] = meta["estimates"][0]
+        if scr["ax_tempo"] and any(hlib.agree(scr["ax_tempo"], e_, 0.001) for e_ in meta["estimates"]):
+            rec["tempo_from_estimate"] = 1
+        # tempo: the AX Tempo field is the reading. Flat = one tempo event AND the EDL line agrees.
+        tempo = scr["ax_tempo"]
+        if tempo is None and scr["ocr_tempo"]:
+            tempo = scr["ocr_tempo"]; rec["notes"].append("tempo from OCR (AX field missing)")
+        if scr["ocr_tempo"] is not None and tempo is not None and not hlib.agree(tempo, scr["ocr_tempo"], 0.0005):
+            rec["notes"].append("OCR tempo != AX tempo")
+        flat = None
+        if scr["tempo_events"] is not None:
+            flat = 1 if scr["tempo_events"] == 1 else 0
+        if info["edl_flat"] == 0:
+            flat = 0; rec["notes"].append("EDL not on one tempo line")
+        if tempo and info["edl_tempo"] and info["edl_flat"] == 1 and not hlib.agree(tempo, info["edl_tempo"], 0.002):
+            flat = 0; rec["notes"].append("EDL tempo != session tempo")
+        if flat is None and info["edl_flat"] == 1:
+            flat = 1
         bpm, src, conf = hlib.label(tempo, flat, rec.get("comment_bpm"), meta["producer_bpms"])
         rec.update(bpm=bpm, bpm_source=src, bpm_confidence=conf, tempo_map_flat=flat)
-        if rec.get("comment_key"):
-            rec.update(key=rec["comment_key"], key_source="comment")
+        if KEY_READ:
+            try:
+                at = stage_autotune(n, tl)
+                rec.update(autotune_key=at["key"], autotune_scale_raw=at["scale_raw"], reliable=at["reliable"],
+                           retune_speeds=json.dumps(at["speeds"]), autotune_product=json.dumps(at["products"]),
+                           disagreement_detail=at["detail"],
+                           autotune_reads=json.dumps([{k: r.get(k) for k in ("slot", "product", "bypassed", "bypass_rgb", "key",
+                                                       "scale", "retune", "ok", "lead_named", "err")} for r in at["reads"]]))
+            except Exception as ex:
+                rec["notes"].append(f"autotune read error {type(ex).__name__}")
+                hlib.close_plugin_window()
+        ck, ak = rec.get("comment_key"), (rec.get("autotune_key") if rec.get("reliable") else None)
+        if ck and ak:
+            if ck == ak:
+                rec.update(key=ck, key_source="comment+autotune")
+            else:
+                rec["notes"].append("comment key != Auto-Tune key")
+        elif ck:
+            rec.update(key=ck, key_source="comment")
+        elif ak:
+            rec.update(key=ak, key_source="autotune")
         b = stage_bounce(c, n, meta, info["sr"])
         rec.update(beat_wav_path=b["path"], beat_mean_db=b["mean_db"], probe_mean_db=b["probe_db"],
                    beat_duration_s=b["dur"])
