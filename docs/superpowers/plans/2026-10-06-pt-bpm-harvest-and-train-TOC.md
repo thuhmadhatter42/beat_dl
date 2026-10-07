@@ -10,3 +10,5 @@
 - [x] 7. Training harness, parity proven → §7 (merged 00e8dd0: parity 80/80 CPU+MPS, smoke run ok)
 - [ ] 8. Train + evaluate, ship? → §8
 - [ ] 9. Report to J → §9
+- [ ] 10. Full-mix bounces + beat-vs-mix eval → §10
+- [ ] 11. Smart beat finder + ALL MIXES → §11

@@ -96,3 +96,11 @@ Build `tools/train-tempocnn/` on the MBP:
 ## §9 Report to J
 Rows harvested, label sources, accuracy table, shipped or not, and what's left (Auto-Tune key read,
 review playlist).
+
+## §10 Full-mix bounces + beat-vs-mix eval (J, 01:08)
+- Every usable session also gets a full-mix bounce (vocals + beat, original solo state), saved as `audio/NNNN_mix.wav` with an 11k copy `audio11k/NNNN_mix.wav`. Same labels. Rows done before this change are back-filled.
+- J: "just see if adding a vocal changes the results at all. That would double our sample size with a new distinct group."
+- Eval reports beat vs mix separately, for the original and the fine-tuned model. Training may use both groups; the split stays by artist, so a session's beat and mix always land on the same side.
+
+## §11 Smart beat finder (J, 01:06)
+"You should be able to figure out where the beat bus is." Detect the beat in any session from routing, folder names, excluding vocals, clip shape, and a short probe bounce with a drum check. Re-queue sessions that were skipped for having no beat, and continue onto ALL MIXES (dedupe by hash) until there are 200.
