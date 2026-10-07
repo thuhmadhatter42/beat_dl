@@ -340,6 +340,22 @@ def solo(c, name: str, on: bool):
     return c.status_of("CId_SetTrackSoloState", {"track_names": [name], "enabled": on})[0]
 
 
+def mute(c, names: list[str], on: bool):
+    if not names:
+        return "Completed"
+    return c.status_of("CId_SetTrackMuteState", {"track_names": list(names), "enabled": on})[0]
+
+
+def track_outputs(c, tl: list[dict]) -> list[str] | None:
+    """Main-output signal path id per track (PT 2026.04+), aligned with tl; None if unavailable."""
+    try:
+        st, b = c.status_of("CId_GetTrackMainOutputAssignments", {"track_ids": [t["id"] for t in tl]})
+    except Exception:
+        return None
+    ids = (b or {}).get("signalpath_ids") or []
+    return ids if st == "Completed" and len(ids) == len(tl) else None
+
+
 def export_mix(c, out_dir: str, stem: str, sr: int, source: str, timeout=3600) -> tuple[str, dict]:
     return c.status_of("CId_ExportMix", {
         "file_name": stem, "file_type": "EMFType_WAV",

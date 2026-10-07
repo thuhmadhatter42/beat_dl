@@ -9,7 +9,11 @@ with it). Paths are written relative to the CSV and never printed; only counts a
 Usage: python3 tools/train-tempocnn/labels_from_db.py \
          [--db docs/research/pt-ground-truth/pt-ground-truth.sqlite3] \
          [--audio-dir docs/research/pt-ground-truth/audio11k] \
-         [--out docs/research/pt-ground-truth/labels.csv] [--confirmed-only]
+         [--out docs/research/pt-ground-truth/labels.csv] [--confirmed-only] [--kind beat|mix|both]
+
+--kind (J 2026-10-07 01:08): 'beat' = the beat-only bounce (default, id ptNNNN), 'mix' = the full mix
+(vocals + beat, id ptNNNNm, file NNNN_mix.wav), 'both' = one row each. A 'kind' column says which; a
+session's beat and mix share the artist, so an artist split never puts them on two sides.
 """
 import argparse
 import csv
@@ -27,6 +31,7 @@ def main():
     ap.add_argument("--audio-dir", default=GT / "audio11k", type=Path)
     ap.add_argument("--out", default=GT / "labels.csv", type=Path)
     ap.add_argument("--confirmed-only", action="store_true")
+    ap.add_argument("--kind", choices=("beat", "mix", "both"), default="beat")
     a = ap.parse_args()
     con = sqlite3.connect(f"file:{a.db}?mode=ro", uri=True)
     cols = {r[1] for r in con.execute("PRAGMA table_info(sessions)")}
@@ -34,27 +39,34 @@ def main():
     where = "bpm IS NOT NULL AND beat_wav_path IS NOT NULL"
     if "bpm_confidence" in cols:
         where += f" AND bpm_confidence IN ({','.join(ok)})"
-    rows = con.execute(f"SELECT id, bpm, artist, beat_wav_path FROM sessions WHERE {where} ORDER BY id").fetchall()
+    mixcol = "mix_wav_path" if "mix_wav_path" in cols else "NULL"
+    rows = con.execute(f"SELECT id, bpm, artist, beat_wav_path, {mixcol} FROM sessions WHERE {where} ORDER BY id").fetchall()
+    kinds = ("beat", "mix") if a.kind == "both" else (a.kind,)
+    rows = [(sid, bpm, art, (beat if k == "beat" else mix), k) for sid, bpm, art, beat, mix in rows for k in kinds]
+    no_mix = sum(1 for r in rows if r[3] is None)
+    rows = [r for r in rows if r[3] is not None]
     wavs = list(a.audio_dir.glob("*.wav")) if a.audio_dir.is_dir() else []
     out, no_audio, no_artist = [], 0, 0
-    for sid, bpm, artist, beat in rows:
-        stem = Path(beat).stem
-        hit = [w for w in wavs if w.stem == stem] or [w for w in wavs if w.stem.startswith(stem)]
+    for sid, bpm, artist, wav, kind in rows:
+        stem = Path(wav).stem
+        hit = [w for w in wavs if w.stem == stem] or \
+              [w for w in wavs if w.stem.startswith(stem) and not w.stem.endswith("_mix")]
         if len(hit) != 1:
             no_audio += 1
             continue
         if not artist:
             no_artist += 1
             artist = f"unknown-{sid}"           # its own group: never shared across the split
-        out.append(dict(id=f"pt{sid:04d}", path=os.path.relpath(hit[0], a.out.parent),
-                        bpm=f"{float(bpm):g}", artist=artist))
+        out.append(dict(id=f"pt{sid:04d}" + ("m" if kind == "mix" else ""), path=os.path.relpath(hit[0], a.out.parent),
+                        bpm=f"{float(bpm):g}", artist=artist, kind=kind))
     a.out.parent.mkdir(parents=True, exist_ok=True)
     with open(a.out, "w", newline="") as f:
-        w = csv.DictWriter(f, fieldnames=["id", "path", "bpm", "artist"])
+        w = csv.DictWriter(f, fieldnames=["id", "path", "bpm", "artist", "kind"])
         w.writeheader()
         w.writerows(out)
     print(f"labels: {len(out)} rows written ({len({r['artist'] for r in out})} artists); "
-          f"{len(rows)} usable DB rows, {no_audio} without a unique 11 kHz file, {no_artist} without artist")
+          f"{len(rows)} usable DB rows ({a.kind}), {no_audio} without a unique 11 kHz file, {no_artist} without artist"
+          + (f", {no_mix} without a mix bounce" if no_mix else ""))
 
 
 if __name__ == "__main__":
