@@ -382,7 +382,7 @@ def stage_bounce(c, n, meta, sr, tempo=None, probe_only=False):
         if end <= sr * 10:
             chk["skip"] = "beat clips end before 10 s"
             return chk, None, None, end
-        modes = ["solo"] if cand["legacy"] else ["solo", "mute-others"]
+        modes = ["solo", "mute-others"]          # v7: the Beat Buss folder too (its solo printed -240 dB on #88)
         tried, ok_mode, src_ok, pdb = [], None, None, None
         for mode in modes:
             if not isolate(cand, mode):
@@ -937,7 +937,8 @@ def batch(target=200, max_n=10**6):
         # rows an older finder skipped get one more look by a newer finder (unusable BPM labels excepted)
         # (finder v5 was the last change to which tracks are found; later versions only change the ears)
         requeue = bool(r and ((r[0] in ("skip-no-beat-buss", "skip-no-beat") and (r[2] or 0) < 5) or
-                              (r[0] == "skip-beat-unsure" and r[3] in USABLE and (r[2] or 0) < beatfind.FINDER_VERSION)))
+                              (r[0] == "skip-beat-unsure" and r[3] in USABLE and (r[2] or 0) < beatfind.FINDER_VERSION) or
+                              (r[0] == "silent" and r[3] in USABLE and (r[2] or 0) < 7)))
         if r and not r[0].startswith("error") and not requeue:
             continue                                   # done (re-read every time: rows may be dropped to redo)
         if n in tries and "retried" in (tries[n] or ""):
