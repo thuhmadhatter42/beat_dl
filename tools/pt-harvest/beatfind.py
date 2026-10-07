@@ -171,7 +171,14 @@ def find(tl: list[dict], info_sa: dict, outputs: list[str] | None = None, sr: fl
         weak = [t for t in weak if t not in beat]
         loose = bool(beat)
 
-    res = {"found": False, "finder_version": FINDER_VERSION, "n_live": len(live), "n_vocal": len(vocal),
+    dead = Counter()
+    for t in tl:
+        if t["type"] in ("TType_Audio", "TType_Instrument") and t not in live:
+            why = ("inactive" if attr(t, "is_inactive") else "muted" if attr(t, "is_muted")
+                   else "no-clips" if not attr(t, "contains_clips") else "other")
+            dead[f"{why}-{'st' if t.get('format') == 'TFormat_Stereo' else 'mono'}"] += 1
+    res = {"dead": dict(dead)}
+    res.update({"found": False, "finder_version": FINDER_VERSION, "n_live": len(live), "n_vocal": len(vocal),
            "n_beat": len(beat), "n_weak": len(weak), "n_groups": len(groups), "loose": loose,
            "old_rule": False, "vocal_names": [t["name"] for t in vocal],
            "rows": [{"st": int(feats[t["id"]]["stereo"]), "clips": feats[t["id"]]["n_clips"],
@@ -183,7 +190,7 @@ def find(tl: list[dict], info_sa: dict, outputs: list[str] | None = None, sr: fl
                                                           ("anc_beat", feats[t["id"]]["beat_anc"]),
                                                           ("Anc_vocal", feats[t["id"]]["vocal_anc"])) if on),
                      "b": final[t["id"]][0], "v": final[t["id"]][1],
-                     "cls": "B" if t in beat else "V" if t in vocal else "-"} for t in live]}
+                     "cls": "B" if t in beat else "V" if t in vocal else "-"} for t in live]})
 
     res["click_aux"] = [t["name"] for t in tl if t["type"] == "TType_Aux" and CLICK.search(norm(t["name"]))]
 

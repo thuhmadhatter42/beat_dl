@@ -627,7 +627,7 @@ def run_one(n, already_open=False, keep_open=False) -> dict:
         say(f"#{n:04d} finder: " + " ".join(beatfind.table(fres)))
         if True:                                       # name-free per-track evidence, for diagnosis
             log_jsonl({"id": n, "kind": "finder-rows", "checked_at": hlib.now(), "why": fres.get("why"),
-                       "rows": fres.get("rows")})
+                       "rows": fres.get("rows"), "dead": fres.get("dead")})
         if meta is None:
             rec["status"] = "skip-no-beat"
             rec["notes"].append(f"finder: {fres.get('why')}")
