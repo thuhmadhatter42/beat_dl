@@ -1,16 +1,17 @@
 # PICKUP — beat_dl
 
-## CURRENT STATE — 2026-10-07 01:10
+## CURRENT STATE — 2026-10-07 10:30
 
 **What this is:** YouTube → MP3 downloader with BPM/key tagging. Bash loop (run.sh) + downloader.py (yt-dlp) + bpm.py (Essentia HPCP + bgate for key, TempoCNN for BPM). Launched by run.command or the `beat` alias. Also called by the Jownloader Brave extension (`~/dev/jownloader/extension`) through a native host that pipes a URL into run.sh. Progress page: `PROGRESS-TRACKER.html` (source `tracker.json`; rebuild with `python3 ~/.claude/skills/progress-tracker/build_tracker.py tracker.json`).
 
 **Git:** main = origin/main, clean. Code commit f5d462b (2026-10-06 ~16:55); later commits are state saves. Harvester trial work lives on branch `worktree-agent-ab8c9d1d63d053d8d` (worktree `.claude/worktrees/agent-ab8c9d1d63d053d8d`, commit 1bc79c0 = `tools/pt-harvest/discover.py` + `docs/research/pt-ground-truth/trial-sessions.md`), not merged yet.
 
-**RUNNING 01:10 — J (01:06): "don't stop until you hit 200 and you finish the training."** Plan `docs/superpowers/plans/2026-10-06-pt-bpm-harvest-and-train.md` + `-TOC.md` (§0-§5, §7 done).
-- Harvest batch LIVE on Sofia `~/pt-harvest/` (supervisor `run_batch.sh 200`, log `logs/batch.log`, status `cd ~/pt-harvest && .venv/bin/python harvest.py status`, clean stop `touch STOP`, resumes from DB). Bounces are numbered `audio/NNNN.wav`; number→path map only in Sofia `~/pt-harvest/manifest.json`. No names anywhere (J 22:45).
-- Agent "T4 Smart beat finder" (worktree) is adding beat detection for sessions without a Beat Buss (J: "you should be able to figure out where the beat bus is"), re-queueing skipped sessions, extending to `/Volumes/ALL MIXES` with dedupe when ARCH-1 runs out, hot-swapping the batch and minding it to 200.
-- MBP background watcher exits when Sofia shows BLOCKED or the supervisor is gone.
-- At 200: `tools/pt-harvest/sv.sh pull`, then the commands in `tools/train-tempocnn/README.md` (labels_from_db → features → parity → train → eval). Ship only if held-out improves and the benches don't drop (plan §8).
+**PAUSED 10:30 — J: "save state, we will continue later." Goal (J 01:06): harvest 200 Pro Tools beats with BPM/key, then finish the training.** Plan `docs/superpowers/plans/2026-10-06-pt-bpm-harvest-and-train.md` + `-TOC.md` (§0-§5, §7 done; §6, §8-§11 open).
+- Harvest STOPPED 10:04: J took the iLok out of Sofia and Pro Tools showed "missing PACE authorization". Result: 101 sessions done, **78 usable** (14 confirmed, 64 tempo-only, 30 with key, 77 also with a full-mix bounce) = 155 audio files. All are on Sofia `~/pt-harvest/audio/` (NNNN.wav + NNNN_mix.wav, 11k copies in `audio11k/`). Rate ≈ 4.4 min/session, ~3 in 4 usable. 318-session ARCH-1 manifest is at id 101. Dialog clicker killed; Pro Tools left open on the PACE error.
+- Resume when the iLok is back in Sofia: `cd ~/pt-harvest && rm -f BLOCKED STOP && nohup ./run_batch.sh 200 >> logs/batch.log 2>&1 < /dev/null &` (check `~/pt-harvest/run_batch.sh` header first; the smart-beat agent may have changed it). Status: `cd ~/pt-harvest && .venv/bin/python harvest.py status`. Use the `sofia-screen` skill to see/click.
+- Agent "T4 Smart beat finder" told to stop + report at 10:30; its branch `worktree-agent-a7e651e7f4159e1b9` (14 commits ahead, last d27a36f 09:01) holds the beat finder, full-mix bounce, ALL MIXES dedupe. **Not merged yet**: merge it, then remove its worktree (`.claude/worktrees/agent-a7e651e7f4159e1b9`).
+- Agent "T3 Train on 78 songs" RUNNING since 10:25 (worktree `agent-a56ac5b30fe8476ed`): pulls 11k audio + DB, fine-tunes (all rows; confirmed-only if enough), evals original vs fine-tuned on held-out beats, held-out mixes, bpm-bench; beat-vs-mix on all rows; beat_dl key vs harvested key (30 rows). It must NOT ship. When it reports: show J the tables, then ship only if held-out improves and benches don't drop (new models/*.npz + ANALYZER_BUILD bump in deps.sh + push). Then merge its branch; move nothing big out of the worktree except a kept model.
+- Names rule (J 22:45): no song/artist/session/file names anywhere; numbers + hashes only; number→path map only on Sofia `~/pt-harvest/manifest.json`.
 - Approved auto-clicks (`~/pt-harvest/approved-dialogs.txt`): UAD OK, Session Notes No, Missing Files OK, Save Don't Save, Missing AAX Plugins OK.
 - Open with J: Auto Backup writes files to the source drives (left on; listed in Sofia `~/pt-harvest/source-drive-writes.txt` for trashing later).
 - iLok is plugged into Sofia (seen on USB 21:45). J's "Arc-1 / 1-mixes" = `/Volumes/ARCH-1/1 - MIXES` on Sofia (Spotlight on): 5463 .ptx, 770 song folders, 323 valid newest mixes via `pick_latest_ptx()`.
