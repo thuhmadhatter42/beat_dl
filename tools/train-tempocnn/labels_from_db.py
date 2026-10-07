@@ -31,29 +31,36 @@ def main():
     con = sqlite3.connect(f"file:{a.db}?mode=ro", uri=True)
     cols = {r[1] for r in con.execute("PRAGMA table_info(sessions)")}
     ok = ("'confirmed'",) if a.confirmed_only else ("'confirmed'", "'tempo-only'")
+    mixcol = "mix_wav_path" if "mix_wav_path" in cols else "NULL"
+    keycol = "key" if "key" in cols else "NULL"
     where = "bpm IS NOT NULL AND beat_wav_path IS NOT NULL"
     if "bpm_confidence" in cols:
         where += f" AND bpm_confidence IN ({','.join(ok)})"
-    rows = con.execute(f"SELECT id, bpm, artist, beat_wav_path FROM sessions WHERE {where} ORDER BY id").fetchall()
+    rows = con.execute(f"SELECT id, bpm, artist, beat_wav_path, {mixcol}, {keycol} FROM sessions WHERE {where} ORDER BY id").fetchall()
     wavs = list(a.audio_dir.glob("*.wav")) if a.audio_dir.is_dir() else []
     out, no_audio, no_artist = [], 0, 0
-    for sid, bpm, artist, beat in rows:
-        stem = Path(beat).stem
-        hit = [w for w in wavs if w.stem == stem] or [w for w in wavs if w.stem.startswith(stem)]
-        if len(hit) != 1:
-            no_audio += 1
-            continue
+    for sid, bpm, artist, beat, mix, key in rows:
         if not artist:
             no_artist += 1
             artist = f"unknown-{sid}"           # its own group: never shared across the split
-        out.append(dict(id=f"pt{sid:04d}", path=os.path.relpath(hit[0], a.out.parent),
-                        bpm=f"{float(bpm):g}", artist=artist))
+        # beat and mix of one session share the artist, so they land on the same side of the split
+        for kind, wav, suffix in (("beat", beat, ""), ("mix", mix, "m")):
+            if not wav:
+                continue
+            stem = Path(wav).stem
+            hit = [w for w in wavs if w.stem == stem] or [w for w in wavs if w.stem.startswith(stem)]
+            if len(hit) != 1:
+                no_audio += 1
+                continue
+            out.append(dict(id=f"pt{sid:04d}{suffix}", path=os.path.relpath(hit[0], a.out.parent),
+                            bpm=f"{float(bpm):g}", artist=artist, kind=kind, key=key or ""))
     a.out.parent.mkdir(parents=True, exist_ok=True)
     with open(a.out, "w", newline="") as f:
-        w = csv.DictWriter(f, fieldnames=["id", "path", "bpm", "artist"])
+        w = csv.DictWriter(f, fieldnames=["id", "path", "bpm", "artist", "kind", "key"])
         w.writeheader()
         w.writerows(out)
-    print(f"labels: {len(out)} rows written ({len({r['artist'] for r in out})} artists); "
+    nb = sum(r["kind"] == "beat" for r in out)
+    print(f"labels: {len(out)} rows written ({nb} beat, {len(out) - nb} mix) {len({r['artist'] for r in out})} artists; "
           f"{len(rows)} usable DB rows, {no_audio} without a unique 11 kHz file, {no_artist} without artist")
 
 

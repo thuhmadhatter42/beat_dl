@@ -52,7 +52,13 @@ def main():
     missing = [i for i in sp["test"] if i not in byid]
     if missing:
         raise SystemExit(f"{len(missing)} test ids not in the labels CSV")
-    sets = [("(a) held-out test split", [byid[i] for i in sp["test"]])]
+    test = [byid[i] for i in sp["test"]]
+    kinds = sorted({t.get("kind", "beat") for t in src})
+    sets = [("(a) held-out test, all", test)]
+    if len(kinds) > 1:
+        sets += [(f"(a) held-out test, {k}", [t for t in test if t.get("kind") == k]) for k in kinds]
+    if not smoke:
+        sets += [(f"(c) ALL rows, {k} (train+test)", [t for t in src if t.get("kind", "beat") == k]) for k in kinds]
     bb = common.bench_tracks("bpm-bench")
     kb = common.bench_tracks("key-bench")
     sets.append(("(b) bpm-bench", bb))

@@ -76,7 +76,8 @@ def load_labels(csv_path):
             bpm = float(row["bpm"])
             if not BPM_MIN <= bpm <= BPM_MAX:
                 raise SystemExit(f"labels CSV line {i} (id {row['id']}): bpm {bpm} outside {BPM_MIN}-{BPM_MAX}")
-            rows.append(dict(id=row["id"].strip(), path=str(p), bpm=bpm, artist=row["artist"].strip()))
+            rows.append(dict(id=row["id"].strip(), path=str(p), bpm=bpm, artist=row["artist"].strip(),
+                             kind=(row.get("kind") or "beat").strip(), key=(row.get("key") or "").strip()))
     ids = [r["id"] for r in rows]
     if len(set(ids)) != len(ids):
         raise SystemExit("labels CSV: duplicate ids")
