@@ -5,7 +5,7 @@ training. Don't stop until all of this is done." Spec: `docs/superpowers/specs/2
 autotune-ground-truth-design.md` (§5 trial, §7 J's decisions). This plan replaces the spec's
 one-session-a-day cron with one continuous verified run. The spec's other rules still hold.
 
-## What trial step 1 proved (session 1, Woe "On Your Mind" mix2a; text in `docs/research/pt-ground-truth/trial/session1-sessioninfo.txt`)
+## What trial step 1 proved (session 1; its text dump stays on Sofia only)
 - `CId_ExportSessionInfoAsText` gives per-track `PLUG-INS:`, `STATE:` (Inactive/Muted/Hidden),
   per-track clip EDL rows, and track `COMMENTS:`.
   - The Beat track's comment was `Dm152` (key + BPM, written by J).
@@ -18,7 +18,7 @@ one-session-a-day cron with one continuous verified run. The spec's other rules 
 - MBP has 17 GB free. Full bounces stay on Sofia; only 11025 Hz mono copies come to the MBP.
 
 ## §1 Calibrate the dialog clicker
-Open trial session 2 (Kid Cambo). Capture the UAD dialog (it appears on every open: no UAD
+Open trial session 2. Capture the UAD dialog (it appears on every open: no UAD
 hardware) and, on close, any Save prompt. Fill in their regions and buttons in `dialog_clicker.py`.
 Run it in watch mode during every open/close from here on. J approved exactly 4 clicks:
 UAD → OK, Session Notes → No, Missing Files → OK, Save → Don't Save. Anything else → stop and report.

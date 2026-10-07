@@ -29,8 +29,8 @@ check `mdutil -s /Volumes/<vol>` before trusting a zero-result `mdfind`; fall ba
 `"(YY-M-D) Title (Artist)"` folder convention (same one `artist_latest` bounce filenames use).
 Where a drive isn't one-folder-per-song, fall back to `~/.claude/skills/artist_latest/SKILL.md`'s
 model: song-named folder = song (complete); generic/dated folder = session (demo per song inside).
-That skill's known bug applies here too — an artist-named folder (`(23-8-18) WOE`) must not be
-read as a song called "WOE".
+That skill's known bug applies here too — an artist-named folder (`(YY-M-D) <ARTIST>`) must not be
+read as a song named after the artist.
 
 ### 2.2 Open session, check Auto-Tune active/inactive/bypassed
 **Proven primitives:** `CId_OpenSession` (`client.py:open_session()`) with the existing
