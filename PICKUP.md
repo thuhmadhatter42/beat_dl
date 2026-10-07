@@ -1,12 +1,18 @@
 # PICKUP — beat_dl
 
-## CURRENT STATE — 2026-10-06 21:58
+## CURRENT STATE — 2026-10-07 01:10
 
 **What this is:** YouTube → MP3 downloader with BPM/key tagging. Bash loop (run.sh) + downloader.py (yt-dlp) + bpm.py (Essentia HPCP + bgate for key, TempoCNN for BPM). Launched by run.command or the `beat` alias. Also called by the Jownloader Brave extension (`~/dev/jownloader/extension`) through a native host that pipes a URL into run.sh. Progress page: `PROGRESS-TRACKER.html` (source `tracker.json`; rebuild with `python3 ~/.claude/skills/progress-tracker/build_tracker.py tracker.json`).
 
 **Git:** main = origin/main, clean. Code commit f5d462b (2026-10-06 ~16:55); later commits are state saves. Harvester trial work lives on branch `worktree-agent-ab8c9d1d63d053d8d` (worktree `.claude/worktrees/agent-ab8c9d1d63d053d8d`, commit 1bc79c0 = `tools/pt-harvest/discover.py` + `docs/research/pt-ground-truth/trial-sessions.md`), not merged yet.
 
-**RUNNING 21:58 — harvester trial step 1 (spec `docs/superpowers/specs/2026-09-12-protools-autotune-ground-truth-design.md` §5), agent "T3 Harvester trial step1" resumed on Sofia:** launch newest Pro Tools (2026.4.1), open session 1 via PTSL, run ONLY `CId_ExportSessionInfoAsText` (all include flags), save to `docs/research/pt-ground-truth/trial/session1-sessioninfo.txt`, answer (a) Auto-Tune per track + Pro/EFX + bypass info, (b) per-track clip counts from track EDLs, (c) tempo in header, (d) "Beat Buss" present; close session WITHOUT saving, leave PT running. PTSL + screenshots only (J may be on VNC). Not yet done: trial step 2 (one insert-slot click + screenshot + read), sessions 2–5.
+**RUNNING 01:10 — J (01:06): "don't stop until you hit 200 and you finish the training."** Plan `docs/superpowers/plans/2026-10-06-pt-bpm-harvest-and-train.md` + `-TOC.md` (§0-§5, §7 done).
+- Harvest batch LIVE on Sofia `~/pt-harvest/` (supervisor `run_batch.sh 200`, log `logs/batch.log`, status `cd ~/pt-harvest && .venv/bin/python harvest.py status`, clean stop `touch STOP`, resumes from DB). Bounces are numbered `audio/NNNN.wav`; number→path map only in Sofia `~/pt-harvest/manifest.json`. No names anywhere (J 22:45).
+- Agent "T4 Smart beat finder" (worktree) is adding beat detection for sessions without a Beat Buss (J: "you should be able to figure out where the beat bus is"), re-queueing skipped sessions, extending to `/Volumes/ALL MIXES` with dedupe when ARCH-1 runs out, hot-swapping the batch and minding it to 200.
+- MBP background watcher exits when Sofia shows BLOCKED or the supervisor is gone.
+- At 200: `tools/pt-harvest/sv.sh pull`, then the commands in `tools/train-tempocnn/README.md` (labels_from_db → features → parity → train → eval). Ship only if held-out improves and the benches don't drop (plan §8).
+- Approved auto-clicks (`~/pt-harvest/approved-dialogs.txt`): UAD OK, Session Notes No, Missing Files OK, Save Don't Save, Missing AAX Plugins OK.
+- Open with J: Auto Backup writes files to the source drives (left on; listed in Sofia `~/pt-harvest/source-drive-writes.txt` for trashing later).
 - iLok is plugged into Sofia (seen on USB 21:45). J's "Arc-1 / 1-mixes" = `/Volumes/ARCH-1/1 - MIXES` on Sofia (Spotlight on): 5463 .ptx, 770 song folders, 323 valid newest mixes via `pick_latest_ptx()`.
 - 5 trial sessions picked (seed 20261006, all 2024+, 5 artists). Song/file names are kept off the record (J, 22:45); the list lives only on Sofia in `~/pt-harvest-trial/discover.json`.
 - Sofia scratch: `~/pt-harvest-trial/` (discover.py, discover.json, screenshots).
