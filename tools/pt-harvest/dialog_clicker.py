@@ -246,11 +246,17 @@ if __name__ == "__main__":
     log(f"dialog_clicker v2 up (dry={DRY}, once={ONCE}, pid={os.getpid()})")
     if not ONCE:
         (H / "clicker.pid").write_text(str(os.getpid()))
+    import faulthandler
+    faulthandler.enable()
     while True:
+        # self-watchdog: a scan stuck > 90 s (an AX call into a wedged app) dumps its stack to the log and
+        # exits; run_batch.sh's keeper starts a fresh clicker within 60 s
+        faulthandler.dump_traceback_later(90, exit=True)
         try:
             scan_once()
         except Exception as e:
             log(f"err {type(e).__name__}")
+        faulthandler.cancel_dump_traceback_later()
         if ONCE:
             break
         time.sleep(2)
