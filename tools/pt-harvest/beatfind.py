@@ -22,7 +22,7 @@ from __future__ import annotations
 import re
 from collections import Counter
 
-FINDER_VERSION = 2
+FINDER_VERSION = 3   # 3: vocal ancestry = vocal FOLDER names only; rows logged on skips
 
 
 def norm(s: str) -> str:
@@ -123,7 +123,7 @@ def find(tl: list[dict], info_sa: dict, outputs: list[str] | None = None, sr: fl
              "vocal_name": bool(VOCAL.search(n)),
              "vocal_plugin": any(VOCAL_PLUGIN.search(p) for p in t["_plugins"]),
              "beat_anc": any(BEAT_FOLDER.search(norm(a["name"])) and not VOCAL_FOLDER.search(norm(a["name"])) for a in anc),
-             "vocal_anc": any(VOCAL_FOLDER.search(norm(a["name"])) or VOCAL.search(norm(a["name"])) for a in anc),
+             "vocal_anc": any(VOCAL_FOLDER.search(norm(a["name"])) for a in anc),
              "out": out_of.get(t["id"])}
         feats[t["id"]] = f
 

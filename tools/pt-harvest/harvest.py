@@ -574,6 +574,9 @@ def run_one(n, already_open=False, keep_open=False) -> dict:
         meta, fres = stage_beat_meta(c, tl, info)
         rec.update(finder_version=beatfind.FINDER_VERSION, old_rule=int(bool(fres.get("old_rule"))))
         say(f"#{n:04d} finder: " + " ".join(beatfind.table(fres)))
+        if meta is None or meta["confidence"] == "low":
+            log_jsonl({"id": n, "kind": "finder-rows", "checked_at": hlib.now(), "why": fres.get("why"),
+                       "rows": fres.get("rows")})
         if meta is None:
             rec["status"] = "skip-no-beat"
             rec["notes"].append(f"finder: {fres.get('why')}")
@@ -846,9 +849,12 @@ def batch(target=200, max_n=10**6):
         if n > max_n:
             continue
         con = db()
-        r = con.execute("SELECT status, notes, finder_version FROM sessions WHERE id=?", (n,)).fetchone()
+        r = con.execute("SELECT status, notes, finder_version, bpm_confidence FROM sessions WHERE id=?", (n,)).fetchone()
         con.close()
-        requeue = bool(r and r[0] == "skip-no-beat-buss" and r[2] is None)
+        # rows an older finder skipped get one more look by a newer finder (unusable BPM labels excepted)
+        requeue = bool(r and (r[2] or 0) < beatfind.FINDER_VERSION and
+                       (r[0] in ("skip-no-beat-buss", "skip-no-beat") or
+                        (r[0] == "skip-beat-unsure" and r[3] in USABLE)))
         if r and not r[0].startswith("error") and not requeue:
             continue                                   # done (re-read every time: rows may be dropped to redo)
         if n in tries and "retried" in (tries[n] or ""):
@@ -860,7 +866,7 @@ def batch(target=200, max_n=10**6):
         if rc is not None:
             return rc
         if requeue:
-            say(f"#{n:04d} re-queued (v1 rule skipped it: no Beat Buss)")
+            say(f"#{n:04d} re-queued (an older finder skipped it: {r[0]})")
         rec = run_one(n)
         if n in tries:
             con = db()
