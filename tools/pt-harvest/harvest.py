@@ -330,137 +330,176 @@ def _brief(fe):
 
 
 def stage_bounce(c, n, meta, sr, tempo=None, probe_only=False):
-    """Isolate the beat (solo the folder / solo the beat tracks / fallback: mute everything else), LISTEN
-    to 8 s probes (audiocheck) and to the complement (beat muted), then print the full beat. Restores
-    every solo/mute it touched. -> dict"""
+    """Isolate a beat set (solo the folder / solo the beat tracks / fallback: mute everything else), LISTEN
+    to 8 s probes (audiocheck) and to the complement (beat muted), then print the full beat. When the finder's
+    set fails the ears, its fallback sets (beatfind alt_sets: non-vocal tracks) get the same test.
+    Restores every solo/mute it touched. -> dict"""
     AUDIO.mkdir(exist_ok=True); AUDIO11.mkdir(exist_ok=True)
     out = {"probe_db": None, "mean_db": None, "path": None, "dur": None, "note": None, "source": None,
-           "sel": None, "check": {}, "confidence": meta["confidence"], "skip": None}
+           "sel": None, "check": {}, "confidence": meta["confidence"], "skip": None, "beat_source": meta["beat_source"]}
     srcs = hlib.export_sources(c)
-    source = hlib.pick_source(srcs) or (srcs[0] if srcs else None)
-    if not source:
+    source0 = hlib.pick_source(srcs) or (srcs[0] if srcs else None)
+    if not source0:
         out["note"] = "no output sources listed"
         return out
-    tl = hlib.tracks(c)
-    prior = [t["name"] for t in tl if hlib.attr(t, "is_soloed")]
     fin = meta["finder"]
-    muted_by_us = []
-    soloed = []
+    prior = [t["name"] for t in hlib.tracks(c) if hlib.attr(t, "is_soloed")]
+    state = {"muted": [], "soloed": []}
     for p in prior:
         hlib.solo(c, p, False)
-    end = meta["max_end"]
-    try:
+
+    def note(s):
+        out["note"] = (out["note"] + "; " if out["note"] else "") + s
+
+    def isolate(cand, mode):
+        for nm in state["soloed"]:
+            hlib.solo(c, nm, False)
+        state["soloed"] = []
+        if state["muted"]:
+            hlib.mute(c, state["muted"], False); state["muted"] = []
+        if mode == "none":
+            return True
+        if mode == "mute-others":
+            names = list(dict.fromkeys(cand["others_live"] + fin.get("click_aux", [])))
+            if names and hlib.mute(c, names, True) == "Completed":
+                state["muted"] = names
+            return True
+        for nm, _ in cand["solo"]:
+            hlib.solo(c, nm, True); state["soloed"].append(nm)
+        now_tl = {t["id"]: t for t in hlib.tracks(c)}
+        return all(hlib.attr(now_tl.get(i, {}), "is_soloed") for _, i in cand["solo"])
+
+    def listen(cand, tag):
+        """-> (verdict dict, ok_mode, source, end) for one candidate set; verdict has 'skip' or not."""
+        end = cand["max_end"] or meta["max_end"]
+        chk = {"set": tag, "n_tracks": len(cand["solo"]) if cand["method"] != "solo" else None}
         if end <= sr * 10:
-            out["note"] = "beat clips end before 10 s"
-            return out
-
-        def isolate(mode):
-            nonlocal muted_by_us, soloed
-            for nm in soloed:
-                hlib.solo(c, nm, False)
-            soloed = []
-            if muted_by_us:
-                hlib.mute(c, muted_by_us, False); muted_by_us = []
-            if mode == "none":
-                return True
-            if mode == "mute-others":
-                names = list(dict.fromkeys(fin.get("others_live", []) + fin.get("click_aux", [])))
-                if names and hlib.mute(c, names, True) == "Completed":
-                    muted_by_us = names
-                return True
-            for nm, _ in meta["solo"]:
-                hlib.solo(c, nm, True); soloed.append(nm)
-            now_tl = {t["id"]: t for t in hlib.tracks(c)}
-            return all(hlib.attr(now_tl.get(i, {}), "is_soloed") for _, i in meta["solo"])
-
-        modes = ["solo"] if meta["legacy"] else ["solo", "mute-others"]
-        tried, ok_mode = [], None
+            chk["skip"] = "beat clips end before 10 s"
+            return chk, None, None, end
+        modes = ["solo"] if cand["legacy"] else ["solo", "mute-others"]
+        tried, ok_mode, src_ok, pdb = [], None, None, None
         for mode in modes:
-            if not isolate(mode):
+            if not isolate(cand, mode):
                 tried.append(f"{mode}:no-readback"); continue
-            for src in [source] + [x for x in srcs if x != source][:4]:
+            for src in [source0] + [x for x in srcs if x != source0][:4]:
                 for frac in (0.5, 0.25):
                     st, db_, fe = _probe(c, n, src, int(end * frac), sr, tempo)
                     tried.append(f"{mode}/{frac}:{db_}")
-                    out["probe_db"] = db_
+                    pdb = db_
                     if st == "Completed" and db_ is not None and db_ > -50:
-                        out["check"]["probe_a"] = _brief(fe)
+                        chk["probe_a"] = _brief(fe)
                         break
-                if out["probe_db"] is not None and out["probe_db"] > -50:
-                    if src != source:
-                        out["note"] = f"beat printed on output '{src}' (not '{source}')"
-                    source = src
+                if pdb is not None and pdb > -50:
+                    src_ok = src
                     break
-            if out["probe_db"] is not None and out["probe_db"] > -50:
+            if src_ok:
                 ok_mode = mode
                 break
-        out["source"] = source
+        chk["probe_db"] = pdb
         if ok_mode is None:
-            isolate("none")
-            st, mix_db, _ = _probe(c, n, source, int(end * 0.5), sr, None)
-            out["note"] = f"silent probe (SSL session?); probes {tried}; unsoloed mix probe {mix_db} dB on '{source}'"
-            return out
-        out["check"]["mode"] = ok_mode
-        # listening checks: a 2nd beat window + the complement (beat tracks muted, nothing soloed)
-        st, db_, fe = _probe(c, n, source, int(end * 0.75), sr, tempo)
-        out["check"]["probe_b"] = _brief(fe)
-        beat_ids = [t["name"] for t in fin["tracks"]]
-        isolate("none")
+            isolate(cand, "none")
+            st, mix_db, _ = _probe(c, n, source0, int(end * 0.5), sr, None)
+            chk["skip"] = f"silent probe (SSL session?); probes {tried}; unsoloed mix probe {mix_db} dB on '{source0}'"
+            chk["silent"] = True
+            chk["mix_silent"] = mix_db is None or mix_db <= -50
+            return chk, None, None, end
+        chk["mode"] = ok_mode
+        st, db_, fe = _probe(c, n, src_ok, int(end * 0.75), sr, tempo)
+        chk["probe_b"] = _brief(fe)
+        isolate(cand, "none")
         comp = None
-        if hlib.mute(c, beat_ids, True) == "Completed":
-            muted_by_us = list(beat_ids)
-            st, db_, fe = _probe(c, n, source, int(end * 0.5), sr, tempo)
+        names = [nm for nm, _ in cand["solo"]] if cand["method"] != "solo" else [t["name"] for t in fin["tracks"]]
+        if hlib.mute(c, names, True) == "Completed":
+            state["muted"] = list(names)
+            st, db_, fe = _probe(c, n, src_ok, int(end * 0.5), sr, tempo)
             comp = _brief(fe) or {"v": "silent"}
             if comp.get("db") is None or comp["db"] <= -50:
                 comp["v"] = "silent"
-            out["check"]["complement"] = comp
-            hlib.mute(c, muted_by_us, False); muted_by_us = []
-        vs = [out["check"].get(k, {}) and out["check"][k]["v"] for k in ("probe_a", "probe_b")]
+            chk["complement"] = comp
+            hlib.mute(c, state["muted"], False); state["muted"] = []
+        vs = [(chk.get(k) or {}).get("v") for k in ("probe_a", "probe_b")]
         cand_ok = "beat" in vs and "vocal" not in vs
         cv = comp["v"] if comp else None
-        conf = meta["confidence"]
-        if not meta["legacy"]:
+        conf = cand["confidence"]
+        if not cand["legacy"]:
             if not cand_ok:
-                out["skip"] = f"beat probes not beat-like ({vs})"
+                chk["skip"] = f"beat probes not beat-like ({vs})"
             elif conf == "low":
                 if cv == "vocal":
                     conf = "medium"
                 else:
-                    out["skip"] = f"low-confidence beat set and complement {cv}"
+                    chk["skip"] = f"low-confidence beat set and complement {cv}"
             elif conf == "medium" and cv in ("silent", "beat", None):
-                out["skip"] = f"inferred beat set, complement {cv}"
+                chk["skip"] = f"inferred beat set, complement {cv}"
             elif conf == "high" and cv in ("silent", "beat"):
-                out["note"] = (out["note"] + "; " if out["note"] else "") + f"complement {cv}"
+                chk["note"] = f"complement {cv}"
+        elif "vocal" in vs and "beat" not in vs:
+            chk["skip"] = f"v1-rule beat probes vocal-like ({vs})"
         elif "vocal" in vs:
-            out["note"] = (out["note"] + "; " if out["note"] else "") + "legacy beat probe vocal-like"
-        out["confidence"] = conf
-        if out["skip"] or probe_only:
+            chk["note"] = "legacy beat probe vocal-like"
+        chk["conf"] = conf
+        return chk, ok_mode, src_ok, end
+
+    try:
+        primary = {"solo": meta["solo"], "method": meta["method"], "beat_source": meta["beat_source"],
+                   "confidence": meta["confidence"], "legacy": meta["legacy"],
+                   "others_live": fin.get("others_live", []), "max_end": fin.get("max_end") or meta["max_end"]}
+        cands = [("primary", primary)] + [(f"alt{i + 1}", a) for i, a in enumerate(fin.get("alts") or [])]
+        win = None
+        tries = []
+        for tag, cand in cands:
+            chk, mode, src, end = listen(cand, tag)
+            tries.append(chk)
+            if not chk.get("skip"):
+                win = (tag, cand, chk, mode, src, end)
+                break
+            if chk.get("mix_silent"):
+                break                              # the whole session prints digital silence: no set will help
+        out["check"] = tries[-1] if len(tries) == 1 else {"tries": tries, **(win[2] if win else {})}
+        if win is None:
+            last = tries[-1]
+            if any(t.get("silent") for t in tries) and all(t.get("silent") or "not beat-like" not in t.get("skip", "")
+                                                          for t in tries):
+                note(tries[0]["skip"])                       # status 'silent' (as v1)
+            else:
+                out["skip"] = "; ".join(f"{t['set']}: {t['skip']}" for t in tries)
+            out["probe_db"] = last.get("probe_db")
             return out
-        isolate(ok_mode)
+        tag, cand, chk, mode, source, end = win
+        out.update(probe_db=chk.get("probe_db"), confidence=chk["conf"], source=source, beat_source=cand["beat_source"])
+        if tag != "primary":
+            note(f"beat = fallback set {tag} ({len(cand['solo'])} non-vocal tracks), accepted by ear")
+        if chk.get("note"):
+            note(chk["note"])
+        if source != source0:
+            note(f"beat printed on output '{source}' (not '{source0}')")
+        if probe_only:
+            return out
+        isolate(cand, mode)
         sel = (0, int(min(end + sr, end * 1.02)))
         out["sel"] = sel
         hlib.set_selection_samples(c, *sel)
         st, body = hlib.export_mix(c, str(AUDIO), f"{n:04d}", int(sr), source, timeout=3600)
         wav = AUDIO / f"{n:04d}.wav"
         if st != "Completed" or not wav.exists():
-            out["note"] = f"export {st}"
+            note(f"export {st}")
             return out
         out["mean_db"] = hlib.mean_db(wav)
         out["dur"] = hlib.duration_s(wav)
         if out["mean_db"] is None or out["mean_db"] <= -50:
-            out["note"] = "silent bounce (SSL session?)"
+            note("silent bounce (SSL session?)")
             wav.unlink()
             return out
         out["path"] = f"audio/{n:04d}.wav"
         if not hlib.to_11k(wav, AUDIO11 / f"{n:04d}.wav"):
-            out["note"] = "11k copy failed"
+            note("11k copy failed")
         return out
     finally:
         try:
-            for nm in soloed:
+            for nm in state["soloed"]:
                 hlib.solo(c, nm, False)
-            if muted_by_us:
-                hlib.mute(c, muted_by_us, False)
+            if state["muted"]:
+                hlib.mute(c, state["muted"], False)
         finally:
             for p in prior:
                 hlib.solo(c, p, True)
@@ -574,7 +613,7 @@ def run_one(n, already_open=False, keep_open=False) -> dict:
         meta, fres = stage_beat_meta(c, tl, info)
         rec.update(finder_version=beatfind.FINDER_VERSION, old_rule=int(bool(fres.get("old_rule"))))
         say(f"#{n:04d} finder: " + " ".join(beatfind.table(fres)))
-        if meta is None or meta["confidence"] == "low":
+        if True:                                       # name-free per-track evidence, for diagnosis
             log_jsonl({"id": n, "kind": "finder-rows", "checked_at": hlib.now(), "why": fres.get("why"),
                        "rows": fres.get("rows")})
         if meta is None:
@@ -639,12 +678,14 @@ def run_one(n, already_open=False, keep_open=False) -> dict:
             rec.update(key=ak, key_source="autotune")
         b = stage_bounce(c, n, meta, info["sr"], tempo, probe_only=conf not in USABLE)
         rec.update(beat_wav_path=b["path"], beat_mean_db=b["mean_db"], probe_mean_db=b["probe_db"],
-                   beat_duration_s=b["dur"], beat_confidence=b["confidence"], beat_check=json.dumps(b["check"]))
+                   beat_duration_s=b["dur"], beat_confidence=b["confidence"], beat_check=json.dumps(b["check"]),
+                   beat_source=b["beat_source"])
         say(f"#{n:04d} listen: {json.dumps(b['check'])}")
         if b["note"]:
             rec["notes"].append(b["note"])
         if b["skip"]:
-            rec["status"] = "skip-beat-unsure"; rec["notes"].append(b["skip"])
+            short = "end before 10 s" in b["skip"] and "not beat-like" not in b["skip"]
+            rec["status"] = "skip-beat-short" if short else "skip-beat-unsure"; rec["notes"].append(b["skip"])
             return rec
         if conf not in USABLE and b["check"].get("probe_a"):
             rec["status"] = "excluded-checked"          # beat found + listened to; BPM label unusable: no print

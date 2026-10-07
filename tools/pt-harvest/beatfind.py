@@ -22,7 +22,8 @@ from __future__ import annotations
 import re
 from collections import Counter
 
-FINDER_VERSION = 3   # 3: vocal ancestry = vocal FOLDER names only; rows logged on skips
+FINDER_VERSION = 5   # 3: vocal ancestry = vocal FOLDER names only; 4: v1 Beat/Instrumental tracks first;
+                     # 5: fallback sets (non-vocal tracks) tried by ear when the first set fails
 
 
 def norm(s: str) -> str:
@@ -185,11 +186,35 @@ def find(tl: list[dict], info_sa: dict, outputs: list[str] | None = None, sr: fl
 
     res["click_aux"] = [t["name"] for t in tl if t["type"] == "TType_Aux" and CLICK.search(norm(t["name"]))]
 
+    def end_of(tracks):
+        return max((b for t in tracks for _, b in ivs.get(t["id"], [])), default=0)
+
+    def alt_sets(primary):
+        """Fallback beat sets that only the listening checks can accept (beat_source 'audio'): everything
+        not classed vocal, and that minus the primary set. Each needs one track spanning >= half the song
+        (an album/compilation session of back-to-back songs never qualifies)."""
+        pid = {t["id"] for t in primary}
+        nonvoc = [t for t in live if t not in vocal]
+        out, seen = [], set()
+        for s in (nonvoc, [t for t in nonvoc if t["id"] not in pid]):
+            key = frozenset(t["id"] for t in s)
+            if not s or key in seen or key == frozenset(pid):
+                continue
+            if max(feats[t["id"]]["cover"] for t in s) < 0.5:
+                continue
+            seen.add(key)
+            out.append({"tracks": [t["name"] for t in s], "solo": [(t["name"], t["id"]) for t in s],
+                        "method": "solo-tracks", "beat_source": "audio", "confidence": "low", "legacy": False,
+                        "others_live": [t["name"] for t in live if t["id"] not in key], "max_end": end_of(s)})
+        return out
+
     def done(tracks, folder=None):
         ids = {t["id"] for t in tracks}
         res["others_live"] = [t["name"] for t in live if t["id"] not in ids]
         res["comment_names"] = [t["name"] for t in tl if t["type"] == "TType_Audio" and
                                 (t["id"] in ids or (folder is not None and folder in ancestors(t)))]
+        res["max_end"] = end_of(tracks)
+        res["alts"] = alt_sets(tracks)
         return res
 
     # 1. legacy Beat Buss folder (proven path, solo the folder)
@@ -206,6 +231,15 @@ def find(tl: list[dict], info_sa: dict, outputs: list[str] | None = None, sr: fl
             res.update(found=True, beat_source="folder", confidence="high", method="solo",
                        solo=[(f0["name"], f0["id"])], tracks=kids, legacy=True, why="Beat Buss folder")
             return done(kids, f0)
+    # 1b. v1's second rule (live audio tracks named exactly Beat/Beats/Instrumental/Inst + number): proven
+    #     on the first sessions, so it outranks every inference (no regression against v1)
+    if legacy_tracks and use_folders:
+        lt = [t for t in live if t in legacy_tracks]
+        if lt:
+            res.update(found=True, beat_source="name", confidence="high", method="solo-tracks",
+                       solo=[(t["name"], t["id"]) for t in lt], tracks=lt, legacy=True,
+                       why=f"{len(lt)} track(s) named Beat/Instrumental")
+            return done(lt)
     # 2. any other beat-named folder whose live members carry no vocal evidence
     for f0 in (tl if use_folders else []):
         if f0["type"] not in ("TType_RoutingFolder", "TType_BasicFolder"):
@@ -222,6 +256,15 @@ def find(tl: list[dict], info_sa: dict, outputs: list[str] | None = None, sr: fl
             return done(kids, f0)
     if not beat:
         res["why"] = f"no beat-like track ({len(live)} live, {len(vocal)} vocal, {len(weak)} weak)"
+        alts = alt_sets([])
+        if alts:            # nothing scored as beat, but non-vocal material spans the song: let the ears decide
+            a0 = alts[0]
+            ids = {i for _, i in a0["solo"]}
+            tr = [t for t in live if t["id"] in ids]
+            res.update(found=True, beat_source="audio", confidence="low", method="solo-tracks", solo=a0["solo"],
+                       tracks=tr, legacy=False, why=res["why"] + "; trying the non-vocal tracks by ear")
+            done(tr)
+            res["alts"] = alts[1:]
         return res
     named = [t for t in beat if feats[t["id"]]["beat_name"]]
     via_bus = [t for t in beat if grp.get(t["id"], (0, 0))[0] > 0]
