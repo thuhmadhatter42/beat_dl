@@ -107,10 +107,15 @@ def db():
     return con
 
 
+def _jd(o):
+    """json default: numpy scalars -> python."""
+    return o.item() if hasattr(o, "item") else str(o)
+
+
 def log_jsonl(rec: dict):
     LOGDIR.mkdir(parents=True, exist_ok=True)
     with open(LOGDIR / f"harvest-{time.strftime('%y-%-m-%-d')}.jsonl", "a") as f:
-        f.write(json.dumps(rec) + "\n")
+        f.write(json.dumps(rec, default=_jd) + "\n")
 
 
 def say(*a):
@@ -401,7 +406,7 @@ def stage_bounce(c, n, meta, sr, tempo=None, probe_only=False):
             st, mix_db, _ = _probe(c, n, source0, int(end * 0.5), sr, None)
             chk["skip"] = f"silent probe (SSL session?); probes {tried}; unsoloed mix probe {mix_db} dB on '{source0}'"
             chk["silent"] = True
-            chk["mix_silent"] = mix_db is None or mix_db <= -50
+            chk["mix_silent"] = bool(mix_db is None or mix_db <= -50)
             return chk, None, None, end
         chk["mode"] = ok_mode
         st, db_, fe = _probe(c, n, src_ok, int(end * 0.75), sr, tempo)
@@ -421,14 +426,22 @@ def stage_bounce(c, n, meta, sr, tempo=None, probe_only=False):
         cand_ok = "beat" in vs and "vocal" not in vs
         cv = comp["v"] if comp else None
         conf = cand["confidence"]
+        # a silent complement (nothing outside the set sounds: beat-only session, or vocals muted) is fine when
+        # both beat probes are clearly beats with next to no voice-band energy (no vocals inside the set)
+        vocal_free = all((chk.get(k) or {}).get("v") == "beat" and ((chk.get(k) or {}).get("voice") or 1) < 0.15
+                         for k in ("probe_a", "probe_b"))
         if not cand["legacy"]:
             if not cand_ok:
                 chk["skip"] = f"beat probes not beat-like ({vs})"
             elif conf == "low":
                 if cv == "vocal":
                     conf = "medium"
+                elif cv == "silent" and vocal_free:
+                    conf = "medium"; chk["note"] = "complement silent, beat probes vocal-free"
                 else:
                     chk["skip"] = f"low-confidence beat set and complement {cv}"
+            elif conf == "medium" and cv == "silent" and vocal_free:
+                chk["note"] = "complement silent, beat probes vocal-free"
             elif conf == "medium" and cv in ("silent", "beat", None):
                 chk["skip"] = f"inferred beat set, complement {cv}"
             elif conf == "high" and cv in ("silent", "beat"):
@@ -458,8 +471,7 @@ def stage_bounce(c, n, meta, sr, tempo=None, probe_only=False):
         out["check"] = tries[-1] if len(tries) == 1 else {"tries": tries, **(win[2] if win else {})}
         if win is None:
             last = tries[-1]
-            if any(t.get("silent") for t in tries) and all(t.get("silent") or "not beat-like" not in t.get("skip", "")
-                                                          for t in tries):
+            if tries[0].get("silent"):
                 note(tries[0]["skip"])                       # status 'silent' (as v1)
             else:
                 out["skip"] = "; ".join(f"{t['set']}: {t['skip']}" for t in tries)
@@ -678,9 +690,9 @@ def run_one(n, already_open=False, keep_open=False) -> dict:
             rec.update(key=ak, key_source="autotune")
         b = stage_bounce(c, n, meta, info["sr"], tempo, probe_only=conf not in USABLE)
         rec.update(beat_wav_path=b["path"], beat_mean_db=b["mean_db"], probe_mean_db=b["probe_db"],
-                   beat_duration_s=b["dur"], beat_confidence=b["confidence"], beat_check=json.dumps(b["check"]),
+                   beat_duration_s=b["dur"], beat_confidence=b["confidence"], beat_check=json.dumps(b["check"], default=_jd),
                    beat_source=b["beat_source"])
-        say(f"#{n:04d} listen: {json.dumps(b['check'])}")
+        say(f"#{n:04d} listen: {json.dumps(b['check'], default=_jd)}")
         if b["note"]:
             rec["notes"].append(b["note"])
         if b["skip"]:
@@ -893,9 +905,9 @@ def batch(target=200, max_n=10**6):
         r = con.execute("SELECT status, notes, finder_version, bpm_confidence FROM sessions WHERE id=?", (n,)).fetchone()
         con.close()
         # rows an older finder skipped get one more look by a newer finder (unusable BPM labels excepted)
-        requeue = bool(r and (r[2] or 0) < beatfind.FINDER_VERSION and
-                       (r[0] in ("skip-no-beat-buss", "skip-no-beat") or
-                        (r[0] == "skip-beat-unsure" and r[3] in USABLE)))
+        # (finder v5 was the last change to which tracks are found; later versions only change the ears)
+        requeue = bool(r and ((r[0] in ("skip-no-beat-buss", "skip-no-beat") and (r[2] or 0) < 5) or
+                              (r[0] == "skip-beat-unsure" and r[3] in USABLE and (r[2] or 0) < beatfind.FINDER_VERSION)))
         if r and not r[0].startswith("error") and not requeue:
             continue                                   # done (re-read every time: rows may be dropped to redo)
         if n in tries and "retried" in (tries[n] or ""):

@@ -22,8 +22,9 @@ from __future__ import annotations
 import re
 from collections import Counter
 
-FINDER_VERSION = 5   # 3: vocal ancestry = vocal FOLDER names only; 4: v1 Beat/Instrumental tracks first;
+FINDER_VERSION = 6   # 3: vocal ancestry = vocal FOLDER names only; 4: v1 Beat/Instrumental tracks first;
                      # 5: fallback sets (non-vocal tracks) tried by ear when the first set fails
+                     # 6: a silent complement is accepted when the beat probes are vocal-free
 
 
 def norm(s: str) -> str:
