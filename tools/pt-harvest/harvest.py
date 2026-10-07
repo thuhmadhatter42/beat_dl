@@ -299,9 +299,9 @@ def stage_bounce(c, n, meta, sr):
     AUDIO.mkdir(exist_ok=True); AUDIO11.mkdir(exist_ok=True)
     out = {"probe_db": None, "mean_db": None, "path": None, "dur": None, "note": None}
     srcs = hlib.export_sources(c)
-    source = hlib.pick_source(srcs)
+    source = hlib.pick_source(srcs) or (srcs[0] if srcs else None)
     if not source:
-        out["note"] = f"no 1-2 style output among {len(srcs)} sources"
+        out["note"] = "no output sources listed"
         return out
     tl = hlib.tracks(c)
     prior = [t["name"] for t in tl if hlib.attr(t, "is_soloed")]
@@ -428,8 +428,14 @@ def run_one(n, already_open=False, keep_open=False) -> dict:
             rec["beatdl_estimate"] = meta["estimates"][0]
         if scr["ax_tempo"] and any(hlib.agree(scr["ax_tempo"], e_, 0.001) for e_ in meta["estimates"]):
             rec["tempo_from_estimate"] = 1
-        # tempo: the AX Tempo field is the reading. Flat = one tempo event AND the EDL line agrees.
+        # tempo: the AX Tempo field is the reading (else the single row of the AX Tempo table, else OCR).
+        # Flat = the AX Tempo table has exactly one event. The EDL line is a cross-check: its slope must
+        # agree with the tempo; points off the line with one tempo event mean a meter change (bars|beats
+        # are counted as 4/4), not a tempo change, so that is only noted.
         tempo = scr["ax_tempo"]
+        vals = scr.get("tempo_event_values") or []
+        if tempo is None and scr["tempo_events"] == 1 and vals:
+            tempo = vals[0]; rec["notes"].append("tempo from AX tempo table (field missing)")
         if tempo is None and scr["ocr_tempo"]:
             tempo = scr["ocr_tempo"]; rec["notes"].append("tempo from OCR (AX field missing)")
         if scr["ocr_tempo"] is not None and tempo is not None and not hlib.agree(tempo, scr["ocr_tempo"], 0.0005):
@@ -437,12 +443,12 @@ def run_one(n, already_open=False, keep_open=False) -> dict:
         flat = None
         if scr["tempo_events"] is not None:
             flat = 1 if scr["tempo_events"] == 1 else 0
+        elif info["edl_flat"] is not None:
+            flat = info["edl_flat"]
         if info["edl_flat"] == 0:
-            flat = 0; rec["notes"].append("EDL not on one tempo line")
-        if tempo and info["edl_tempo"] and info["edl_flat"] == 1 and not hlib.agree(tempo, info["edl_tempo"], 0.002):
+            rec["notes"].append("EDL points off one 4/4 tempo line (meter change?)")
+        if tempo and info["edl_tempo"] and not hlib.agree(tempo, info["edl_tempo"], 0.004):
             flat = 0; rec["notes"].append("EDL tempo != session tempo")
-        if flat is None and info["edl_flat"] == 1:
-            flat = 1
         bpm, src, conf = hlib.label(tempo, flat, rec.get("comment_bpm"), meta["producer_bpms"])
         rec.update(bpm=bpm, bpm_source=src, bpm_confidence=conf, tempo_map_flat=flat)
         if KEY_READ:

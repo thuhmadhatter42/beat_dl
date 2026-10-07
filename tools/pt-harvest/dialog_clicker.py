@@ -34,6 +34,22 @@ KNOWN = [
     ("Missing Files -> OK", r"Missing\s*Files|files?\s+(are|is)\s+missing|could\s+not\s+be\s+found", r"^OK$"),
     ("Save -> Don't Save", r"save\s+(the\s+)?changes|want\s+to\s+save", r"^Don.?t\s*Save$"),
 ]
+# Dialogs seen in the batch that are NOT on J's list. They stay unpressed (BLOCKED) until J approves:
+# the main session then adds the label line to ~/pt-harvest/approved-dialogs.txt (read every scan).
+PENDING = [
+    ("Missing AAX Plugins -> OK", r"Missing\s+AAX\s+Plug-?ins", r"^OK$"),
+]
+APPROVED_FILE = H / "approved-dialogs.txt"
+
+
+def known():
+    try:
+        ok = {l.strip() for l in APPROVED_FILE.read_text().splitlines() if l.strip()}
+    except OSError:
+        ok = set()
+    return KNOWN + [k for k in PENDING if k[0] in ok]
+
+
 DIALOG_BTN = re.compile(r"^(OK|Yes|No|Don.?t\s*Save|Continue|Retry|Quit|Save|Open|Done|Skip.*|Ignore|Close|Relink.*|Manually.*)$", re.I)
 _last_activate = 0.0
 _unknown_seen = set()
@@ -127,7 +143,7 @@ def scan_once():
         log(f"Pro Tools window behind another app: activated PT -> frontmost={'PT' if ok else 'other'}")
     for d in dialogs:
         text = d["title"] + "\n" + "\n".join(d["texts"])
-        for label, trx, brx in KNOWN:
+        for label, trx, brx in known():
             if not re.search(trx, text, re.I):
                 continue
             btn = next((el for t, el in d["buttons"] if re.match(brx, t.strip(), re.I)), None)
@@ -142,16 +158,17 @@ def scan_once():
             return label
         btnish = [t for t, _ in d["buttons"] if DIALOG_BTN.match(t.strip())]
         if btnish:
-            sig = (round(d["size"][0] / 10), round(d["size"][1] / 10), len(d["buttons"]))
-            if sig not in _unknown_seen:
+            pend = next((lbl for lbl, trx, _ in PENDING if re.search(trx, text, re.I)), "unlisted")
+            sig = (round(d["size"][0] / 10), round(d["size"][1] / 10), len(d["buttons"]), pend)
+            if sig not in _unknown_seen or not BLOCKED.exists():
                 _unknown_seen.add(sig)
                 keep = H / "shots" / f"unknown-{datetime.datetime.now():%m%d-%H%M%S}.png"
                 keep.parent.mkdir(parents=True, exist_ok=True)
                 subprocess.run(["screencapture", "-x", str(keep)])
-                BLOCKED.write_text(f"{datetime.datetime.now().isoformat(timespec='seconds')} unknown PT dialog "
+                BLOCKED.write_text(f"{datetime.datetime.now().isoformat(timespec='seconds')} unknown PT dialog [{pend}] "
                                    f"{d['size'][0]:.0f}x{d['size'][1]:.0f} at {d['pos'][0]:.0f},{d['pos'][1]:.0f}, "
                                    f"{len(d['buttons'])} buttons; shot {keep.name}\n")
-                log(f"UNKNOWN PT dialog {d['size'][0]:.0f}x{d['size'][1]:.0f} at {d['pos'][0]:.0f},{d['pos'][1]:.0f} "
+                log(f"UNKNOWN PT dialog [{pend}] {d['size'][0]:.0f}x{d['size'][1]:.0f} at {d['pos'][0]:.0f},{d['pos'][1]:.0f} "
                     f"({len(btnish)} dialog-style buttons): not pressing; BLOCKED written; shot {keep.name}")
             return "unknown"
     return None
