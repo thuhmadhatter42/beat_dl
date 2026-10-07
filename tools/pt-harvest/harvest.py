@@ -90,6 +90,7 @@ CREATE TABLE IF NOT EXISTS sessions (
     mix_mean_db         REAL,
     mix_duration_s      REAL,
     mix_note            TEXT,
+    mix_resid_db        REAL,                  -- level of (mix - beat) on the 11k copies; < mix_mean_db - 40 = mix is just the beat
     drive               TEXT                   -- arch1 | allmixes
 ) STRICT;
 """
@@ -465,10 +466,26 @@ def stage_bounce(c, n, meta, sr, tempo=None, probe_only=False):
                 hlib.solo(c, p, True)
 
 
+def mix_resid_db(n) -> float | None:
+    """Level of (mix - beat) on the 11 kHz copies (both printed from sample 0 over one span): what the
+    beat lacks, i.e. the vocals. Near silence = the mix is just the beat (vocals muted/absent)."""
+    try:
+        import numpy as np
+        a, b = AUDIO11 / f"{n:04d}_mix.wav", AUDIO11 / f"{n:04d}.wav"
+        if not (a.exists() and b.exists()):
+            return None
+        xm, xb = audiocheck.load(a), audiocheck.load(b)
+        L = min(len(xm), len(xb))
+        r = xm[:L] - xb[:L]
+        return round(float(20 * np.log10(np.sqrt(np.mean(r * r)) + 1e-12)), 1)
+    except Exception:
+        return None
+
+
 def stage_mix(c, n, sr, sel, source=None) -> dict:
     """J 01:08: the FULL MIX of the same span, nothing soloed, the session's normal main output.
     The session's own solo state is restored afterwards. -> {path, mean_db, dur, note}"""
-    out = {"path": None, "mean_db": None, "dur": None, "note": None}
+    out = {"path": None, "mean_db": None, "dur": None, "note": None, "resid_db": None}
     srcs = hlib.export_sources(c)
     cand = [s for s in ([source] if source else []) + [hlib.pick_source(srcs)] + srcs if s]
     cand = list(dict.fromkeys(cand))
@@ -501,6 +518,9 @@ def stage_mix(c, n, sr, sel, source=None) -> dict:
         out["path"] = f"audio/{n:04d}_mix.wav"
         if not hlib.to_11k(wav, AUDIO11 / f"{n:04d}_mix.wav"):
             notes.append("mix 11k copy failed")
+        out["resid_db"] = mix_resid_db(n)
+        if out["resid_db"] is not None and out["resid_db"] < out["mean_db"] - 40:
+            notes.append("mix == beat (no vocals heard: residual < -40 dB)")
         return out
     finally:
         for p in prior:
@@ -629,7 +649,8 @@ def run_one(n, already_open=False, keep_open=False) -> dict:
         rec["status"] = "ok" if b["path"] else ("silent" if b["note"] and "silent" in b["note"] else "error-bounce")
         if b["path"] and conf in USABLE and MIX:
             m = stage_mix(c, n, info["sr"], b["sel"], b["source"])
-            rec.update(mix_wav_path=m["path"], mix_mean_db=m["mean_db"], mix_duration_s=m["dur"], mix_note=m["note"])
+            rec.update(mix_wav_path=m["path"], mix_mean_db=m["mean_db"], mix_duration_s=m["dur"], mix_note=m["note"],
+                       mix_resid_db=m.get("resid_db"))
         return rec
     except BaseException as ex:
         rec["status"] = f"error-{type(ex).__name__}"
@@ -696,8 +717,9 @@ def run_mix_only(n) -> str:
         except Exception:
             w = 0
         con = db()
-        con.execute("UPDATE sessions SET mix_wav_path=?, mix_mean_db=?, mix_duration_s=?, mix_note=? WHERE id=?",
-                    (m["path"], m["mean_db"], m["dur"],
+        con.execute("UPDATE sessions SET mix_wav_path=?, mix_mean_db=?, mix_duration_s=?, mix_resid_db=?, mix_note=? "
+                    "WHERE id=?",
+                    (m["path"], m["mean_db"], m["dur"], m.get("resid_db"),
                      "; ".join(x for x in (m["note"], "back-filled", f"PT wrote {w} file(s) on the source drive" if w else None) if x),
                      n))
         con.commit(); con.close()
@@ -746,7 +768,7 @@ def save(rec):
                                         "comment_bpm", "comment_key", "key", "beat_mean_db", "probe_mean_db",
                                         "beat_duration_s", "open_s", "close", "elapsed_s", "notes", "drive",
                                         "finder_version", "beat_source", "beat_confidence", "beat_check", "old_rule",
-                                        "mix_mean_db", "mix_duration_s", "mix_note")})
+                                        "mix_mean_db", "mix_duration_s", "mix_resid_db", "mix_note")})
     say(f"#{rec['id']:04d} {rec['status']} tempo={rec.get('session_tempo')} edl={rec.get('edl_tempo')} "
         f"flat={rec.get('tempo_map_flat')} comment={rec.get('beat_comment')} -> bpm={rec.get('bpm')} "
         f"{rec.get('bpm_confidence')} ({rec.get('bpm_source')}) key={rec.get('key')} "
@@ -885,6 +907,13 @@ if __name__ == "__main__":
             a = sys.argv
             rc = batch(int(a[a.index("--target") + 1]) if "--target" in a else 200,
                        int(a[a.index("--max-n") + 1]) if "--max-n" in a else 10**6)
+        elif cmd == "resid":                       # fill mix_resid_db where both 11k files exist
+            con = db()
+            for (n,) in con.execute("SELECT id FROM sessions WHERE mix_wav_path IS NOT NULL AND mix_resid_db IS NULL").fetchall():
+                r = mix_resid_db(n)
+                con.execute("UPDATE sessions SET mix_resid_db=? WHERE id=?", (r, n)); con.commit()
+                print(f"#{n:04d} resid {r}")
+            con.close()
         elif cmd == "status":
             status()
     except BaseException as ex:

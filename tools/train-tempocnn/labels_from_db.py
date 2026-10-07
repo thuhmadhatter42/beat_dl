@@ -40,6 +40,8 @@ def main():
     if "bpm_confidence" in cols:
         where += f" AND bpm_confidence IN ({','.join(ok)})"
     mixcol = "mix_wav_path" if "mix_wav_path" in cols else "NULL"
+    if "mix_resid_db" in cols:      # a mix that is just the beat (vocals muted/absent) is no second group
+        mixcol = f"CASE WHEN mix_resid_db IS NOT NULL AND mix_resid_db < mix_mean_db - 40 THEN NULL ELSE {mixcol} END"
     rows = con.execute(f"SELECT id, bpm, artist, beat_wav_path, {mixcol} FROM sessions WHERE {where} ORDER BY id").fetchall()
     kinds = ("beat", "mix") if a.kind == "both" else (a.kind,)
     rows = [(sid, bpm, art, (beat if k == "beat" else mix), k) for sid, bpm, art, beat, mix in rows for k in kinds]
