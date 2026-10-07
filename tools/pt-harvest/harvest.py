@@ -842,11 +842,18 @@ def usable_count(con):
 
 def relaunch_pt():
     say("killing Pro Tools (hung) and relaunching")
-    subprocess.run(["pkill", "-9", "-f", "Pro Tools.app/Contents/MacOS/Pro Tools"])
+    subprocess.run(["pkill", "-9", "-f", r"Pro Tools[^/]*\.app/Contents/MacOS/Pro Tools$"])
     time.sleep(10)
     r = subprocess.run([str(H / ".venv/bin/python"), str(H / "pt_launch.py"), "100"], capture_output=True, text=True)
     say("relaunch:", r.stdout.strip().splitlines()[-1:] if r.stdout else r.returncode)
     time.sleep(20)
+    for _ in range(18):                 # PTSL answers only once the Dashboard is closed (dialog_clicker does it)
+        try:
+            hlib.session_open(hlib.client())
+            say("relaunch: PTSL answering"); return
+        except Exception:
+            time.sleep(10)
+    say("relaunch: PTSL still not answering after 3 min")
 
 
 def _gate():

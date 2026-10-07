@@ -42,11 +42,15 @@ PENDING = [
 APPROVED_FILE = H / "approved-dialogs.txt"
 
 
-def known():
+def approved_labels() -> set:
     try:
-        ok = {l.strip() for l in APPROVED_FILE.read_text().splitlines() if l.strip()}
+        return {l.strip() for l in APPROVED_FILE.read_text().splitlines() if l.strip()}
     except OSError:
-        ok = set()
+        return set()
+
+
+def known():
+    ok = approved_labels()
     return KNOWN + [k for k in PENDING if k[0] in ok]
 
 
@@ -143,6 +147,20 @@ def scan_once():
         log(f"Pro Tools window behind another app: activated PT -> frontmost={'PT' if ok else 'other'}")
     for d in dialogs:
         text = d["title"] + "\n" + "\n".join(d["texts"])
+        # Pro Tools Dashboard (start window after a relaunch: New/Open/Cloud Projects/Learn, Browse..., Cancel,
+        # Open). Cancel only closes the launcher: no session, file or preference changes (its "show on
+        # startup" box is never touched). Approved like the others via approved-dialogs.txt.
+        btn_titles = [t.strip() for t, _ in d["buttons"]]
+        if "Dashboard -> Cancel" in approved_labels() and "Cancel" in btn_titles and \
+                any(t.startswith("Browse") for t in btn_titles) and "Cloud Projects" in btn_titles:
+            btn = next(el for t, el in d["buttons"] if t.strip() == "Cancel")
+            if DRY:
+                log("Dashboard -> Cancel: matched (dry-run)")
+            else:
+                ok = press(btn)
+                log(f"Dashboard -> Cancel: pressed={ok} window {d['size'][0]:.0f}x{d['size'][1]:.0f}")
+                time.sleep(1.5)
+            return "Dashboard -> Cancel"
         for label, trx, brx in known():
             if not re.search(trx, text, re.I):
                 continue
