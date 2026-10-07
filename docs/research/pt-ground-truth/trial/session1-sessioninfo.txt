@@ -1,0 +1,1510 @@
+SESSION NAME:	(26-4-12) On Your Mind (Cash INN) mix2a
+SAMPLE RATE:	44100.000000
+BIT DEPTH:	32-bit float
+SESSION START TIMECODE:	00:00:00:00.00
+TIMECODE FORMAT:	30 Frame
+# OF AUDIO TRACKS:	59
+# OF AUDIO CLIPS:	578
+# OF AUDIO FILES:	192
+
+
+O N L I N E  F I L E S  I N  S E S S I O N
+Filename                                                                            	Location
+_FREE_ Lucki Type Beat - _Whats The Use_ (152.0 BPM Em D# E).wav                    	ARCH-1:1 - MIXES:Woe:(26-4-9) On Your Mind (Cash INN):Audio Files:
+Chicken P x Pape Type Beat _Cash Money_ (prod by bnasty) (117.5 BPM E C#m Em).wav   	ARCH-1:1 - MIXES:Woe:(26-4-9) On Your Mind (Cash INN):Audio Files:
+__CASH.01_08.wav                                                                    	ARCH-1:1 - MIXES:Woe:(26-4-9) On Your Mind (Cash INN):Audio Files:
+__CASH.01_09.wav                                                                    	ARCH-1:1 - MIXES:Woe:(26-4-9) On Your Mind (Cash INN):Audio Files:
+_FREE_ 'Hold On Me' - Hurricane Wisdom x Loe Shimmy Type Beat (99.4 BPM Dm D Gm).wav	ARCH-1:1 - MIXES:Woe:(26-4-9) On Your Mind (Cash INN):Audio Files:
+__CASH.01_10.wav                                                                    	ARCH-1:1 - MIXES:Woe:(26-4-9) On Your Mind (Cash INN):Audio Files:
+__CASH.01_11.wav                                                                    	ARCH-1:1 - MIXES:Woe:(26-4-9) On Your Mind (Cash INN):Audio Files:
+__CASH.01_12.wav                                                                    	ARCH-1:1 - MIXES:Woe:(26-4-9) On Your Mind (Cash INN):Audio Files:
+__CASH.01_13.wav                                                                    	ARCH-1:1 - MIXES:Woe:(26-4-9) On Your Mind (Cash INN):Audio Files:
+__CASH.01_14.wav                                                                    	ARCH-1:1 - MIXES:Woe:(26-4-9) On Your Mind (Cash INN):Audio Files:
+__CASH.01_15.wav                                                                    	ARCH-1:1 - MIXES:Woe:(26-4-9) On Your Mind (Cash INN):Audio Files:
+__CASH.01_16.wav                                                                    	ARCH-1:1 - MIXES:Woe:(26-4-9) On Your Mind (Cash INN):Audio Files:
+__CASH.02_17.wav                                                                    	ARCH-1:1 - MIXES:Woe:(26-4-9) On Your Mind (Cash INN):Audio Files:
+__CASH.02_18.wav                                                                    	ARCH-1:1 - MIXES:Woe:(26-4-9) On Your Mind (Cash INN):Audio Files:
+__CASH.02_19.wav                                                                    	ARCH-1:1 - MIXES:Woe:(26-4-9) On Your Mind (Cash INN):Audio Files:
+__CASH.02_20.wav                                                                    	ARCH-1:1 - MIXES:Woe:(26-4-9) On Your Mind (Cash INN):Audio Files:
+__CASH.02_21.wav                                                                    	ARCH-1:1 - MIXES:Woe:(26-4-9) On Your Mind (Cash INN):Audio Files:
+__CASH.02_22.wav                                                                    	ARCH-1:1 - MIXES:Woe:(26-4-9) On Your Mind (Cash INN):Audio Files:
+__CASH.02_23.wav                                                                    	ARCH-1:1 - MIXES:Woe:(26-4-9) On Your Mind (Cash INN):Audio Files:
+__CASH.02_24.wav                                                                    	ARCH-1:1 - MIXES:Woe:(26-4-9) On Your Mind (Cash INN):Audio Files:
+__CASH.02_25.wav                                                                    	ARCH-1:1 - MIXES:Woe:(26-4-9) On Your Mind (Cash INN):Audio Files:
+__CASH.03_26.wav                                                                    	ARCH-1:1 - MIXES:Woe:(26-4-9) On Your Mind (Cash INN):Audio Files:
+__CASH.03_27.wav                                                                    	ARCH-1:1 - MIXES:Woe:(26-4-9) On Your Mind (Cash INN):Audio Files:
+__CASH.05_28.wav                                                                    	ARCH-1:1 - MIXES:Woe:(26-4-9) On Your Mind (Cash INN):Audio Files:
+__CASH.06_30.wav                                                                    	ARCH-1:1 - MIXES:Woe:(26-4-9) On Your Mind (Cash INN):Audio Files:
+__CASH.06_31.wav                                                                    	ARCH-1:1 - MIXES:Woe:(26-4-9) On Your Mind (Cash INN):Audio Files:
+__CASH.06_32.wav                                                                    	ARCH-1:1 - MIXES:Woe:(26-4-9) On Your Mind (Cash INN):Audio Files:
+__CASH.06_33.wav                                                                    	ARCH-1:1 - MIXES:Woe:(26-4-9) On Your Mind (Cash INN):Audio Files:
+__CASH.06_34.wav                                                                    	ARCH-1:1 - MIXES:Woe:(26-4-9) On Your Mind (Cash INN):Audio Files:
+__CASH.07_35.wav                                                                    	ARCH-1:1 - MIXES:Woe:(26-4-9) On Your Mind (Cash INN):Audio Files:
+__CASH.07_36.wav                                                                    	ARCH-1:1 - MIXES:Woe:(26-4-9) On Your Mind (Cash INN):Audio Files:
+__CASH.07_37.wav                                                                    	ARCH-1:1 - MIXES:Woe:(26-4-9) On Your Mind (Cash INN):Audio Files:
+__CASH.08_38.wav                                                                    	ARCH-1:1 - MIXES:Woe:(26-4-9) On Your Mind (Cash INN):Audio Files:
+__CASH.08_39.wav                                                                    	ARCH-1:1 - MIXES:Woe:(26-4-9) On Your Mind (Cash INN):Audio Files:
+__CASH.09_40.wav                                                                    	ARCH-1:1 - MIXES:Woe:(26-4-9) On Your Mind (Cash INN):Audio Files:
+__CASH.09_41.wav                                                                    	ARCH-1:1 - MIXES:Woe:(26-4-9) On Your Mind (Cash INN):Audio Files:
+__CASH.09_42.wav                                                                    	ARCH-1:1 - MIXES:Woe:(26-4-9) On Your Mind (Cash INN):Audio Files:
+__CASH.09_43.wav                                                                    	ARCH-1:1 - MIXES:Woe:(26-4-9) On Your Mind (Cash INN):Audio Files:
+__CASH.09_44.wav                                                                    	ARCH-1:1 - MIXES:Woe:(26-4-9) On Your Mind (Cash INN):Audio Files:
+__CASH.09_45.wav                                                                    	ARCH-1:1 - MIXES:Woe:(26-4-9) On Your Mind (Cash INN):Audio Files:
+__CASH.09_46.wav                                                                    	ARCH-1:1 - MIXES:Woe:(26-4-9) On Your Mind (Cash INN):Audio Files:
+__CASH.09_47.wav                                                                    	ARCH-1:1 - MIXES:Woe:(26-4-9) On Your Mind (Cash INN):Audio Files:
+__CASH.09_48.wav                                                                    	ARCH-1:1 - MIXES:Woe:(26-4-9) On Your Mind (Cash INN):Audio Files:
+__CASH.09_49.wav                                                                    	ARCH-1:1 - MIXES:Woe:(26-4-9) On Your Mind (Cash INN):Audio Files:
+__CASH.10_50.wav                                                                    	ARCH-1:1 - MIXES:Woe:(26-4-9) On Your Mind (Cash INN):Audio Files:
+__CASH.10_51.wav                                                                    	ARCH-1:1 - MIXES:Woe:(26-4-9) On Your Mind (Cash INN):Audio Files:
+__CASH.10_52.wav                                                                    	ARCH-1:1 - MIXES:Woe:(26-4-9) On Your Mind (Cash INN):Audio Files:
+__CASH.10_53.wav                                                                    	ARCH-1:1 - MIXES:Woe:(26-4-9) On Your Mind (Cash INN):Audio Files:
+__CASH.10_54.wav                                                                    	ARCH-1:1 - MIXES:Woe:(26-4-9) On Your Mind (Cash INN):Audio Files:
+__CASH.10_55.wav                                                                    	ARCH-1:1 - MIXES:Woe:(26-4-9) On Your Mind (Cash INN):Audio Files:
+__CASH.10_56.wav                                                                    	ARCH-1:1 - MIXES:Woe:(26-4-9) On Your Mind (Cash INN):Audio Files:
+__CASH.10_57.wav                                                                    	ARCH-1:1 - MIXES:Woe:(26-4-9) On Your Mind (Cash INN):Audio Files:
+__CASH.10_58.wav                                                                    	ARCH-1:1 - MIXES:Woe:(26-4-9) On Your Mind (Cash INN):Audio Files:
+__CASH.10_59.wav                                                                    	ARCH-1:1 - MIXES:Woe:(26-4-9) On Your Mind (Cash INN):Audio Files:
+__CASH.11_60.wav                                                                    	ARCH-1:1 - MIXES:Woe:(26-4-9) On Your Mind (Cash INN):Audio Files:
+__CASH.12_61.wav                                                                    	ARCH-1:1 - MIXES:Woe:(26-4-9) On Your Mind (Cash INN):Audio Files:
+__CASH.12_62.wav                                                                    	ARCH-1:1 - MIXES:Woe:(26-4-9) On Your Mind (Cash INN):Audio Files:
+__CASH.13_63.wav                                                                    	ARCH-1:1 - MIXES:Woe:(26-4-9) On Your Mind (Cash INN):Audio Files:
+__CASH.14_64.wav                                                                    	ARCH-1:1 - MIXES:Woe:(26-4-9) On Your Mind (Cash INN):Audio Files:
+__CASH.14_65.wav                                                                    	ARCH-1:1 - MIXES:Woe:(26-4-9) On Your Mind (Cash INN):Audio Files:
+__CASH.15_66.wav                                                                    	ARCH-1:1 - MIXES:Woe:(26-4-9) On Your Mind (Cash INN):Audio Files:
+__CASH.15_67.wav                                                                    	ARCH-1:1 - MIXES:Woe:(26-4-9) On Your Mind (Cash INN):Audio Files:
+__CASH.15_68.wav                                                                    	ARCH-1:1 - MIXES:Woe:(26-4-9) On Your Mind (Cash INN):Audio Files:
+__CASH.15_69.wav                                                                    	ARCH-1:1 - MIXES:Woe:(26-4-9) On Your Mind (Cash INN):Audio Files:
+__CASH.15_70.wav                                                                    	ARCH-1:1 - MIXES:Woe:(26-4-9) On Your Mind (Cash INN):Audio Files:
+__CASH.15_71.wav                                                                    	ARCH-1:1 - MIXES:Woe:(26-4-9) On Your Mind (Cash INN):Audio Files:
+__CASH.16_72.wav                                                                    	ARCH-1:1 - MIXES:Woe:(26-4-9) On Your Mind (Cash INN):Audio Files:
+__CASH.16_73.wav                                                                    	ARCH-1:1 - MIXES:Woe:(26-4-9) On Your Mind (Cash INN):Audio Files:
+__CASH.16_74.wav                                                                    	ARCH-1:1 - MIXES:Woe:(26-4-9) On Your Mind (Cash INN):Audio Files:
+__CASH.16_75.wav                                                                    	ARCH-1:1 - MIXES:Woe:(26-4-9) On Your Mind (Cash INN):Audio Files:
+__CASH.16_76.wav                                                                    	ARCH-1:1 - MIXES:Woe:(26-4-9) On Your Mind (Cash INN):Audio Files:
+__CASH.16_77.wav                                                                    	ARCH-1:1 - MIXES:Woe:(26-4-9) On Your Mind (Cash INN):Audio Files:
+__CASH.17_78.wav                                                                    	ARCH-1:1 - MIXES:Woe:(26-4-9) On Your Mind (Cash INN):Audio Files:
+__CASH.17_79.wav                                                                    	ARCH-1:1 - MIXES:Woe:(26-4-9) On Your Mind (Cash INN):Audio Files:
+__CASH.17_80.wav                                                                    	ARCH-1:1 - MIXES:Woe:(26-4-9) On Your Mind (Cash INN):Audio Files:
+__CASH.17_81.wav                                                                    	ARCH-1:1 - MIXES:Woe:(26-4-9) On Your Mind (Cash INN):Audio Files:
+__CASH.17_82.wav                                                                    	ARCH-1:1 - MIXES:Woe:(26-4-9) On Your Mind (Cash INN):Audio Files:
+__CASH.17_83.wav                                                                    	ARCH-1:1 - MIXES:Woe:(26-4-9) On Your Mind (Cash INN):Audio Files:
+__CASH.17_84.wav                                                                    	ARCH-1:1 - MIXES:Woe:(26-4-9) On Your Mind (Cash INN):Audio Files:
+__CASH.17_85.wav                                                                    	ARCH-1:1 - MIXES:Woe:(26-4-9) On Your Mind (Cash INN):Audio Files:
+__CASH.17_86.wav                                                                    	ARCH-1:1 - MIXES:Woe:(26-4-9) On Your Mind (Cash INN):Audio Files:
+__CASH.17_87.wav                                                                    	ARCH-1:1 - MIXES:Woe:(26-4-9) On Your Mind (Cash INN):Audio Files:
+__CASH.19_88.wav                                                                    	ARCH-1:1 - MIXES:Woe:(26-4-9) On Your Mind (Cash INN):Audio Files:
+__CASH.19_89.wav                                                                    	ARCH-1:1 - MIXES:Woe:(26-4-9) On Your Mind (Cash INN):Audio Files:
+__CASH.19_90.wav                                                                    	ARCH-1:1 - MIXES:Woe:(26-4-9) On Your Mind (Cash INN):Audio Files:
+__CASH.19_91.wav                                                                    	ARCH-1:1 - MIXES:Woe:(26-4-9) On Your Mind (Cash INN):Audio Files:
+__CASH.19_92.wav                                                                    	ARCH-1:1 - MIXES:Woe:(26-4-9) On Your Mind (Cash INN):Audio Files:
+__CASH.19_93.wav                                                                    	ARCH-1:1 - MIXES:Woe:(26-4-9) On Your Mind (Cash INN):Audio Files:
+__CASH.19_94.wav                                                                    	ARCH-1:1 - MIXES:Woe:(26-4-9) On Your Mind (Cash INN):Audio Files:
+__CASH.19_95.wav                                                                    	ARCH-1:1 - MIXES:Woe:(26-4-9) On Your Mind (Cash INN):Audio Files:
+__CASH.19_96.wav                                                                    	ARCH-1:1 - MIXES:Woe:(26-4-9) On Your Mind (Cash INN):Audio Files:
+__CASH.19_97.wav                                                                    	ARCH-1:1 - MIXES:Woe:(26-4-9) On Your Mind (Cash INN):Audio Files:
+__CASH.19_98.wav                                                                    	ARCH-1:1 - MIXES:Woe:(26-4-9) On Your Mind (Cash INN):Audio Files:
+__CASH.19_99.wav                                                                    	ARCH-1:1 - MIXES:Woe:(26-4-9) On Your Mind (Cash INN):Audio Files:
+__CASH.20_100.wav                                                                   	ARCH-1:1 - MIXES:Woe:(26-4-9) On Your Mind (Cash INN):Audio Files:
+__CASH.20_101.wav                                                                   	ARCH-1:1 - MIXES:Woe:(26-4-9) On Your Mind (Cash INN):Audio Files:
+__CASH.21_102.wav                                                                   	ARCH-1:1 - MIXES:Woe:(26-4-9) On Your Mind (Cash INN):Audio Files:
+__CASH.21_103.wav                                                                   	ARCH-1:1 - MIXES:Woe:(26-4-9) On Your Mind (Cash INN):Audio Files:
+__CASH.21_104.wav                                                                   	ARCH-1:1 - MIXES:Woe:(26-4-9) On Your Mind (Cash INN):Audio Files:
+__CASH.21_105.wav                                                                   	ARCH-1:1 - MIXES:Woe:(26-4-9) On Your Mind (Cash INN):Audio Files:
+__CASH.21_106.wav                                                                   	ARCH-1:1 - MIXES:Woe:(26-4-9) On Your Mind (Cash INN):Audio Files:
+__CASH.21_107.wav                                                                   	ARCH-1:1 - MIXES:Woe:(26-4-9) On Your Mind (Cash INN):Audio Files:
+__CASH.21_108.wav                                                                   	ARCH-1:1 - MIXES:Woe:(26-4-9) On Your Mind (Cash INN):Audio Files:
+__CASH.21_109.wav                                                                   	ARCH-1:1 - MIXES:Woe:(26-4-9) On Your Mind (Cash INN):Audio Files:
+__CASH.21_110.wav                                                                   	ARCH-1:1 - MIXES:Woe:(26-4-9) On Your Mind (Cash INN):Audio Files:
+__CASH.21_111.wav                                                                   	ARCH-1:1 - MIXES:Woe:(26-4-9) On Your Mind (Cash INN):Audio Files:
+__CASH.21_112.wav                                                                   	ARCH-1:1 - MIXES:Woe:(26-4-9) On Your Mind (Cash INN):Audio Files:
+__CASH.21_113.wav                                                                   	ARCH-1:1 - MIXES:Woe:(26-4-9) On Your Mind (Cash INN):Audio Files:
+__CASH.21_114.wav                                                                   	ARCH-1:1 - MIXES:Woe:(26-4-9) On Your Mind (Cash INN):Audio Files:
+__CASH.21_115.wav                                                                   	ARCH-1:1 - MIXES:Woe:(26-4-9) On Your Mind (Cash INN):Audio Files:
+__CASH.21_116.wav                                                                   	ARCH-1:1 - MIXES:Woe:(26-4-9) On Your Mind (Cash INN):Audio Files:
+__CASH.22_117.wav                                                                   	ARCH-1:1 - MIXES:Woe:(26-4-9) On Your Mind (Cash INN):Audio Files:
+__CASH.22_118.wav                                                                   	ARCH-1:1 - MIXES:Woe:(26-4-9) On Your Mind (Cash INN):Audio Files:
+__CASH.22_119.wav                                                                   	ARCH-1:1 - MIXES:Woe:(26-4-9) On Your Mind (Cash INN):Audio Files:
+__CASH.22_120.wav                                                                   	ARCH-1:1 - MIXES:Woe:(26-4-9) On Your Mind (Cash INN):Audio Files:
+__CASH.22_121.wav                                                                   	ARCH-1:1 - MIXES:Woe:(26-4-9) On Your Mind (Cash INN):Audio Files:
+__CASH.23_122.wav                                                                   	ARCH-1:1 - MIXES:Woe:(26-4-9) On Your Mind (Cash INN):Audio Files:
+__CASH.24_123.wav                                                                   	ARCH-1:1 - MIXES:Woe:(26-4-9) On Your Mind (Cash INN):Audio Files:
+__CASH.24_124.wav                                                                   	ARCH-1:1 - MIXES:Woe:(26-4-9) On Your Mind (Cash INN):Audio Files:
+__CASH.24_125.wav                                                                   	ARCH-1:1 - MIXES:Woe:(26-4-9) On Your Mind (Cash INN):Audio Files:
+__CASH.24_126.wav                                                                   	ARCH-1:1 - MIXES:Woe:(26-4-9) On Your Mind (Cash INN):Audio Files:
+__CASH.24_127.wav                                                                   	ARCH-1:1 - MIXES:Woe:(26-4-9) On Your Mind (Cash INN):Audio Files:
+__CASH.24_128.wav                                                                   	ARCH-1:1 - MIXES:Woe:(26-4-9) On Your Mind (Cash INN):Audio Files:
+__CASH.24_129.wav                                                                   	ARCH-1:1 - MIXES:Woe:(26-4-9) On Your Mind (Cash INN):Audio Files:
+__CASH.24_130.wav                                                                   	ARCH-1:1 - MIXES:Woe:(26-4-9) On Your Mind (Cash INN):Audio Files:
+__CASH.24_131.wav                                                                   	ARCH-1:1 - MIXES:Woe:(26-4-9) On Your Mind (Cash INN):Audio Files:
+__CASH.24_132.wav                                                                   	ARCH-1:1 - MIXES:Woe:(26-4-9) On Your Mind (Cash INN):Audio Files:
+__CASH.24_133.wav                                                                   	ARCH-1:1 - MIXES:Woe:(26-4-9) On Your Mind (Cash INN):Audio Files:
+__CASH.24_134.wav                                                                   	ARCH-1:1 - MIXES:Woe:(26-4-9) On Your Mind (Cash INN):Audio Files:
+__CASH.24_135.wav                                                                   	ARCH-1:1 - MIXES:Woe:(26-4-9) On Your Mind (Cash INN):Audio Files:
+__CASH.24_136.wav                                                                   	ARCH-1:1 - MIXES:Woe:(26-4-9) On Your Mind (Cash INN):Audio Files:
+__CASH.24_137.wav                                                                   	ARCH-1:1 - MIXES:Woe:(26-4-9) On Your Mind (Cash INN):Audio Files:
+__CASH.24_138.wav                                                                   	ARCH-1:1 - MIXES:Woe:(26-4-9) On Your Mind (Cash INN):Audio Files:
+__CASH.24_139.wav                                                                   	ARCH-1:1 - MIXES:Woe:(26-4-9) On Your Mind (Cash INN):Audio Files:
+__CASH.24_140.wav                                                                   	ARCH-1:1 - MIXES:Woe:(26-4-9) On Your Mind (Cash INN):Audio Files:
+__CASH.24_141.wav                                                                   	ARCH-1:1 - MIXES:Woe:(26-4-9) On Your Mind (Cash INN):Audio Files:
+__CASH.24_142.wav                                                                   	ARCH-1:1 - MIXES:Woe:(26-4-9) On Your Mind (Cash INN):Audio Files:
+__CASH.24_143.wav                                                                   	ARCH-1:1 - MIXES:Woe:(26-4-9) On Your Mind (Cash INN):Audio Files:
+__CASH.24_144.wav                                                                   	ARCH-1:1 - MIXES:Woe:(26-4-9) On Your Mind (Cash INN):Audio Files:
+__CASH.24_145.wav                                                                   	ARCH-1:1 - MIXES:Woe:(26-4-9) On Your Mind (Cash INN):Audio Files:
+__CASH.24_146.wav                                                                   	ARCH-1:1 - MIXES:Woe:(26-4-9) On Your Mind (Cash INN):Audio Files:
+__CASH.24_147.wav                                                                   	ARCH-1:1 - MIXES:Woe:(26-4-9) On Your Mind (Cash INN):Audio Files:
+__CASH.24_148.wav                                                                   	ARCH-1:1 - MIXES:Woe:(26-4-9) On Your Mind (Cash INN):Audio Files:
+__CASH.24_149.wav                                                                   	ARCH-1:1 - MIXES:Woe:(26-4-9) On Your Mind (Cash INN):Audio Files:
+__CASH.24_150.wav                                                                   	ARCH-1:1 - MIXES:Woe:(26-4-9) On Your Mind (Cash INN):Audio Files:
+__CASH.24_151.wav                                                                   	ARCH-1:1 - MIXES:Woe:(26-4-9) On Your Mind (Cash INN):Audio Files:
+__CASH.24_152.wav                                                                   	ARCH-1:1 - MIXES:Woe:(26-4-9) On Your Mind (Cash INN):Audio Files:
+__CASH.24_153.wav                                                                   	ARCH-1:1 - MIXES:Woe:(26-4-9) On Your Mind (Cash INN):Audio Files:
+__CASH.24_154.wav                                                                   	ARCH-1:1 - MIXES:Woe:(26-4-9) On Your Mind (Cash INN):Audio Files:
+__CASH.24_155.wav                                                                   	ARCH-1:1 - MIXES:Woe:(26-4-9) On Your Mind (Cash INN):Audio Files:
+__CASH.24_156.wav                                                                   	ARCH-1:1 - MIXES:Woe:(26-4-9) On Your Mind (Cash INN):Audio Files:
+__CASH.24_158.wav                                                                   	ARCH-1:1 - MIXES:Woe:(26-4-9) On Your Mind (Cash INN):Audio Files:
+__CASH.24_159.wav                                                                   	ARCH-1:1 - MIXES:Woe:(26-4-9) On Your Mind (Cash INN):Audio Files:
+__CASH.24_160.wav                                                                   	ARCH-1:1 - MIXES:Woe:(26-4-9) On Your Mind (Cash INN):Audio Files:
+__CASH.24_161.wav                                                                   	ARCH-1:1 - MIXES:Woe:(26-4-9) On Your Mind (Cash INN):Audio Files:
+__CASH.24_162.wav                                                                   	ARCH-1:1 - MIXES:Woe:(26-4-9) On Your Mind (Cash INN):Audio Files:
+__CASH.24_163.wav                                                                   	ARCH-1:1 - MIXES:Woe:(26-4-9) On Your Mind (Cash INN):Audio Files:
+__CASH.24_164.wav                                                                   	ARCH-1:1 - MIXES:Woe:(26-4-9) On Your Mind (Cash INN):Audio Files:
+__CASH.24_166.wav                                                                   	ARCH-1:1 - MIXES:Woe:(26-4-9) On Your Mind (Cash INN):Audio Files:
+__CASH.24_167.wav                                                                   	ARCH-1:1 - MIXES:Woe:(26-4-9) On Your Mind (Cash INN):Audio Files:
+__CASH.24_168.wav                                                                   	ARCH-1:1 - MIXES:Woe:(26-4-9) On Your Mind (Cash INN):Audio Files:
+__CASH.24_169.wav                                                                   	ARCH-1:1 - MIXES:Woe:(26-4-9) On Your Mind (Cash INN):Audio Files:
+__CASH.24_170.wav                                                                   	ARCH-1:1 - MIXES:Woe:(26-4-9) On Your Mind (Cash INN):Audio Files:
+__CASH.24_171.wav                                                                   	ARCH-1:1 - MIXES:Woe:(26-4-9) On Your Mind (Cash INN):Audio Files:
+__CASH.25_172.wav                                                                   	ARCH-1:1 - MIXES:Woe:(26-4-9) On Your Mind (Cash INN):Audio Files:
+__CASH.25_173.wav                                                                   	ARCH-1:1 - MIXES:Woe:(26-4-9) On Your Mind (Cash INN):Audio Files:
+__CASH.25_174.wav                                                                   	ARCH-1:1 - MIXES:Woe:(26-4-9) On Your Mind (Cash INN):Audio Files:
+__CASH.25_175.wav                                                                   	ARCH-1:1 - MIXES:Woe:(26-4-9) On Your Mind (Cash INN):Audio Files:
+__CASH.25_176.wav                                                                   	ARCH-1:1 - MIXES:Woe:(26-4-9) On Your Mind (Cash INN):Audio Files:
+__CASH.25_177.wav                                                                   	ARCH-1:1 - MIXES:Woe:(26-4-9) On Your Mind (Cash INN):Audio Files:
+__CASH.25_178.wav                                                                   	ARCH-1:1 - MIXES:Woe:(26-4-9) On Your Mind (Cash INN):Audio Files:
+__CASH.25_179.wav                                                                   	ARCH-1:1 - MIXES:Woe:(26-4-9) On Your Mind (Cash INN):Audio Files:
+__CASH.25_180.wav                                                                   	ARCH-1:1 - MIXES:Woe:(26-4-9) On Your Mind (Cash INN):Audio Files:
+__CASH.25_181.wav                                                                   	ARCH-1:1 - MIXES:Woe:(26-4-9) On Your Mind (Cash INN):Audio Files:
+__CASH.25_182.wav                                                                   	ARCH-1:1 - MIXES:Woe:(26-4-9) On Your Mind (Cash INN):Audio Files:
+__CASH.25_183.wav                                                                   	ARCH-1:1 - MIXES:Woe:(26-4-9) On Your Mind (Cash INN):Audio Files:
+__CASH.25_184.wav                                                                   	ARCH-1:1 - MIXES:Woe:(26-4-9) On Your Mind (Cash INN):Audio Files:
+__CASH.25_185.wav                                                                   	ARCH-1:1 - MIXES:Woe:(26-4-9) On Your Mind (Cash INN):Audio Files:
+__CASH.25_186.wav                                                                   	ARCH-1:1 - MIXES:Woe:(26-4-9) On Your Mind (Cash INN):Audio Files:
+__CASH.25_187.wav                                                                   	ARCH-1:1 - MIXES:Woe:(26-4-9) On Your Mind (Cash INN):Audio Files:
+__CASH.26_188.wav                                                                   	ARCH-1:1 - MIXES:Woe:(26-4-9) On Your Mind (Cash INN):Audio Files:
+__CASH.26_189.wav                                                                   	ARCH-1:1 - MIXES:Woe:(26-4-9) On Your Mind (Cash INN):Audio Files:
+__CASH.26_190.wav                                                                   	ARCH-1:1 - MIXES:Woe:(26-4-9) On Your Mind (Cash INN):Audio Files:
+__CASH.26_191.wav                                                                   	ARCH-1:1 - MIXES:Woe:(26-4-9) On Your Mind (Cash INN):Audio Files:
+__CASH.26_192.wav                                                                   	ARCH-1:1 - MIXES:Woe:(26-4-9) On Your Mind (Cash INN):Audio Files:
+__CASH.26_193.wav                                                                   	ARCH-1:1 - MIXES:Woe:(26-4-9) On Your Mind (Cash INN):Audio Files:
+__CASH.26_194.wav                                                                   	ARCH-1:1 - MIXES:Woe:(26-4-9) On Your Mind (Cash INN):Audio Files:
+__CASH.27_195.wav                                                                   	ARCH-1:1 - MIXES:Woe:(26-4-9) On Your Mind (Cash INN):Audio Files:
+__CASH.28_196.wav                                                                   	ARCH-1:1 - MIXES:Woe:(26-4-9) On Your Mind (Cash INN):Audio Files:
+__CASH.29_197.wav                                                                   	ARCH-1:1 - MIXES:Woe:(26-4-9) On Your Mind (Cash INN):Audio Files:
+__CASH.29_198.wav                                                                   	ARCH-1:1 - MIXES:Woe:(26-4-9) On Your Mind (Cash INN):Audio Files:
+__CASH.29_199.wav                                                                   	ARCH-1:1 - MIXES:Woe:(26-4-9) On Your Mind (Cash INN):Audio Files:
+
+
+O F F L I N E  F I L E S  I N  S E S S I O N
+Filename                                                                            	Location
+
+
+O N L I N E  C L I P S  I N  S E S S I O N
+CLIP NAME                                                                            	Source File
+**CASH.01_08                                                                         	__CASH.01_08.wav
+**CASH.01_09                                                                         	__CASH.01_09.wav
+**CASH.01_09-01                                                                      	__CASH.01_09.wav
+**CASH.01_10                                                                         	__CASH.01_10.wav
+**CASH.01_10-03                                                                      	__CASH.01_10.wav
+**CASH.01_10-04                                                                      	__CASH.01_10.wav
+**CASH.01_10-06                                                                      	__CASH.01_10.wav
+**CASH.01_10-08                                                                      	__CASH.01_10.wav
+**CASH.01_10-10                                                                      	__CASH.01_10.wav
+**CASH.01_10-12                                                                      	__CASH.01_10.wav
+**CASH.01_10-14                                                                      	__CASH.01_10.wav
+**CASH.01_10-16                                                                      	__CASH.01_10.wav
+**CASH.01_10-18                                                                      	__CASH.01_10.wav
+**CASH.01_10-20                                                                      	__CASH.01_10.wav
+**CASH.01_10-22                                                                      	__CASH.01_10.wav
+**CASH.01_10-24                                                                      	__CASH.01_10.wav
+**CASH.01_10-25                                                                      	__CASH.01_10.wav
+**CASH.01_10-26                                                                      	__CASH.01_10.wav
+**CASH.01_10-27                                                                      	__CASH.01_10.wav
+**CASH.01_10-28                                                                      	__CASH.01_10.wav
+**CASH.01_10-29                                                                      	__CASH.01_10.wav
+**CASH.01_10-30                                                                      	__CASH.01_10.wav
+**CASH.01_10-31                                                                      	__CASH.01_10.wav
+**CASH.01_11                                                                         	__CASH.01_11.wav
+**CASH.01_12                                                                         	__CASH.01_12.wav
+**CASH.01_13                                                                         	__CASH.01_13.wav
+**CASH.01_14                                                                         	__CASH.01_14.wav
+**CASH.01_14-01                                                                      	__CASH.01_14.wav
+**CASH.01_14-02                                                                      	__CASH.01_14.wav
+**CASH.01_15                                                                         	__CASH.01_15.wav
+**CASH.01_16                                                                         	__CASH.01_16.wav
+**CASH.01_16-01                                                                      	__CASH.01_16.wav
+**CASH.01_16-02                                                                      	__CASH.01_16.wav
+**CASH.01_16-03                                                                      	__CASH.01_16.wav
+**CASH.01_16-04                                                                      	__CASH.01_16.wav
+**CASH.01_16-05                                                                      	__CASH.01_16.wav
+**CASH.01_16-06                                                                      	__CASH.01_16.wav
+**CASH.01_16-07                                                                      	__CASH.01_16.wav
+**CASH.02_17                                                                         	__CASH.02_17.wav
+**CASH.02_17-02                                                                      	__CASH.02_17.wav
+**CASH.02_17-03                                                                      	__CASH.02_17.wav
+**CASH.02_17-05                                                                      	__CASH.02_17.wav
+**CASH.02_17-06                                                                      	__CASH.02_17.wav
+**CASH.02_18                                                                         	__CASH.02_18.wav
+**CASH.02_19                                                                         	__CASH.02_19.wav
+**CASH.02_19-01                                                                      	__CASH.02_19.wav
+**CASH.02_20                                                                         	__CASH.02_20.wav
+**CASH.02_20-01                                                                      	__CASH.02_20.wav
+**CASH.02_21                                                                         	__CASH.02_21.wav
+**CASH.02_21-01                                                                      	__CASH.02_21.wav
+**CASH.02_21-02                                                                      	__CASH.02_21.wav
+**CASH.02_21-04                                                                      	__CASH.02_21.wav
+**CASH.02_21-05                                                                      	__CASH.02_21.wav
+**CASH.02_22                                                                         	__CASH.02_22.wav
+**CASH.02_22-01                                                                      	__CASH.02_22.wav
+**CASH.02_22-02                                                                      	__CASH.02_22.wav
+**CASH.02_23                                                                         	__CASH.02_23.wav
+**CASH.02_23-01                                                                      	__CASH.02_23.wav
+**CASH.02_23-02                                                                      	__CASH.02_23.wav
+**CASH.02_23-03                                                                      	__CASH.02_23.wav
+**CASH.02_23-04                                                                      	__CASH.02_23.wav
+**CASH.02_23-05                                                                      	__CASH.02_23.wav
+**CASH.02_23-05                                                                      	__CASH.02_23.wav
+**CASH.02_23-06                                                                      	__CASH.02_23.wav
+**CASH.02_23-07                                                                      	__CASH.02_23.wav
+**CASH.02_23-07                                                                      	__CASH.02_23.wav
+**CASH.02_23-07                                                                      	__CASH.02_23.wav
+**CASH.02_24                                                                         	__CASH.02_24.wav
+**CASH.02_24-01                                                                      	__CASH.02_24.wav
+**CASH.02_25                                                                         	__CASH.02_25.wav
+**CASH.02_25-01                                                                      	__CASH.02_25.wav
+**CASH.02_25-02                                                                      	__CASH.02_25.wav
+**CASH.02_25-02                                                                      	__CASH.02_25.wav
+**CASH.02_25-04                                                                      	__CASH.02_25.wav
+**CASH.02_25-05                                                                      	__CASH.02_25.wav
+**CASH.02_25-06                                                                      	__CASH.02_25.wav
+**CASH.02_25-07                                                                      	__CASH.02_25.wav
+**CASH.03_26                                                                         	__CASH.03_26.wav
+**CASH.03_27                                                                         	__CASH.03_27.wav
+**CASH.03_27-01                                                                      	__CASH.03_27.wav
+**CASH.03_27-02                                                                      	__CASH.03_27.wav
+**CASH.03_27-03                                                                      	__CASH.03_27.wav
+**CASH.05_28                                                                         	__CASH.05_28.wav
+**CASH.05_28-01                                                                      	__CASH.05_28.wav
+**CASH.05_28-02                                                                      	__CASH.05_28.wav
+**CASH.05_28-03                                                                      	__CASH.05_28.wav
+**CASH.05_28-05                                                                      	__CASH.05_28.wav
+**CASH.06_30                                                                         	__CASH.06_30.wav
+**CASH.06_30-01                                                                      	__CASH.06_30.wav
+**CASH.06_30-01                                                                      	__CASH.06_30.wav
+**CASH.06_30-02                                                                      	__CASH.06_30.wav
+**CASH.06_30-03                                                                      	__CASH.06_30.wav
+**CASH.06_31                                                                         	__CASH.06_31.wav
+**CASH.06_31-01                                                                      	__CASH.06_31.wav
+**CASH.06_31-02                                                                      	__CASH.06_31.wav
+**CASH.06_32                                                                         	__CASH.06_32.wav
+**CASH.06_32-01                                                                      	__CASH.06_32.wav
+**CASH.06_32-02                                                                      	__CASH.06_32.wav
+**CASH.06_32-03                                                                      	__CASH.06_32.wav
+**CASH.06_32-03                                                                      	__CASH.06_32.wav
+**CASH.06_33                                                                         	__CASH.06_33.wav
+**CASH.06_33-01                                                                      	__CASH.06_33.wav
+**CASH.06_33-02                                                                      	__CASH.06_33.wav
+**CASH.06_33-03                                                                      	__CASH.06_33.wav
+**CASH.06_34                                                                         	__CASH.06_34.wav
+**CASH.06_34-04                                                                      	__CASH.06_34.wav
+**CASH.06_34-05                                                                      	__CASH.06_34.wav
+**CASH.06_34-06                                                                      	__CASH.06_34.wav
+**CASH.06_34-07                                                                      	__CASH.06_34.wav
+**CASH.06_34-08                                                                      	__CASH.06_34.wav
+**CASH.06_34-09                                                                      	__CASH.06_34.wav
+**CASH.06_34-10                                                                      	__CASH.06_34.wav
+**CASH.07_35                                                                         	__CASH.07_35.wav
+**CASH.07_35-01                                                                      	__CASH.07_35.wav
+**CASH.07_35-01                                                                      	__CASH.07_35.wav
+**CASH.07_36                                                                         	__CASH.07_36.wav
+**CASH.07_36-01                                                                      	__CASH.07_36.wav
+**CASH.07_37                                                                         	__CASH.07_37.wav
+**CASH.07_37-01                                                                      	__CASH.07_37.wav
+**CASH.08_38                                                                         	__CASH.08_38.wav
+**CASH.08_38-02                                                                      	__CASH.08_38.wav
+**CASH.08_38-03                                                                      	__CASH.08_38.wav
+**CASH.08_38-04                                                                      	__CASH.08_38.wav
+**CASH.08_38-05                                                                      	__CASH.08_38.wav
+**CASH.08_39                                                                         	__CASH.08_39.wav
+**CASH.08_39-01                                                                      	__CASH.08_39.wav
+**CASH.09_40                                                                         	__CASH.09_40.wav
+**CASH.09_40-01                                                                      	__CASH.09_40.wav
+**CASH.09_40-02                                                                      	__CASH.09_40.wav
+**CASH.09_40-03                                                                      	__CASH.09_40.wav
+**CASH.09_41                                                                         	__CASH.09_41.wav
+**CASH.09_41-01                                                                      	__CASH.09_41.wav
+**CASH.09_42                                                                         	__CASH.09_42.wav
+**CASH.09_42-01                                                                      	__CASH.09_42.wav
+**CASH.09_43                                                                         	__CASH.09_43.wav
+**CASH.09_43-01                                                                      	__CASH.09_43.wav
+**CASH.09_43-02                                                                      	__CASH.09_43.wav
+**CASH.09_43-03                                                                      	__CASH.09_43.wav
+**CASH.09_43-04                                                                      	__CASH.09_43.wav
+**CASH.09_44                                                                         	__CASH.09_44.wav
+**CASH.09_44-01                                                                      	__CASH.09_44.wav
+**CASH.09_45                                                                         	__CASH.09_45.wav
+**CASH.09_45-01                                                                      	__CASH.09_45.wav
+**CASH.09_45-03                                                                      	__CASH.09_45.wav
+**CASH.09_45-04                                                                      	__CASH.09_45.wav
+**CASH.09_45-05                                                                      	__CASH.09_45.wav
+**CASH.09_45-06                                                                      	__CASH.09_45.wav
+**CASH.09_46                                                                         	__CASH.09_46.wav
+**CASH.09_46-01                                                                      	__CASH.09_46.wav
+**CASH.09_46-02                                                                      	__CASH.09_46.wav
+**CASH.09_46-03                                                                      	__CASH.09_46.wav
+**CASH.09_47                                                                         	__CASH.09_47.wav
+**CASH.09_48                                                                         	__CASH.09_48.wav
+**CASH.09_48-01                                                                      	__CASH.09_48.wav
+**CASH.09_48-01                                                                      	__CASH.09_48.wav
+**CASH.09_49                                                                         	__CASH.09_49.wav
+**CASH.09_49-01                                                                      	__CASH.09_49.wav
+**CASH.09_49-02                                                                      	__CASH.09_49.wav
+**CASH.09_49-03                                                                      	__CASH.09_49.wav
+**CASH.09_49-04                                                                      	__CASH.09_49.wav
+**CASH.09_49-04                                                                      	__CASH.09_49.wav
+**CASH.09_49-05                                                                      	__CASH.09_49.wav
+**CASH.10_50                                                                         	__CASH.10_50.wav
+**CASH.10_51                                                                         	__CASH.10_51.wav
+**CASH.10_52                                                                         	__CASH.10_52.wav
+**CASH.10_53                                                                         	__CASH.10_53.wav
+**CASH.10_53-01                                                                      	__CASH.10_53.wav
+**CASH.10_54                                                                         	__CASH.10_54.wav
+**CASH.10_54-01                                                                      	__CASH.10_54.wav
+**CASH.10_55                                                                         	__CASH.10_55.wav
+**CASH.10_55-01                                                                      	__CASH.10_55.wav
+**CASH.10_56                                                                         	__CASH.10_56.wav
+**CASH.10_56-01                                                                      	__CASH.10_56.wav
+**CASH.10_56-02                                                                      	__CASH.10_56.wav
+**CASH.10_57                                                                         	__CASH.10_57.wav
+**CASH.10_58                                                                         	__CASH.10_58.wav
+**CASH.10_58-01                                                                      	__CASH.10_58.wav
+**CASH.10_58-02                                                                      	__CASH.10_58.wav
+**CASH.10_58-04                                                                      	__CASH.10_58.wav
+**CASH.10_58-05                                                                      	__CASH.10_58.wav
+**CASH.10_59                                                                         	__CASH.10_59.wav
+**CASH.10_59-02                                                                      	__CASH.10_59.wav
+**CASH.10_59-04                                                                      	__CASH.10_59.wav
+**CASH.10_59-05                                                                      	__CASH.10_59.wav
+**CASH.10_59-06                                                                      	__CASH.10_59.wav
+**CASH.10_59-08                                                                      	__CASH.10_59.wav
+**CASH.10_59-10                                                                      	__CASH.10_59.wav
+**CASH.10_59-11                                                                      	__CASH.10_59.wav
+**CASH.10_59-12                                                                      	__CASH.10_59.wav
+**CASH.11_60                                                                         	__CASH.11_60.wav
+**CASH.11_60-01                                                                      	__CASH.11_60.wav
+**CASH.11_60-02                                                                      	__CASH.11_60.wav
+**CASH.12_61                                                                         	__CASH.12_61.wav
+**CASH.12_62                                                                         	__CASH.12_62.wav
+**CASH.12_62-01                                                                      	__CASH.12_62.wav
+**CASH.12_62-02                                                                      	__CASH.12_62.wav
+**CASH.12_62-04                                                                      	__CASH.12_62.wav
+**CASH.12_62-05                                                                      	__CASH.12_62.wav
+**CASH.13_63                                                                         	__CASH.13_63.wav
+**CASH.13_63-01                                                                      	__CASH.13_63.wav
+**CASH.13_63-02                                                                      	__CASH.13_63.wav
+**CASH.13_63-02                                                                      	__CASH.13_63.wav
+**CASH.13_63-03                                                                      	__CASH.13_63.wav
+**CASH.14_64                                                                         	__CASH.14_64.wav
+**CASH.14_65                                                                         	__CASH.14_65.wav
+**CASH.14_65-01                                                                      	__CASH.14_65.wav
+**CASH.15_66                                                                         	__CASH.15_66.wav
+**CASH.15_66-01                                                                      	__CASH.15_66.wav
+**CASH.15_66-02                                                                      	__CASH.15_66.wav
+**CASH.15_66-03                                                                      	__CASH.15_66.wav
+**CASH.15_66-03                                                                      	__CASH.15_66.wav
+**CASH.15_67                                                                         	__CASH.15_67.wav
+**CASH.15_67-01                                                                      	__CASH.15_67.wav
+**CASH.15_68                                                                         	__CASH.15_68.wav
+**CASH.15_68-01                                                                      	__CASH.15_68.wav
+**CASH.15_68-03                                                                      	__CASH.15_68.wav
+**CASH.15_68-04                                                                      	__CASH.15_68.wav
+**CASH.15_69                                                                         	__CASH.15_69.wav
+**CASH.15_69-01                                                                      	__CASH.15_69.wav
+**CASH.15_70                                                                         	__CASH.15_70.wav
+**CASH.15_70-01                                                                      	__CASH.15_70.wav
+**CASH.15_70-02                                                                      	__CASH.15_70.wav
+**CASH.15_70-03                                                                      	__CASH.15_70.wav
+**CASH.15_70-04                                                                      	__CASH.15_70.wav
+**CASH.15_71                                                                         	__CASH.15_71.wav
+**CASH.15_71-03                                                                      	__CASH.15_71.wav
+**CASH.15_71-04                                                                      	__CASH.15_71.wav
+**CASH.15_71-05                                                                      	__CASH.15_71.wav
+**CASH.15_71-08                                                                      	__CASH.15_71.wav
+**CASH.15_71-09                                                                      	__CASH.15_71.wav
+**CASH.15_71-10                                                                      	__CASH.15_71.wav
+**CASH.15_71-11                                                                      	__CASH.15_71.wav
+**CASH.15_71-12                                                                      	__CASH.15_71.wav
+**CASH.15_71-13                                                                      	__CASH.15_71.wav
+**CASH.15_71-15                                                                      	__CASH.15_71.wav
+**CASH.16_72                                                                         	__CASH.16_72.wav
+**CASH.16_72-01                                                                      	__CASH.16_72.wav
+**CASH.16_72-02                                                                      	__CASH.16_72.wav
+**CASH.16_73                                                                         	__CASH.16_73.wav
+**CASH.16_74                                                                         	__CASH.16_74.wav
+**CASH.16_74-01                                                                      	__CASH.16_74.wav
+**CASH.16_75                                                                         	__CASH.16_75.wav
+**CASH.16_75-01                                                                      	__CASH.16_75.wav
+**CASH.16_76                                                                         	__CASH.16_76.wav
+**CASH.16_77                                                                         	__CASH.16_77.wav
+**CASH.16_77-01                                                                      	__CASH.16_77.wav
+**CASH.17_78                                                                         	__CASH.17_78.wav
+**CASH.17_78-01                                                                      	__CASH.17_78.wav
+**CASH.17_79                                                                         	__CASH.17_79.wav
+**CASH.17_79-01                                                                      	__CASH.17_79.wav
+**CASH.17_79-03                                                                      	__CASH.17_79.wav
+**CASH.17_79-04                                                                      	__CASH.17_79.wav
+**CASH.17_79-05                                                                      	__CASH.17_79.wav
+**CASH.17_80                                                                         	__CASH.17_80.wav
+**CASH.17_80-01                                                                      	__CASH.17_80.wav
+**CASH.17_80-03                                                                      	__CASH.17_80.wav
+**CASH.17_80-04                                                                      	__CASH.17_80.wav
+**CASH.17_80-05                                                                      	__CASH.17_80.wav
+**CASH.17_80-06                                                                      	__CASH.17_80.wav
+**CASH.17_80-07                                                                      	__CASH.17_80.wav
+**CASH.17_80-08                                                                      	__CASH.17_80.wav
+**CASH.17_80-09                                                                      	__CASH.17_80.wav
+**CASH.17_80-10                                                                      	__CASH.17_80.wav
+**CASH.17_80-11                                                                      	__CASH.17_80.wav
+**CASH.17_80-12                                                                      	__CASH.17_80.wav
+**CASH.17_80-13                                                                      	__CASH.17_80.wav
+**CASH.17_80-14                                                                      	__CASH.17_80.wav
+**CASH.17_80-15                                                                      	__CASH.17_80.wav
+**CASH.17_80-16                                                                      	__CASH.17_80.wav
+**CASH.17_80-17                                                                      	__CASH.17_80.wav
+**CASH.17_80-18                                                                      	__CASH.17_80.wav
+**CASH.17_80-19                                                                      	__CASH.17_80.wav
+**CASH.17_80-20                                                                      	__CASH.17_80.wav
+**CASH.17_80-21                                                                      	__CASH.17_80.wav
+**CASH.17_80-22                                                                      	__CASH.17_80.wav
+**CASH.17_81                                                                         	__CASH.17_81.wav
+**CASH.17_82                                                                         	__CASH.17_82.wav
+**CASH.17_82-02                                                                      	__CASH.17_82.wav
+**CASH.17_82-03                                                                      	__CASH.17_82.wav
+**CASH.17_82-04                                                                      	__CASH.17_82.wav
+**CASH.17_82-05                                                                      	__CASH.17_82.wav
+**CASH.17_83                                                                         	__CASH.17_83.wav
+**CASH.17_83-01                                                                      	__CASH.17_83.wav
+**CASH.17_83-02                                                                      	__CASH.17_83.wav
+**CASH.17_84                                                                         	__CASH.17_84.wav
+**CASH.17_85                                                                         	__CASH.17_85.wav
+**CASH.17_86                                                                         	__CASH.17_86.wav
+**CASH.17_87                                                                         	__CASH.17_87.wav
+**CASH.17_87-01                                                                      	__CASH.17_87.wav
+**CASH.17_87-02                                                                      	__CASH.17_87.wav
+**CASH.19_88                                                                         	__CASH.19_88.wav
+**CASH.19_88-01                                                                      	__CASH.19_88.wav
+**CASH.19_89                                                                         	__CASH.19_89.wav
+**CASH.19_89-01                                                                      	__CASH.19_89.wav
+**CASH.19_90                                                                         	__CASH.19_90.wav
+**CASH.19_91                                                                         	__CASH.19_91.wav
+**CASH.19_91-02                                                                      	__CASH.19_91.wav
+**CASH.19_91-04                                                                      	__CASH.19_91.wav
+**CASH.19_91-05                                                                      	__CASH.19_91.wav
+**CASH.19_91-06                                                                      	__CASH.19_91.wav
+**CASH.19_91-07                                                                      	__CASH.19_91.wav
+**CASH.19_91-08                                                                      	__CASH.19_91.wav
+**CASH.19_92                                                                         	__CASH.19_92.wav
+**CASH.19_92-01                                                                      	__CASH.19_92.wav
+**CASH.19_92-02                                                                      	__CASH.19_92.wav
+**CASH.19_92-03                                                                      	__CASH.19_92.wav
+**CASH.19_92-04                                                                      	__CASH.19_92.wav
+**CASH.19_92-05                                                                      	__CASH.19_92.wav
+**CASH.19_93                                                                         	__CASH.19_93.wav
+**CASH.19_93-02                                                                      	__CASH.19_93.wav
+**CASH.19_93-03                                                                      	__CASH.19_93.wav
+**CASH.19_94                                                                         	__CASH.19_94.wav
+**CASH.19_94-01                                                                      	__CASH.19_94.wav
+**CASH.19_94-02                                                                      	__CASH.19_94.wav
+**CASH.19_95                                                                         	__CASH.19_95.wav
+**CASH.19_96                                                                         	__CASH.19_96.wav
+**CASH.19_96-01                                                                      	__CASH.19_96.wav
+**CASH.19_96-02                                                                      	__CASH.19_96.wav
+**CASH.19_96-03                                                                      	__CASH.19_96.wav
+**CASH.19_96-03                                                                      	__CASH.19_96.wav
+**CASH.19_96-04                                                                      	__CASH.19_96.wav
+**CASH.19_96-05                                                                      	__CASH.19_96.wav
+**CASH.19_97                                                                         	__CASH.19_97.wav
+**CASH.19_97-02                                                                      	__CASH.19_97.wav
+**CASH.19_97-03                                                                      	__CASH.19_97.wav
+**CASH.19_98                                                                         	__CASH.19_98.wav
+**CASH.19_98-01                                                                      	__CASH.19_98.wav
+**CASH.19_99                                                                         	__CASH.19_99.wav
+**CASH.20_100                                                                        	__CASH.20_100.wav
+**CASH.20_101                                                                        	__CASH.20_101.wav
+**CASH.20_101-01                                                                     	__CASH.20_101.wav
+**CASH.20_101-02                                                                     	__CASH.20_101.wav
+**CASH.20_101-02                                                                     	__CASH.20_101.wav
+**CASH.20_101-02                                                                     	__CASH.20_101.wav
+**CASH.20_101-03                                                                     	__CASH.20_101.wav
+**CASH.21_102                                                                        	__CASH.21_102.wav
+**CASH.21_102-01                                                                     	__CASH.21_102.wav
+**CASH.21_103                                                                        	__CASH.21_103.wav
+**CASH.21_103-01                                                                     	__CASH.21_103.wav
+**CASH.21_104                                                                        	__CASH.21_104.wav
+**CASH.21_105                                                                        	__CASH.21_105.wav
+**CASH.21_105-01                                                                     	__CASH.21_105.wav
+**CASH.21_106                                                                        	__CASH.21_106.wav
+**CASH.21_106-01                                                                     	__CASH.21_106.wav
+**CASH.21_107                                                                        	__CASH.21_107.wav
+**CASH.21_108                                                                        	__CASH.21_108.wav
+**CASH.21_108-01                                                                     	__CASH.21_108.wav
+**CASH.21_109                                                                        	__CASH.21_109.wav
+**CASH.21_109-01                                                                     	__CASH.21_109.wav
+**CASH.21_110                                                                        	__CASH.21_110.wav
+**CASH.21_110-01                                                                     	__CASH.21_110.wav
+**CASH.21_111                                                                        	__CASH.21_111.wav
+**CASH.21_111-01                                                                     	__CASH.21_111.wav
+**CASH.21_112                                                                        	__CASH.21_112.wav
+**CASH.21_112-01                                                                     	__CASH.21_112.wav
+**CASH.21_112-02                                                                     	__CASH.21_112.wav
+**CASH.21_113                                                                        	__CASH.21_113.wav
+**CASH.21_113-01                                                                     	__CASH.21_113.wav
+**CASH.21_114                                                                        	__CASH.21_114.wav
+**CASH.21_114-01                                                                     	__CASH.21_114.wav
+**CASH.21_115                                                                        	__CASH.21_115.wav
+**CASH.21_115-01                                                                     	__CASH.21_115.wav
+**CASH.21_116                                                                        	__CASH.21_116.wav
+**CASH.21_116-01                                                                     	__CASH.21_116.wav
+**CASH.21_116-02                                                                     	__CASH.21_116.wav
+**CASH.21_116-03                                                                     	__CASH.21_116.wav
+**CASH.22_117                                                                        	__CASH.22_117.wav
+**CASH.22_117-01                                                                     	__CASH.22_117.wav
+**CASH.22_118                                                                        	__CASH.22_118.wav
+**CASH.22_118-01                                                                     	__CASH.22_118.wav
+**CASH.22_118-02                                                                     	__CASH.22_118.wav
+**CASH.22_118-03                                                                     	__CASH.22_118.wav
+**CASH.22_118-03                                                                     	__CASH.22_118.wav
+**CASH.22_119                                                                        	__CASH.22_119.wav
+**CASH.22_119-02                                                                     	__CASH.22_119.wav
+**CASH.22_119-03                                                                     	__CASH.22_119.wav
+**CASH.22_120                                                                        	__CASH.22_120.wav
+**CASH.22_121                                                                        	__CASH.22_121.wav
+**CASH.23_122                                                                        	__CASH.23_122.wav
+**CASH.23_122-01                                                                     	__CASH.23_122.wav
+**CASH.23_122-02                                                                     	__CASH.23_122.wav
+**CASH.23_122-03                                                                     	__CASH.23_122.wav
+**CASH.23_122-04                                                                     	__CASH.23_122.wav
+**CASH.24_123                                                                        	__CASH.24_123.wav
+**CASH.24_123-01                                                                     	__CASH.24_123.wav
+**CASH.24_124                                                                        	__CASH.24_124.wav
+**CASH.24_124-01                                                                     	__CASH.24_124.wav
+**CASH.24_125                                                                        	__CASH.24_125.wav
+**CASH.24_126                                                                        	__CASH.24_126.wav
+**CASH.24_126-01                                                                     	__CASH.24_126.wav
+**CASH.24_126-02                                                                     	__CASH.24_126.wav
+**CASH.24_127                                                                        	__CASH.24_127.wav
+**CASH.24_127-01                                                                     	__CASH.24_127.wav
+**CASH.24_127-02                                                                     	__CASH.24_127.wav
+**CASH.24_128                                                                        	__CASH.24_128.wav
+**CASH.24_128-02                                                                     	__CASH.24_128.wav
+**CASH.24_128-03                                                                     	__CASH.24_128.wav
+**CASH.24_129                                                                        	__CASH.24_129.wav
+**CASH.24_129-01                                                                     	__CASH.24_129.wav
+**CASH.24_130                                                                        	__CASH.24_130.wav
+**CASH.24_130-01                                                                     	__CASH.24_130.wav
+**CASH.24_131                                                                        	__CASH.24_131.wav
+**CASH.24_132                                                                        	__CASH.24_132.wav
+**CASH.24_133                                                                        	__CASH.24_133.wav
+**CASH.24_133-01                                                                     	__CASH.24_133.wav
+**CASH.24_133-02                                                                     	__CASH.24_133.wav
+**CASH.24_133-03                                                                     	__CASH.24_133.wav
+**CASH.24_133-04                                                                     	__CASH.24_133.wav
+**CASH.24_134                                                                        	__CASH.24_134.wav
+**CASH.24_134-01                                                                     	__CASH.24_134.wav
+**CASH.24_135                                                                        	__CASH.24_135.wav
+**CASH.24_135-01                                                                     	__CASH.24_135.wav
+**CASH.24_135-02                                                                     	__CASH.24_135.wav
+**CASH.24_136                                                                        	__CASH.24_136.wav
+**CASH.24_137                                                                        	__CASH.24_137.wav
+**CASH.24_137-01                                                                     	__CASH.24_137.wav
+**CASH.24_137-02                                                                     	__CASH.24_137.wav
+**CASH.24_137-04                                                                     	__CASH.24_137.wav
+**CASH.24_137-06                                                                     	__CASH.24_137.wav
+**CASH.24_137-07                                                                     	__CASH.24_137.wav
+**CASH.24_138                                                                        	__CASH.24_138.wav
+**CASH.24_138-01                                                                     	__CASH.24_138.wav
+**CASH.24_139                                                                        	__CASH.24_139.wav
+**CASH.24_140                                                                        	__CASH.24_140.wav
+**CASH.24_140-01                                                                     	__CASH.24_140.wav
+**CASH.24_140-02                                                                     	__CASH.24_140.wav
+**CASH.24_140-03                                                                     	__CASH.24_140.wav
+**CASH.24_140-04                                                                     	__CASH.24_140.wav
+**CASH.24_140-05                                                                     	__CASH.24_140.wav
+**CASH.24_141                                                                        	__CASH.24_141.wav
+**CASH.24_142                                                                        	__CASH.24_142.wav
+**CASH.24_142-01                                                                     	__CASH.24_142.wav
+**CASH.24_142-02                                                                     	__CASH.24_142.wav
+**CASH.24_143                                                                        	__CASH.24_143.wav
+**CASH.24_143-01                                                                     	__CASH.24_143.wav
+**CASH.24_144                                                                        	__CASH.24_144.wav
+**CASH.24_144-01                                                                     	__CASH.24_144.wav
+**CASH.24_145                                                                        	__CASH.24_145.wav
+**CASH.24_145-01                                                                     	__CASH.24_145.wav
+**CASH.24_146                                                                        	__CASH.24_146.wav
+**CASH.24_147                                                                        	__CASH.24_147.wav
+**CASH.24_147-01                                                                     	__CASH.24_147.wav
+**CASH.24_147-02                                                                     	__CASH.24_147.wav
+**CASH.24_148                                                                        	__CASH.24_148.wav
+**CASH.24_149                                                                        	__CASH.24_149.wav
+**CASH.24_150                                                                        	__CASH.24_150.wav
+**CASH.24_150-01                                                                     	__CASH.24_150.wav
+**CASH.24_150-02                                                                     	__CASH.24_150.wav
+**CASH.24_151                                                                        	__CASH.24_151.wav
+**CASH.24_151-01                                                                     	__CASH.24_151.wav
+**CASH.24_152                                                                        	__CASH.24_152.wav
+**CASH.24_152-01                                                                     	__CASH.24_152.wav
+**CASH.24_153                                                                        	__CASH.24_153.wav
+**CASH.24_153-01                                                                     	__CASH.24_153.wav
+**CASH.24_154                                                                        	__CASH.24_154.wav
+**CASH.24_155                                                                        	__CASH.24_155.wav
+**CASH.24_155-01                                                                     	__CASH.24_155.wav
+**CASH.24_155-02                                                                     	__CASH.24_155.wav
+**CASH.24_156                                                                        	__CASH.24_156.wav
+**CASH.24_158                                                                        	__CASH.24_158.wav
+**CASH.24_159                                                                        	__CASH.24_159.wav
+**CASH.24_159-01                                                                     	__CASH.24_159.wav
+**CASH.24_160                                                                        	__CASH.24_160.wav
+**CASH.24_160-01                                                                     	__CASH.24_160.wav
+**CASH.24_161                                                                        	__CASH.24_161.wav
+**CASH.24_161-01                                                                     	__CASH.24_161.wav
+**CASH.24_162                                                                        	__CASH.24_162.wav
+**CASH.24_163                                                                        	__CASH.24_163.wav
+**CASH.24_163-02                                                                     	__CASH.24_163.wav
+**CASH.24_163-04                                                                     	__CASH.24_163.wav
+**CASH.24_163-05                                                                     	__CASH.24_163.wav
+**CASH.24_163-06                                                                     	__CASH.24_163.wav
+**CASH.24_163-07                                                                     	__CASH.24_163.wav
+**CASH.24_164                                                                        	__CASH.24_164.wav
+**CASH.24_164-01                                                                     	__CASH.24_164.wav
+**CASH.24_164-02                                                                     	__CASH.24_164.wav
+**CASH.24_164-03                                                                     	__CASH.24_164.wav
+**CASH.24_166                                                                        	__CASH.24_166.wav
+**CASH.24_167                                                                        	__CASH.24_167.wav
+**CASH.24_168                                                                        	__CASH.24_168.wav
+**CASH.24_168-01                                                                     	__CASH.24_168.wav
+**CASH.24_168-02                                                                     	__CASH.24_168.wav
+**CASH.24_169                                                                        	__CASH.24_169.wav
+**CASH.24_169-01                                                                     	__CASH.24_169.wav
+**CASH.24_170                                                                        	__CASH.24_170.wav
+**CASH.24_170-01                                                                     	__CASH.24_170.wav
+**CASH.24_171                                                                        	__CASH.24_171.wav
+**CASH.24_171-01                                                                     	__CASH.24_171.wav
+**CASH.25_172                                                                        	__CASH.25_172.wav
+**CASH.25_172-01                                                                     	__CASH.25_172.wav
+**CASH.25_173                                                                        	__CASH.25_173.wav
+**CASH.25_173-01                                                                     	__CASH.25_173.wav
+**CASH.25_174                                                                        	__CASH.25_174.wav
+**CASH.25_174-02                                                                     	__CASH.25_174.wav
+**CASH.25_174-03                                                                     	__CASH.25_174.wav
+**CASH.25_175                                                                        	__CASH.25_175.wav
+**CASH.25_175-01                                                                     	__CASH.25_175.wav
+**CASH.25_176                                                                        	__CASH.25_176.wav
+**CASH.25_177                                                                        	__CASH.25_177.wav
+**CASH.25_177-01                                                                     	__CASH.25_177.wav
+**CASH.25_177-02                                                                     	__CASH.25_177.wav
+**CASH.25_178                                                                        	__CASH.25_178.wav
+**CASH.25_178-01                                                                     	__CASH.25_178.wav
+**CASH.25_179                                                                        	__CASH.25_179.wav
+**CASH.25_179-01                                                                     	__CASH.25_179.wav
+**CASH.25_180                                                                        	__CASH.25_180.wav
+**CASH.25_180-01                                                                     	__CASH.25_180.wav
+**CASH.25_181                                                                        	__CASH.25_181.wav
+**CASH.25_181-01                                                                     	__CASH.25_181.wav
+**CASH.25_182                                                                        	__CASH.25_182.wav
+**CASH.25_182-01                                                                     	__CASH.25_182.wav
+**CASH.25_183                                                                        	__CASH.25_183.wav
+**CASH.25_183-01                                                                     	__CASH.25_183.wav
+**CASH.25_184                                                                        	__CASH.25_184.wav
+**CASH.25_184-01                                                                     	__CASH.25_184.wav
+**CASH.25_184-02                                                                     	__CASH.25_184.wav
+**CASH.25_185                                                                        	__CASH.25_185.wav
+**CASH.25_186                                                                        	__CASH.25_186.wav
+**CASH.25_186-01                                                                     	__CASH.25_186.wav
+**CASH.25_187                                                                        	__CASH.25_187.wav
+**CASH.25_187-01                                                                     	__CASH.25_187.wav
+**CASH.26_188                                                                        	__CASH.26_188.wav
+**CASH.26_188-01                                                                     	__CASH.26_188.wav
+**CASH.26_189                                                                        	__CASH.26_189.wav
+**CASH.26_190                                                                        	__CASH.26_190.wav
+**CASH.26_191                                                                        	__CASH.26_191.wav
+**CASH.26_191-01                                                                     	__CASH.26_191.wav
+**CASH.26_192                                                                        	__CASH.26_192.wav
+**CASH.26_192-01                                                                     	__CASH.26_192.wav
+**CASH.26_192-02                                                                     	__CASH.26_192.wav
+**CASH.26_193                                                                        	__CASH.26_193.wav
+**CASH.26_194                                                                        	__CASH.26_194.wav
+**CASH.27_195                                                                        	__CASH.27_195.wav
+**CASH.28_196                                                                        	__CASH.28_196.wav
+**CASH.28_196-01                                                                     	__CASH.28_196.wav
+**CASH.29_197                                                                        	__CASH.29_197.wav
+**CASH.29_197-01                                                                     	__CASH.29_197.wav
+**CASH.29_198                                                                        	__CASH.29_198.wav
+**CASH.29_198-01                                                                     	__CASH.29_198.wav
+**CASH.29_199                                                                        	__CASH.29_199.wav
+**CASH.29_199-01                                                                     	__CASH.29_199.wav
+**CASH.29_199-02                                                                     	__CASH.29_199.wav
+Chicken P x Pape Type Beat _Cash Money_ (prod by bnasty) (117.5 BPM E C#m Em).L      	Chicken P x Pape Type Beat _Cash Money_ (prod by bnasty) (117.5 BPM E C#m Em).wav	[1]
+Chicken P x Pape Type Beat _Cash Money_ (prod by bnasty) (117.5 BPM E C#m Em).R      	Chicken P x Pape Type Beat _Cash Money_ (prod by bnasty) (117.5 BPM E C#m Em).wav	[2]
+_FREE_ 'Hold On Me' - Hurricane Wisdom x Loe Shimmy Type Beat (99.4 BPM Dm D Gm)-04.L	_FREE_ 'Hold On Me' - Hurricane Wisdom x Loe Shimmy Type Beat (99.4 BPM Dm D Gm).wav	[1]
+_FREE_ 'Hold On Me' - Hurricane Wisdom x Loe Shimmy Type Beat (99.4 BPM Dm D Gm)-04.R	_FREE_ 'Hold On Me' - Hurricane Wisdom x Loe Shimmy Type Beat (99.4 BPM Dm D Gm).wav	[2]
+_FREE_ 'Hold On Me' - Hurricane Wisdom x Loe Shimmy Type Beat (99.4 BPM Dm D Gm)-06.L	_FREE_ 'Hold On Me' - Hurricane Wisdom x Loe Shimmy Type Beat (99.4 BPM Dm D Gm).wav	[1]
+_FREE_ 'Hold On Me' - Hurricane Wisdom x Loe Shimmy Type Beat (99.4 BPM Dm D Gm)-06.R	_FREE_ 'Hold On Me' - Hurricane Wisdom x Loe Shimmy Type Beat (99.4 BPM Dm D Gm).wav	[2]
+_FREE_ 'Hold On Me' - Hurricane Wisdom x Loe Shimmy Type Beat (99.4 BPM Dm D Gm)-08.L	_FREE_ 'Hold On Me' - Hurricane Wisdom x Loe Shimmy Type Beat (99.4 BPM Dm D Gm).wav	[1]
+_FREE_ 'Hold On Me' - Hurricane Wisdom x Loe Shimmy Type Beat (99.4 BPM Dm D Gm)-08.R	_FREE_ 'Hold On Me' - Hurricane Wisdom x Loe Shimmy Type Beat (99.4 BPM Dm D Gm).wav	[2]
+_FREE_ 'Hold On Me' - Hurricane Wisdom x Loe Shimmy Type Beat (99.4 BPM Dm D Gm)-10.L	_FREE_ 'Hold On Me' - Hurricane Wisdom x Loe Shimmy Type Beat (99.4 BPM Dm D Gm).wav	[1]
+_FREE_ 'Hold On Me' - Hurricane Wisdom x Loe Shimmy Type Beat (99.4 BPM Dm D Gm)-10.R	_FREE_ 'Hold On Me' - Hurricane Wisdom x Loe Shimmy Type Beat (99.4 BPM Dm D Gm).wav	[2]
+_FREE_ 'Hold On Me' - Hurricane Wisdom x Loe Shimmy Type Beat (99.4 BPM Dm D Gm)-11.L	_FREE_ 'Hold On Me' - Hurricane Wisdom x Loe Shimmy Type Beat (99.4 BPM Dm D Gm).wav	[1]
+_FREE_ 'Hold On Me' - Hurricane Wisdom x Loe Shimmy Type Beat (99.4 BPM Dm D Gm)-11.R	_FREE_ 'Hold On Me' - Hurricane Wisdom x Loe Shimmy Type Beat (99.4 BPM Dm D Gm).wav	[2]
+_FREE_ 'Hold On Me' - Hurricane Wisdom x Loe Shimmy Type Beat (99.4 BPM Dm D Gm)-13.L	_FREE_ 'Hold On Me' - Hurricane Wisdom x Loe Shimmy Type Beat (99.4 BPM Dm D Gm).wav	[1]
+_FREE_ 'Hold On Me' - Hurricane Wisdom x Loe Shimmy Type Beat (99.4 BPM Dm D Gm)-13.R	_FREE_ 'Hold On Me' - Hurricane Wisdom x Loe Shimmy Type Beat (99.4 BPM Dm D Gm).wav	[2]
+_FREE_ 'Hold On Me' - Hurricane Wisdom x Loe Shimmy Type Beat (99.4 BPM Dm D Gm)-14.L	_FREE_ 'Hold On Me' - Hurricane Wisdom x Loe Shimmy Type Beat (99.4 BPM Dm D Gm).wav	[1]
+_FREE_ 'Hold On Me' - Hurricane Wisdom x Loe Shimmy Type Beat (99.4 BPM Dm D Gm)-14.R	_FREE_ 'Hold On Me' - Hurricane Wisdom x Loe Shimmy Type Beat (99.4 BPM Dm D Gm).wav	[2]
+_FREE_ 'Hold On Me' - Hurricane Wisdom x Loe Shimmy Type Beat (99.4 BPM Dm D Gm)-15.L	_FREE_ 'Hold On Me' - Hurricane Wisdom x Loe Shimmy Type Beat (99.4 BPM Dm D Gm).wav	[1]
+_FREE_ 'Hold On Me' - Hurricane Wisdom x Loe Shimmy Type Beat (99.4 BPM Dm D Gm)-15.R	_FREE_ 'Hold On Me' - Hurricane Wisdom x Loe Shimmy Type Beat (99.4 BPM Dm D Gm).wav	[2]
+_FREE_ 'Hold On Me' - Hurricane Wisdom x Loe Shimmy Type Beat (99.4 BPM Dm D Gm)-16.L	_FREE_ 'Hold On Me' - Hurricane Wisdom x Loe Shimmy Type Beat (99.4 BPM Dm D Gm).wav	[1]
+_FREE_ 'Hold On Me' - Hurricane Wisdom x Loe Shimmy Type Beat (99.4 BPM Dm D Gm)-16.R	_FREE_ 'Hold On Me' - Hurricane Wisdom x Loe Shimmy Type Beat (99.4 BPM Dm D Gm).wav	[2]
+_FREE_ 'Hold On Me' - Hurricane Wisdom x Loe Shimmy Type Beat (99.4 BPM Dm D Gm)-17.L	_FREE_ 'Hold On Me' - Hurricane Wisdom x Loe Shimmy Type Beat (99.4 BPM Dm D Gm).wav	[1]
+_FREE_ 'Hold On Me' - Hurricane Wisdom x Loe Shimmy Type Beat (99.4 BPM Dm D Gm)-17.R	_FREE_ 'Hold On Me' - Hurricane Wisdom x Loe Shimmy Type Beat (99.4 BPM Dm D Gm).wav	[2]
+_FREE_ 'Hold On Me' - Hurricane Wisdom x Loe Shimmy Type Beat (99.4 BPM Dm D Gm)-18.L	_FREE_ 'Hold On Me' - Hurricane Wisdom x Loe Shimmy Type Beat (99.4 BPM Dm D Gm).wav	[1]
+_FREE_ 'Hold On Me' - Hurricane Wisdom x Loe Shimmy Type Beat (99.4 BPM Dm D Gm)-18.R	_FREE_ 'Hold On Me' - Hurricane Wisdom x Loe Shimmy Type Beat (99.4 BPM Dm D Gm).wav	[2]
+_FREE_ 'Hold On Me' - Hurricane Wisdom x Loe Shimmy Type Beat (99.4 BPM Dm D Gm)-20.L	_FREE_ 'Hold On Me' - Hurricane Wisdom x Loe Shimmy Type Beat (99.4 BPM Dm D Gm).wav	[1]
+_FREE_ 'Hold On Me' - Hurricane Wisdom x Loe Shimmy Type Beat (99.4 BPM Dm D Gm)-20.R	_FREE_ 'Hold On Me' - Hurricane Wisdom x Loe Shimmy Type Beat (99.4 BPM Dm D Gm).wav	[2]
+_FREE_ 'Hold On Me' - Hurricane Wisdom x Loe Shimmy Type Beat (99.4 BPM Dm D Gm)-21.L	_FREE_ 'Hold On Me' - Hurricane Wisdom x Loe Shimmy Type Beat (99.4 BPM Dm D Gm).wav	[1]
+_FREE_ 'Hold On Me' - Hurricane Wisdom x Loe Shimmy Type Beat (99.4 BPM Dm D Gm)-21.R	_FREE_ 'Hold On Me' - Hurricane Wisdom x Loe Shimmy Type Beat (99.4 BPM Dm D Gm).wav	[2]
+_FREE_ 'Hold On Me' - Hurricane Wisdom x Loe Shimmy Type Beat (99.4 BPM Dm D Gm)-22.L	_FREE_ 'Hold On Me' - Hurricane Wisdom x Loe Shimmy Type Beat (99.4 BPM Dm D Gm).wav	[1]
+_FREE_ 'Hold On Me' - Hurricane Wisdom x Loe Shimmy Type Beat (99.4 BPM Dm D Gm)-22.R	_FREE_ 'Hold On Me' - Hurricane Wisdom x Loe Shimmy Type Beat (99.4 BPM Dm D Gm).wav	[2]
+_FREE_ 'Hold On Me' - Hurricane Wisdom x Loe Shimmy Type Beat (99.4 BPM Dm D Gm).L   	_FREE_ 'Hold On Me' - Hurricane Wisdom x Loe Shimmy Type Beat (99.4 BPM Dm D Gm).wav	[1]
+_FREE_ 'Hold On Me' - Hurricane Wisdom x Loe Shimmy Type Beat (99.4 BPM Dm D Gm).R   	_FREE_ 'Hold On Me' - Hurricane Wisdom x Loe Shimmy Type Beat (99.4 BPM Dm D Gm).wav	[2]
+_FREE_ Lucki Type Beat - _Whats The Use_ (152.0 BPM Em D# E)-01.L                    	_FREE_ Lucki Type Beat - _Whats The Use_ (152.0 BPM Em D# E).wav	[1]
+_FREE_ Lucki Type Beat - _Whats The Use_ (152.0 BPM Em D# E)-01.R                    	_FREE_ Lucki Type Beat - _Whats The Use_ (152.0 BPM Em D# E).wav	[2]
+_FREE_ Lucki Type Beat - _Whats The Use_ (152.0 BPM Em D# E).L                       	_FREE_ Lucki Type Beat - _Whats The Use_ (152.0 BPM Em D# E).wav	[1]
+_FREE_ Lucki Type Beat - _Whats The Use_ (152.0 BPM Em D# E).R                       	_FREE_ Lucki Type Beat - _Whats The Use_ (152.0 BPM Em D# E).wav	[2]
+
+
+P L U G - I N S  L I S T I N G
+MANUFACTURER            	PLUG-IN NAME            	VERSION         	FORMAT          	STEMS                   	NUMBER OF INSTANCES
+Antares                 	Auto-Key                	2.6.0.84        	AAX Native      	Stereo / Stereo         	1 inactive
+                        	Auto-Tune Pro           	11.6.0.2336     	AAX Native      	Mono / Mono             	19 active, 35 inactive
+Avid                    	BF-76                   	26.4.1d179      	AAX Native      	Stereo / Stereo         	3 active, 4 inactive
+                        	BF-76                   	26.4.1d179      	AAX Native      	Mono / Mono             	1 inactive
+                        	EQ3 1-Band              	26.4.1d179      	AAX Native      	Mono / Mono             	1 active
+                        	Trim                    	26.4.1d179      	AAX Native      	Mono / Mono             	2 inactive
+                        	Click II                	26.4.1d179      	AAX Native      	Mono / Mono             	1 active
+                        	Dyn3 Compressor/Limiter 	26.4.1d179      	AAX Native      	Mono / Mono             	19 active, 35 inactive
+DMGAudio                	Limitless               	1.19            	AAX Native      	Stereo / Stereo         	1 active
+FabFilter               	FabFilter Pro-Q 3       	3.25            	AAX Native      	Stereo / Stereo         	4 active, 7 inactive
+                        	FabFilter Pro-Q 3       	3.25            	AAX Native      	Mono / Mono             	1 active, 6 inactive
+                        	FabFilter Saturn 2      	2.10            	AAX Native      	Stereo / Stereo         	1 active
+Plugin Alliance         	Lindell 902 De-esser    	1.0.2           	AAX Native      	Stereo / Stereo         	1 inactive
+                        	Lindell 902 De-esser    	1.0.2           	AAX Native      	Mono / Mono             	19 active, 35 inactive
+Polyverse Music         	Wider                   	1.1.3           	AAX Native      	Stereo / Stereo         	1 active
+SoundToys               	EchoBoy Jr              	5.5.4.18982     	AAX Native      	Mono / Mono             	1 active
+                        	Little Radiator         	5.5.4.18982     	AAX Native      	Stereo / Stereo         	1 active, 1 inactive
+                        	Little MicroShift       	5.5.4.18982     	AAX Native      	Stereo / Stereo         	1 active
+Universal Audio         	UAD Pultec-Pro Legacy   	103             	AAX Native      	Stereo / Stereo         	1 active, 4 inactive
+Valhalla DSP, LLC       	ValhallaVintageVerb     	3.0.0           	AAX Native      	Stereo / Stereo         	1 active
+Waves Audio             	C1 comp                 	14.12.122.413   	AAX Native      	Stereo / Stereo         	4 active
+                        	DeEsser                 	14.12.122.413   	AAX Native      	Stereo / Stereo         	2 active
+                        	H-Delay                 	14.12.122.413   	AAX Native      	Stereo / Stereo         	3 active
+                        	H-Comp                  	14.12.122.413   	AAX Native      	Stereo / Stereo         	1 active
+                        	L1 limiter              	14.12.122.413   	AAX Native      	Stereo / Stereo         	1 active
+                        	L2                      	14.12.122.413   	AAX Native      	Stereo / Stereo         	1 active
+                        	WLM Meter               	14.25.57.618    	AAX Native      	Stereo / Stereo         	1 inactive
+                        	Scheps 73               	14.12.122.413   	AAX Native      	Stereo / Stereo         	3 inactive
+                        	RVerb                   	14.12.122.413   	AAX Native      	Stereo / Stereo         	1 active
+                        	RVox                    	14.12.122.413   	AAX Native      	Stereo / Stereo         	5 active, 4 inactive
+                        	RVox                    	14.12.122.413   	AAX Native      	Mono / Mono             	6 active, 5 inactive
+                        	SSLChannel              	14.12.122.413   	AAX Native      	Stereo / Stereo         	3 active, 4 inactive
+Wavesfactory            	Trackspacer 2.5         	2.5.10          	AAX Native      	Stereo / Stereo         	1 active, 1 bypassed
+oeksound                	soothe2                 	1.3.3           	AAX Native      	Stereo / Stereo         	1 active
+
+
+T R A C K  L I S T I N G
+TRACK NAME:	Beat (Stereo)
+COMMENTS:	Dm152
+USER DELAY:	0 Samples
+STATE: 
+PLUG-INS: 
+CHANNEL 	EVENT   	CLIP NAME                     	START TIME    	END TIME      	DURATION      	TIMESTAMP         	STATE
+1       	1       	_FREE_ 'Hold On Me' - Hurricane Wisdom x Loe Shimmy Type Beat (99.4 BPM Dm D Gm)-06.L	      1|1| 000	      9|1| 000	      8|0| 000	          1|1| 156	Unmuted
+1       	2       	(fade out)                    	      9|1| 000	      9|1| 000	      0|0| 000	          1|1| 000	Unmuted
+1       	3       	(fade in)                     	     24|4| 959	     25|1| 000	      0|0| 001	          1|1| 000	Unmuted
+1       	4       	_FREE_ 'Hold On Me' - Hurricane Wisdom x Loe Shimmy Type Beat (99.4 BPM Dm D Gm)-04.L	     25|1| 000	     33|1| 000	      8|0| 000	         33|1| 155	Unmuted
+1       	5       	_FREE_ 'Hold On Me' - Hurricane Wisdom x Loe Shimmy Type Beat (99.4 BPM Dm D Gm)-10.L	     33|1| 000	     40|4| 959	      7|3| 959	         41|1| 156	Unmuted
+1       	6       	(fade out)                    	     40|4| 959	     41|1| 000	      0|0| 001	          1|1| 000	Unmuted
+1       	7       	(fade in)                     	     56|4| 954	     56|4| 957	      0|0| 003	          1|1| 000	Unmuted
+1       	8       	_FREE_ 'Hold On Me' - Hurricane Wisdom x Loe Shimmy Type Beat (99.4 BPM Dm D Gm)-14.L	     56|4| 957	     63|4| 948	      6|3| 951	          1|1| 150	Unmuted
+1       	9       	(cross fade)                  	     63|4| 948	     64|1| 012	      0|0| 024	          1|1| 000	Unmuted
+1       	10      	_FREE_ 'Hold On Me' - Hurricane Wisdom x Loe Shimmy Type Beat (99.4 BPM Dm D Gm)-13.L	     64|1| 012	     64|2| 948	      0|1| 936	          7|3| 156	Unmuted
+1       	11      	(cross fade)                  	     64|2| 948	     64|3| 012	      0|0| 024	          1|1| 000	Unmuted
+1       	12      	_FREE_ 'Hold On Me' - Hurricane Wisdom x Loe Shimmy Type Beat (99.4 BPM Dm D Gm)-13.L	     64|3| 012	     64|4| 936	      0|1| 924	          7|3| 156	Unmuted
+1       	13      	(fade out)                    	     64|4| 936	     65|1| 000	      0|0| 024	          1|1| 000	Unmuted
+1       	14      	_FREE_ 'Hold On Me' - Hurricane Wisdom x Loe Shimmy Type Beat (99.4 BPM Dm D Gm)-11.L	    191|1| 000	    247|1| 086	     56|0| 086	         49|1| 156	Muted
+
+
+2       	1       	_FREE_ 'Hold On Me' - Hurricane Wisdom x Loe Shimmy Type Beat (99.4 BPM Dm D Gm)-06.R	      1|1| 000	      9|1| 000	      8|0| 000	          1|1| 156	Unmuted
+2       	2       	(fade out)                    	      9|1| 000	      9|1| 000	      0|0| 000	          1|1| 000	Unmuted
+2       	3       	(fade in)                     	     24|4| 959	     25|1| 000	      0|0| 001	          1|1| 000	Unmuted
+2       	4       	_FREE_ 'Hold On Me' - Hurricane Wisdom x Loe Shimmy Type Beat (99.4 BPM Dm D Gm)-04.R	     25|1| 000	     33|1| 000	      8|0| 000	         33|1| 155	Unmuted
+2       	5       	_FREE_ 'Hold On Me' - Hurricane Wisdom x Loe Shimmy Type Beat (99.4 BPM Dm D Gm)-10.R	     33|1| 000	     40|4| 959	      7|3| 959	         41|1| 156	Unmuted
+2       	6       	(fade out)                    	     40|4| 959	     41|1| 000	      0|0| 001	          1|1| 000	Unmuted
+2       	7       	(fade in)                     	     56|4| 954	     56|4| 957	      0|0| 003	          1|1| 000	Unmuted
+2       	8       	_FREE_ 'Hold On Me' - Hurricane Wisdom x Loe Shimmy Type Beat (99.4 BPM Dm D Gm)-14.R	     56|4| 957	     63|4| 948	      6|3| 951	          1|1| 150	Unmuted
+2       	9       	(cross fade)                  	     63|4| 948	     64|1| 012	      0|0| 024	          1|1| 000	Unmuted
+2       	10      	_FREE_ 'Hold On Me' - Hurricane Wisdom x Loe Shimmy Type Beat (99.4 BPM Dm D Gm)-13.R	     64|1| 012	     64|2| 948	      0|1| 936	          7|3| 156	Unmuted
+2       	11      	(cross fade)                  	     64|2| 948	     64|3| 012	      0|0| 024	          1|1| 000	Unmuted
+2       	12      	_FREE_ 'Hold On Me' - Hurricane Wisdom x Loe Shimmy Type Beat (99.4 BPM Dm D Gm)-13.R	     64|3| 012	     64|4| 936	      0|1| 924	          7|3| 156	Unmuted
+2       	13      	(fade out)                    	     64|4| 936	     65|1| 000	      0|0| 024	          1|1| 000	Unmuted
+2       	14      	_FREE_ 'Hold On Me' - Hurricane Wisdom x Loe Shimmy Type Beat (99.4 BPM Dm D Gm)-11.R	    191|1| 000	    247|1| 086	     56|0| 086	         49|1| 156	Muted
+
+
+TRACK NAME:	Beat.dup1 (Stereo)
+COMMENTS:	
+USER DELAY:	0 Samples
+STATE: 
+PLUG-INS: 
+CHANNEL 	EVENT   	CLIP NAME                     	START TIME    	END TIME      	DURATION      	TIMESTAMP         	STATE
+1       	1       	(fade in)                     	      8|4| 959	      9|1| 000	      0|0| 001	          1|1| 000	Unmuted
+1       	2       	_FREE_ 'Hold On Me' - Hurricane Wisdom x Loe Shimmy Type Beat (99.4 BPM Dm D Gm)-21.L	      9|1| 000	     16|1| 284	      7|0| 284	          9|1| 155	Unmuted
+1       	3       	(fade out)                    	     16|1| 284	     16|1| 311	      0|0| 027	          1|1| 000	Unmuted
+1       	4       	(fade in)                     	     16|2| 904	     16|2| 939	      0|0| 035	          1|1| 000	Unmuted
+1       	5       	_FREE_ 'Hold On Me' - Hurricane Wisdom x Loe Shimmy Type Beat (99.4 BPM Dm D Gm)-22.L	     16|2| 939	     17|1| 000	      0|2| 021	         16|3| 100	Unmuted
+1       	6       	_FREE_ 'Hold On Me' - Hurricane Wisdom x Loe Shimmy Type Beat (99.4 BPM Dm D Gm)-18.L	     17|1| 000	     24|4| 959	      7|3| 959	         17|1| 156	Unmuted
+1       	7       	(fade out)                    	     24|4| 959	     25|1| 000	      0|0| 001	          1|1| 000	Unmuted
+1       	8       	(fade in)                     	     40|4| 958	     40|4| 959	      0|0| 001	          1|1| 000	Unmuted
+1       	9       	_FREE_ 'Hold On Me' - Hurricane Wisdom x Loe Shimmy Type Beat (99.4 BPM Dm D Gm)-08.L	     40|4| 959	     49|1| 000	      8|0| 001	          9|1| 154	Unmuted
+1       	10      	_FREE_ 'Hold On Me' - Hurricane Wisdom x Loe Shimmy Type Beat (99.4 BPM Dm D Gm)-20.L	     49|1| 000	     56|4| 951	      7|3| 951	         17|1| 156	Unmuted
+1       	11      	(fade out)                    	     56|4| 951	     56|4| 956	      0|0| 005	          1|1| 000	Unmuted
+
+
+2       	1       	(fade in)                     	      8|4| 959	      9|1| 000	      0|0| 001	          1|1| 000	Unmuted
+2       	2       	_FREE_ 'Hold On Me' - Hurricane Wisdom x Loe Shimmy Type Beat (99.4 BPM Dm D Gm)-21.R	      9|1| 000	     16|1| 284	      7|0| 284	          9|1| 155	Unmuted
+2       	3       	(fade out)                    	     16|1| 284	     16|1| 311	      0|0| 027	          1|1| 000	Unmuted
+2       	4       	(fade in)                     	     16|2| 904	     16|2| 939	      0|0| 035	          1|1| 000	Unmuted
+2       	5       	_FREE_ 'Hold On Me' - Hurricane Wisdom x Loe Shimmy Type Beat (99.4 BPM Dm D Gm)-22.R	     16|2| 939	     17|1| 000	      0|2| 021	         16|3| 100	Unmuted
+2       	6       	_FREE_ 'Hold On Me' - Hurricane Wisdom x Loe Shimmy Type Beat (99.4 BPM Dm D Gm)-18.R	     17|1| 000	     24|4| 959	      7|3| 959	         17|1| 156	Unmuted
+2       	7       	(fade out)                    	     24|4| 959	     25|1| 000	      0|0| 001	          1|1| 000	Unmuted
+2       	8       	(fade in)                     	     40|4| 958	     40|4| 959	      0|0| 001	          1|1| 000	Unmuted
+2       	9       	_FREE_ 'Hold On Me' - Hurricane Wisdom x Loe Shimmy Type Beat (99.4 BPM Dm D Gm)-08.R	     40|4| 959	     49|1| 000	      8|0| 001	          9|1| 154	Unmuted
+2       	10      	_FREE_ 'Hold On Me' - Hurricane Wisdom x Loe Shimmy Type Beat (99.4 BPM Dm D Gm)-20.R	     49|1| 000	     56|4| 951	      7|3| 951	         17|1| 156	Unmuted
+2       	11      	(fade out)                    	     56|4| 951	     56|4| 956	      0|0| 005	          1|1| 000	Unmuted
+
+
+TRACK NAME:	_FREE_ 'Hold On Me' - Hurricane Wisdom x Loe Shimmy Type Beat (99.4 BPM Dm D Gm) (Stereo)
+COMMENTS:	
+USER DELAY:	0 Samples
+STATE: 
+PLUG-INS: 
+CHANNEL 	EVENT   	CLIP NAME                     	START TIME    	END TIME      	DURATION      	TIMESTAMP         	STATE
+
+
+
+
+TRACK NAME:	_FREE_ Lucki Type Beat - _Whats The Use_ (152.0 BPM Em D# E) (Stereo)
+COMMENTS:	
+USER DELAY:	0 Samples
+STATE: 
+PLUG-INS: 
+CHANNEL 	EVENT   	CLIP NAME                     	START TIME    	END TIME      	DURATION      	TIMESTAMP         	STATE
+
+
+
+
+TRACK NAME:	Chicken P x Pape Type Beat _Cash Money_ (prod by bnasty) (117.5 BPM E C#m Em) (Stereo)
+COMMENTS:	
+USER DELAY:	0 Samples
+STATE: 
+PLUG-INS: 
+CHANNEL 	EVENT   	CLIP NAME                     	START TIME    	END TIME      	DURATION      	TIMESTAMP         	STATE
+
+
+
+
+TRACK NAME:	WOE PL.03
+COMMENTS:	
+USER DELAY:	0 Samples
+STATE: Hidden Inactive Muted 
+PLUG-INS: 	Auto-Tune Pro (mono)	Dyn3 Compressor/Limiter (mono)	Lindell 902 De-esser (mono)
+CHANNEL 	EVENT   	CLIP NAME                     	START TIME    	END TIME      	DURATION      	TIMESTAMP         	STATE
+1       	1       	**CASH.10_59-06               	     18|2| 622	     19|1| 339	      0|2| 677	         18|2| 622	Muted
+1       	2       	**CASH.10_59-08               	     20|2| 509	     21|1| 565	      0|3| 056	         20|2| 509	Muted
+1       	3       	**CASH.10_59-10               	     22|2| 283	     23|1| 339	      0|3| 056	         22|2| 283	Muted
+
+
+TRACK NAME:	REF
+COMMENTS:	
+USER DELAY:	0 Samples
+STATE: Hidden Inactive Muted 
+PLUG-INS: 	Auto-Tune Pro (mono)	Dyn3 Compressor/Limiter (mono)	Lindell 902 De-esser (mono)
+CHANNEL 	EVENT   	CLIP NAME                     	START TIME    	END TIME      	DURATION      	TIMESTAMP         	STATE
+1       	1       	**CASH.01_14-02               	      9|2| 058	     17|2| 170	      8|0| 112	         49|2| 058	Muted
+1       	2       	**CASH.01_14-02               	     49|2| 058	     57|2| 170	      8|0| 112	         49|2| 058	Muted
+
+
+TRACK NAME:	V REF
+COMMENTS:	
+USER DELAY:	0 Samples
+STATE: Inactive Muted 
+PLUG-INS: 	Auto-Tune Pro (mono)	Dyn3 Compressor/Limiter (mono)	Lindell 902 De-esser (mono)
+CHANNEL 	EVENT   	CLIP NAME                     	START TIME    	END TIME      	DURATION      	TIMESTAMP         	STATE
+
+
+TRACK NAME:	V PL
+COMMENTS:	
+USER DELAY:	0 Samples
+STATE: Inactive Muted 
+PLUG-INS: 	Auto-Tune Pro (mono)	Dyn3 Compressor/Limiter (mono)	Lindell 902 De-esser (mono)
+CHANNEL 	EVENT   	CLIP NAME                     	START TIME    	END TIME      	DURATION      	TIMESTAMP         	STATE
+
+
+TRACK NAME:	**CASH.29
+COMMENTS:	
+USER DELAY:	0 Samples
+STATE: Inactive SoloSafe 
+PLUG-INS: 	Auto-Tune Pro (mono)	Dyn3 Compressor/Limiter (mono)	Lindell 902 De-esser (mono)
+CHANNEL 	EVENT   	CLIP NAME                     	START TIME    	END TIME      	DURATION      	TIMESTAMP         	STATE
+
+
+TRACK NAME:	WOE.dup1
+COMMENTS:	
+USER DELAY:	0 Samples
+STATE: 
+PLUG-INS: 	Auto-Tune Pro (mono)	Dyn3 Compressor/Limiter (mono)	Lindell 902 De-esser (mono)
+CHANNEL 	EVENT   	CLIP NAME                     	START TIME    	END TIME      	DURATION      	TIMESTAMP         	STATE
+1       	1       	(fade in)                     	      8|4| 932	      9|1| 071	      0|0| 099	          1|1| 000	Unmuted
+1       	2       	**CASH.20_101-02              	      9|1| 071	      9|4| 014	      0|2| 903	         18|4| 904	Unmuted
+1       	3       	(cross fade)                  	      9|4| 014	      9|4| 075	      0|0| 061	          1|1| 000	Unmuted
+1       	4       	**CASH.02_23-07               	      9|4| 075	     10|1| 396	      0|1| 321	         37|4| 106	Unmuted
+1       	5       	(cross fade)                  	     10|1| 396	     10|1| 551	      0|0| 155	          1|1| 000	Unmuted
+1       	6       	**CASH.06_32-03               	     10|1| 551	     11|1| 036	      0|3| 445	         16|1| 473	Unmuted
+1       	7       	(cross fade)                  	     11|1| 036	     11|1| 134	      0|0| 098	          1|1| 000	Unmuted
+1       	8       	**CASH.21_110-01              	     11|1| 134	     13|1| 325	      2|0| 191	         11|1| 085	Unmuted
+1       	9       	(fade out)                    	     13|1| 325	     13|1| 410	      0|0| 085	          1|1| 000	Unmuted
+1       	10      	**CASH.24_144-01              	     15|1| 113	     16|2| 254	      1|1| 141	         15|1| 198	Unmuted
+1       	11      	(fade in)                     	     17|3| 622	     17|3| 876	      0|0| 254	          1|1| 000	Unmuted
+1       	12      	**CASH.17_80-04               	     17|3| 876	     18|1| 396	      0|1| 480	         17|3| 622	Unmuted
+1       	13      	(fade out)                    	     18|1| 396	     18|1| 932	      0|0| 536	          1|1| 000	Unmuted
+1       	14      	(fade in)                     	     18|3| 622	     18|3| 763	      0|0| 141	          1|1| 000	Unmuted
+1       	15      	**CASH.17_80-11               	     18|3| 763	     19|1| 565	      0|1| 762	         18|3| 622	Unmuted
+1       	16      	(fade out)                    	     19|1| 565	     19|1| 819	      0|0| 254	          1|1| 000	Unmuted
+1       	17      	(fade in)                     	     21|3| 756	     21|3| 904	      0|0| 148	          1|1| 000	Unmuted
+1       	18      	**CASH.17_80-21               	     21|3| 904	     22|1| 438	      0|1| 494	         25|3| 756	Unmuted
+1       	19      	(fade out)                    	     22|1| 438	     22|1| 509	      0|0| 071	          1|1| 000	Unmuted
+1       	20      	(fade in)                     	     22|3| 777	     22|3| 890	      0|0| 113	          1|1| 000	Unmuted
+1       	21      	**CASH.17_79-05               	     22|3| 890	     23|1| 495	      0|1| 565	         26|3| 777	Unmuted
+1       	22      	(fade out)                    	     23|1| 495	     23|1| 622	      0|0| 127	          1|1| 000	Unmuted
+1       	23      	**CASH.25_174-03              	     24|4| 904	     26|1| 678	      1|0| 734	         28|4| 904	Unmuted
+1       	24      	(fade in)                     	     41|1| 076	     41|1| 154	      0|0| 078	          1|1| 000	Unmuted
+1       	25      	**CASH.02_23-04               	     41|1| 154	     42|1| 385	      1|0| 231	         37|1| 148	Unmuted
+1       	26      	(cross fade)                  	     42|1| 385	     42|1| 551	      0|0| 166	          1|1| 000	Unmuted
+1       	27      	**CASH.06_32-02               	     42|1| 551	     43|1| 198	      0|3| 607	         16|1| 468	Unmuted
+1       	28      	(cross fade)                  	     43|1| 198	     43|1| 424	      0|0| 226	          1|1| 000	Unmuted
+1       	29      	**CASH.06_30-02               	     43|1| 424	     45|1| 184	      1|3| 720	         15|1| 311	Unmuted
+1       	30      	(cross fade)                  	     45|1| 184	     45|1| 269	      0|0| 085	          1|1| 000	Unmuted
+1       	31      	**CASH.15_66-02               	     45|1| 269	     47|1| 127	      1|3| 818	         15|1| 226	Unmuted
+1       	32      	**CASH.09_49-04               	     47|1| 127	     49|1| 092	      1|3| 925	         31|1| 127	Unmuted
+1       	33      	(fade out)                    	     49|1| 092	     49|1| 163	      0|0| 071	          1|1| 000	Unmuted
+1       	34      	(fade in)                     	     49|3| 622	     49|3| 876	      0|0| 254	          1|1| 000	Unmuted
+1       	35      	**CASH.17_80-04               	     49|3| 876	     50|1| 396	      0|1| 480	         17|3| 622	Unmuted
+1       	36      	(fade out)                    	     50|1| 396	     50|1| 932	      0|0| 536	          1|1| 000	Unmuted
+1       	37      	(fade in)                     	     50|3| 622	     50|3| 763	      0|0| 141	          1|1| 000	Unmuted
+1       	38      	**CASH.17_80-11               	     50|3| 763	     51|1| 565	      0|1| 762	         18|3| 622	Unmuted
+1       	39      	(fade out)                    	     51|1| 565	     51|1| 819	      0|0| 254	          1|1| 000	Unmuted
+1       	40      	(fade in)                     	     53|3| 756	     53|3| 904	      0|0| 148	          1|1| 000	Unmuted
+1       	41      	**CASH.17_80-09               	     53|3| 904	     54|1| 904	      0|2| 000	         25|3| 756	Unmuted
+1       	42      	(fade in)                     	     54|3| 777	     54|3| 890	      0|0| 113	          1|1| 000	Unmuted
+1       	43      	**CASH.17_79-05               	     54|3| 890	     55|1| 495	      0|1| 565	         26|3| 777	Unmuted
+1       	44      	(fade out)                    	     55|1| 495	     55|1| 622	      0|0| 127	          1|1| 000	Unmuted
+
+
+TRACK NAME:	WOE.dup2
+COMMENTS:	
+USER DELAY:	0 Samples
+STATE: 
+PLUG-INS: 	Auto-Tune Pro (mono)	Dyn3 Compressor/Limiter (mono)	Lindell 902 De-esser (mono)
+CHANNEL 	EVENT   	CLIP NAME                     	START TIME    	END TIME      	DURATION      	TIMESTAMP         	STATE
+1       	1       	(fade in)                     	     13|1| 407	     13|1| 520	      0|0| 113	          1|1| 000	Unmuted
+1       	2       	**CASH.24_137-07              	     13|1| 520	     15|1| 520	      2|0| 000	         19|1| 396	Unmuted
+1       	3       	(fade out)                    	     15|1| 520	     15|1| 778	      0|0| 258	          1|1| 000	Unmuted
+1       	4       	(fade in)                     	     16|1| 149	     16|1| 191	      0|0| 042	          1|1| 000	Unmuted
+1       	5       	**CASH.24_155-02              	     16|1| 191	     17|1| 396	      1|0| 205	         16|1| 036	Unmuted
+1       	6       	(fade out)                    	     17|1| 396	     17|1| 565	      0|0| 169	          1|1| 000	Unmuted
+1       	7       	(fade in)                     	     19|4| 650	     19|4| 735	      0|0| 085	          1|1| 000	Unmuted
+1       	8       	**CASH.24_164-02              	     19|4| 735	     21|4| 142	      1|3| 367	         19|4| 650	Unmuted
+1       	9       	**CASH.26_188-01              	     23|3| 579	     26|1| 622	      2|2| 043	         31|3| 579	Unmuted
+1       	10      	(fade in)                     	     51|4| 537	     51|4| 735	      0|0| 198	          1|1| 000	Unmuted
+1       	11      	**CASH.19_97-03               	     51|4| 735	     53|3| 904	      1|3| 169	         55|4| 537	Unmuted
+1       	12      	(fade out)                    	     53|3| 904	     53|4| 198	      0|0| 254	          1|1| 000	Unmuted
+1       	13      	(fade in)                     	     55|3| 283	     55|3| 650	      0|0| 367	          1|1| 000	Unmuted
+1       	14      	**CASH.17_80-19               	     55|3| 650	     57|3| 876	      2|0| 226	         19|3| 283	Unmuted
+
+
+TRACK NAME:	WOE
+COMMENTS:	
+USER DELAY:	0 Samples
+STATE: Inactive 
+PLUG-INS: 	Auto-Tune Pro (mono)	Dyn3 Compressor/Limiter (mono)	Lindell 902 De-esser (mono)
+CHANNEL 	EVENT   	CLIP NAME                     	START TIME    	END TIME      	DURATION      	TIMESTAMP         	STATE
+1       	1       	**CASH.29_199-02              	     25|4| 735	     40|4| 088	     14|3| 313	         25|4| 735	Muted
+
+
+TRACK NAME:	WOE.dup4
+COMMENTS:	
+USER DELAY:	0 Samples
+STATE: Inactive Muted 
+PLUG-INS: 	Auto-Tune Pro (mono)	Dyn3 Compressor/Limiter (mono)	Lindell 902 De-esser (mono)
+CHANNEL 	EVENT   	CLIP NAME                     	START TIME    	END TIME      	DURATION      	TIMESTAMP         	STATE
+1       	1       	**CASH.29_197-01              	     25|4| 735	     40|4| 735	     15|0| 000	         25|4| 735	Muted
+
+
+TRACK NAME:	WOE.dup5
+COMMENTS:	
+USER DELAY:	0 Samples
+STATE: Inactive 
+PLUG-INS: 	Auto-Tune Pro (mono)	Dyn3 Compressor/Limiter (mono)	Lindell 902 De-esser (mono)
+CHANNEL 	EVENT   	CLIP NAME                     	START TIME    	END TIME      	DURATION      	TIMESTAMP         	STATE
+1       	1       	**CASH.26_192-01              	     23|4| 509	     26|3| 226	      2|2| 677	         23|4| 509	Muted
+1       	2       	**CASH.26_192-02              	     26|3| 226	     40|4| 154	     14|0| 888	         26|3| 226	Muted
+
+
+TRACK NAME:	WOE.dup6
+COMMENTS:	
+USER DELAY:	0 Samples
+STATE: Inactive 
+PLUG-INS: 	Auto-Tune Pro (mono)	Dyn3 Compressor/Limiter (mono)	Lindell 902 De-esser (mono)
+CHANNEL 	EVENT   	CLIP NAME                     	START TIME    	END TIME      	DURATION      	TIMESTAMP         	STATE
+
+
+TRACK NAME:	WOE.dup7
+COMMENTS:	
+USER DELAY:	0 Samples
+STATE: Inactive 
+PLUG-INS: 	Auto-Tune Pro (mono)	Dyn3 Compressor/Limiter (mono)	Lindell 902 De-esser (mono)
+CHANNEL 	EVENT   	CLIP NAME                     	START TIME    	END TIME      	DURATION      	TIMESTAMP         	STATE
+
+
+TRACK NAME:	WOE.dup8
+COMMENTS:	
+USER DELAY:	0 Samples
+STATE: Inactive 
+PLUG-INS: 	Auto-Tune Pro (mono)	Dyn3 Compressor/Limiter (mono)	Lindell 902 De-esser (mono)
+CHANNEL 	EVENT   	CLIP NAME                     	START TIME    	END TIME      	DURATION      	TIMESTAMP         	STATE
+
+
+TRACK NAME:	WOE.dup3
+COMMENTS:	
+USER DELAY:	0 Samples
+STATE: Inactive 
+PLUG-INS: 	Auto-Tune Pro (mono)	Dyn3 Compressor/Limiter (mono)	Lindell 902 De-esser (mono)
+CHANNEL 	EVENT   	CLIP NAME                     	START TIME    	END TIME      	DURATION      	TIMESTAMP         	STATE
+
+
+TRACK NAME:	WOE.dup9
+COMMENTS:	
+USER DELAY:	0 Samples
+STATE: Inactive 
+PLUG-INS: 	Auto-Tune Pro (mono)	Dyn3 Compressor/Limiter (mono)	Lindell 902 De-esser (mono)
+CHANNEL 	EVENT   	CLIP NAME                     	START TIME    	END TIME      	DURATION      	TIMESTAMP         	STATE
+
+
+TRACK NAME:	WOE.dup10
+COMMENTS:	
+USER DELAY:	0 Samples
+STATE: Inactive 
+PLUG-INS: 	Auto-Tune Pro (mono)	Dyn3 Compressor/Limiter (mono)	Lindell 902 De-esser (mono)
+CHANNEL 	EVENT   	CLIP NAME                     	START TIME    	END TIME      	DURATION      	TIMESTAMP         	STATE
+
+
+TRACK NAME:	WOE V PL
+COMMENTS:	
+USER DELAY:	0 Samples
+STATE: 
+PLUG-INS: 	Auto-Tune Pro (mono)	Dyn3 Compressor/Limiter (mono)	Lindell 902 De-esser (mono)
+CHANNEL 	EVENT   	CLIP NAME                     	START TIME    	END TIME      	DURATION      	TIMESTAMP         	STATE
+
+
+TRACK NAME:	WOE V REF
+COMMENTS:	
+USER DELAY:	0 Samples
+STATE: 
+PLUG-INS: 	Auto-Tune Pro (mono)	Dyn3 Compressor/Limiter (mono)	Lindell 902 De-esser (mono)
+CHANNEL 	EVENT   	CLIP NAME                     	START TIME    	END TIME      	DURATION      	TIMESTAMP         	STATE
+
+
+TRACK NAME:	**CASH V.01
+COMMENTS:	
+USER DELAY:	0 Samples
+STATE: 
+PLUG-INS: 	Auto-Tune Pro (mono)	Dyn3 Compressor/Limiter (mono)	Lindell 902 De-esser (mono)	FabFilter Pro-Q 3 (mono)
+CHANNEL 	EVENT   	CLIP NAME                     	START TIME    	END TIME      	DURATION      	TIMESTAMP         	STATE
+
+
+TRACK NAME:	WOE V
+COMMENTS:	
+USER DELAY:	0 Samples
+STATE: 
+PLUG-INS: 	Auto-Tune Pro (mono)	Dyn3 Compressor/Limiter (mono)	Lindell 902 De-esser (mono)
+CHANNEL 	EVENT   	CLIP NAME                     	START TIME    	END TIME      	DURATION      	TIMESTAMP         	STATE
+
+
+TRACK NAME:	WOE V.dup2
+COMMENTS:	
+USER DELAY:	0 Samples
+STATE: 
+PLUG-INS: 	Auto-Tune Pro (mono)	Dyn3 Compressor/Limiter (mono)	Lindell 902 De-esser (mono)
+CHANNEL 	EVENT   	CLIP NAME                     	START TIME    	END TIME      	DURATION      	TIMESTAMP         	STATE
+
+
+TRACK NAME:	WOE V.dup3
+COMMENTS:	
+USER DELAY:	0 Samples
+STATE: 
+PLUG-INS: 	Auto-Tune Pro (mono)	Dyn3 Compressor/Limiter (mono)	Lindell 902 De-esser (mono)
+CHANNEL 	EVENT   	CLIP NAME                     	START TIME    	END TIME      	DURATION      	TIMESTAMP         	STATE
+
+
+TRACK NAME:	WOE V.dup4
+COMMENTS:	
+USER DELAY:	0 Samples
+STATE: 
+PLUG-INS: 	Auto-Tune Pro (mono)	Dyn3 Compressor/Limiter (mono)	Lindell 902 De-esser (mono)
+CHANNEL 	EVENT   	CLIP NAME                     	START TIME    	END TIME      	DURATION      	TIMESTAMP         	STATE
+
+
+TRACK NAME:	WOE V.dup5
+COMMENTS:	
+USER DELAY:	0 Samples
+STATE: 
+PLUG-INS: 	Auto-Tune Pro (mono)	Dyn3 Compressor/Limiter (mono)	Lindell 902 De-esser (mono)
+CHANNEL 	EVENT   	CLIP NAME                     	START TIME    	END TIME      	DURATION      	TIMESTAMP         	STATE
+
+
+TRACK NAME:	WOE V.dup6
+COMMENTS:	
+USER DELAY:	0 Samples
+STATE: 
+PLUG-INS: 	Auto-Tune Pro (mono)	Dyn3 Compressor/Limiter (mono)	Lindell 902 De-esser (mono)
+CHANNEL 	EVENT   	CLIP NAME                     	START TIME    	END TIME      	DURATION      	TIMESTAMP         	STATE
+
+
+TRACK NAME:	WOE V.dup7
+COMMENTS:	
+USER DELAY:	0 Samples
+STATE: 
+PLUG-INS: 	Auto-Tune Pro (mono)	Dyn3 Compressor/Limiter (mono)	Lindell 902 De-esser (mono)
+CHANNEL 	EVENT   	CLIP NAME                     	START TIME    	END TIME      	DURATION      	TIMESTAMP         	STATE
+
+
+TRACK NAME:	WOE V.dup1
+COMMENTS:	
+USER DELAY:	0 Samples
+STATE: Hidden Inactive 
+PLUG-INS: 	Auto-Tune Pro (mono)	Dyn3 Compressor/Limiter (mono)	Lindell 902 De-esser (mono)
+CHANNEL 	EVENT   	CLIP NAME                     	START TIME    	END TIME      	DURATION      	TIMESTAMP         	STATE
+
+
+TRACK NAME:	WOE V ECHO
+COMMENTS:	
+USER DELAY:	0 Samples
+STATE: 
+PLUG-INS: 	Auto-Tune Pro (mono)	Dyn3 Compressor/Limiter (mono)	Lindell 902 De-esser (mono)	EchoBoy Jr (mono)
+CHANNEL 	EVENT   	CLIP NAME                     	START TIME    	END TIME      	DURATION      	TIMESTAMP         	STATE
+1       	1       	(fade in)                     	     18|1| 650	     18|1| 791	      0|0| 141	          1|1| 000	Muted
+1       	2       	**CASH.09_40-02               	     18|1| 791	     23|1| 565	      4|3| 734	         18|1| 650	Muted
+1       	3       	(fade in)                     	     58|1| 650	     58|1| 791	      0|0| 141	          1|1| 000	Muted
+1       	4       	**CASH.09_40-02               	     58|1| 791	     63|1| 565	      4|3| 734	         18|1| 650	Muted
+
+
+TRACK NAME:	AD PL
+COMMENTS:	
+USER DELAY:	0 Samples
+STATE: Hidden Inactive Muted 
+PLUG-INS: 	RVox (mono)	Auto-Tune Pro (mono)	Dyn3 Compressor/Limiter (mono)	Lindell 902 De-esser (mono)	FabFilter Pro-Q 3 (mono)
+CHANNEL 	EVENT   	CLIP NAME                     	START TIME    	END TIME      	DURATION      	TIMESTAMP         	STATE
+
+
+TRACK NAME:	CASH AD PL.01
+COMMENTS:	
+USER DELAY:	0 Samples
+STATE: 
+PLUG-INS: 	RVox (mono)	Auto-Tune Pro (mono)	Dyn3 Compressor/Limiter (mono)	Lindell 902 De-esser (mono)
+CHANNEL 	EVENT   	CLIP NAME                     	START TIME    	END TIME      	DURATION      	TIMESTAMP         	STATE
+1       	1       	**CASH.15_70-02               	      3|2| 169	     17|4| 198	     14|2| 029	          2|2| 169	Muted
+1       	2       	**CASH.15_70-03               	     17|4| 198	     19|2| 791	      1|2| 593	         16|4| 198	Muted
+1       	3       	**CASH.15_70-04               	     19|2| 791	     25|2| 521	      5|3| 690	         18|2| 791	Muted
+
+
+TRACK NAME:	CASH AD
+COMMENTS:	
+USER DELAY:	0 Samples
+STATE: 
+PLUG-INS: 	RVox (mono)	Auto-Tune Pro (mono)	Dyn3 Compressor/Limiter (mono)	Lindell 902 De-esser (mono)
+CHANNEL 	EVENT   	CLIP NAME                     	START TIME    	END TIME      	DURATION      	TIMESTAMP         	STATE
+1       	1       	(fade in)                     	     18|3| 606	     18|3| 630	      0|0| 024	          1|1| 000	Muted
+1       	2       	**CASH.01_10-20               	     18|3| 630	     19|1| 855	      0|2| 225	         26|3| 606	Muted
+1       	3       	(fade out)                    	     19|1| 855	     19|1| 880	      0|0| 025	          1|1| 000	Muted
+1       	4       	(fade in)                     	     20|3| 668	     20|3| 693	      0|0| 025	          1|1| 000	Unmuted
+1       	5       	**CASH.01_10-22               	     20|3| 693	     21|1| 851	      0|2| 158	         28|3| 668	Unmuted
+1       	6       	(fade out)                    	     21|1| 851	     21|1| 875	      0|0| 024	          1|1| 000	Unmuted
+1       	7       	**CASH.01_10-25               	     23|1| 339	     23|3| 689	      0|2| 350	         31|1| 339	Unmuted
+1       	8       	(fade out)                    	     23|3| 689	     23|3| 713	      0|0| 024	          1|1| 000	Unmuted
+1       	9       	(fade in)                     	     24|3| 602	     24|3| 626	      0|0| 024	          1|1| 000	Muted
+1       	10      	**CASH.01_10-26               	     24|3| 626	     25|1| 916	      0|2| 290	         32|3| 602	Muted
+1       	11      	(fade out)                    	     25|1| 916	     25|1| 940	      0|0| 024	          1|1| 000	Muted
+1       	12      	(fade in)                     	     26|3| 606	     26|3| 630	      0|0| 024	          1|1| 000	Muted
+1       	13      	**CASH.01_10-20               	     26|3| 630	     27|1| 855	      0|2| 225	         26|3| 606	Muted
+1       	14      	(fade out)                    	     27|1| 855	     27|1| 880	      0|0| 025	          1|1| 000	Muted
+1       	15      	(fade in)                     	     28|3| 668	     28|3| 693	      0|0| 025	          1|1| 000	Unmuted
+1       	16      	**CASH.01_10-22               	     28|3| 693	     29|1| 851	      0|2| 158	         28|3| 668	Unmuted
+1       	17      	(fade out)                    	     29|1| 851	     29|1| 875	      0|0| 024	          1|1| 000	Unmuted
+1       	18      	**CASH.01_10-29               	     31|1| 509	     31|3| 689	      0|2| 180	         31|1| 509	Unmuted
+1       	19      	(fade out)                    	     31|3| 689	     31|3| 713	      0|0| 024	          1|1| 000	Unmuted
+1       	20      	(fade in)                     	     32|3| 602	     32|3| 626	      0|0| 024	          1|1| 000	Unmuted
+1       	21      	**CASH.01_10-26               	     32|3| 626	     33|1| 916	      0|2| 290	         32|3| 602	Unmuted
+1       	22      	(fade out)                    	     33|1| 916	     33|1| 940	      0|0| 024	          1|1| 000	Unmuted
+1       	23      	(fade in)                     	     34|3| 606	     34|3| 630	      0|0| 024	          1|1| 000	Muted
+1       	24      	**CASH.01_10-20               	     34|3| 630	     35|1| 855	      0|2| 225	         26|3| 606	Muted
+1       	25      	(fade out)                    	     35|1| 855	     35|1| 880	      0|0| 025	          1|1| 000	Muted
+1       	26      	(fade in)                     	     36|3| 668	     36|3| 693	      0|0| 025	          1|1| 000	Muted
+1       	27      	**CASH.01_10-22               	     36|3| 693	     37|1| 851	      0|2| 158	         28|3| 668	Muted
+1       	28      	(fade out)                    	     37|1| 851	     37|1| 875	      0|0| 024	          1|1| 000	Muted
+1       	29      	(fade in)                     	     38|3| 655	     38|3| 679	      0|0| 024	          1|1| 000	Muted
+1       	30      	**CASH.01_10-24               	     38|3| 679	     39|3| 689	      1|0| 010	         30|3| 655	Muted
+1       	31      	(fade out)                    	     39|3| 689	     39|3| 713	      0|0| 024	          1|1| 000	Muted
+1       	32      	(fade in)                     	     40|3| 602	     40|3| 626	      0|0| 024	          1|1| 000	Muted
+1       	33      	**CASH.01_10-28               	     40|3| 626	     41|1| 000	      0|1| 334	         32|3| 602	Muted
+1       	34      	(fade in)                     	     50|3| 606	     50|3| 630	      0|0| 024	          1|1| 000	Muted
+1       	35      	**CASH.01_10-20               	     50|3| 630	     51|1| 855	      0|2| 225	         26|3| 606	Muted
+1       	36      	(fade out)                    	     51|1| 855	     51|1| 880	      0|0| 025	          1|1| 000	Muted
+1       	37      	(fade in)                     	     52|3| 668	     52|3| 693	      0|0| 025	          1|1| 000	Unmuted
+1       	38      	**CASH.01_10-22               	     52|3| 693	     53|1| 851	      0|2| 158	         28|3| 668	Unmuted
+1       	39      	(fade out)                    	     53|1| 851	     53|1| 875	      0|0| 024	          1|1| 000	Unmuted
+1       	40      	**CASH.01_10-25               	     55|1| 339	     55|3| 689	      0|2| 350	         31|1| 339	Unmuted
+1       	41      	(fade out)                    	     55|3| 689	     55|3| 713	      0|0| 024	          1|1| 000	Unmuted
+1       	42      	(fade in)                     	     56|3| 602	     56|3| 626	      0|0| 024	          1|1| 000	Muted
+1       	43      	**CASH.01_10-26               	     56|3| 626	     57|1| 916	      0|2| 290	         32|3| 602	Muted
+1       	44      	(fade out)                    	     57|1| 916	     57|1| 940	      0|0| 024	          1|1| 000	Muted
+1       	45      	(fade in)                     	     58|3| 606	     58|3| 630	      0|0| 024	          1|1| 000	Muted
+1       	46      	**CASH.01_10-20               	     58|3| 630	     59|1| 855	      0|2| 225	         26|3| 606	Muted
+1       	47      	(fade out)                    	     59|1| 855	     59|1| 880	      0|0| 025	          1|1| 000	Muted
+1       	48      	(fade in)                     	     60|3| 668	     60|3| 693	      0|0| 025	          1|1| 000	Unmuted
+1       	49      	**CASH.01_10-22               	     60|3| 693	     61|1| 851	      0|2| 158	         28|3| 668	Unmuted
+1       	50      	(fade out)                    	     61|1| 851	     61|1| 875	      0|0| 024	          1|1| 000	Unmuted
+1       	51      	**CASH.01_10-29               	     63|1| 509	     63|3| 689	      0|2| 180	         31|1| 509	Unmuted
+1       	52      	(fade out)                    	     63|3| 689	     63|3| 713	      0|0| 024	          1|1| 000	Unmuted
+1       	53      	(fade in)                     	     64|3| 602	     64|3| 626	      0|0| 024	          1|1| 000	Unmuted
+1       	54      	**CASH.01_10-26               	     64|3| 626	     65|1| 916	      0|2| 290	         32|3| 602	Unmuted
+1       	55      	(fade out)                    	     65|1| 916	     65|1| 940	      0|0| 024	          1|1| 000	Unmuted
+
+
+TRACK NAME:	CASH AD.dup1
+COMMENTS:	
+USER DELAY:	0 Samples
+STATE: 
+PLUG-INS: 	RVox (mono)	Auto-Tune Pro (mono)	Dyn3 Compressor/Limiter (mono)	Lindell 902 De-esser (mono)
+CHANNEL 	EVENT   	CLIP NAME                     	START TIME    	END TIME      	DURATION      	TIMESTAMP         	STATE
+1       	1       	**CASH.15_71-08               	      1|1| 000	      4|1| 678	      3|0| 678	          1|1| 000	Unmuted
+1       	2       	(cross fade)                  	      4|1| 678	      4|3| 565	      0|1| 847	          1|1| 000	Unmuted
+1       	3       	**CASH.15_71-10               	      4|3| 565	      8|2| 508	      3|2| 903	          4|2| 621	Unmuted
+1       	4       	(cross fade)                  	      8|2| 508	      8|3| 678	      0|1| 170	          1|1| 000	Unmuted
+1       	5       	**CASH.15_71-12               	      8|3| 678	     16|4| 396	      8|0| 678	          8|3| 113	Unmuted
+1       	6       	(fade out)                    	     16|4| 396	     16|4| 706	      0|0| 310	          1|1| 000	Unmuted
+1       	7       	**CASH.15_71-15               	     40|1| 679	     48|4| 396	      8|2| 677	          8|1| 679	Unmuted
+1       	8       	(fade out)                    	     48|4| 396	     48|4| 706	      0|0| 310	          1|1| 000	Unmuted
+
+
+TRACK NAME:	CASH AD.dup2
+COMMENTS:	
+USER DELAY:	0 Samples
+STATE: 
+PLUG-INS: 	RVox (mono)	Auto-Tune Pro (mono)	Dyn3 Compressor/Limiter (mono)	Lindell 902 De-esser (mono)
+CHANNEL 	EVENT   	CLIP NAME                     	START TIME    	END TIME      	DURATION      	TIMESTAMP         	STATE
+1       	1       	**CASH.25_184-02              	     24|4| 876	     26|3| 280	      1|2| 364	         24|4| 876	Unmuted
+
+
+TRACK NAME:	CASH AD.dup3
+COMMENTS:	
+USER DELAY:	0 Samples
+STATE: 
+PLUG-INS: 	RVox (mono)	Auto-Tune Pro (mono)	Dyn3 Compressor/Limiter (mono)	Lindell 902 De-esser (mono)
+CHANNEL 	EVENT   	CLIP NAME                     	START TIME    	END TIME      	DURATION      	TIMESTAMP         	STATE
+
+
+TRACK NAME:	CASH AD.dup4
+COMMENTS:	
+USER DELAY:	0 Samples
+STATE: 
+PLUG-INS: 	RVox (mono)	Auto-Tune Pro (mono)	Dyn3 Compressor/Limiter (mono)	Lindell 902 De-esser (mono)
+CHANNEL 	EVENT   	CLIP NAME                     	START TIME    	END TIME      	DURATION      	TIMESTAMP         	STATE
+
+
+TRACK NAME:	REX PL.01
+COMMENTS:	
+USER DELAY:	0 Samples
+STATE: Hidden Inactive 
+PLUG-INS: 	Auto-Tune Pro (mono)	Dyn3 Compressor/Limiter (mono)	Lindell 902 De-esser (mono)
+CHANNEL 	EVENT   	CLIP NAME                     	START TIME    	END TIME      	DURATION      	TIMESTAMP         	STATE
+
+
+TRACK NAME:	REX REF.01
+COMMENTS:	
+USER DELAY:	0 Samples
+STATE: Hidden Inactive 
+PLUG-INS: 	Auto-Tune Pro (mono)	Dyn3 Compressor/Limiter (mono)	Lindell 902 De-esser (mono)
+CHANNEL 	EVENT   	CLIP NAME                     	START TIME    	END TIME      	DURATION      	TIMESTAMP         	STATE
+
+
+TRACK NAME:	**REX.01
+COMMENTS:	
+USER DELAY:	0 Samples
+STATE: Hidden Inactive 
+PLUG-INS: 	Auto-Tune Pro (mono)	Dyn3 Compressor/Limiter (mono)	Lindell 902 De-esser (mono)	FabFilter Pro-Q 3 (mono)
+CHANNEL 	EVENT   	CLIP NAME                     	START TIME    	END TIME      	DURATION      	TIMESTAMP         	STATE
+
+
+TRACK NAME:	REX
+COMMENTS:	
+USER DELAY:	0 Samples
+STATE: Hidden Inactive 
+PLUG-INS: 	Auto-Tune Pro (mono)	Dyn3 Compressor/Limiter (mono)	Lindell 902 De-esser (mono)
+CHANNEL 	EVENT   	CLIP NAME                     	START TIME    	END TIME      	DURATION      	TIMESTAMP         	STATE
+
+
+TRACK NAME:	REX.dup1
+COMMENTS:	
+USER DELAY:	0 Samples
+STATE: Hidden Inactive 
+PLUG-INS: 	Auto-Tune Pro (mono)	Dyn3 Compressor/Limiter (mono)	Lindell 902 De-esser (mono)
+CHANNEL 	EVENT   	CLIP NAME                     	START TIME    	END TIME      	DURATION      	TIMESTAMP         	STATE
+
+
+TRACK NAME:	REX.dup2
+COMMENTS:	
+USER DELAY:	0 Samples
+STATE: Hidden Inactive 
+PLUG-INS: 	Auto-Tune Pro (mono)	Dyn3 Compressor/Limiter (mono)	Lindell 902 De-esser (mono)
+CHANNEL 	EVENT   	CLIP NAME                     	START TIME    	END TIME      	DURATION      	TIMESTAMP         	STATE
+
+
+TRACK NAME:	REX.dup3
+COMMENTS:	
+USER DELAY:	0 Samples
+STATE: Hidden Inactive 
+PLUG-INS: 	Auto-Tune Pro (mono)	Dyn3 Compressor/Limiter (mono)	Lindell 902 De-esser (mono)
+CHANNEL 	EVENT   	CLIP NAME                     	START TIME    	END TIME      	DURATION      	TIMESTAMP         	STATE
+
+
+TRACK NAME:	REX.dup4
+COMMENTS:	
+USER DELAY:	0 Samples
+STATE: Hidden Inactive 
+PLUG-INS: 	Auto-Tune Pro (mono)	Dyn3 Compressor/Limiter (mono)	Lindell 902 De-esser (mono)
+CHANNEL 	EVENT   	CLIP NAME                     	START TIME    	END TIME      	DURATION      	TIMESTAMP         	STATE
+
+
+TRACK NAME:	REX.dup5
+COMMENTS:	
+USER DELAY:	0 Samples
+STATE: Hidden Inactive 
+PLUG-INS: 	Auto-Tune Pro (mono)	Dyn3 Compressor/Limiter (mono)	Lindell 902 De-esser (mono)
+CHANNEL 	EVENT   	CLIP NAME                     	START TIME    	END TIME      	DURATION      	TIMESTAMP         	STATE
+
+
+TRACK NAME:	REX.dup6
+COMMENTS:	
+USER DELAY:	0 Samples
+STATE: Hidden Inactive 
+PLUG-INS: 	Auto-Tune Pro (mono)	Dyn3 Compressor/Limiter (mono)	Lindell 902 De-esser (mono)
+CHANNEL 	EVENT   	CLIP NAME                     	START TIME    	END TIME      	DURATION      	TIMESTAMP         	STATE
+
+
+TRACK NAME:	REX IN-OUT.01
+COMMENTS:	
+USER DELAY:	0 Samples
+STATE: Hidden Inactive 
+PLUG-INS: 	RVox (mono)	Auto-Tune Pro (mono)	Dyn3 Compressor/Limiter (mono)	Lindell 902 De-esser (mono)	FabFilter Pro-Q 3 (mono)
+CHANNEL 	EVENT   	CLIP NAME                     	START TIME    	END TIME      	DURATION      	TIMESTAMP         	STATE
+
+
+TRACK NAME:	REX IN-OUT.dup1.01
+COMMENTS:	
+USER DELAY:	0 Samples
+STATE: Hidden Inactive 
+PLUG-INS: 	RVox (mono)	Auto-Tune Pro (mono)	Dyn3 Compressor/Limiter (mono)	Lindell 902 De-esser (mono)	FabFilter Pro-Q 3 (mono)
+CHANNEL 	EVENT   	CLIP NAME                     	START TIME    	END TIME      	DURATION      	TIMESTAMP         	STATE
+
+
+TRACK NAME:	REX AD.dup1
+COMMENTS:	
+USER DELAY:	0 Samples
+STATE: Hidden Inactive 
+PLUG-INS: 	RVox (mono)	Auto-Tune Pro (mono)	Dyn3 Compressor/Limiter (mono)	Lindell 902 De-esser (mono)	FabFilter Pro-Q 3 (mono)
+CHANNEL 	EVENT   	CLIP NAME                     	START TIME    	END TIME      	DURATION      	TIMESTAMP         	STATE
+
+
+TRACK NAME:	REX AD.dup2
+COMMENTS:	
+USER DELAY:	0 Samples
+STATE: Hidden Inactive 
+PLUG-INS: 	RVox (mono)	Auto-Tune Pro (mono)	Dyn3 Compressor/Limiter (mono)	Lindell 902 De-esser (mono)	FabFilter Pro-Q 3 (mono)
+CHANNEL 	EVENT   	CLIP NAME                     	START TIME    	END TIME      	DURATION      	TIMESTAMP         	STATE
+
+
+TRACK NAME:	PL NERO
+COMMENTS:	
+USER DELAY:	0 Samples
+STATE: Hidden Inactive 
+PLUG-INS: 	Auto-Tune Pro (mono)	Dyn3 Compressor/Limiter (mono)	Lindell 902 De-esser (mono)
+CHANNEL 	EVENT   	CLIP NAME                     	START TIME    	END TIME      	DURATION      	TIMESTAMP         	STATE
+
+
+TRACK NAME:	**NERO.01
+COMMENTS:	
+USER DELAY:	0 Samples
+STATE: Hidden Inactive 
+PLUG-INS: 	Auto-Tune Pro (mono)	Dyn3 Compressor/Limiter (mono)	Lindell 902 De-esser (mono)	BF-76 (mono)
+CHANNEL 	EVENT   	CLIP NAME                     	START TIME    	END TIME      	DURATION      	TIMESTAMP         	STATE
+
+
+TRACK NAME:	NERO
+COMMENTS:	
+USER DELAY:	0 Samples
+STATE: Hidden Inactive 
+PLUG-INS: 	Auto-Tune Pro (mono)	Dyn3 Compressor/Limiter (mono)	Lindell 902 De-esser (mono)
+CHANNEL 	EVENT   	CLIP NAME                     	START TIME    	END TIME      	DURATION      	TIMESTAMP         	STATE
+
+
+TRACK NAME:	NERO AD
+COMMENTS:	
+USER DELAY:	0 Samples
+STATE: Hidden Inactive 
+PLUG-INS: 	Auto-Tune Pro (mono)	Dyn3 Compressor/Limiter (mono)	Lindell 902 De-esser (mono)
+CHANNEL 	EVENT   	CLIP NAME                     	START TIME    	END TIME      	DURATION      	TIMESTAMP         	STATE
+
+
+TRACK NAME:	NERO AD.dup1
+COMMENTS:	
+USER DELAY:	0 Samples
+STATE: Hidden Inactive 
+PLUG-INS: 	Auto-Tune Pro (mono)	Dyn3 Compressor/Limiter (mono)	Lindell 902 De-esser (mono)
+CHANNEL 	EVENT   	CLIP NAME                     	START TIME    	END TIME      	DURATION      	TIMESTAMP         	STATE
+
+
+M A R K E R S  L I S T I N G
+#   	LOCATION     	TIME REFERENCE    	UNITS    	NAME                             	TRACK NAME                       	TRACK TYPE   	COMMENTS
+1   	1|1| 000     	1|1| 000          	Ticks    	1                                	Markers                          	Ruler                            	
+2   	9|1| 000     	9|1| 000          	Ticks    	2                                	Markers                          	Ruler                            	
+7   	16|1| 311    	16|1| 311         	Ticks    	Location 7                       	Markers                          	Ruler                            	
+3   	25|1| 000    	25|1| 000         	Ticks    	3                                	Markers                          	Ruler                            	
+4   	41|1| 000    	41|1| 000         	Ticks    	4                                	Markers                          	Ruler                            	
+5   	57|1| 000    	57|1| 000         	Ticks    	5                                	Markers                          	Ruler                            	
+6   	66|3| 849    	66|3| 849         	Ticks    	6                                	Markers                          	Ruler                            	
