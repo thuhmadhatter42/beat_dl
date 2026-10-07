@@ -543,6 +543,46 @@ def edit_strips():
     return out
 
 
+def _ax_frame(el):
+    import ApplicationServices as AS
+    import dialog_clicker as dc
+    p = dc._xy(dc._ax(el, "AXPosition"), AS.kAXValueCGPointType)
+    s = dc._xy(dc._ax(el, "AXSize"), AS.kAXValueCGSizeType)
+    return (p.x, p.y, s.width, s.height) if p and s else None
+
+
+def scroll_into_view(button, lo=160, hi=980, max_steps=40) -> bool:
+    """The Edit window exposes no AX scroll bar, and AXPress on an off-screen insert does nothing.
+    Scroll the track area with synthetic wheel events (no clicks) over the Edit window until the
+    button is on screen. Only when Pro Tools is frontmost and its Edit window fills the screen, so
+    the wheel lands in Pro Tools and never in another app."""
+    import Quartz
+    import dialog_clicker as dc
+    edit = next((d for d in dc.windows() if d["title"].startswith("Edit:")), None)
+    if edit is None or not bring_pt_forward():
+        return False
+    ex, ey, ew, eh = edit["pos"][0], edit["pos"][1], edit["size"][0], edit["size"][1]
+    px, py = ex + ew * 0.55, ey + eh * 0.6          # over the tracks/timeline area of the Edit window
+    if not (ew >= 1200 and eh >= 700):
+        return False
+    Quartz.CGEventPost(Quartz.kCGHIDEventTap, Quartz.CGEventCreateMouseEvent(
+        None, Quartz.kCGEventMouseMoved, (px, py), Quartz.kCGMouseButtonLeft))
+    for _ in range(max_steps):
+        f = _ax_frame(button)
+        if f is None:
+            return False
+        y = f[1]
+        if lo <= y <= hi:
+            return True
+        if not frontmost().startswith("Pro Tools"):
+            return False
+        dy = int(max(-600, min(600, (y - (lo + hi) / 2))))
+        ev = Quartz.CGEventCreateScrollWheelEvent(None, Quartz.kCGScrollEventUnitPixel, 1, -dy)
+        Quartz.CGEventPost(Quartz.kCGHIDEventTap, ev)
+        time.sleep(0.35)
+    return False
+
+
 def plugin_window():
     import dialog_clicker as dc
     return next((d for d in dc.windows() if d["title"].startswith("Plug-in:")), None)
@@ -570,6 +610,10 @@ def read_autotune(button, shot_path) -> dict:
     import dialog_clicker as dc
     res = {"product": None, "bypassed": None, "key": None, "scale": None, "retune": None, "ok": False}
     close_plugin_window()
+    f = _ax_frame(button)
+    if f and not (0 <= f[1] <= 1060):
+        if not scroll_into_view(button):
+            res["err"] = "could not scroll into view"; return res
     if AS.AXUIElementPerformAction(button, "AXPress") != 0:
         res["err"] = "press failed"; return res
     w = None
@@ -579,7 +623,8 @@ def read_autotune(button, shot_path) -> dict:
         if w:
             break
     if not w:
-        res["err"] = "no plug-in window"; return res
+        # on screen + pressed + no window = the insert is INACTIVE (italic): no evidence (spec §7.4)
+        res["err"] = "no plug-in window (inactive insert)"; res["inactive"] = True; return res
     try:
         time.sleep(1.5)                       # let the GUI paint
         stack = [(w["el"], 0)]

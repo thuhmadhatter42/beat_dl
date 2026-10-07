@@ -258,15 +258,20 @@ def _stage_autotune(n, tl) -> dict:
         cands.append((rank, name, btns[0]))
     cands.sort()
     out = {"n_candidates": len(cands), "reads": [], "filter": dict(why), "n_strips": len(strips)}
-    for i, (rank, name, (slot, val, b)) in enumerate(cands[:3]):
+    for i, (rank, name, (slot, val, b)) in enumerate(cands[:8]):    # up to 3 active instances, 8 tries
         r = hlib.read_autotune(b, CROPS / f"{n:04d}-autotune-{i}.png")
         r["slot"] = slot; r["lead_named"] = rank[0] == 0
         out["reads"].append(r)
+        if sum(1 for x in out["reads"] if not x.get("inactive")) >= 3:
+            break
+        if sum(1 for x in out["reads"] if x.get("inactive")) >= 3 and not any(x.get("ok") for x in out["reads"]):
+            break                                           # J: untuned songs have their Auto-Tunes inactive
     reads = [r for r in out["reads"] if r.get("ok")]
     out["products"] = [r.get("product") for r in out["reads"]]
     out["speeds"] = [r.get("retune") for r in out["reads"]]
     keys = {(r["key"], (r["scale"] or "").lower()) for r in reads}
     off = [r for r in reads if r.get("bypassed") or (r.get("product") and "Pro" in r["product"] and (r.get("retune") or 0) >= 100)]
+    n_inactive = sum(1 for r in out["reads"] if r.get("inactive"))
     out["reliable"] = int(len(reads) >= 2 and not off and len(keys) == 1)
     if keys and len(keys) == 1:
         k, s = next(iter(keys))
@@ -278,8 +283,10 @@ def _stage_autotune(n, tl) -> dict:
         det.append("keys disagree: " + ", ".join(f"{k} {s}" for k, s in sorted(keys)))
     if off:
         det.append(f"{len(off)} bypassed/off")
-    if len(reads) < len(out["reads"]):
-        det.append(f"{len(out['reads']) - len(reads)} unread")
+    if n_inactive:
+        det.append(f"{n_inactive} inactive")
+    if len(reads) + n_inactive < len(out["reads"]):
+        det.append(f"{len(out['reads']) - len(reads) - n_inactive} unread")
     if len(out["reads"]) < 2:
         det.append(f"only {len(out['reads'])} lead Auto-Tune instance(s) "
                    f"({out['n_strips']} strips with Auto-Tune; {out['filter']})")
@@ -311,32 +318,36 @@ def stage_bounce(c, n, meta, sr):
         if end <= sr * 10:
             out["note"] = "beat clips end before 10 s"
             return out
-        for frac in (0.5, 0.25):          # rule zero: probe before a full print; 2nd spot if the 1st is a gap
+        def probe(src, frac):
             a = int(end * frac)
             hlib.set_selection_samples(c, a, int(a + 8 * sr))
-            st, body = hlib.export_mix(c, str(AUDIO), f"probe-{n:04d}", int(sr), source, timeout=600)
+            st, body = hlib.export_mix(c, str(AUDIO), f"probe-{n:04d}", int(sr), src, timeout=600)
             pp = AUDIO / f"probe-{n:04d}.wav"
-            out["probe_db"] = hlib.mean_db(pp) if pp.exists() else None
+            db_ = hlib.mean_db(pp) if pp.exists() else None
             if pp.exists():
                 pp.unlink()
-            if st != "Completed" or out["probe_db"] is None:
-                out["note"] = f"probe export {st}"
-                return out
-            if out["probe_db"] > -50:
+            return st, db_
+        # rule zero: probe before a full print (2 spots in case the 1st is a gap); if the usual output
+        # prints silence, try the session's other outputs (some masters feed a print chain / other I/O)
+        tried = []
+        for src in [source] + [x for x in srcs if x != source][:4]:
+            for frac in (0.5, 0.25):
+                st, db_ = probe(src, frac)
+                tried.append(f"{src}:{db_}")
+                out["probe_db"] = db_
+                if st == "Completed" and db_ is not None and db_ > -50:
+                    break
+            if out["probe_db"] is not None and out["probe_db"] > -50:
+                if src != source:
+                    out["note"] = f"beat printed on output '{src}' (not '{source}')"
+                source = src
                 break
-        if out["probe_db"] <= -50:
-            # tell "beat isolation is silent" from "this output prints silence at all" (SSL / print-chain)
+        if out["probe_db"] is None or out["probe_db"] <= -50:
             for nm, _ in meta["solo"]:
                 hlib.solo(c, nm, False)
-            a = int(end * 0.5)
-            hlib.set_selection_samples(c, a, int(a + 8 * sr))
-            st, body = hlib.export_mix(c, str(AUDIO), f"probe-{n:04d}", int(sr), source, timeout=600)
-            pp = AUDIO / f"probe-{n:04d}.wav"
-            mix_db = hlib.mean_db(pp) if pp.exists() else None
-            if pp.exists():
-                pp.unlink()
-            out["note"] = (f"silent probe (SSL session?); unsoloed mix probe {mix_db} dB on output '{source}' "
-                           f"({len(srcs)} outputs)")
+            st, mix_db = probe(source, 0.5)
+            out["note"] = (f"silent probe (SSL session?); probes {tried}; unsoloed mix probe {mix_db} dB "
+                           f"on '{source}'")
             return out
         hlib.set_selection_samples(c, 0, int(min(end + sr, end * 1.02)))
         st, body = hlib.export_mix(c, str(AUDIO), f"{n:04d}", int(sr), source, timeout=3600)
@@ -441,7 +452,7 @@ def run_one(n, already_open=False, keep_open=False) -> dict:
                            retune_speeds=json.dumps(at["speeds"]), autotune_product=json.dumps(at["products"]),
                            disagreement_detail=at["detail"],
                            autotune_reads=json.dumps([{k: r.get(k) for k in ("slot", "product", "bypassed", "bypass_rgb", "key",
-                                                       "scale", "retune", "ok", "lead_named", "err")} for r in at["reads"]]))
+                                                       "scale", "retune", "ok", "lead_named", "err", "inactive", "key_votes")} for r in at["reads"]]))
             except Exception as ex:
                 rec["notes"].append(f"autotune read error {type(ex).__name__}")
                 hlib.close_plugin_window()
