@@ -69,12 +69,59 @@ def _ax(el, attr):
     return v if err == 0 else None
 
 
-def _pt_app():
+def _apps(match):
+    """AX app elements of running apps whose name satisfies match(name); 3 s AX messaging timeout so a
+    busy app can never hang the clicker."""
     from AppKit import NSWorkspace
     import ApplicationServices as AS
+    out = []
     for a in NSWorkspace.sharedWorkspace().runningApplications():
-        if str(a.localizedName() or "").startswith("Pro Tools"):
-            return AS.AXUIElementCreateApplication(a.processIdentifier())
+        if match(str(a.localizedName() or "")):
+            el = AS.AXUIElementCreateApplication(a.processIdentifier())
+            try:
+                AS.AXUIElementSetMessagingTimeout(el, 3.0)
+            except Exception:
+                pass
+            out.append(el)
+    return out
+
+
+def _pt_app():
+    a = _apps(lambda n: n.startswith("Pro Tools"))
+    return a[0] if a else None
+
+
+# Licence helpers that pop up over a session open (seen 2026-10-07 05:00): declining keeps everything as it
+# is (no activation, no licence or preference change; "Don't show this again" is never ticked). Pressed only
+# when the label is in approved-dialogs.txt.
+LICENSE_APP = re.compile(r"PACE|iLok|Eden|License", re.I)
+LICENSE_RULES = [
+    ("iLok Enable Network Licenses -> No", r"Enable\s+Network\s+Licenses", r"^No$"),
+    ("PACE Activation is required -> Quit", r"Activation\s+is\s+required", r"^Quit$"),
+]
+
+
+def scan_licenses():
+    ok = approved_labels()
+    for app in _apps(lambda n: bool(LICENSE_APP.search(n))):
+        for d in windows(app):
+            text = d["title"] + "\n" + "\n".join(d["texts"])
+            for label, trx, brx in LICENSE_RULES:
+                if not re.search(trx, text, re.I):
+                    continue
+                btn = next((el for t, el in d["buttons"] if re.match(brx, t.strip(), re.I)), None)
+                if btn is None or label not in ok:
+                    sig = ("licence", label, btn is None)
+                    if sig not in _unknown_seen:
+                        _unknown_seen.add(sig)
+                        log(f"licence dialog [{label}] seen, not pressed (approved={label in ok}, button={btn is not None})")
+                    continue
+                if DRY:
+                    log(f"{label}: matched (dry-run)")
+                else:
+                    log(f"{label}: pressed={press(btn)}")
+                    time.sleep(1.5)
+                return label
     return None
 
 
@@ -86,10 +133,10 @@ def _xy(v, kind):
     return val if ok else None
 
 
-def windows():
-    """-> [{'title','texts','buttons':[(title, element)], 'pos', 'size'}] for PT windows."""
+def windows(app=None):
+    """-> [{'title','texts','buttons':[(title, element)], 'pos', 'size'}] for PT windows (or app's)."""
     import ApplicationServices as AS
-    app = _pt_app()
+    app = app if app is not None else _pt_app()
     if app is None:
         return []
     out = []
@@ -138,6 +185,9 @@ def is_dialog(d) -> bool:
 def scan_once():
     global _last_activate
     import hlib
+    lic = scan_licenses()
+    if lic:
+        return lic
     dialogs = [d for d in windows() if is_dialog(d)]
     if not dialogs:
         return None

@@ -35,6 +35,7 @@ INFO = H / "info"
 LOGDIR = H / "logs"
 STOP = H / "STOP"
 OPEN_TIMEOUT = 1500       # ARA restore alone took 607 s on the first session
+WATCHDOG_S = 1800        # after the open completes (healthy sessions finish in < 12 min)
 USABLE = ("confirmed", "tempo-only")
 KEY_READ = "--no-key" not in sys.argv
 MIX = "--no-mix" not in sys.argv          # J 01:08: also print the full mix of every usable session
@@ -609,6 +610,18 @@ def run_one(n, already_open=False, keep_open=False) -> dict:
                 opened = hlib.session_open(c)
                 return rec
             opened = True
+        # watchdog: a healthy session needs < 12 min after the open; past WATCHDOG_S Pro Tools is stuck (busy
+        # relink search, licence helper, AX walk of a huge session): kill it so every blocking call fails fast,
+        # the row becomes an error and batch() relaunches Pro Tools (plan §6: hung > 10 min -> kill, relaunch)
+        import threading
+
+        def _wd():
+            say(f"#{n:04d} watchdog: still in the session {WATCHDOG_S // 60} min after the open: killing Pro Tools")
+            subprocess.run(["screencapture", "-x", str(H / "shots" / f"watchdog-{n:04d}.png")])
+            subprocess.run(["pkill", "-9", "-f", r"Pro Tools[^/]*\.app/Contents/MacOS/Pro Tools$"])
+            rec["_wd_fired"] = True
+        wd = threading.Timer(WATCHDOG_S, _wd); wd.daemon = True; wd.start()
+        rec["_wd"] = wd
         scr = stage_screen(n)
         meter = scr["ax_meter"]
         rec.update(session_tempo=scr["ax_tempo"], tempo_raw=scr["ax_tempo_raw"], meter=meter,
@@ -721,6 +734,11 @@ def run_one(n, already_open=False, keep_open=False) -> dict:
                 rec["close"] = stage_close(c)
             except BaseException as ex:
                 rec["close"] = f"error {type(ex).__name__}"
+        wd = rec.pop("_wd", None)
+        if wd is not None:
+            wd.cancel()
+        if rec.pop("_wd_fired", False):
+            rec["notes"].append("watchdog killed Pro Tools")
         rec["elapsed_s"] = round(time.time() - t0, 1)
         try:
             w = source_writes(e["ptx"], t0 - 1)
@@ -863,6 +881,10 @@ def _gate():
     b = blocked()
     if b:
         say("BLOCKED:", b); return 3
+    if not hlib._port_open() or not subprocess.run(["pgrep", "-f", r"Pro Tools[^/]*\.app/Contents/MacOS/Pro Tools$"],
+                                                   capture_output=True).stdout.strip():
+        say("Pro Tools is not running: launching it")
+        relaunch_pt()
     c = hlib.client()
     if hlib.session_open(c):
         hlib.close_no_save(c)
@@ -870,7 +892,8 @@ def _gate():
 
 
 def _after_error(n, status, notes, fails_in_row):
-    if status in ("error-open", "error-_InactiveRpcError", "error-PtslError") or "deadline" in str(notes).lower():
+    if status in ("error-open", "error-_InactiveRpcError", "error-PtslError") or "deadline" in str(notes).lower() \
+            or "watchdog" in str(notes):
         shot = H / "shots" / f"error-{n:04d}.png"
         subprocess.run(["screencapture", "-x", str(shot)])
         if blocked():

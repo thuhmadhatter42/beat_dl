@@ -6,3 +6,4 @@ awk '/harvest batch start/{b=""} {b=b $0 "\n"} END{printf "%s", b}' logs/batch.l
 [ -f BLOCKED ] && echo "BLOCKED: $(cat BLOCKED)"
 [ -f STOP ] && echo "STOP present"
 [ -f batch.pid ] && kill -0 "$(cat batch.pid)" 2>/dev/null && echo "supervisor alive" || echo "supervisor NOT running"
+echo "-- clicker:"; tail -n 3 logs/clicker.log | cut -c1-160
