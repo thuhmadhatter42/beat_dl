@@ -12,11 +12,46 @@ log_download() {
     printf "Downloaded: %s\n\n" "$1" >> "$LOG_FILE"
 }
 
+# Detect BPM + key into $bpm $key1 $key2 $key3 (empty bpm = analysis failed)
+analyze() {
+    echo "Analyzing..."
+    local analysis
+    analysis=$("$PY" "$SCRIPT_DIR/bpm.py" "$1" 2>/dev/null) || analysis=""
+    bpm=$(echo "$analysis" | sed -n '1p')
+    key1=$(echo "$analysis" | sed -n '2p')
+    key2=$(echo "$analysis" | sed -n '3p')
+    key3=$(echo "$analysis" | sed -n '4p')
+}
+
+# A dropped beat: show BPM + key, leave the file as it is
+analyze_beat() {
+    echo ""
+    echo "$(basename "$1")"
+    analyze "$1"
+    if [ -n "$bpm" ]; then
+        echo "BPM: $bpm"
+        echo "Key: $key1 | $key2 | $key3"
+    else
+        echo "Couldn't analyze that file."
+    fi
+}
+
 while true; do
-    printf "\nInput URL: "
+    printf "\nURL/Beat: "
     read -r url
 
     [ -z "$url" ] && break
+
+    if [[ "$url" != http://* && "$url" != https://* ]]; then
+        beats=$("$PY" "$SCRIPT_DIR/dropped.py" "$url")
+        case $? in
+            0) while IFS= read -r beat; do
+                   analyze_beat "$beat"
+               done <<< "$beats"
+               continue ;;
+            1) continue ;;
+        esac
+    fi
 
     echo "Downloading..."
 
@@ -35,14 +70,7 @@ while true; do
         fi
     fi
 
-    # Detect BPM + key (4 lines: BPM, key1, key2, key3)
-    echo "Analyzing..."
-    analysis=$("$PY" "$SCRIPT_DIR/bpm.py" "$filepath" 2>/dev/null) || analysis=""
-
-    bpm=$(echo "$analysis" | sed -n '1p')
-    key1=$(echo "$analysis" | sed -n '2p')
-    key2=$(echo "$analysis" | sed -n '3p')
-    key3=$(echo "$analysis" | sed -n '4p')
+    analyze "$filepath"
 
     if [ -n "$bpm" ]; then
         k1=$(echo "$key1" | sed 's/ (.*//')
