@@ -35,7 +35,7 @@ The link log looks like this:
 
 ```text
 Input URL: https://www.youtube.com/watch?v=...
-Downloaded: Veeze x Lil Yachty type beat (142.0 BPM Cm D# Gm).mp3
+Downloaded: Veeze x Lil Yachty type beat (142.0 BPM Cm Eb Gm).mp3
 
 Input URL: https://www.youtube.com/watch?v=...
 Downloaded: Another Beat Name (95.0 BPM Am C Em).mp3
@@ -45,8 +45,8 @@ Downloaded: Another Beat Name (95.0 BPM Am C Em).mp3
 ```
 URL/Beat: https://www.youtube.com/watch?v=...
 Downloading...
-Downloaded: Veeze x Lil Yachty type beat (142.0 BPM Cm D# Gm).mp3
-Key: Cm (90.0%) | D# (4.1%) | Gm (2.7%)
+Downloaded: Veeze x Lil Yachty type beat (142.0 BPM Cm Eb Gm).mp3
+Key: Cm (90.0%) | Eb (4.1%) | Gm (2.7%)
 ```
 
 **Drop a beat instead:** drag one or more audio files from Finder onto the `URL/Beat:` prompt and press Enter. You get the BPM and key; the file isn't renamed, moved or logged.
@@ -55,7 +55,7 @@ URL/Beat: /Users/you/Desktop/My\ Beat.wav
 My Beat.wav
 Analyzing...
 BPM: 140.0
-Key: Cm (90.0%) | D# (4.1%) | Gm (2.7%)
+Key: Cm (90.0%) | Eb (4.1%) | Gm (2.7%)
 ```
 
 Keep pasting URLs or dropping beats until you're done, then press Enter on a blank line or Ctrl+C to quit.

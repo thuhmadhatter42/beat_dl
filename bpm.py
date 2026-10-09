@@ -21,7 +21,9 @@ from pathlib import Path
 HERE = Path(__file__).resolve().parent
 TEMPOCNN_MODEL = HERE / "models" / "deeptemp-k16-3.pb"
 TEMPOCNN_WEIGHTS = HERE / "models" / "deeptemp-k16-3.npz"
-NOTES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B']
+# Note names spelled the way Auto-Tune's Key menu spells them, which differs by scale
+MAJOR_NOTES = ['C', 'Db', 'D', 'Eb', 'E', 'F', 'F#', 'G', 'Ab', 'A', 'Bb', 'B']
+MINOR_NOTES = ['C', 'C#', 'D', 'Eb', 'E', 'F', 'F#', 'G', 'G#', 'A', 'Bb', 'B']
 
 # Key profiles (index 0 = tonic). bgate/edma: Faraldo et al., essentia src/algorithms/tonal/key.cpp
 BGATE = ([1.00, 0.00, 0.42, 0.00, 0.53, 0.37, 0.00, 0.77, 0.00, 0.38, 0.21, 0.30],
@@ -84,7 +86,9 @@ def key_scores(pcp12, profile):
 
 
 def fmt_key(pc, mode):
-    return NOTES[pc] + ('m' if mode == 'minor' else '')
+    if mode == 'minor':
+        return MINOR_NOTES[pc] + 'm'
+    return MAJOR_NOTES[pc]
 
 
 def softmax_probs(ranked):
