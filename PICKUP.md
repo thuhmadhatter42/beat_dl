@@ -1,10 +1,15 @@
 # PICKUP — beat_dl
 
-## CURRENT STATE — 2026-10-07 10:30
+## CURRENT STATE — 2026-10-09 23:40
 
 **What this is:** YouTube → MP3 downloader with BPM/key tagging. Bash loop (run.sh) + downloader.py (yt-dlp) + bpm.py (Essentia HPCP + bgate for key, TempoCNN for BPM). Launched by run.command or the `beat` alias. Also called by the Jownloader Brave extension (`~/dev/jownloader/extension`) through a native host that pipes a URL into run.sh. Progress page: `PROGRESS-TRACKER.html` (source `tracker.json`; rebuild with `python3 ~/.claude/skills/progress-tracker/build_tracker.py tracker.json`).
 
-**Git:** main = origin/main, clean. Code commit f5d462b (2026-10-06 ~16:55); later commits are state saves. Harvester trial work lives on branch `worktree-agent-ab8c9d1d63d053d8d` (worktree `.claude/worktrees/agent-ab8c9d1d63d053d8d`, commit 1bc79c0 = `tools/pt-harvest/discover.py` + `docs/research/pt-ground-truth/trial-sessions.md`), not merged yet.
+**Git:** main = origin/main = 072cd89 (+ this save's commit), clean. Only branch: main; no worktrees. Studio-E-2 already pulled 072cd89 (J, 2026-10-09 23:34).
+
+**Shipped 2026-10-09 (both pushed, both tested on the MBP):**
+- ecf4a4c — the prompt now reads `URL/Beat:`. Drag audio files from Finder onto it → BPM + key per file; the file is NOT renamed, moved or logged. `dropped.py` turns the Terminal-escaped paths into file paths (exit 0 = files, 1 = looked like paths but none is a file → "File not found" / "That's a folder", 2 = not paths → download flow). URLs (http/https) skip it. Tested: mp3/wav/aiff, names with spaces, apostrophe, parentheses, two files in one drop.
+- 072cd89 — key names spelled like Auto-Tune's Key menu (J's screenshots): major `C Db D Eb E F F# G Ab A Bb B`, minor `C C# D Eb E F F# G G# A Bb B` (+m). bpm.py `MAJOR_NOTES` / `MINOR_NOTES` + `fmt_key`. Same pitch classes; `tools/train-tempocnn/key_eval.py` and `docs/research/key-bench/bench.py` parse the flat names (round-trip checked, all 24). Downloads are now named e.g. "(142.0 BPM Cm Eb Gm)".
+- Not changed: downloader.py's own interactive loop still says "Input URL:" (run.sh never uses it, only calls it with a URL); the daily links log keeps its "Input URL:" format (Jownloader's native/engine.py writes the same format).
 
 **PAUSED 10:30 — J: "save state, we will continue later." Goal (J 01:06): harvest 200 Pro Tools beats with BPM/key, then finish the training.** Plan `docs/superpowers/plans/2026-10-06-pt-bpm-harvest-and-train.md` + `-TOC.md` (§0-§5, §7 done; §6, §8-§11 open).
 - Harvest STOPPED 10:04: J took the iLok out of Sofia and Pro Tools showed "missing PACE authorization". Result: 101 sessions done, **78 usable** (14 confirmed, 64 tempo-only, 30 with key, 77 also with a full-mix bounce) = 155 audio files. All are on Sofia `~/pt-harvest/audio/` (NNNN.wav + NNNN_mix.wav, 11k copies in `audio11k/`). Rate ≈ 4.4 min/session, ~3 in 4 usable. 318-session ARCH-1 manifest is at id 101. Dialog clicker killed; Pro Tools left open on the PACE error.
@@ -39,8 +44,8 @@
 **Owed / open:**
 1. Sofia test litter: moved to Sofia's ~/.Trash by J 2026-10-06 17:05, checked (all 4 paths gone).
 2. MBP: today's `~/Downloads/(26-10-6) Youtube DL LINKS.txt` got 12 test lines appended by the tier tests (file is J's, left as is).
-3. Studio-E-2 and the MBP pick up f5d462b on their next `git pull` + `beat`: the picks change forces a one-time analyzer reinstall (under a minute).
-4. Harvester trial: J said go 21:42; step 1 running (see RUNNING above). When it reports: review the answers, merge the worktree branch, grade the agent, then trial step 2 only after checking the answers.
+3. Studio-E-2: has 072cd89 (J, 2026-10-09). Done.
+4. Harvester trial: done and grown into the 101-session harvest above (paused on the iLok).
 5. Verify RestoreMachineState: after J's next VNC disconnect, check `ioreg -n Root -d1 -a | grep -A1 CGSSessionScreenIsLocked` on Sofia shows nothing.
 6. Later, only when J says go: **Orion phase 1** (spec `docs/superpowers/specs/2026-09-12-menubar-key-bpm-listener-design.md`, repo `~/dev/orion`).
 
