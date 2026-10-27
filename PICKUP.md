@@ -1,6 +1,18 @@
 # PICKUP — beat_dl
 
-## CURRENT STATE — 2026-10-09 23:40
+## CURRENT STATE — 2026-10-27 16:52
+
+**NOW: building Orion v1** = beat_dl as a real Mac app (J 2026-10-27: "make a UI and make a real application", "make it look like Artemis kinda", "beautiful! make it!"). Goal: J sends his friend (no dev experience, Mac assumed macOS 11+) one DMG → drag → open → paste link → DOWNLOAD → same MP3 run.sh makes.
+- Spec: `docs/superpowers/specs/2026-10-27-beat-dl-mac-app-design.md`. Mockup J approved: `docs/superpowers/specs/orion-v1-mockup.html` (Artemis faceplate: chassis, screws, chrome ORION wordmark, amber LCD hero, green lamp, pale SSL DOWNLOAD cap; dark only).
+- Plan: `docs/superpowers/plans/2026-10-27-orion-v1.md` + `-TOC.md` (6 tasks). Executed with superpowers:subagent-driven-development; ledger (resume map, trust it over memory): `.superpowers/sdd/2026-10-27-orion-v1/progress.md` (gitignored), briefs/reports/review diffs beside it.
+- Branch `orion-v1` (main checkout is ON this branch). Commits: main 38081a0 (spec+plan) → faf7c1b (.gitignore) → 2f216ac Task 1 (runtime.sh build+sign, VERSION 0.1.0; notarization of the runtime zip Accepted id 48bac7ac-2499-41c1-97df-ab5d2ff403f3; yt-dlp needs `disable-library-validation` → app/entitlements-ytdlp.plist).
+- Task 2 DONE (app_run.py JSON-events orchestrator, downloader.strategies(app_order), ORION_DOWNLOADS, ORION_BIN; 16/16 tests; review + fix re-review clean): orion-v1 = 2a84f2b.
+- **Next: Task 3** (Swift package + engine, no UI). Brief ready: `.superpowers/sdd/2026-10-27-orion-v1/task-3-brief.md`. Then Task 4 UI, 5 icon/sign/notarize/DMG, 6 verify. Rulings for Task 3: arm64 on macOS 11 uses `runtime/arm64/bin-legacy/` ffmpeg; yt-dlp keeps its own entitlement when re-signed.
+- Decisions (J): name Orion (the menu-bar listener joins this app later as feature 2; no ~/dev/orion repo); notarize with existing profile `artemis-notary`; bundle ID com.jshriver.orion.
+- Owed (controller, Task 6): manual real-URL `./run.sh` check that the CLI is unchanged; quarantined-DMG Gatekeeper test on MBP; Intel test on Sofia via sofia-screen (never restart Sofia).
+- Deferred minors for the final review are in the ledger.
+
+## STATE BEFORE ORION — 2026-10-09 23:40
 
 **What this is:** YouTube → MP3 downloader with BPM/key tagging. Bash loop (run.sh) + downloader.py (yt-dlp) + bpm.py (Essentia HPCP + bgate for key, TempoCNN for BPM). Launched by run.command or the `beat` alias. Also called by the Jownloader Brave extension (`~/dev/jownloader/extension`) through a native host that pipes a URL into run.sh. Progress page: `PROGRESS-TRACKER.html` (source `tracker.json`; rebuild with `python3 ~/.claude/skills/progress-tracker/build_tracker.py tracker.json`).
 
@@ -47,7 +59,7 @@
 3. Studio-E-2: has 072cd89 (J, 2026-10-09). Done.
 4. Harvester trial: done and grown into the 101-session harvest above (paused on the iLok).
 5. Verify RestoreMachineState: after J's next VNC disconnect, check `ioreg -n Root -d1 -a | grep -A1 CGSSessionScreenIsLocked` on Sofia shows nothing.
-6. Later, only when J says go: **Orion phase 1** (spec `docs/superpowers/specs/2026-09-12-menubar-key-bpm-listener-design.md`, repo `~/dev/orion`).
+6. Orion: now the beat_dl app (see CURRENT STATE). The listener spec joins it later as feature 2.
 
 **Plan done:** `docs/superpowers/plans/2026-10-06-old-mac-support.md` + `-TOC.md`, all boxes ticked.
 
