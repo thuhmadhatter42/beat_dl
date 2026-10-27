@@ -4,6 +4,10 @@ import subprocess
 import sys
 import tempfile
 import unittest
+import io
+import contextlib
+import shutil
+from unittest import mock
 from datetime import date
 from pathlib import Path
 
@@ -142,6 +146,54 @@ class TestAnalyze(Base):
 
     def test_analysis_timeout(self):
         self.assertEqual(app_run.analyze_file(WAV, timeout=0.01), (None, []))
+
+
+TERMINAL = ("done", "analyzed", "error")
+
+
+class TestGuards(Base):
+    def _run_inproc(self, fn, *args):
+        buf = io.StringIO()
+        with mock.patch.dict(os.environ, {"ORION_DOWNLOADS": str(self.dl)}), \
+                contextlib.redirect_stdout(buf):
+            fn(*args)
+        return [json.loads(l) for l in buf.getvalue().splitlines() if l.strip()]
+
+    def _fake_download(self):
+        f = self.dl / "Test Beat.mp3"
+        shutil.copy(WAV, f)
+        return mock.patch.object(app_run, "_attempt", return_value=(f, ""))
+
+    def test_rename_failure_still_done(self):
+        with self._fake_download(), mock.patch.object(app_run.os, "replace", side_effect=OSError("denied")):
+            ev = self._run_inproc(app_run.cmd_download, "https://example.com/v")
+        term = [e for e in ev if e["stage"] in TERMINAL]
+        self.assertEqual(len(term), 1, ev)
+        self.assertEqual(term[0]["stage"], "done")
+        self.assertEqual(term[0]["name"], "Test Beat.mp3")
+        self.assertEqual(term[0]["bpm"], "120.0")
+        self.assertTrue(Path(term[0]["file"]).is_file())
+
+    def test_log_failure_still_done(self):
+        with self._fake_download(), mock.patch.object(app_run, "log_path",
+                                                      return_value=self.dl / "nodir" / "x" / "log.txt"), \
+                mock.patch.object(app_run.Path, "mkdir", side_effect=OSError("denied")):
+            ev = self._run_inproc(app_run.cmd_download, "https://example.com/v")
+        term = [e for e in ev if e["stage"] in TERMINAL]
+        self.assertEqual(len(term), 1, ev)
+        self.assertEqual(term[0]["stage"], "done")
+
+    def test_analyze_exception_still_analyzed(self):
+        with mock.patch.object(app_run, "analyze_file", side_effect=RuntimeError("boom")):
+            ev = self._run_inproc(app_run.cmd_analyze, [str(WAV), str(WAV)])
+        term = [e for e in ev if e["stage"] in TERMINAL]
+        self.assertEqual(len(term), 2, ev)
+        self.assertTrue(all(e["stage"] == "analyzed" and e["bpm"] is None for e in term))
+
+    def test_main_top_level_guard(self):
+        with mock.patch.object(app_run, "cmd_download", side_effect=RuntimeError("boom")):
+            ev = self._run_inproc(app_run.main, ["app_run.py", "download", "u"])
+        self.assertEqual([e["stage"] for e in ev if e["stage"] in TERMINAL], ["error"])
 
 
 if __name__ == "__main__":

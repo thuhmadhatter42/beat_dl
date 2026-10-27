@@ -110,19 +110,32 @@ def cmd_download(url):
         return
 
     emit(stage="analyzing")
-    bpm, keys = analyze_file(path)
+    try:
+        bpm, keys = analyze_file(path)
+    except Exception:
+        bpm, keys = None, []
     final = path
     if bpm:
-        emit(stage="renaming")
-        new = path.with_name(renamed_name(path.stem, path.suffix.lstrip("."), bpm, keys))
-        os.replace(path, new)
-        final = new
+        try:
+            emit(stage="renaming")
+            new = path.with_name(renamed_name(path.stem, path.suffix.lstrip("."), bpm, keys))
+            os.replace(path, new)
+            final = new
+        except Exception:
+            # Rename failed: keep the original file and its analysis.
+            final = path
+            if not final.exists():
+                emit(stage="error", message="Could not rename the downloaded file.")
+                return
     else:
         keys = []
 
-    downloads_dir().mkdir(parents=True, exist_ok=True)
-    with open(log_path(), "a", encoding="utf-8") as f:
-        f.write(log_line(url, final.name))
+    try:
+        downloads_dir().mkdir(parents=True, exist_ok=True)
+        with open(log_path(), "a", encoding="utf-8") as f:
+            f.write(log_line(url, final.name))
+    except Exception:
+        pass  # a log failure must not lose the done event
     emit(stage="done", file=str(final), name=final.name, bpm=bpm or None,
          keys=[[k, p] for k, p in keys])
 
@@ -131,12 +144,29 @@ def cmd_analyze(files):
     for raw in files:
         path = Path(raw).expanduser()
         emit(stage="analyzing")
-        bpm, keys = analyze_file(path)
-        emit(stage="analyzed", file=str(path.resolve()), name=path.name,
+        try:
+            bpm, keys = analyze_file(path)
+        except Exception:
+            bpm, keys = None, []
+        try:
+            full = str(path.resolve())
+        except Exception:
+            full = str(path)
+        emit(stage="analyzed", file=full, name=path.name,
              bpm=bpm or None, keys=[[k, p] for k, p in keys])
 
 
 def main(argv):
+    try:
+        return _main(argv)
+    except BaseException as exc:  # last resort: the app always gets a terminal event
+        if isinstance(exc, KeyboardInterrupt):
+            raise
+        emit(stage="error", message=f"Unexpected error: {exc}")
+        return 0
+
+
+def _main(argv):
     if len(argv) >= 3 and argv[1] == "download":
         cmd_download(argv[2].strip())
     elif len(argv) >= 3 and argv[1] == "analyze":
