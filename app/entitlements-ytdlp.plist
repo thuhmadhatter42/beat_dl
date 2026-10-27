@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <!-- bin/yt-dlp only. It is a PyInstaller one-file build: at start it unpacks upstream's own
+         (differently signed, Team ID != ours) Python.framework into $TMPDIR and dlopen()s it. Once
+         re-signed with our Team ID, library validation refuses that dlopen ("different Team IDs").
+         disable-library-validation is the narrowest entitlement that lets it load. Every other
+         binary in the runtime is signed with the empty app/entitlements.plist. -->
+    <key>com.apple.security.cs.disable-library-validation</key>
+    <true/>
+</dict>
+</plist>

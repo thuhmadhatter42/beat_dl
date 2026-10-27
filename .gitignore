@@ -36,3 +36,5 @@ docs/research/*/*.zip
 # agent worktrees
 .claude/worktrees/
 .superpowers/
+app/build/
+tests/fixtures/*.wav
