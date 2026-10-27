@@ -35,3 +35,4 @@ docs/research/*/*.zip
 
 # agent worktrees
 .claude/worktrees/
+.superpowers/
