@@ -1,0 +1,177 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Orion v1 mockup</title>
+<style>
+:root{
+  --desk:#0b0a09;
+  --plate:#1b1814; --plate-hi:#24201b; --edge:rgba(255,236,210,.07);
+  --lcd:#0d0b08; --lcd-edge:rgba(0,0,0,.6);
+  --amber:#ffb340; --amber-dim:rgba(255,179,64,.55); --amber-faint:rgba(255,179,64,.14);
+  --ink:#efe6d8; --ink-2:#a89b88; --ink-3:#6f6556;
+  --err:#ff7a59; --sys:-apple-system,BlinkMacSystemFont,"SF Pro Text","Helvetica Neue",sans-serif;
+}
+*{box-sizing:border-box;margin:0}
+body{background:var(--desk);color:var(--ink);font:13px/1.4 var(--sys);
+  padding:40px 16px;-webkit-font-smoothing:antialiased}
+h1{font:600 15px var(--sys);color:var(--ink-2);text-align:center;margin-bottom:6px;letter-spacing:.01em}
+p.sub{color:var(--ink-3);text-align:center;margin-bottom:36px}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(520px,520px));gap:40px 32px;justify-content:center}
+figure figcaption{color:var(--ink-3);font-size:12px;margin-top:12px;text-align:center}
+.mono{font-family:ui-monospace,"SF Mono",Menlo,monospace;font-variant-numeric:tabular-nums}
+
+/* window */
+.win{width:520px;border-radius:12px;background:linear-gradient(180deg,var(--plate-hi),var(--plate) 38%);
+  box-shadow:0 0 0 .5px rgba(0,0,0,.9),inset 0 .5px 0 rgba(255,240,220,.12),0 24px 60px rgba(0,0,0,.55),0 4px 14px rgba(0,0,0,.4);
+  position:relative;overflow:hidden}
+.win::after{content:"";position:absolute;inset:0;pointer-events:none;opacity:.35;
+  background-image:repeating-linear-gradient(90deg,rgba(255,255,255,.012) 0 1px,transparent 1px 3px)} /* brushed */
+.bar{height:40px;display:flex;align-items:center;padding:0 14px;gap:8px}
+.tl{width:12px;height:12px;border-radius:50%;background:#3a342c;box-shadow:inset 0 0 0 .5px rgba(0,0,0,.4)}
+.bar .name{margin-left:auto;margin-right:auto;transform:translateX(-26px);font:600 11px var(--sys);letter-spacing:.32em;color:var(--ink-3)}
+.screw{position:absolute;width:7px;height:7px;border-radius:50%;background:radial-gradient(circle at 35% 35%,#4a4238,#1c1915);
+  box-shadow:inset 0 0 0 .5px rgba(0,0,0,.6)}
+.screw::after{content:"";position:absolute;left:1px;right:1px;top:3px;height:1px;background:rgba(0,0,0,.55);transform:rotate(35deg)}
+.s1{left:12px;bottom:12px}.s2{right:12px;bottom:12px}
+.body{padding:4px 24px 28px}
+
+/* readout */
+.lcd{height:168px;border-radius:8px;background:var(--lcd);position:relative;overflow:hidden;
+  box-shadow:inset 0 2px 6px rgba(0,0,0,.85),inset 0 0 0 1px var(--lcd-edge),0 .5px 0 rgba(255,240,220,.08)}
+.lcd::before{content:"";position:absolute;inset:0;pointer-events:none;
+  background:radial-gradient(120% 90% at 50% 0%,rgba(255,179,64,.05),transparent 60%),
+             repeating-linear-gradient(0deg,rgba(255,255,255,.018) 0 1px,transparent 1px 3px)}
+.lcd .in{position:absolute;inset:0;padding:18px 22px;display:flex;flex-direction:column}
+.glow{color:var(--amber);text-shadow:0 0 14px rgba(255,179,64,.45),0 0 2px rgba(255,179,64,.6)}
+.row{display:flex;align-items:flex-end;gap:28px}
+.bpm{font-size:72px;line-height:.86;font-weight:500;letter-spacing:-.03em}
+.lbl{font:600 10px var(--sys);letter-spacing:.22em;color:var(--amber-dim);text-transform:uppercase}
+.key{font-size:34px;line-height:1;font-weight:500}
+.alts{display:flex;gap:14px;margin-top:8px;color:var(--amber-dim);font-size:13px}
+.alts b{font-weight:500;color:rgba(255,179,64,.8)}
+.led{width:8px;height:8px;border-radius:50%;background:var(--amber);position:absolute;top:18px;right:20px;
+  box-shadow:0 0 10px var(--amber),0 0 3px var(--amber);animation:beat var(--p) steps(1) infinite}
+@keyframes beat{0%{opacity:1}18%{opacity:.18}100%{opacity:.18}}
+.led.off{animation:none;background:#2a241b;box-shadow:none}
+.foot{margin-top:auto;display:flex;align-items:center;justify-content:space-between;gap:12px;color:var(--ink-2);font-size:12px}
+.foot .file{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.link{color:var(--amber);font-weight:500;white-space:nowrap}
+.idle{margin:auto;text-align:center}
+.idle .big{font-size:56px;line-height:1;color:rgba(255,179,64,.16);letter-spacing:.04em}
+.idle .hint{margin-top:12px;color:var(--ink-3);font-size:12px}
+.stage{font-size:15px;color:var(--amber)}
+.meter{height:2px;background:var(--amber-faint);border-radius:2px;margin-top:14px;overflow:hidden}
+.meter i{display:block;height:100%;width:38%;background:var(--amber);box-shadow:0 0 8px var(--amber);
+  animation:run 1.4s cubic-bezier(.4,0,.2,1) infinite}
+@keyframes run{0%{transform:translateX(-100%)}100%{transform:translateX(270%)}}
+.steps{display:flex;gap:18px;margin-top:auto;font-size:11px;letter-spacing:.06em;color:var(--ink-3)}
+.steps .on{color:var(--amber)}.steps .ok{color:var(--ink-2)}
+
+/* controls */
+.ctl{display:flex;gap:10px;margin-top:18px}
+.field{flex:1;height:38px;border-radius:7px;background:#12100c;padding:0 13px;display:flex;align-items:center;
+  color:var(--ink);box-shadow:inset 0 1px 3px rgba(0,0,0,.7),0 0 0 1px rgba(255,236,210,.06),0 .5px 0 rgba(255,240,220,.06)}
+.field.ph{color:var(--ink-3)}
+.field.focus{box-shadow:inset 0 1px 3px rgba(0,0,0,.7),0 0 0 1px var(--amber-dim),0 0 0 4px var(--amber-faint)}
+.field .caret{display:inline-block;width:1.5px;height:16px;background:var(--amber);margin-left:1px;vertical-align:-3px}
+.field span.url{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.btn{height:38px;padding:0 20px;border-radius:7px;border:0;font:600 13px var(--sys);letter-spacing:.01em;
+  background:linear-gradient(180deg,#ffc463,#f5a42c);color:#2a1a04;
+  box-shadow:0 0 0 .5px rgba(0,0,0,.5),inset 0 .5px 0 rgba(255,255,255,.5),0 2px 10px rgba(255,170,50,.28)}
+.btn.dis{background:#2b261f;color:var(--ink-3);box-shadow:0 0 0 .5px rgba(0,0,0,.5),inset 0 .5px 0 rgba(255,240,220,.06)}
+.btn.busy{background:#2b261f;color:var(--amber-dim)}
+
+/* drop */
+.drop .lcd{box-shadow:inset 0 2px 6px rgba(0,0,0,.85),0 0 0 1.5px var(--amber),0 0 24px rgba(255,179,64,.25)}
+.droptxt{margin:auto;text-align:center;color:var(--amber);font-size:15px}
+.droptxt small{display:block;color:var(--ink-3);font-size:12px;margin-top:6px}
+.err{color:var(--err);font-size:14px}
+.err+div{color:var(--ink-2);margin-top:6px;font-size:12px}
+
+/* light */
+.light{--plate:#e9e4dc;--plate-hi:#f4f0ea;--ink:#2a241d;--ink-2:#6a5f51;--ink-3:#9a8f80}
+.light .bar .name{color:#a59a8a}
+.light .tl{background:#d3ccc1}
+.light .field{background:#fbf9f5;color:var(--ink);box-shadow:inset 0 1px 2px rgba(60,40,10,.15),0 0 0 1px rgba(60,40,10,.12)}
+.light .btn.dis{background:#ddd6cb}
+@media (prefers-reduced-motion:reduce){.led,.meter i{animation:none}}
+</style>
+</head>
+<body>
+<h1>Orion v1</h1>
+<p class="sub">Mockup for J's yes. The window is a piece of gear: one backlit readout, one field, one button.</p>
+
+<div class="grid">
+
+<figure><div class="win"><div class="bar"><i class="tl"></i><i class="tl"></i><i class="tl"></i><span class="name">ORION</span></div>
+<div class="body">
+  <div class="lcd"><div class="in"><span class="led off"></span>
+    <div class="idle"><div class="big mono">---.-</div><div class="hint">Paste a YouTube link, or drop a beat here</div></div>
+  </div></div>
+  <div class="ctl"><div class="field ph focus">Enter YouTube link here<span class="caret"></span></div><button class="btn dis">Download</button></div>
+</div><i class="screw s1"></i><i class="screw s2"></i></div>
+<figcaption>1 · Opened</figcaption></figure>
+
+<figure><div class="win"><div class="bar"><i class="tl"></i><i class="tl"></i><i class="tl"></i><span class="name">ORION</span></div>
+<div class="body">
+  <div class="lcd"><div class="in"><span class="led off"></span>
+    <div class="stage">Finding BPM and key…</div>
+    <div class="meter"><i></i></div>
+    <div class="steps"><span class="ok">✓ DOWNLOAD</span><span class="on">● ANALYZE</span><span>RENAME</span></div>
+  </div></div>
+  <div class="ctl"><div class="field"><span class="url">https://www.youtube.com/watch?v=dQw4…</span></div><button class="btn busy">Working</button></div>
+</div><i class="screw s1"></i><i class="screw s2"></i></div>
+<figcaption>2 · Working</figcaption></figure>
+
+<figure><div class="win"><div class="bar"><i class="tl"></i><i class="tl"></i><i class="tl"></i><span class="name">ORION</span></div>
+<div class="body">
+  <div class="lcd"><div class="in"><span class="led" style="--p:.4225s"></span>
+    <div class="row">
+      <div><div class="lbl">BPM</div><div class="bpm mono glow">142.0</div></div>
+      <div><div class="lbl">Key</div><div class="key mono glow">Cm</div>
+        <div class="alts mono"><span><b>Eb</b> 18%</span><span><b>Gm</b> 9%</span></div></div>
+    </div>
+    <div class="foot"><span class="file">Track title (142.0 BPM Cm Eb Gm).mp3 · Downloads</span><span class="link">Show in Finder</span></div>
+  </div></div>
+  <div class="ctl"><div class="field ph">Enter YouTube link here</div><button class="btn dis">Download</button></div>
+</div><i class="screw s1"></i><i class="screw s2"></i></div>
+<figcaption>3 · Done. The light blinks at 142 BPM</figcaption></figure>
+
+<figure class="drop"><div class="win"><div class="bar"><i class="tl"></i><i class="tl"></i><i class="tl"></i><span class="name">ORION</span></div>
+<div class="body">
+  <div class="lcd"><div class="in"><span class="led off"></span>
+    <div class="droptxt">Drop to get BPM and key<small>The file stays where it is, untouched</small></div>
+  </div></div>
+  <div class="ctl"><div class="field ph">Enter YouTube link here</div><button class="btn dis">Download</button></div>
+</div><i class="screw s1"></i><i class="screw s2"></i></div>
+<figcaption>4 · Dragging a beat over the window</figcaption></figure>
+
+<figure><div class="win"><div class="bar"><i class="tl"></i><i class="tl"></i><i class="tl"></i><span class="name">ORION</span></div>
+<div class="body">
+  <div class="lcd"><div class="in"><span class="led off"></span>
+    <div class="err">That video is private or was removed.</div>
+    <div>Check the link and try again.</div>
+  </div></div>
+  <div class="ctl"><div class="field"><span class="url">https://youtu.be/xxxxxxxxxxx</span></div><button class="btn">Download</button></div>
+</div><i class="screw s1"></i><i class="screw s2"></i></div>
+<figcaption>5 · Error, inline, never a pop-up</figcaption></figure>
+
+<figure class="light"><div class="win"><div class="bar"><i class="tl"></i><i class="tl"></i><i class="tl"></i><span class="name">ORION</span></div>
+<div class="body">
+  <div class="lcd"><div class="in"><span class="led" style="--p:.6316s"></span>
+    <div class="row">
+      <div><div class="lbl">BPM</div><div class="bpm mono glow">95.0</div></div>
+      <div><div class="lbl">Key</div><div class="key mono glow">Am</div>
+        <div class="alts mono"><span><b>C</b> 21%</span><span><b>Em</b> 7%</span></div></div>
+    </div>
+    <div class="foot" style="color:#a89b88"><span class="file">Track title (95.0 BPM Am C Em).mp3 · Downloads</span><span class="link">Show in Finder</span></div>
+  </div></div>
+  <div class="ctl"><div class="field ph">Enter YouTube link here</div><button class="btn dis">Download</button></div>
+</div><i class="screw s1"></i><i class="screw s2"></i></div>
+<figcaption>6 · Light mode: pale faceplate, the readout stays backlit</figcaption></figure>
+
+</div>
+</body>
+</html>
