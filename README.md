@@ -80,6 +80,7 @@ This works on both Apple Silicon and Intel Macs.
 | `run.sh` | Main loop — called by run.command |
 | `downloader.py` | Downloads audio from YouTube as MP3 |
 | `bpm.py` | Detects BPM and key from an audio file |
+| `dropped.py` | Turns files dragged onto the `URL/Beat:` prompt into paths |
 
 The Python scripts also work standalone if you need them:
 

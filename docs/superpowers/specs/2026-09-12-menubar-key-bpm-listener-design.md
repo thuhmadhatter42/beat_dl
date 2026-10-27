@@ -1,4 +1,4 @@
-# Orion — menu-bar BPM / key listener (design)
+# Orion feature 2 — menu-bar BPM / key listener (design)
 
 **Date:** 2026-09-12 · **Status:** Draft, for J's review — nothing built yet.
 

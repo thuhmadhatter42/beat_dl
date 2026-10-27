@@ -16,7 +16,7 @@
 
 **What this is:** YouTube → MP3 downloader with BPM/key tagging. Bash loop (run.sh) + downloader.py (yt-dlp) + bpm.py (Essentia HPCP + bgate for key, TempoCNN for BPM). Launched by run.command or the `beat` alias. Also called by the Jownloader Brave extension (`~/dev/jownloader/extension`) through a native host that pipes a URL into run.sh. Progress page: `PROGRESS-TRACKER.html` (source `tracker.json`; rebuild with `python3 ~/.claude/skills/progress-tracker/build_tracker.py tracker.json`).
 
-**Git:** main = origin/main = 072cd89 (+ this save's commit), clean. Only branch: main; no worktrees. Studio-E-2 already pulled 072cd89 (J, 2026-10-09 23:34).
+**Git (as of 2026-10-09; superseded by CURRENT STATE: main checkout is now on `orion-v1`):** main = origin/main = 072cd89 (+ this save's commit), clean. Only branch: main; no worktrees then. Studio-E-2 already pulled 072cd89 (J, 2026-10-09 23:34).
 
 **Shipped 2026-10-09 (both pushed, both tested on the MBP):**
 - ecf4a4c — the prompt now reads `URL/Beat:`. Drag audio files from Finder onto it → BPM + key per file; the file is NOT renamed, moved or logged. `dropped.py` turns the Terminal-escaped paths into file paths (exit 0 = files, 1 = looked like paths but none is a file → "File not found" / "That's a folder", 2 = not paths → download flow). URLs (http/https) skip it. Tested: mp3/wav/aiff, names with spaces, apostrophe, parentheses, two files in one drop.
@@ -34,7 +34,7 @@
 - Names rule (J 22:45): no song/artist/session/file names anywhere; numbers + hashes only; number→path map only on Sofia `~/pt-harvest/manifest.json`.
 - Approved auto-clicks (`~/pt-harvest/approved-dialogs.txt`): UAD OK, Session Notes No, Missing Files OK, Save Don't Save, Missing AAX Plugins OK.
 - Open with J: Auto Backup writes files to the source drives (left on; listed in Sofia `~/pt-harvest/source-drive-writes.txt` for trashing later).
-- iLok is plugged into Sofia (seen on USB 21:45). J's "Arc-1 / 1-mixes" = `/Volumes/ARCH-1/1 - MIXES` on Sofia (Spotlight on): 5463 .ptx, 770 song folders, 323 valid newest mixes via `pick_latest_ptx()`.
+- (2026-10-06) iLok was plugged into Sofia (seen on USB 21:45); J took it out 2026-10-09 10:04, see PAUSED above. J's "Arc-1 / 1-mixes" = `/Volumes/ARCH-1/1 - MIXES` on Sofia (Spotlight on): 5463 .ptx, 770 song folders, 323 valid newest mixes via `pick_latest_ptx()`.
 - 5 trial sessions picked (seed 20261006, all 2024+, 5 artists). Song/file names are kept off the record (J, 22:45); the list lives only on Sofia in `~/pt-harvest-trial/discover.json`.
 - Sofia scratch: `~/pt-harvest-trial/` (discover.py, discover.json, screenshots).
 - Sofia's screen re-locked whenever J closed VNC (macOS re-locks on Screen Sharing disconnect if it was locked at connect). J ran `sudo defaults write /Library/Preferences/com.apple.RemoteManagement RestoreMachineState -bool NO` on Sofia 21:57; read back = 0. Not yet proven by a real VNC disconnect.

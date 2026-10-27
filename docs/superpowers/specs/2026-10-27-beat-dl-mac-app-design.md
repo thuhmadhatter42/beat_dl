@@ -1,6 +1,6 @@
 # Orion v1: beat_dl as a real Mac app with an installer (design)
 
-**Date:** 2026-10-27 · **Status:** Draft, for J's review. Nothing built yet.
+**Date:** 2026-10-27 · **Status:** Approved by J 2026-10-27 ("beautiful! make it!"). Plan `docs/superpowers/plans/2026-10-27-orion-v1.md`; Tasks 1-2 built (runtime payload, app_run.py), Task 3 next. See PICKUP.md.
 
 **Name: Orion** (J, 2026-10-27). The downloader is Orion v1. The menu-bar listener from
 `2026-09-12-menubar-key-bpm-listener-design.md` joins the same app later as a second feature. Build v1 so a
