@@ -2,6 +2,8 @@
 
 **Date:** 2026-09-12 · **Status:** Draft, for J's review — nothing built yet.
 
+**2026-10-27 (J):** the name Orion now belongs to the beat_dl Mac app (`2026-10-27-beat-dl-mac-app-design.md`). This listener joins that app later as its second feature instead of being its own app.
+
 ## 1. Goal
 
 An always-on macOS menu-bar app that listens to whatever is playing through the current
