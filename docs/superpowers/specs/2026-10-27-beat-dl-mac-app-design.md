@@ -107,21 +107,23 @@ stay in the app at all.
 Built with the `design` skill: `macos-app-design` first (HIG wins), then `impeccable` for the build
 and the critique.
 
-- **Concept (my call, J reviews the mockup):** a piece of studio gear, not a web form. The window
-  reads like the faceplate of a sampler or drum machine: a dark, warm near-black panel with one
-  backlit readout.
-- **Signature element:** the **readout**. After a download, the BPM shows as a large numeral and
-  the top key below it, with keys 2 and 3 smaller beside it. A small light pulses **at the detected
-  tempo**. It's honest because it's driven by the real BPM. It stops when the window isn't focused
-  or Reduce Motion is on.
-- **Palette:** restrained. A two-layer warm near-black panel (never #000), one accent: an amber/LCD
-  glow used only on the readout, the Download button and focus. It follows system appearance. The light-mode
-  version is a pale panel with the same accent. Body contrast ≥ 4.5:1.
-- **Type:** SF Pro for the UI. The readout numerals use SF Mono or SF Pro Rounded with tabular figures
-  (machine output = monospace, per the design skill).
+- **Concept (J, 2026-10-27: "make it look like Artemis kinda"):** Orion is Artemis's sibling, the same
+  hardware family. Use Artemis's own faceplate material, taken from `~/artemis/app/src/faceplate/shared.css` +
+  `faceplate.html`: the noise-and-sheen chassis (`#232326→#131315`, black outer rings), silver corner screws, the
+  brushed header rail with the chrome-gradient wordmark **ORION** (Helvetica Neue 700, .22em tracking), a green
+  status lamp + legend (READY / WORKING amber / FAILED red), the amber LCD (`--amber #ffb020`, glow, 8px .3em
+  captions) as the hero, recessed `#050505` field, and pale SSL-style caps (DOWNLOAD lights amber when a link is in).
+  Reference mockup: `orion-v1-mockup.html` next to this file.
+- **Signature element:** the LCD readout. After a download, the BPM shows as a large amber numeral, the top
+  key beside it, and keys 2 and 3 smaller under it. A TEMPO light blinks **at the detected BPM** (it's real
+  data, and it stops when Reduce Motion is on).
+- **Dark only**, like Artemis (no light mode).
+- **Type:** Helvetica Neue throughout (Artemis's `--face-font`), tabular figures on numbers.
+- **App icon:** in Artemis's icon style (a marble relief on a deep navy ground), showing Orion the hunter,
+  Artemis's hunting companion in the myth.
 - **States, all designed:** empty (placeholder "Enter YouTube link here"), link pasted (Download
   lit), downloading (readout shows stage text: "Downloading…", "Finding BPM and key…"), done
-  (filename, BPM, keys, **Show in Finder**), file dropped (drop highlight on the whole window → readout),
+  (filename, BPM, keys, SHOW IN FINDER on the LCD), file dropped (drop highlight on the whole window → readout),
   error (plain English from `explain_error`, inline in the readout, never a modal), first-launch prep if any.
 - Mac citizen: Return triggers Download, ⌘V pastes, standard menus, the window is resizable within limits,
   VoiceOver labels, Reduce Motion respected.
