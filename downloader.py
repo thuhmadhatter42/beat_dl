@@ -4,13 +4,15 @@ YouTube audio downloader — reliable, minimal, no fuss.
 Usage: python3 downloader.py
 """
 
+import os
 import sys
 import json
 import shutil
 import subprocess
 from pathlib import Path
 
-DOWNLOADS = Path.home() / "Downloads"
+# ORION_DOWNLOADS overrides the output folder (the Orion app and tests); unset = ~/Downloads.
+DOWNLOADS = Path(os.environ.get("ORION_DOWNLOADS") or (Path.home() / "Downloads"))
 
 # Strategies tried silently in order until one works.
 _STRATEGIES = [
@@ -21,6 +23,16 @@ _STRATEGIES = [
     ["--extractor-args", "youtube:player_client=web"],
     [],
 ]
+
+
+def strategies(app_order):
+    """The strategy list. app_order=True (Orion app): non-cookie strategies first, the three
+    browser-cookie ones last. False (run.sh / CLI): the original order."""
+    if not app_order:
+        return list(_STRATEGIES)
+    plain = [s for s in _STRATEGIES if s[:1] != ["--cookies-from-browser"]]
+    cookies = [s for s in _STRATEGIES if s[:1] == ["--cookies-from-browser"]]
+    return plain + cookies
 
 
 # ── Dependency check ──────────────────────────────────────────────────────────
@@ -149,7 +161,7 @@ def safe_name(text):
 
 # ── Main ──────────────────────────────────────────────────────────────────────
 
-def run_download(url, silent=False):
+def run_download(url, silent=False, app_order=False):
     """
     Download one URL. Returns the output Path on success, None on failure.
     If silent=True, errors go to stderr and only the filepath is printed to stdout
@@ -158,8 +170,9 @@ def run_download(url, silent=False):
     info = None
     meta_err = []
     working_extra = None
+    order = strategies(app_order)
 
-    for extra in _STRATEGIES:
+    for extra in order:
         try:
             info, meta_err = fetch_info(url, extra_args=extra)
         except Exception as exc:
@@ -183,7 +196,7 @@ def run_download(url, silent=False):
     baseline_tmpl = str(DOWNLOADS / f"{title}.%(ext)s")
     last_err = []
 
-    strategies_to_try = [working_extra] + [s for s in _STRATEGIES if s != working_extra]
+    strategies_to_try = [working_extra] + [s for s in order if s != working_extra]
 
     success = False
     bl_path = None

@@ -45,7 +45,7 @@ build_scripts() {
   local s="$OUT/scripts" f
   rm -rf "$s"; mkdir -p "$s/models"
   for f in downloader.py bpm.py tempocnn_np.py; do cp -f "$ROOT/$f" "$s/"; done
-  if [ -f "$APP/app_run.py" ]; then cp -f "$APP/app_run.py" "$s/"; else echo "  (app_run.py not present yet: Task 2)"; fi
+  if [ -f "$ROOT/app_run.py" ]; then cp -f "$ROOT/app_run.py" "$s/"; else echo "  (app_run.py not present yet: Task 2)"; fi
   cp -f "$ROOT/models/deeptemp-k16-3.npz" "$s/models/"
 }
 

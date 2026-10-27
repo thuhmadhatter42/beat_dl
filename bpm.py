@@ -130,8 +130,12 @@ def top3_with_confidence(scores, agree):
 # ---------------------------------------------------------------- essentia path (main)
 
 def _tool(name):
-    """The bundled ffmpeg/ffprobe in ./bin, else whatever is on PATH."""
+    """ORION_BIN (the Orion app's runtime) if set, then ./bin, else whatever is on PATH."""
+    import os
     import shutil
+    ob = os.environ.get("ORION_BIN")
+    if ob and (Path(ob) / name).is_file():
+        return str(Path(ob) / name)
     p = HERE / "bin" / name
     return str(p) if p.is_file() else shutil.which(name)
 

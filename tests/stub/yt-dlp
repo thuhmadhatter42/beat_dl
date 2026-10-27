@@ -1,0 +1,47 @@
+#!/bin/bash
+# Test stub for yt-dlp. STUB_MODE: ok | ok-weird-title | fail-network | fail-then-ok | upgrade
+# STUB_AUDIO = file to "download"; STUB_STATE = dir for state; STUB_ARGV_LOG = file to append argv to.
+MODE="${STUB_MODE:-ok}"
+STATE="${STUB_STATE:-/tmp}"
+[ -n "$STUB_ARGV_LOG" ] && printf '%s\n' "$*" >> "$STUB_ARGV_LOG"
+
+for a in "$@"; do
+  if [ "$a" = "-U" ]; then
+    touch "$STATE/upgraded"
+    echo "Updated yt-dlp (stub)"
+    exit 0
+  fi
+done
+
+if [ "$MODE" = "fail-network" ]; then
+  echo "ERROR: <urlopen error [Errno 8] nodename nor servname provided> network" >&2
+  exit 1
+fi
+if [ "$MODE" = "fail-then-ok" ] && [ ! -e "$STATE/upgraded" ]; then
+  echo "ERROR: Unable to extract stuff" >&2
+  exit 1
+fi
+
+dump=0; out=""; prev=""
+for a in "$@"; do
+  [ "$a" = "--dump-json" ] && dump=1
+  [ "$prev" = "-o" ] && out="$a"
+  prev="$a"
+done
+
+if [ $dump = 1 ]; then
+  if [ "$MODE" = "ok-weird-title" ]; then
+    echo '{"title": "a/b: \"c\" 🔥"}'
+  else
+    echo '{"title": "Test Beat"}'
+  fi
+  exit 0
+fi
+
+# Download: the template minus its .%(ext)s suffix, plus .mp3
+base="${out%.%(ext)s}"
+dest="$base.mp3"
+cp "$STUB_AUDIO" "$dest"
+echo "$dest"
+echo "251"
+echo "128.0"
