@@ -119,7 +119,7 @@ and the critique.
   data, and it stops when Reduce Motion is on).
 - **Dark only**, like Artemis (no light mode).
 - **Type:** Helvetica Neue throughout (Artemis's `--face-font`), tabular figures on numbers.
-- **App icon:** in Artemis's icon style (a marble relief on a deep navy ground), showing Orion the hunter,
+- **App icon:** v1 = Orion's constellation in amber on the Artemis chassis (my call, rendered by code). Later, if J supplies a render: in Artemis's icon style (a marble relief on a deep navy ground), showing Orion the hunter,
   Artemis's hunting companion in the myth.
 - **States, all designed:** empty (placeholder "Enter YouTube link here"), link pasted (Download
   lit), downloading (readout shows stage text: "Downloading…", "Finding BPM and key…"), done
