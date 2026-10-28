@@ -22,10 +22,11 @@ struct RealRunner: CommandRunner {
 /// Beat Key › Run Doctor: re-checks and repairs the bundled tools, one step at a time.
 ///   1 yt-dlp: force `-U` (ignores the weekly stamp), re-seed from the bundle if it won't run
 ///   2 ffmpeg / ffprobe: `-version` from the bin dir the Runtime picks
-///   3 python: `import essentia, numpy` in the bundled python
-///   4 the downloads folder is writable
+///   3 JS: `deno --version`, the JavaScript runtime yt-dlp needs for YouTube (none on macOS 11)
+///   4 python: `import essentia, numpy` in the bundled python
+///   5 the downloads folder is writable
 struct Doctor {
-    static let stages = ["doctor-ytdlp", "doctor-ffmpeg", "doctor-python", "doctor-downloads"]
+    static let stages = ["doctor-ytdlp", "doctor-ffmpeg", "doctor-js", "doctor-python", "doctor-downloads"]
     static let permissionHint = "Allow Downloads access in System Settings › Privacy & Security › Files and Folders"
 
     let runtime: Runtime
@@ -97,14 +98,21 @@ struct Doctor {
             if r.status != 0, problem == nil { problem = "\(tool.uppercased()) WON'T RUN · REINSTALL \(Brand.wordmark)" }
         }
 
-        // 3 python + essentia
+        // 3 the JavaScript runtime (V8 needs its JIT entitlements to start at all)
         progress(Doctor.stages[2])
+        if runtime.hasJSRuntime {
+            let js = runner.run(runtime.deno, ["--version"], environment: nil, timeout: 60)
+            if js.status != 0, problem == nil { problem = "JS RUNTIME WON'T RUN · REINSTALL \(Brand.wordmark)" }
+        }
+
+        // 4 python + essentia
+        progress(Doctor.stages[3])
         let py = runner.run(runtime.python, ["-c", "import essentia, numpy"],
                             environment: runtime.environment(), timeout: 120)
         if py.status != 0, problem == nil { problem = "PYTHON WON'T START · REINSTALL \(Brand.wordmark)" }
 
-        // 4 downloads folder
-        progress(Doctor.stages[3])
+        // 5 downloads folder
+        progress(Doctor.stages[4])
         if !downloadsWritable(), problem == nil { problem = Doctor.permissionHint.uppercased() }
 
         if let p = problem { return DoctorReport(outcome: .failed, title: "DOCTOR FOUND A PROBLEM", line: p) }

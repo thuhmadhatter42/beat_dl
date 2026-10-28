@@ -12,6 +12,9 @@ The Downloads folder comes from ORION_DOWNLOADS (default ~/Downloads).
 ORION_YTDLP = the yt-dlp to use (the app's copy in Application Support). It runs the downloads
 and is the only file `-U` ever touches; unset or missing = no upgrade step (never PATH).
 ORION_YTDLP_TIMEOUT = seconds allowed per yt-dlp call (default 600).
+ORION_DENO = the bundled JavaScript runtime, passed to yt-dlp as --js-runtimes deno:<path>.
+Every download writes its yt-dlp stderr to ~/Library/Logs/Beat Key/last-run.log (ORION_LOG_DIR
+overrides the folder), overwritten each run.
 """
 
 import contextlib
@@ -142,24 +145,109 @@ def needs_login(reason, tried=None):
     emit(stage="needs_login", reason=reason, message=LOGIN_MESSAGES[reason], **extra)
 
 
-def cookie_error_message(browser):
+# Where yt-dlp looks for each browser's cookies on macOS (yt_dlp/cookies.py).
+BROWSER_DIRS = {
+    "brave": "BraveSoftware/Brave-Browser", "chrome": "Google/Chrome", "chromium": "Chromium",
+    "edge": "Microsoft Edge", "opera": "com.operasoftware.Opera", "vivaldi": "Vivaldi",
+    "whale": "Naver/Whale", "firefox": "Firefox/Profiles",
+}
+
+
+def browser_dir_blocked(browser):
+    """True when the browser's data folder exists but macOS will not let us list it. yt-dlp
+    searches that folder with os.walk, which swallows the refusal, so a macOS 27 privacy block
+    reaches us as "could not find <browser> cookies database"."""
+    sub = BROWSER_DIRS.get(browser)
+    if not sub:
+        return False
+    d = Path.home() / "Library" / "Application Support" / sub
+    try:
+        if not d.is_dir():
+            return False
+        os.listdir(d)
+    except PermissionError:
+        return True
+    except OSError:
+        return False
+    return False
+
+
+def cookie_kind(raw, browser):
+    """downloader.cookie_failure, with 'missing' turned into 'blocked' when macOS hid the folder."""
+    kind = downloader.cookie_failure(raw)
+    if kind == "missing" and browser_dir_blocked(browser):
+        return "blocked"
+    return kind
+
+
+def cookie_error_message(browser, kind="blocked"):
+    """kind = downloader.cookie_failure(): blocked | missing | keychain."""
+    name = BROWSER_NAMES.get(browser, browser)
+    if kind == "missing":
+        return f"Couldn't find {name}'s YouTube login. Log in to YouTube in {name}, then try again."
+    if kind == "keychain":
+        return (f"macOS didn't unlock {name}'s YouTube login. Try again and allow Keychain "
+                "access when macOS asks.")
     if browser == "safari":
         return ("Couldn't read Safari's YouTube login. Allow Full Disk Access for Beat Key in "
                 "System Settings \u203a Privacy & Security.")
-    return f"Couldn't read {BROWSER_NAMES.get(browser, browser)}'s YouTube login."
+    # macOS 27 guards Chrome/Brave/Edge/Firefox's own folders; its notification points to
+    # Files & Folders, where Beat Key gets a switch for that browser's data.
+    return (f"macOS blocked Beat Key from reading {name}'s YouTube login. Allow it in "
+            "System Settings \u203a Privacy & Security \u203a Files & Folders.")
+
+
+# The last download's yt-dlp stderr, overwritten every run, for whoever debugs the next failure.
+# ORION_LOG_DIR overrides the folder (tests).
+_REDACT = re.compile(r"(?i)\b(cookie|cookies|authorization|sapisid\w*|po_?token|visitor_?data|"
+                     r"token|key|sig|signature)(\s*[=:]\s*)([^\s&,;'\"]+)")
+
+
+def last_run_log_path():
+    d = os.environ.get("ORION_LOG_DIR")
+    base = Path(d) if d else Path.home() / "Library" / "Logs" / "Beat Key"
+    return base / "last-run.log"
+
+
+def write_last_run_log(url, browser, outcome):
+    try:
+        lines = [f"Beat Key last run  {date.today().isoformat()}",
+                 f"url: {url}", f"browser: {browser or '-'}", f"outcome: {outcome}", ""]
+        for argv, code, err in downloader.RUN_LOG:
+            lines.append(f"$ {' '.join(argv)}")
+            lines.append(f"exit: {'timeout' if code is None else code}")
+            lines.extend(_REDACT.sub(r"\1\2<redacted>", l) for l in err.splitlines())
+            lines.append("")
+        p = last_run_log_path()
+        p.parent.mkdir(parents=True, exist_ok=True)
+        p.write_text("\n".join(lines) + "\n", encoding="utf-8")
+    except Exception:
+        pass  # the log must never cost a download
 
 
 def cmd_download(url, browser=None):
+    downloader.RUN_LOG.clear()
+    outcome = ["crashed"]
+    try:
+        _cmd_download(url, browser, outcome)
+    finally:
+        write_last_run_log(url, browser, outcome[0])
+
+
+def _cmd_download(url, browser, outcome):
     emit(stage="downloading")
     raw = []
     path, msg = _attempt(url, browser=browser, raw=raw)
     if not path:
+        kind = cookie_kind(raw, browser) if browser else None
+        if kind:
+            outcome[0] = f"error: cookies {kind}"
+            emit(stage="error", message=cookie_error_message(browser, kind))
+            return
         reason = downloader.login_reason(raw)
         if reason:
+            outcome[0] = f"needs_login: {reason}"
             needs_login(reason, tried=browser)
-            return
-        if browser and downloader.cookie_access_failed(raw):
-            emit(stage="error", message=cookie_error_message(browser))
             return
     if not browser:
         # A dead link (private / unavailable / removed / invalid) or a timeout: an upgrade will
@@ -174,11 +262,15 @@ def cmd_download(url, browser=None):
                 if not path:
                     reason = downloader.login_reason(raw)
                     if reason:
+                        outcome[0] = f"needs_login: {reason}"
                         needs_login(reason)
                         return
     if not path:
-        emit(stage="error", message=msg or "Download failed for an unknown reason.")
+        msg = msg or "Download failed for an unknown reason."
+        outcome[0] = f"error: {msg}"
+        emit(stage="error", message=msg)
         return
+    outcome[0] = "downloaded"
 
     emit(stage="analyzing")
     try:
@@ -207,6 +299,7 @@ def cmd_download(url, browser=None):
             f.write(log_line(url, final.name))
     except Exception:
         pass  # a log failure must not lose the done event
+    outcome[0] = "done"
     emit(stage="done", file=str(final), name=final.name, bpm=bpm or None,
          keys=[[k, p] for k, p in keys])
 

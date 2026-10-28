@@ -29,8 +29,10 @@ def run_cli(args, mode="ok", downloads=None, state=None, argv_log=None, ytdlp="s
         "STUB_AUDIO": str(WAV),
         "STUB_STATE": str(state),
         "ORION_DOWNLOADS": str(downloads),
+        "ORION_LOG_DIR": str(Path(str(state)).parent / "logs"),   # never the real ~/Library/Logs
         "PYTHONNOUSERSITE": "1",
     })
+    env.pop("ORION_DENO", None)
     if argv_log:
         env["STUB_ARGV_LOG"] = str(argv_log)
     if ytdlp == "stub":
@@ -246,12 +248,102 @@ class TestLogin(Base):
         self.assertEqual(ev[-1]["tried"], "firefox")
         self.assertEqual(len(log.read_text().splitlines()), 1)
 
-    def test_browser_keychain_failure_is_error_with_hint(self):
+    def test_browser_keychain_refusal_is_error_not_login(self):
+        # yt-dlp only warns when the Keychain says no, then YouTube asks for a login: the
+        # Keychain is the real cause, not a missing YouTube login
         p, ev = run_cli(["download", self.URL, "--browser", "chrome"], "fail-keychain", self.dl, self.state)
+        self.assertEqual(ev[-1]["stage"], "error", ev)
+        self.assertEqual(ev[-1]["message"], "macOS didn't unlock Chrome's YouTube login. Try again and "
+                                            "allow Keychain access when macOS asks.")
+
+    def test_safari_blocked_says_full_disk_access(self):
+        p, ev = run_cli(["download", self.URL, "--browser", "safari"], "fail-cookie-blocked", self.dl, self.state)
         self.assertEqual(ev[-1]["stage"], "error")
-        self.assertEqual(ev[-1]["message"], "Couldn't read Chrome's YouTube login.")
-        p, ev = run_cli(["download", self.URL, "--browser", "safari"], "fail-keychain", self.dl, self.state)
         self.assertIn("Full Disk Access for Beat Key", ev[-1]["message"])
+
+    def test_missing_cookie_database(self):
+        home = self.tmp / "home"
+        home.mkdir()
+        p, ev = run_cli(["download", self.URL, "--browser", "chrome"], "fail-cookie-missing", self.dl,
+                        self.state, extra_env={"HOME": str(home)})
+        self.assertEqual(ev[-1]["stage"], "error")
+        self.assertEqual(ev[-1]["message"], "Couldn't find Chrome's YouTube login. "
+                                            "Log in to YouTube in Chrome, then try again.")
+
+    def test_macos_hiding_the_browser_folder_is_blocked(self):
+        # macOS 27 guards the browser's Application Support folder; yt-dlp's os.walk swallows
+        # the refusal and reports "could not find ... cookies database"
+        home = self.tmp / "home"
+        d = home / "Library" / "Application Support" / "Google" / "Chrome"
+        d.mkdir(parents=True)
+        d.chmod(0)
+        try:
+            p, ev = run_cli(["download", self.URL, "--browser", "chrome"], "fail-cookie-missing", self.dl,
+                            self.state, extra_env={"HOME": str(home)})
+        finally:
+            d.chmod(0o700)
+        self.assertEqual(ev[-1]["stage"], "error")
+        self.assertEqual(ev[-1]["message"], "macOS blocked Beat Key from reading Chrome's YouTube login. "
+                                            "Allow it in System Settings › Privacy & Security › "
+                                            "Files & Folders.")
+        self.assertFalse(app_run.cookie_error_message("chrome").lower().count("operation not permitted"))
+
+    def test_harmless_cookie_warning_still_downloads(self):
+        p, ev = run_cli(["download", self.URL, "--browser", "brave"], "cookie-warn-ok", self.dl, self.state)
+        self.assertEqual(ev[-1]["stage"], "done", ev)
+
+    def test_unsolved_js_challenge_is_blocked_not_region(self):
+        for browser in (None, "brave"):
+            args = ["download", self.URL] + (["--browser", browser] if browser else [])
+            p, ev = run_cli(args, "fail-format", self.dl, self.state)
+            self.assertEqual(ev[-1]["stage"], "error", ev)
+            self.assertEqual(ev[-1]["message"], "YouTube blocked this download. Try Beat Key › Run Doctor.")
+            for f in self.state.iterdir():
+                if f.is_file():
+                    f.unlink()
+
+    def test_cookie_failure_classifier(self):
+        c = downloader.cookie_failure
+        self.assertEqual(c(["ERROR: could not find brave cookies database in \"/x\""]), "missing")
+        self.assertEqual(c(["ERROR: [Errno 1] Operation not permitted: '/x/Cookies'"]), "blocked")
+        self.assertEqual(c(["ERROR: [Errno 13] Permission denied: '/x/Cookies'"]), "blocked")
+        self.assertEqual(c(["WARNING: find-generic-password failed"]), "keychain")
+        self.assertEqual(c(["WARNING: cannot decrypt v10 cookies: no key found"]), "keychain")
+        # harmless warnings and the old over-broad words never count
+        self.assertIsNone(c(["WARNING: failed to decrypt cookie (AES-GCM) because the MAC check failed. "
+                             "Possibly the key is wrong?"]))
+        self.assertIsNone(c(["Extracted 1699 cookies from brave (3 could not be decrypted)"]))
+        self.assertIsNone(c(["WARNING: unknown cookie version: \"v12\""]))
+        self.assertIsNone(c(["ERROR: [youtube] x: Requested format is not available"]))
+        self.assertIsNone(c(["WARNING: keyring something"]))
+
+    def test_error_mapping_uses_ytdlp_wording(self):
+        e = downloader.explain_error
+        blocked = "YouTube blocked this download. Try Beat Key › Run Doctor."
+        self.assertEqual(e(["ERROR: [youtube] x: Requested format is not available. Use --list-formats "
+                            "for a list of available formats"]), blocked)
+        self.assertEqual(e(["WARNING: Only images are available for download. use --list-formats to see them"]),
+                         blocked)
+        self.assertEqual(e(["WARNING: [youtube] x: n challenge solving failed: Some formats may be missing."]),
+                         blocked)
+        self.assertEqual(e(["ERROR: [youtube] x: Video unavailable. This video has been removed by the uploader"]),
+                         "That video is unavailable or has been removed.")
+        self.assertEqual(e(["ERROR: [youtube] x: The uploader has not made this video available in your country"]),
+                         "That video is not available in your country.")
+        self.assertEqual(e(["ERROR: [youtube] x: Private video. Sign in if you've been granted access"]),
+                         "That video is private and cannot be downloaded.")
+        self.assertTrue(e(["ERROR: [youtube] x: Sign in to confirm your age. This video may be inappropriate "
+                           "for some users."]).startswith("That video is age-restricted"))
+        self.assertTrue(e(["ERROR: [youtube] x: Video unavailable. This video is no longer available due to "
+                           "a copyright claim by someone"]).startswith("This video is blocked due to a copyright"))
+        self.assertTrue(e(["ERROR: Unable to download webpage: <urlopen error [Errno 8] nodename nor "
+                           "servname provided, or not known>"]).startswith("Network error"))
+        self.assertTrue(e(["ERROR: Unsupported URL: https://example.com/"]).startswith("That doesn't look like"))
+        # "images", "page", "message" contain "age"; none of them is an age restriction
+        self.assertFalse(e(["WARNING: Only images are available"]).startswith("That video is age"))
+        # a region-locked video is final (no upgrade); a blocked download is not
+        self.assertTrue(downloader.is_final_error(["The uploader has not made this video available in your country"]))
+        self.assertFalse(downloader.is_final_error(["Requested format is not available"]))
 
     def test_unknown_browser_is_error(self):
         p, ev = run_cli(["download", self.URL, "--browser", "arc"], "ok", self.dl, self.state)
@@ -265,6 +357,86 @@ class TestLogin(Base):
         self.assertEqual(r(["members-only content"]), "members")
         self.assertIsNone(r(["Private video. Sign in if you've been granted access"]))
         self.assertIsNone(r(["Video unavailable"]))
+
+
+class TestJsRuntimeAndLog(Base):
+    URL = "https://www.youtube.com/watch?v=xxxxxxxxxxx"
+
+    def _deno(self):
+        d = self.tmp / "rt" / "deno"
+        d.parent.mkdir()
+        d.write_text("#!/bin/bash\necho deno 0\n")
+        d.chmod(0o755)
+        return d
+
+    def test_every_ytdlp_call_gets_the_bundled_deno(self):
+        deno = self._deno()
+        log = self.tmp / "argv.log"
+        p, ev = run_cli(["download", self.URL], "fail-then-ok", self.dl, self.state, argv_log=log,
+                        extra_env={"ORION_DENO": str(deno)})
+        self.assertEqual(ev[-1]["stage"], "done", ev)
+        calls = [l for l in log.read_text().splitlines() if l.split()[:1] != ["-U"]]
+        self.assertTrue(calls)
+        self.assertTrue(all(f"--js-runtimes deno:{deno}" in l for l in calls), calls)
+        log.unlink()
+        p, ev = run_cli(["download", self.URL, "--browser", "brave"], "cookie-ok", self.dl, self.state,
+                        argv_log=log, extra_env={"ORION_DENO": str(deno)})
+        self.assertTrue(all(f"--js-runtimes deno:{deno}" in l and "--cookies-from-browser brave" in l
+                            for l in log.read_text().splitlines()))
+
+    def test_no_or_missing_deno_passes_no_flag(self):
+        log = self.tmp / "argv.log"
+        run_cli(["download", self.URL], "ok", self.dl, self.state, argv_log=log)
+        self.assertNotIn("--js-runtimes", log.read_text())
+        log.unlink()
+        run_cli(["download", self.URL], "ok", self.dl, self.state, argv_log=log,
+                extra_env={"ORION_DENO": str(self.tmp / "nope" / "deno")})
+        self.assertNotIn("--js-runtimes", log.read_text())
+
+    def test_js_runtime_args(self):
+        deno = self._deno()
+        self.assertEqual(downloader.js_runtime_args({"ORION_DENO": str(deno)}),
+                         ["--js-runtimes", f"deno:{deno}"])
+        self.assertEqual(downloader.js_runtime_args({}), [])
+
+    def test_cli_mode_never_gets_the_flag(self):
+        calls = []
+
+        def fake_fetch(url, extra_args=(), exe="yt-dlp", timeout=None):
+            calls.append(tuple(extra_args))
+            return None, ["ERROR: Video unavailable"]
+        deno = self._deno()
+        with mock.patch.dict(os.environ, {"ORION_DENO": str(deno)}), \
+                mock.patch.object(downloader, "fetch_info", fake_fetch), \
+                contextlib.redirect_stdout(io.StringIO()):
+            downloader.run_download("https://example.com/v", silent=True)
+        self.assertTrue(calls)
+        self.assertFalse(any("--js-runtimes" in c for c in calls))
+
+    def test_last_run_log_has_ytdlp_stderr_and_is_overwritten(self):
+        p, ev = run_cli(["download", self.URL], "fail-format", self.dl, self.state)
+        f = self.tmp / "logs" / "last-run.log"
+        text = f.read_text()
+        self.assertIn("Requested format is not available", text)
+        self.assertIn("n challenge solving failed", text)
+        self.assertIn("outcome: error: YouTube blocked this download", text)
+        p, ev = run_cli(["download", self.URL], "ok", self.dl, self.state)
+        text = f.read_text()
+        self.assertNotIn("Requested format", text)
+        self.assertIn("outcome: done", text)
+
+    def test_last_run_log_redacts_secrets(self):
+        line = "WARNING: x Cookie: SAPISID=abc123; token=zzz sig=AOq0 visitor_data=Cgt"
+        out = app_run._REDACT.sub(r"\1\2<redacted>", line)
+        for secret in ("abc123", "zzz", "AOq0", "Cgt"):
+            self.assertNotIn(secret, out)
+
+    def test_last_run_log_failure_never_costs_the_download(self):
+        blocker = self.tmp / "file-not-dir"
+        blocker.write_text("x")
+        p, ev = run_cli(["download", self.URL], "ok", self.dl, self.state,
+                        extra_env={"ORION_LOG_DIR": str(blocker / "logs")})
+        self.assertEqual(ev[-1]["stage"], "done", ev)
 
 
 class TestAnalyze(Base):

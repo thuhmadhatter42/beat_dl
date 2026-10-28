@@ -56,12 +56,49 @@ def login_reason(lines):
     return None
 
 
-def cookie_access_failed(lines):
-    """True when yt-dlp could not read the browser's cookies (Keychain, keyring, file permission)."""
+def _error_lines(lines):
+    return [l.strip().lower() for l in lines if l.strip().lower().startswith("error:")]
+
+
+def cookie_failure(lines):
+    """Why yt-dlp could not use the browser's cookies, from its own messages (yt_dlp/cookies.py),
+    else None:
+      'blocked'  a fatal ERROR: [Errno 1] Operation not permitted / [Errno 13] Permission denied
+                 (macOS privacy: Full Disk Access for Safari; on macOS 27 also the per-app data
+                 protection over Chrome/Brave/Edge/Firefox's Application Support folders)
+      'missing'  a fatal ERROR: could not find <browser> cookies database
+      'keychain' the Keychain refused the browser's Safe Storage password. yt-dlp only warns
+                 ("find-generic-password failed", "cannot decrypt v10 cookies: no key found") and
+                 carries on without a login, so this one is read from WARNING lines.
+    yt-dlp also prints harmless cookie warnings (a few cookies it could not decrypt while the rest
+    load fine, an unknown cookie version): those never count."""
+    errs = " ".join(_error_lines(lines))
+    if "operation not permitted" in errs or "permission denied" in errs \
+            or "[errno 1]" in errs or "[errno 13]" in errs:
+        return "blocked"
+    if "could not find" in errs and "cookies database" in errs:
+        return "missing"
     text = " ".join(lines).lower()
-    return ("keyring" in text or "keychain" in text or "operation not permitted" in text
-            or "permission denied" in text or ("could not find" in text and "cookie" in text)
-            or "failed to decrypt" in text)
+    if "find-generic-password failed" in text or "exception running find-generic-password" in text \
+            or ("cannot decrypt" in text and "no key found" in text):
+        return "keychain"
+    return None
+
+
+def cookie_access_failed(lines):
+    """True when yt-dlp could not read the browser's cookies (see cookie_failure)."""
+    return cookie_failure(lines) is not None
+
+
+def js_runtime_args(env=None):
+    """yt-dlp's --js-runtimes for the JavaScript runtime the Beat Key app bundles (deno), which
+    solves YouTube's JS challenges (yt-dlp EJS). ORION_DENO = its path, set by the app; unset or
+    not executable = nothing passed (yt-dlp then looks for deno on PATH, its only default)."""
+    env = os.environ if env is None else env
+    p = env.get("ORION_DENO")
+    if p and os.path.isfile(p) and os.access(p, os.X_OK):
+        return ["--js-runtimes", f"deno:{p}"]
+    return []
 
 
 # ── Dependency check ──────────────────────────────────────────────────────────
@@ -79,6 +116,10 @@ def check_deps():
 
 class YtDlpTimeout(Exception):
     """A yt-dlp call ran past its timeout (app mode only; the CLI never sets one)."""
+
+
+# App mode only: one (argv, exit code, stderr) per yt-dlp call, for app_run.py's last-run log.
+RUN_LOG = []
 
 
 def _run(*args, exe="yt-dlp", timeout=None):
@@ -102,7 +143,9 @@ def _run(*args, exe="yt-dlp", timeout=None):
             p.communicate(timeout=5)
         except Exception:
             pass
+        RUN_LOG.append(([exe] + list(args), None, "(timed out)"))
         raise YtDlpTimeout()
+    RUN_LOG.append(([exe] + list(args), p.returncode, err or ""))
     return p.returncode, out, err
 
 
@@ -176,24 +219,51 @@ def download_audio(url, fmt_selector, outtmpl, extra_args=(), exe="yt-dlp", time
 
 # ── Error translation ─────────────────────────────────────────────────────────
 
+# Every phrase matched below is one yt-dlp itself prints (yt_dlp/YoutubeDL.py,
+# yt_dlp/extractor/common.py, yt_dlp/extractor/youtube/_video.py), lowercased.
+PRIVATE_MESSAGE = "That video is private and cannot be downloaded."
+UNAVAILABLE_MESSAGE = "That video is unavailable or has been removed."
+REGION_MESSAGE = "That video is not available in your country."
+INVALID_URL_MESSAGE = "That doesn't look like a valid URL — paste a full https:// link."
+BLOCKED_MESSAGE = "YouTube blocked this download. Try Beat Key › Run Doctor."
+LOGIN_HINT_MESSAGE = "YouTube is blocking the download. Open YouTube in Firefox, sign in, then retry."
+
+
 def explain_error(lines, url=""):
-    text = " ".join(lines).lower()
+    text = " ".join(lines).lower().replace("’", "'")
     if "private video" in text:
-        return "That video is private and cannot be downloaded."
-    if "age" in text and ("restrict" in text or "confirm" in text):
+        return PRIVATE_MESSAGE
+    if "sign in to confirm your age" in text or "age-restricted" in text \
+            or "inappropriate for some users" in text:
         return "That video is age-restricted. Open YouTube in Firefox and sign in, then retry."
-    if "not available" in text or "unavailable" in text:
-        return "That video is unavailable in your region or has been removed."
-    if "urlopen error" in text or "network" in text or "connection" in text:
-        return "Network error — check your connection and try again."
-    if "no video formats" in text or "requested format" in text:
-        return "No downloadable audio format was found for that video."
-    if "sign in" in text or "login" in text or "bot" in text:
-        return "YouTube is blocking the download. Open YouTube in Firefox, sign in, then retry."
+    if "not a bot" in text:
+        return LOGIN_HINT_MESSAGE
     if "copyright" in text:
         return "This video is blocked due to a copyright claim."
-    if url and not url.startswith("http"):
-        return "That doesn't look like a valid URL — paste a full https:// link."
+    if "not made this video available in your country" in text \
+            or "not available from your location" in text:
+        return REGION_MESSAGE
+    if "try again later" in text and "rate-limited" in text:
+        return "YouTube is limiting downloads from this Mac. Wait an hour, then try again."
+    # YouTube served no audio: its JS challenge went unsolved (no JS runtime, or a stale solver)
+    # or it held the formats back. "Requested format is not available" used to fall into the
+    # "unavailable" branch below and blame the link.
+    if "requested format is not available" in text or "only images are available" in text \
+            or "challenge solving failed" in text or "signature solving failed" in text \
+            or "no video formats found" in text:
+        return BLOCKED_MESSAGE
+    if "video unavailable" in text or "this video is unavailable" in text \
+            or "this video is not available" in text or "this video has been removed" in text \
+            or "this video is no longer available" in text:
+        return UNAVAILABLE_MESSAGE
+    if "urlopen error" in text or "unable to download webpage" in text \
+            or "network is unreachable" in text or "connection" in text:
+        return "Network error — check your connection and try again."
+    if "unsupported url" in text or "is not a valid url" in text \
+            or (url and not url.startswith("http")):
+        return INVALID_URL_MESSAGE
+    if "sign in" in text or "login" in text:
+        return LOGIN_HINT_MESSAGE
     if lines:
         for line in reversed(lines):
             line = line.strip()
@@ -203,15 +273,16 @@ def explain_error(lines, url=""):
 
 
 _FINAL_MESSAGES = (
-    "That video is private and cannot be downloaded.",
-    "That video is unavailable in your region or has been removed.",
-    "That doesn't look like a valid URL — paste a full https:// link.",
+    PRIVATE_MESSAGE,
+    UNAVAILABLE_MESSAGE,
+    REGION_MESSAGE,
+    INVALID_URL_MESSAGE,
 )
 
 
 def is_final_error(lines, url=""):
     """True when the error says the link itself is dead (private / unavailable / removed /
-    invalid): no other strategy, cookies or yt-dlp upgrade can fix it."""
+    region-locked / invalid): no other strategy, cookies or yt-dlp upgrade can fix it."""
     return explain_error(lines, url) in _FINAL_MESSAGES
 
 
@@ -249,6 +320,9 @@ def run_download(url, silent=False, app_order=False, ytdlp=None, timeout=None, b
         timeout = None
         browser = None
     order = strategies(app_order, browser)
+    if app_order:
+        js = js_runtime_args()
+        order = [js + s for s in order]
     kw = {"exe": exe, "timeout": timeout}
 
     def _fail(msg):

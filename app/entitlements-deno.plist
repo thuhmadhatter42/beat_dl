@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <!-- bin/deno only: the JavaScript runtime yt-dlp runs YouTube's JS challenges in (EJS).
+         Deno is V8, a JIT compiler: under the hardened runtime it must map writable+executable
+         pages. allow-jit covers MAP_JIT (Apple Silicon); allow-unsigned-executable-memory covers
+         V8's plain RWX code pages on Intel. denoland signs its own release with these two plus
+         disable-library-validation, allow-dyld-environment-variables and
+         disable-executable-page-protection; deno is one static binary that loads no third-party
+         dylib, so those three are left out. build.sh asserts these two survived the app sign. -->
+    <key>com.apple.security.cs.allow-jit</key>
+    <true/>
+    <key>com.apple.security.cs.allow-unsigned-executable-memory</key>
+    <true/>
+</dict>
+</plist>

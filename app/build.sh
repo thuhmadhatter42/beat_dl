@@ -4,7 +4,7 @@
 #   app/build.sh                  -> app/build/Beat Key.app, app/build/Beat-Key-<VERSION>.dmg (notarized)
 #   app/build.sh --no-notarize    same, stops after signing the DMG
 # Signing is inside-out and never --deep: runtime.sh signs every Mach-O of the tool runtime
-# (yt-dlp with its own entitlements), then the app itself is signed. --deep is for verify only.
+# (yt-dlp and deno with their own entitlements), then the app itself is signed. --deep is for verify only.
 # Nothing is written into the bundle after it is signed.
 set -euo pipefail
 APP="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -73,6 +73,10 @@ for a in arm64 x86_64; do
   ents="$(codesign -d --entitlements - "$OUTAPP/Contents/Resources/runtime/$a/bin/yt-dlp" 2>/dev/null)"
   for k in disable-library-validation allow-unsigned-executable-memory; do
     grep -q "$k" <<<"$ents" || { echo "yt-dlp ($a) lost its $k entitlement"; exit 1; }
+  done
+  ents="$(codesign -d --entitlements - "$OUTAPP/Contents/Resources/runtime/$a/bin/deno" 2>/dev/null)"
+  for k in allow-jit allow-unsigned-executable-memory; do
+    grep -q "$k" <<<"$ents" || { echo "deno ($a) lost its $k entitlement"; exit 1; }
   done
 done
 

@@ -86,7 +86,29 @@ final class BeatKeyTests: XCTestCase {
         XCTAssertEqual(stages, Doctor.stages)
         XCTAssertEqual(rep, DoctorReport(outcome: .ok, title: "DOCTOR OK", line: "YT-DLP 2026.10.26 · ALL CHECKS PASSED"))
         XCTAssertEqual(r.calls, ["yt-dlp --version", "yt-dlp -U", "yt-dlp --version",
-                                 "ffmpeg -version", "ffprobe -version", "python3 -c"])
+                                 "ffmpeg -version", "ffprobe -version", "deno --version", "python3 -c"])
+    }
+
+    func testDoctorJsRuntimeWontRun() {
+        let r = FakeRunner()
+        r.answers["yt-dlp --version"] = [(0, "1")]
+        r.answers["deno --version"] = [(-1, "Killed: 9")]
+        let rep = doctor(r).run { _ in }
+        XCTAssertEqual(rep.outcome, .failed)
+        XCTAssertEqual(rep.line, "JS RUNTIME WON'T RUN · REINSTALL BEAT KEY")
+    }
+
+    func testDoctorSkipsJsOnMacos11() {
+        let r = FakeRunner()
+        r.answers["yt-dlp --version"] = [(0, "1")]
+        r.answers["deno --version"] = [(1, "")]   // would fail: must not be asked
+        let old = Runtime(root: URL(fileURLWithPath: "/R/runtime"), arch: "arm64",
+                          support: URL(fileURLWithPath: "/nonexistent-orion-test/Orion"), osMajor: 11)
+        var stages: [String] = []
+        let rep = Doctor(runtime: old, runner: r, reseed: {}, downloadsWritable: { true }).run { stages.append($0) }
+        XCTAssertEqual(stages, Doctor.stages)   // the light still steps through
+        XCTAssertFalse(r.calls.contains("deno --version"))
+        XCTAssertEqual(rep.outcome, .ok)
     }
 
     func testDoctorReportsAnUpdate() {
@@ -129,8 +151,11 @@ final class BeatKeyTests: XCTestCase {
     func testDoctorStageTextAndLights() {
         XCTAssertEqual(Faceplate.stageText("doctor-ytdlp"), "DOCTOR · YT-DLP")
         XCTAssertEqual(Faceplate.stageText("doctor-ffmpeg"), "DOCTOR · FFMPEG")
+        XCTAssertEqual(Faceplate.stageText("doctor-js"), "DOCTOR · JS")
         XCTAssertEqual(Faceplate.stageText("doctor-python"), "DOCTOR · PYTHON")
-        XCTAssertEqual(Faceplate.doctorSteps("doctor-python").map { $0.1 }, [.done, .done, .on, .off])
+        XCTAssertEqual(Faceplate.doctorSteps("doctor-js").map { $0.0 }, ["YT-DLP", "FFMPEG", "JS", "PYTHON", "DOWNLOADS"])
+        XCTAssertEqual(Faceplate.doctorSteps("doctor-js").map { $0.1 }, [.done, .done, .on, .off, .off])
+        XCTAssertEqual(Faceplate.doctorSteps("doctor-python").map { $0.1 }, [.done, .done, .done, .on, .off])
     }
 
     func testEngineRunsDoctorOffMainAndIgnoresDownloads() {

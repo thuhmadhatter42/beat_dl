@@ -1,5 +1,5 @@
 #!/bin/bash
-# Test stub for yt-dlp. STUB_MODE: ok | ok-weird-title | fail-network | fail-then-ok | fail-unavailable | fail-age | fail-bot | fail-members | fail-keychain | cookie-ok | hang | upgrade
+# Test stub for yt-dlp. STUB_MODE: ok | ok-weird-title | fail-network | fail-then-ok | fail-unavailable | fail-age | fail-bot | fail-members | fail-keychain | fail-cookie-missing | fail-cookie-blocked | cookie-warn-ok | fail-format | fail-region | cookie-ok | hang | upgrade
 # STUB_AUDIO = file to "download"; STUB_STATE = dir for state; STUB_ARGV_LOG = file to append argv to.
 MODE="${STUB_MODE:-ok}"
 STATE="${STUB_STATE:-/tmp}"
@@ -34,8 +34,35 @@ if [ "$MODE" = "fail-members" ]; then
   echo "ERROR: [youtube] xxxxxxxxxxx: Join this channel to get access to members-only content" >&2
   exit 1
 fi
+# Cookie failures, worded as yt-dlp 2026.08.19 (yt_dlp/cookies.py) prints them
+if [ "$MODE" = "fail-cookie-missing" ]; then
+  echo "ERROR: could not find chrome cookies database in \"$HOME/Library/Application Support/Google/Chrome\"" >&2
+  exit 1
+fi
+if [ "$MODE" = "fail-cookie-blocked" ]; then
+  echo "ERROR: [Errno 1] Operation not permitted: '$HOME/Library/Containers/com.apple.Safari/Data/Library/Cookies/Cookies.binarycookies'" >&2
+  exit 1
+fi
 if [ "$MODE" = "fail-keychain" ]; then
-  echo "ERROR: cannot use keyring: could not find chrome cookies database" >&2
+  # the Keychain said no: yt-dlp only warns, goes on without a login, and YouTube asks for one
+  echo "WARNING: find-generic-password failed" >&2
+  echo "WARNING: cannot decrypt v10 cookies: no key found" >&2
+  echo "ERROR: [youtube] xxxxxxxxxxx: Sign in to confirm your age. This video may be inappropriate for some users." >&2
+  exit 1
+fi
+if [ "$MODE" = "cookie-warn-ok" ] && [ $COOKIES = 1 ]; then
+  # harmless: a few cookies yt-dlp could not decrypt, the rest loaded; the download goes on
+  echo "WARNING: failed to decrypt cookie (AES-GCM) because the MAC check failed. Possibly the key is wrong?" >&2
+fi
+# YouTube's JS challenge unsolved (no JS runtime): only storyboards are left
+if [ "$MODE" = "fail-format" ]; then
+  echo "WARNING: [youtube] xxxxxxxxxxx: n challenge solving failed: Some formats may be missing. Ensure you have a supported JavaScript runtime and challenge solver script distribution installed." >&2
+  echo "WARNING: Only images are available for download. use --list-formats to see them" >&2
+  echo "ERROR: [youtube] xxxxxxxxxxx: Requested format is not available. Use --list-formats for a list of available formats" >&2
+  exit 1
+fi
+if [ "$MODE" = "fail-region" ]; then
+  echo "ERROR: [youtube] xxxxxxxxxxx: The uploader has not made this video available in your country" >&2
   exit 1
 fi
 if [ "$MODE" = "hang" ]; then

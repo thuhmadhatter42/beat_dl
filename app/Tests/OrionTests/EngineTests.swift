@@ -153,6 +153,15 @@ final class EngineTests: XCTestCase {
         XCTAssertEqual(rt(arch: "x86_64", os: 11).environment()["ORION_BIN"], "/R/runtime/x86_64/bin")
     }
 
+    func testBundledDenoOnMacos12AndUp() {
+        // deno lives in bin/ even when ffmpeg comes from bin-legacy, and only from macOS 12
+        XCTAssertEqual(rt(os: 12).environment()["ORION_DENO"], "/R/runtime/arm64/bin/deno")
+        XCTAssertEqual(rt(arch: "x86_64", os: 12).environment()["ORION_DENO"], "/R/runtime/x86_64/bin/deno")
+        XCTAssertEqual(rt(os: 27).environment()["ORION_DENO"], "/R/runtime/arm64/bin/deno")
+        XCTAssertNil(rt(os: 11).environment()["ORION_DENO"])
+        XCTAssertNil(rt(arch: "x86_64", os: 11).environment()["ORION_DENO"])
+    }
+
     func testSeedCopiesBundledYtDlp() throws {
         let tmp = FileManager.default.temporaryDirectory.appendingPathComponent("orion-\(UUID().uuidString)")
         defer { try? FileManager.default.removeItem(at: tmp) }

@@ -1,7 +1,10 @@
 #!/bin/bash
 # Builds and signs the bundled tool runtime: app/build/runtime/{arm64,x86_64}/
 #   python/  (python-build-standalone 3.11 + essentia + numpy, installed offline from vendor wheels)
-#   bin/     ffmpeg ffprobe yt-dlp   (arm64 also gets bin-legacy/ = ffmpeg 7.1.1 for macOS 11)
+#   bin/     ffmpeg ffprobe yt-dlp deno   (arm64 also gets bin-legacy/ = ffmpeg 7.1.1 for macOS 11)
+#            deno = the JavaScript runtime yt-dlp needs for YouTube's JS challenges (EJS). Official
+#            denoland release zips, vendor/macos-<arch>/deno.zip, sha256-pinned below. Both are
+#            built for macOS 12.0 (LC_BUILD_VERSION minos), so bin-legacy/ (macOS 11) gets none.
 #   scripts/ downloader.py bpm.py tempocnn_np.py app_run.py models/
 # Usage: app/runtime.sh build | scripts | sign | all
 #   scripts = refresh only scripts/ (+ their .pyc) in an already built runtime: fast; build.sh runs it every time
@@ -12,6 +15,11 @@ OUT="$APP/build/runtime"
 IDENTITY="${SIGN_IDENTITY:-Developer ID Application: J Shriver (9WTFGV63S2)}"
 ENTS="$APP/entitlements.plist"
 ENTS_YTDLP="$APP/entitlements-ytdlp.plist"   # yt-dlp only: see that file
+ENTS_DENO="$APP/entitlements-deno.plist"     # deno only: see that file
+# Deno 2.9.8, https://github.com/denoland/deno/releases/tag/v2.9.8 (sha256 = the release's own digests)
+DENO_VERSION=2.9.8
+DENO_SHA256_arm64=9f0bf660393da2eaff044cdc7444cb08c73f235849b61d224d825a194ce7c98e    # deno-aarch64-apple-darwin.zip
+DENO_SHA256_x86_64=4b2f5edd2639b7470f034238b321d7002d8dfb4726d8558f52c17afac370eb2c   # deno-x86_64-apple-darwin.zip
 ARCHES="arm64 x86_64"
 
 export PYTHONNOUSERSITE=1 PIP_CONFIG_FILE=/dev/null PYTHONDONTWRITEBYTECODE=1
@@ -32,6 +40,11 @@ build_arch() {
     --disable-pip-version-check -q essentia numpy
   unzip -oq "$v/ffmpeg.zip" -d "$d/bin"; unzip -oq "$v/ffprobe.zip" -d "$d/bin"
   cp -f "$ROOT/vendor/yt-dlp" "$d/bin/yt-dlp"
+  local want="DENO_SHA256_$a" got
+  want="${!want}"
+  got="$(shasum -a 256 "$v/deno.zip" | cut -d' ' -f1)"
+  [ "$got" = "$want" ] || { echo "deno $DENO_VERSION ($a): sha256 mismatch for $v/deno.zip"; exit 1; }
+  unzip -oq "$v/deno.zip" deno -d "$d/bin"
   if [ "$a" = arm64 ]; then
     mkdir -p "$d/bin-legacy"
     unzip -oq "$ROOT/vendor/macos-arm64-legacy/ffmpeg.zip" -d "$d/bin-legacy"
@@ -78,7 +91,11 @@ do_sign() {
   awk -F/ '{print NF "\t" $0}' "$list" | sort -rn | cut -f2- | while IFS= read -r f; do
     if [ "${SKIP_YTDLP:-0}" = 1 ] && [ "$(basename "$f")" = yt-dlp ]; then echo "  skip $f"; continue; fi
     chmod u+w "$f"
-    ents="$ENTS"; [ "$(basename "$f")" = yt-dlp ] && ents="$ENTS_YTDLP"
+    ents="$ENTS"
+    case "$(basename "$f")" in
+      yt-dlp) ents="$ENTS_YTDLP" ;;
+      deno) ents="$ENTS_DENO" ;;
+    esac
     codesign --force --options runtime --timestamp --entitlements "$ents" --sign "$IDENTITY" "$f"
   done
   local bad=0 f
