@@ -1,0 +1,113 @@
+import Foundation
+
+enum ViewState: Equatable {
+    case idle
+    case working(stage: String)
+    case done(Result)
+    case analyzed([Result])
+    case failed(String)
+
+    var isBusy: Bool { if case .working = self { return true } else { return false } }
+}
+
+/// Launches a process and streams stdout lines. Injected so tests never spawn Python.
+protocol ProcessLauncher {
+    /// onLine and onExit may be called from any queue; the Engine hops to main.
+    func launch(executable: URL, arguments: [String], environment: [String: String],
+                onLine: @escaping (String) -> Void, onExit: @escaping (Int32) -> Void)
+}
+
+final class RealLauncher: ProcessLauncher {
+    func launch(executable: URL, arguments: [String], environment: [String: String],
+                onLine: @escaping (String) -> Void, onExit: @escaping (Int32) -> Void) {
+        let p = Process()
+        p.executableURL = executable
+        p.arguments = arguments
+        p.environment = environment.merging(["HOME": NSHomeDirectory()]) { a, _ in a }
+        let out = Pipe()
+        p.standardOutput = out
+        p.standardError = FileHandle.nullDevice
+        DispatchQueue.global(qos: .userInitiated).async {
+            do { try p.run() } catch { onExit(-1); return }
+            var buf = Data()
+            let h = out.fileHandleForReading
+            while true {
+                let chunk = h.availableData
+                if chunk.isEmpty { break }
+                buf.append(chunk)
+                while let nl = buf.firstIndex(of: 0x0A) {
+                    let line = String(decoding: buf[buf.startIndex..<nl], as: UTF8.self)
+                    buf.removeSubrange(buf.startIndex...nl)
+                    onLine(line)
+                }
+            }
+            if !buf.isEmpty { onLine(String(decoding: buf, as: UTF8.self)) }
+            p.waitUntilExit()
+            onExit(p.terminationStatus)
+        }
+    }
+}
+
+final class Engine: ObservableObject {
+    @Published var state: ViewState = .idle
+    private let runtime: Runtime
+    private let launcher: ProcessLauncher
+    private var results: [Result] = []
+    private var sawTerminal = false
+
+    init(runtime: Runtime = .appDefault(), launcher: ProcessLauncher = RealLauncher()) {
+        self.runtime = runtime
+        self.launcher = launcher
+    }
+
+    func download(_ url: String) {
+        start(["download", url], stage: "downloading")
+    }
+
+    func analyze(_ files: [URL]) {
+        guard !files.isEmpty else { return }
+        start(["analyze"] + files.map { $0.path }, stage: "analyzing")
+    }
+
+    private func start(_ args: [String], stage: String) {
+        runOnMain {
+            guard !self.state.isBusy else { return }
+            self.state = .working(stage: stage)
+            self.results = []
+            self.sawTerminal = false
+            self.launcher.launch(
+                executable: self.runtime.python,
+                arguments: [self.runtime.script.path] + args,
+                environment: self.runtime.environment(),
+                onLine: { line in
+                    guard let e = Event.parse(line: line) else { return }
+                    DispatchQueue.main.async { self.handle(e) }
+                },
+                onExit: { code in
+                    DispatchQueue.main.async { self.finish(code) }
+                })
+        }
+    }
+
+    private func runOnMain(_ f: @escaping () -> Void) {
+        if Thread.isMainThread { f() } else { DispatchQueue.main.sync(execute: f) }
+    }
+
+    func handle(_ e: Event) {
+        switch e {
+        case .stage(let s): if !sawTerminal { state = .working(stage: s) }
+        case .done(let r): sawTerminal = true; state = .done(r)
+        case .analyzed(let r): results.append(r)
+        case .error(let m): sawTerminal = true; state = .failed(m)
+        }
+    }
+
+    private func finish(_ code: Int32) {
+        guard !sawTerminal else { return }
+        if !results.isEmpty {
+            state = .analyzed(results)
+        } else if state.isBusy {
+            state = .failed("The helper stopped unexpectedly (exit \(code)).")
+        }
+    }
+}
