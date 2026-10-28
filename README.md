@@ -4,6 +4,20 @@ Download YouTube beats as MP3s, auto-tagged with BPM and key.
 
 Tested and working on both Apple Silicon and Intel Macs.
 
+## Beat Key app
+
+Beat Key is the same tool as a normal Mac app. No Terminal, nothing to install first.
+
+1. Download the Beat Key disk image (the `.dmg` file) and double-click it.
+2. Drag **Beat Key** onto the **Applications** folder in the window that opens.
+3. Open **Beat Key** from Applications. The first time, macOS asks "Are you sure you want to open it?". Click **Open**.
+4. Paste a YouTube link and press Return. The MP3 lands in your Downloads folder with the BPM and key in its name, for example `Some Beat (140.0 BPM Cm Eb Gm).mp3`.
+5. To read the BPM and key of a file you already have, drop the audio file onto the Beat Key window. The file isn't changed.
+
+If macOS asks whether Beat Key may access your Downloads folder, click **Allow**. Needs macOS 12 or newer, on Apple Silicon or Intel. yt-dlp updates itself; there is nothing to maintain.
+
+The sections below are for the command-line version.
+
 ## Setup
 
 **Double-click `run.command`.** On first launch it installs anything missing (yt-dlp, ffmpeg and ffprobe ship inside the repo in `vendor/` — no Homebrew, no downloads — and so does the BPM/key analyzer: a standalone Python 3.11 with Essentia, unpacked into `bin/python` on first launch, offline, about a minute) and then starts. `install.command` still exists if you want to install without starting the app.
