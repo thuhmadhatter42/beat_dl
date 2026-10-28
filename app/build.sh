@@ -100,16 +100,28 @@ ln -s /Applications "$STAGE/Applications"
 tiffutil -cathidpicheck "$APP/dmg/background.png" "$APP/dmg/background@2x.png" \
   -out "$STAGE/.background/background.tiff" >/dev/null
 hdiutil create -volname "$APP_NAME" -srcfolder "$STAGE" -fs HFS+ -format UDRW -ov "$RW" >/dev/null
-MNT="$(hdiutil attach -readwrite -noverify -noautoopen "$RW" | awk -F'\t' '/\/Volumes\//{print $NF}' | tail -1)"
+# DMG_LAYOUT_FROM=<an earlier Beat Key DMG>: no Finder, nothing on screen. The volumes mount
+# -nobrowse and the earlier DMG's .DS_Store (same volume name, same .background path) is copied
+# in. Only for a build while someone is using the Mac; the Finder layout below stays the default.
+LAYOUT_FROM="${DMG_LAYOUT_FROM:-}"
+NB=(); [ -n "$LAYOUT_FROM" ] && NB=(-nobrowse)
+MNT="$(hdiutil attach -readwrite -noverify -noautoopen ${NB[@]+"${NB[@]}"} "$RW" | awk -F'\t' '/\/Volumes\//{print $NF}' | tail -1)"
 [ -d "$MNT" ] || { echo "could not mount $RW"; exit 1; }
 VOL="$(basename "$MNT")"
 detach() { hdiutil detach "$MNT" -quiet 2>/dev/null || hdiutil detach "$MNT" -force -quiet 2>/dev/null || true; }
 trap detach EXIT
+if [ -n "$LAYOUT_FROM" ]; then
+  OLD="$(mktemp -d)"
+  hdiutil attach -readonly -nobrowse -noverify -noautoopen -mountpoint "$OLD" "$LAYOUT_FROM" >/dev/null
+  cp "$OLD/.DS_Store" "$MNT/.DS_Store"
+  hdiutil detach "$OLD" -quiet || hdiutil detach "$OLD" -force -quiet
+  rmdir "$OLD" 2>/dev/null || true
+fi
 # Finder lays the window out and writes .DS_Store. Bounds are the whole window; macOS adds the
 # title bar (32 pt on current macOS, measured) on top of the content area, so the height gets
 # TITLE extra.
 TITLE=32
-osascript <<EOF
+[ -n "$LAYOUT_FROM" ] || osascript <<EOF
 tell application "Finder"
   tell disk "$VOL"
     open
