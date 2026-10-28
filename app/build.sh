@@ -58,6 +58,8 @@ plutil -replace NSHumanReadableCopyright -string "© $(date +%Y) J Shriver" "$OU
 plutil -lint "$OUTAPP/Contents/Info.plist" >/dev/null
 printf 'APPL????' > "$OUTAPP/Contents/PkgInfo"
 cp "$APP/icon/Orion.icns" "$OUTAPP/Contents/Resources/Orion.icns"
+[ -f "$ROOT/THIRD-PARTY-LICENSES.md" ] || { echo "missing THIRD-PARTY-LICENSES.md"; exit 1; }
+cp "$ROOT/THIRD-PARTY-LICENSES.md" "$OUTAPP/Contents/Resources/THIRD-PARTY-LICENSES.md"
 [ -d "$PROD/Orion_Orion.bundle" ] || { echo "no Orion_Orion.bundle in $PROD"; exit 1; }
 ditto "$PROD/Orion_Orion.bundle" "$OUTAPP/Contents/Resources/Orion_Orion.bundle"
 ditto "$B/runtime" "$OUTAPP/Contents/Resources/runtime"

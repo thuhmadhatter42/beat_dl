@@ -42,6 +42,7 @@ final class BeatKeyTests: XCTestCase {
         XCTAssertEqual(Brand.about, "About Beat Key")
         XCTAssertEqual(Brand.hide, "Hide Beat Key")
         XCTAssertEqual(Brand.quit, "Quit Beat Key")
+        XCTAssertEqual(Brand.licenses, "Licenses")
         // the plist and build.sh carry the same string
         let app = URL(fileURLWithPath: #filePath).deletingLastPathComponent()
             .deletingLastPathComponent().deletingLastPathComponent()      // app/
@@ -52,6 +53,24 @@ final class BeatKeyTests: XCTestCase {
         XCTAssertEqual(plist["CFBundleIdentifier"] as? String, "com.jshriver.orion")
         let build = try String(contentsOf: app.appendingPathComponent("build.sh"), encoding: .utf8)
         XCTAssertTrue(build.contains("APP_NAME=\"\(Brand.name)\""))
+    }
+
+    // MARK: licenses
+
+    func testLicensesFileShipsWithTheSourceOffer() throws {
+        let app = URL(fileURLWithPath: #filePath).deletingLastPathComponent()
+            .deletingLastPathComponent().deletingLastPathComponent()      // app/
+        let file = app.deletingLastPathComponent()
+            .appendingPathComponent("\(Brand.licensesFile).\(Brand.licensesExt)")
+        let text = try String(contentsOf: file, encoding: .utf8)
+        XCTAssertTrue(text.contains("Source for Beat Key and its modifications: https://github.com/thuhmadhatter42/beat_dl"))
+        for needle in ["GNU AFFERO GENERAL PUBLIC LICENSE", "GNU GENERAL PUBLIC LICENSE", "CC BY-NC-SA 4.0",
+                       "Essentia", "yt-dlp", "FFmpeg", "Deno"] {
+            XCTAssertTrue(text.contains(needle), needle)
+        }
+        let build = try String(contentsOf: app.appendingPathComponent("build.sh"), encoding: .utf8)
+        XCTAssertTrue(build.contains("THIRD-PARTY-LICENSES.md"))
+        XCTAssertNil(Licenses.fileURL(bundle: Bundle(for: Self.self)))   // unbundled: nothing to open, no crash
     }
 
     // MARK: failure hints
