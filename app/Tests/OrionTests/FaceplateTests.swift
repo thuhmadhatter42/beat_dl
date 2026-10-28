@@ -51,6 +51,29 @@ final class FaceplateTests: XCTestCase {
         XCTAssertEqual(Faceplate.fileLine(r), "A (90.0 BPM AM).MP3 · DOWNLOADS")
     }
 
+    func testDropKeepsOnlyAudioFiles() throws {
+        let fm = FileManager.default
+        let dir = fm.temporaryDirectory.appendingPathComponent("orion-drop-\(UUID().uuidString)")
+        try fm.createDirectory(at: dir, withIntermediateDirectories: true)
+        defer { try? fm.removeItem(at: dir) }
+        let names = ["a.wav", "b.pdf", "c.MP3", "d.aiff", "e.txt", "f.opus"]
+        for n in names { fm.createFile(atPath: dir.appendingPathComponent(n).path, contents: Data([0])) }
+        let folder = dir.appendingPathComponent("beats.wav")      // a folder named like audio
+        try fm.createDirectory(at: folder, withIntermediateDirectories: true)
+        let missing = dir.appendingPathComponent("gone.mp3")
+        let input = names.map { dir.appendingPathComponent($0) } + [folder, missing,
+                    URL(string: "https://example.com/x.mp3")!]
+        let kept = Faceplate.audioFiles(input).map { $0.lastPathComponent }
+        XCTAssertEqual(kept, ["a.wav", "c.MP3", "d.aiff", "f.opus"])   // opus via UTType .audio
+        XCTAssertEqual(Faceplate.audioFiles([folder, dir.appendingPathComponent("b.pdf")]), [])
+    }
+
+    func testTextureBundleCandidatesNeverNeedBundleModule() {
+        let c = Textures.bundleCandidates()
+        XCTAssertFalse(c.isEmpty)
+        XCTAssertTrue(c.allSatisfy { $0.lastPathComponent == "Orion_Orion.bundle" })
+    }
+
     func testRuntimeRootOverride() {
         let rt = Runtime.appDefault(env: ["ORION_RUNTIME_ROOT": "/tmp/rt"])
         XCTAssertEqual(rt.root.path, "/tmp/rt")

@@ -119,7 +119,8 @@ struct FaceplateView: View {
             }
         }
         group.notify(queue: .main) {
-            let files = urls.keys.sorted().compactMap { urls[$0] }
+            // audio files only; a drop with none (folder, PDF...) changes nothing
+            let files = Faceplate.audioFiles(urls.keys.sorted().compactMap { urls[$0] })
             guard !files.isEmpty else { return }
             model.lastAction = .analyze
             engine.analyze(files)

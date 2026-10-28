@@ -292,7 +292,7 @@ struct TempoLight: View {
         let p = period
         let t = Timer(timeInterval: p, repeats: true) { _ in
             lit = true
-            DispatchQueue.main.asyncAfter(deadline: .now() + p * 0.2) { lit = false }
+            DispatchQueue.main.asyncAfter(deadline: .now() + p * 0.2) { if timer != nil { lit = false } }
         }
         RunLoop.main.add(t, forMode: .common)
         timer = t

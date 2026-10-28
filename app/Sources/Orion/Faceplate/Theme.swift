@@ -49,19 +49,27 @@ enum Theme {
     }
 }
 
-/// The two textures from app/tools/textures.py. A packaged .app may carry them in
-/// Contents/Resources (directly or inside the SwiftPM resource bundle); `swift run` finds
-/// the SwiftPM bundle through Bundle.module.
+/// The two textures from app/tools/textures.py. Looked up without Bundle.module (which
+/// fatalErrors when its bundle is missing): loose PNGs in Contents/Resources, then the SwiftPM
+/// resource bundle in Contents/Resources (.app) or next to the executable (`swift run`).
+/// Not found = nil, and the plate simply draws without grain.
 enum Textures {
     static let noise = load("noise")
     static let brushed = load("brushed")
 
+    static let bundleName = "Orion_Orion.bundle"
+
+    /// Where the SwiftPM resource bundle may sit, in order.
+    static func bundleCandidates(main: Bundle = .main) -> [URL] {
+        [main.resourceURL, main.executableURL?.deletingLastPathComponent(), main.bundleURL]
+            .compactMap { $0?.appendingPathComponent(bundleName) }
+    }
+
     private static func load(_ name: String) -> NSImage? {
         if let u = Bundle.main.url(forResource: name, withExtension: "png") { return NSImage(contentsOf: u) }
-        if let res = Bundle.main.resourceURL,
-           let b = Bundle(url: res.appendingPathComponent("Orion_Orion.bundle")),
-           let u = b.url(forResource: name, withExtension: "png") { return NSImage(contentsOf: u) }
-        if let u = Bundle.module.url(forResource: name, withExtension: "png") { return NSImage(contentsOf: u) }
+        for c in bundleCandidates() {
+            if let u = Bundle(url: c)?.url(forResource: name, withExtension: "png") { return NSImage(contentsOf: u) }
+        }
         return nil
     }
 }

@@ -1,4 +1,5 @@
 import Foundation
+import UniformTypeIdentifiers
 
 /// The faceplate's own logic, kept out of the views so it can be tested.
 enum Faceplate {
@@ -43,6 +44,21 @@ enum Faceplate {
         var m = message.trimmingCharacters(in: .whitespacesAndNewlines)
         while m.hasSuffix(".") { m.removeLast() }
         return m.uppercased()
+    }
+
+    static let audioExtensions: Set<String> = ["mp3", "wav", "aif", "aiff", "flac", "m4a", "aac", "ogg"]
+
+    /// The dropped items worth analyzing: regular audio files. Folders, PDFs and the rest are
+    /// left out, so they never show up as empty rows or inflate "N OF M".
+    static func audioFiles(_ urls: [URL]) -> [URL] {
+        urls.filter { u in
+            guard u.isFileURL,
+                  (try? u.resourceValues(forKeys: [.isRegularFileKey]))?.isRegularFile == true
+            else { return false }
+            let ext = u.pathExtension.lowercased()
+            if audioExtensions.contains(ext) { return true }
+            return UTType(filenameExtension: ext)?.conforms(to: .audio) ?? false
+        }
     }
 
     /// "NAME · FOLDER", the LCD's file line.
