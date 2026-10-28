@@ -31,6 +31,12 @@ struct FaceplateView: View {
             default: break
             }
         }
+        .onReceive(model.$url) { u in
+            // changing the link drops a pending login prompt (it belongs to the old link)
+            if case .needsLogin(let p) = engine.state, u.trimmingCharacters(in: .whitespacesAndNewlines) != p.url {
+                engine.clearLogin()
+            }
+        }
         .onAppear(perform: installKeys)
         .onDisappear { if let m = keyMonitor { NSEvent.removeMonitor(m) } }
     }
@@ -40,6 +46,8 @@ struct FaceplateView: View {
     static let size = CGSize(width: 552, height: 410)
     /// Both caps share one width so the two fields line up.
     static let capLegendWidth: CGFloat = 92
+    /// The login cap's longer legend (8 pt) needs a wider cap.
+    static let loginLegendWidth: CGFloat = 170
 
     // MARK: module: LCD + row
 
@@ -51,11 +59,20 @@ struct FaceplateView: View {
             }
             HStack(spacing: 12) {
                 LinkField(text: $model.url, focused: $model.fieldFocused, onSubmit: download)
-                Button(action: download) { SSLCapStyle.label("DOWNLOAD").frame(width: FaceplateView.capLegendWidth) }
-                    // not .disabled(): AppKit would grey the legend; download() ignores an unlit cap
-                    .buttonStyle(SSLCapStyle(lit: lit))
-                    .accessibility(label: Text("Download"))
-                    .accessibility(hint: Text(lit ? "Downloads the link as an MP3 into Downloads" : "Paste a YouTube link first"))
+                if let p = loginPrompt {
+                    let cap = Faceplate.loginCap(p, browser: loginBrowser, busy: engine.state.isBusy)
+                    Button(action: login) {
+                        SSLCapStyle.label(cap.label, size: 8).lineLimit(1).fixedSize().frame(width: FaceplateView.loginLegendWidth)
+                    }
+                    .buttonStyle(SSLCapStyle(lit: cap.lit))
+                    .accessibility(label: Text(cap.label.capitalized))
+                } else {
+                    Button(action: download) { SSLCapStyle.label("DOWNLOAD").frame(width: FaceplateView.capLegendWidth) }
+                        // not .disabled(): AppKit would grey the legend; download() ignores an unlit cap
+                        .buttonStyle(SSLCapStyle(lit: lit))
+                        .accessibility(label: Text("Download"))
+                        .accessibility(hint: Text(lit ? "Downloads the link as an MP3 into Downloads" : "Paste a YouTube link first"))
+                }
             }
             .padding(.top, 14)
             HStack(spacing: 12) {
@@ -76,6 +93,9 @@ struct FaceplateView: View {
     }
 
     // MARK: derived state
+
+    private var loginPrompt: LoginPrompt? { Faceplate.loginPrompt(engine.state, url: model.url) }
+    private var loginBrowser: LoginBrowser? { loginPrompt.flatMap { _ in LoginBrowser.current() } }
 
     private var lit: Bool { Faceplate.isLit(model.url, busy: engine.state.isBusy) }
     private var findLit: Bool { Faceplate.isFindLit(model.picked, busy: engine.state.isBusy) }
@@ -103,6 +123,9 @@ struct FaceplateView: View {
             let i = min(model.pager.index, rs.count - 1)
             return .result(rs[i], page: model.pager.caption, download: false, note: engine.note)
         case .failed(let m): return .error(m, download: dl)
+        case .needsLogin(let p):
+            let (a, b) = Faceplate.loginLines(p, browser: LoginBrowser.current())
+            return .login(a, b, caption: p.tried == nil ? Faceplate.loginCaption : nil)
         }
     }
 
@@ -112,7 +135,22 @@ struct FaceplateView: View {
 
     // MARK: actions
 
+    /// The login cap: first press opens youtube.com in the browser and runs the cookie try;
+    /// the retry only runs the cookie try again.
+    private func login() {
+        guard let p = loginPrompt, !engine.state.isBusy else { return }
+        model.lastAction = .download
+        if let t = p.tried {
+            engine.download(p.url, browser: t)
+        } else if let b = LoginBrowser.current() {
+            b.openYouTube()
+            engine.download(p.url, browser: b.name)
+        }
+        NSApp.keyWindow?.makeFirstResponder(nil)
+    }
+
     private func download() {
+        if loginPrompt != nil { login(); return }
         guard lit else { return }
         model.lastAction = .download
         engine.download(model.url.trimmingCharacters(in: .whitespacesAndNewlines))

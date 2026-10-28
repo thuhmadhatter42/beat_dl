@@ -182,7 +182,7 @@ struct SSLCapStyle: ButtonStyle {
     let lit: Bool
 
     /// The cap's legend: 9 pt bold, .16em (Text-only tracking is the macOS 11 way).
-    static func label(_ s: String) -> Text { Text(s).font(Theme.face(9)).tracking(9 * 0.16) }
+    static func label(_ s: String, size: CGFloat = 9) -> Text { Text(s).font(Theme.face(size)).tracking(size * 0.16) }
 
     func makeBody(configuration: Configuration) -> some View {
         let shape = RoundedRectangle(cornerRadius: 2.5, style: .continuous)

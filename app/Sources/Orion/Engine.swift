@@ -6,10 +6,19 @@ enum ViewState: Equatable {
     case done(Result)
     case analyzed([Result])
     case failed(String)
+    /// Not a failure: the next try needs a YouTube login. Not busy.
+    case needsLogin(LoginPrompt)
     case doctor(DoctorReport)
 
     var stageName: String? { if case .working(let s) = self { return s } else { return nil } }
     var isBusy: Bool { if case .working = self { return true } else { return false } }
+}
+
+/// What the faceplate asks for after a login-fixable error.
+struct LoginPrompt: Equatable {
+    let url: String
+    let reason: String      // "age" | "bot" | "members"
+    let tried: String?      // yt-dlp browser name already tried; nil = first time
 }
 
 /// Launches a process and streams stdout lines. Injected so tests never spawn Python.
@@ -59,6 +68,7 @@ final class Engine: ObservableObject {
     private var results: [Result] = []
     private var expected = 0
     private var sawTerminal = false
+    private var pendingURL = ""
     private var generation = 0
     private let makeDoctor: (Runtime) -> Doctor
     private let doctorQueue: DispatchQueue
@@ -106,8 +116,19 @@ final class Engine: ObservableObject {
         }
     }
 
-    func download(_ url: String) {
-        start(["download", url], stage: "downloading", probe: downloadsProbe)
+    /// browser = a yt-dlp browser name: the only way a download ever reads browser cookies.
+    func download(_ url: String, browser: String? = nil) {
+        runOnMain {
+            guard !self.state.isBusy else { return }
+            self.pendingURL = url
+            self.start(["download", url] + (browser.map { ["--browser", $0] } ?? []),
+                       stage: "downloading", probe: self.downloadsProbe)
+        }
+    }
+
+    /// Drops the login prompt (the link changed). Anything else is left alone.
+    func clearLogin() {
+        runOnMain { if case .needsLogin = self.state { self.state = .idle } }
     }
 
     func analyze(_ files: [URL]) {
@@ -184,6 +205,9 @@ final class Engine: ObservableObject {
         case .done(let r): sawTerminal = true; state = .done(r)
         case .analyzed(let r): results.append(r)
         case .error(let m): sawTerminal = true; state = .failed(m)
+        case .needsLogin(let reason, _, let tried):
+            sawTerminal = true
+            state = .needsLogin(LoginPrompt(url: pendingURL, reason: reason, tried: tried))
         }
     }
 

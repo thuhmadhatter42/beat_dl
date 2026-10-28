@@ -42,6 +42,41 @@ enum Faceplate {
         }
     }
 
+    // MARK: YouTube login (only after a video asks for it)
+
+    static let loginCapLabel = "OPEN YOUTUBE.COM & LOGIN"
+    static let retryCapLabel = "TRY AGAIN"
+    static let loginCaption = "macOS may ask for your password so \(Brand.name) can read the login."
+    static let noBrowserLine = "\(Brand.name) can use a YouTube login from Chrome, Brave, Edge, Firefox or Safari.".uppercased()
+
+    /// The prompt to show: only while the link in the field is the one that asked for it.
+    static func loginPrompt(_ state: ViewState, url: String) -> LoginPrompt? {
+        guard case .needsLogin(let p) = state,
+              url.trimmingCharacters(in: .whitespacesAndNewlines) == p.url else { return nil }
+        return p
+    }
+
+    /// The two LCD lines. browser = the one the next try uses (nil = none installed).
+    static func loginLines(_ p: LoginPrompt, browser: LoginBrowser?) -> (String, String) {
+        if p.tried != nil {
+            let n = (LoginBrowser.named(p.tried)?.display ?? "your browser").uppercased()
+            return ("LOG IN TO YOUTUBE IN \(n)", "THEN PRESS TRY AGAIN")
+        }
+        let first: String
+        switch p.reason {
+        case "age": first = "THIS VIDEO IS AGE-RESTRICTED"
+        case "members": first = "THIS VIDEO IS FOR MEMBERS"
+        default: first = "YOUTUBE WANTS A LOGIN"
+        }
+        return (first, browser == nil ? noBrowserLine : "NEXT TRY USES A LOGIN COOKIE FROM YOUR BROWSER")
+    }
+
+    /// The login cap's legend, and whether it is lit (needs a supported browser unless retrying).
+    static func loginCap(_ p: LoginPrompt, browser: LoginBrowser?, busy: Bool) -> (label: String, lit: Bool) {
+        if p.tried != nil { return (retryCapLabel, !busy) }
+        return (loginCapLabel, !busy && browser != nil)
+    }
+
     enum Step: Equatable { case done, on, off }
 
     /// DOWNLOAD / ANALYZE / RENAME lights for a download in progress.
@@ -140,7 +175,7 @@ final class FaceplateModel: ObservableObject {
     @Published var pinnedDrop = false
 }
 
-/// ORION_FAKE_STATE=idle|working|done|drop|error|lit|multi|picked|picked-multi|eperm|
+/// ORION_FAKE_STATE=needs-login|needs-login-retry|idle|working|done|drop|error|lit|multi|picked|picked-multi|eperm|
 /// analyze-error|doctor-working|doctor-ok|doctor-fixed|doctor-failed pins the faceplate for screenshots (no Python).
 enum FakeState {
     static func apply(_ name: String, engine: Engine, model: FaceplateModel) {
@@ -166,6 +201,12 @@ enum FakeState {
                 .map { n, b, k in Result(file: dl.appendingPathComponent(n), name: n, bpm: b,
                                          keys: [(k, 61), ("Eb", 18), ("Gm", 9)]) }
             engine.state = .analyzed(rs)
+        case "needs-login":
+            model.url = "https://www.youtube.com/watch?v=xxxxxxxxxxx"
+            engine.state = .needsLogin(LoginPrompt(url: model.url, reason: "age", tried: nil))
+        case "needs-login-retry":
+            model.url = "https://www.youtube.com/watch?v=xxxxxxxxxxx"
+            engine.state = .needsLogin(LoginPrompt(url: model.url, reason: "age", tried: "brave"))
         case "lit":
             model.url = "https://www.youtube.com/watch?v=xxxxxxxxxxx"
         case "picked":

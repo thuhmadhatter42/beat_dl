@@ -21,6 +21,12 @@ final class EventTests: XCTestCase {
         XCTAssertNil(Event.parse(line: "Analyzing..."))
         XCTAssertNil(Event.parse(line: #"{"stage":"weird"}"#))
     }
+    func testParseNeedsLogin() {
+        XCTAssertEqual(Event.parse(line: #"{"stage":"needs_login","reason":"age","message":"m"}"#),
+                       .needsLogin(reason: "age", message: "m", tried: nil))
+        XCTAssertEqual(Event.parse(line: #"{"stage":"needs_login","reason":"bot","message":"m","tried":"brave"}"#),
+                       .needsLogin(reason: "bot", message: "m", tried: "brave"))
+    }
     func testParseNullBpm() {
         let line = #"{"stage":"analyzed","file":"/x/a.mp3","name":"a.mp3","bpm":null,"keys":[]}"#
         guard case .analyzed(let r)? = Event.parse(line: line) else { return XCTFail() }

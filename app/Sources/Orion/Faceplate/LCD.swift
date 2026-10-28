@@ -9,6 +9,8 @@ enum Readout {
     case result(Result, page: String?, download: Bool, note: String? = nil)
     case error(String, download: Bool)
     case doctor(DoctorReport)
+    /// Amber next step, not a failure: (first line, second line).
+    case login(String, String, caption: String?)
 }
 
 /// The amber LCD: Artemis's `.lcd-hero` grown into the whole face.
@@ -56,6 +58,7 @@ struct LCD: View {
         case let .result(r, page, _, note): ResultReadout(result: r, page: page, note: note, onPage: onPage)
         case let .error(m, download): ErrorReadout(message: m, download: download)
         case let .doctor(r): DoctorReadout(report: r)
+        case let .login(a, b, c): LoginReadout(first: a, second: b, caption: c)
         }
     }
 }
@@ -86,6 +89,25 @@ struct DropReadout: View {
                 .foregroundColor(Theme.amber).amberGlow()
             Text.cap("THE FILE STAYS WHERE IT IS").padding(.top, 10)
         }
+    }
+}
+
+struct LoginReadout: View {
+    let first: String
+    let second: String
+    var caption: String?
+    var body: some View {
+        Centered {
+            Text(first).font(Theme.face(18)).tracking(0.9).multilineTextAlignment(.center)
+                .foregroundColor(Theme.amber).amberGlow()
+            Text.cap(second).multilineTextAlignment(.center).padding(.top, 10)
+            if let c = caption {
+                Text(c).font(Theme.face(8)).tracking(0.4).foregroundColor(Theme.amber(0.45))
+                    .padding(.top, 14)
+            }
+        }
+        .accessibilityElement(children: .ignore)
+        .accessibility(label: Text("\(first.capitalized). \(second.lowercased())"))
     }
 }
 
