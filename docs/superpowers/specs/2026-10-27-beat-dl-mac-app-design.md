@@ -95,7 +95,7 @@ stamp is older than 7 days, run `yt-dlp -U` against the copy in Application Supp
 the bundle). If a download fails, upgrade once and retry. If the updated binary won't run, fall back
 to the bundled one. This runs in the background and never blocks the window.
 
-### 4.5 Cookies (needs care in an app) [SUPERSEDED 2026-10-28: cookies on demand only (J 2026-10-27 22:24), then in-app YouTube login replacing browser cookies and Full Disk Access (Task 14, in progress); see §10]
+### 4.5 Cookies (needs care in an app) [SUPERSEDED 2026-10-28: cookies on demand only (J 2026-10-27 22:24), then no login at all (2026-10-28 12:48); see §10]
 `downloader.py` tries `--cookies-from-browser firefox/safari/chrome` first. From a GUI app on a fresh
 Mac this can trigger a Keychain prompt (Chrome "Safe Storage") or a macOS privacy prompt (Safari
 container, Full Disk Access). Those are anti-goals. **Requirement:** in the app, the strategies that
@@ -180,7 +180,7 @@ Source: PICKUP.md CURRENT STATE 2026-10-28 12:30, ledger `.superpowers/sdd/2026-
 - **Run Doctor:** menu item Beat Key > Run Doctor checks the bundled tools (yt-dlp, ffmpeg, Python/Essentia, deno JS runtime) and reports plain-English results.
 - **Login on demand:** browser cookies are never read automatically (J 2026-10-27 22:24). If YouTube blocks a video the LCD says so and offers a login-and-retry; plain downloads need no login.
 - **Bundled deno** since 0.1.9 (yt-dlp EJS JS challenges need a JS runtime; absence caused the failed login retry at 00:27). DMG grew from about 296 MB to about 390 MB.
-- **No Full Disk Access, in-app YouTube login (IN PROGRESS, Task 14, 0.1.13):** J called Full Disk Access "wildly invasive". Replacement: an in-app YouTube login window (WKWebView, its own cookie file passed with `--cookies-file`); fallback if it cannot work = "age-restricted, can't download". Spike note: Google's passkey step fails in WKWebView, password route via "Try another way" is being tested. Until Task 14 reports, treat §4.5 and the above as the plan, not as shipped.
+- **No Full Disk Access, no login (ruled 2026-10-28 12:48, Task 14, 0.1.14):** J called Full Disk Access "wildly invasive". The in-app YouTube login (WKWebView) was tried and failed on J's real account: Google forces a passkey, and WebAuthn in an embedded WKWebView needs Apple's web-browser entitlement (developer.apple.com/forums/thread/829169, passkeys.dev/docs/reference/macos/). So the app never logs in: age-restricted → amber `THIS VIDEO IS AGE-RESTRICTED` / `BEAT KEY CAN'T DOWNLOAD IT`; bot check → `YOUTUBE BLOCKED THIS DOWNLOAD` / `TRY AGAIN LATER`. No browser data, no cookies, no permissions.
 - **Free FLR product:** J 2026-10-28 12:20: the free offer on fourletterrecords.com, downloaded behind an FLR account (like the Artemis installer), for all FLR users, not one friend. Page handoff: `handoff/TO-FLR-SITE-2026-10-28-beat-key-free-download.md`. Do not publish the download until beat_dl says go.
 - **Release gate [Now]:** open-source licences (Essentia AGPL-3.0, ffmpeg build likely GPL, TempoCNN weights CC BY-NC-SA 4.0) need a licences file in the app and a source/licence link on the site before public release.
-- **Version:** branch `orion-v1` at 0.1.12 (0.1.13 in Task 14). Merging to main and tagging needs J's OK.
+- **Version:** branch `orion-v1` at 0.1.12 (0.1.14 from Task 14). Merging to main and tagging needs J's OK.

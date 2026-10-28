@@ -7,9 +7,9 @@
 - Installed: MBP /Applications/Beat Key.app 0.1.12 (spctl Notarized). DMG: `app/build/Beat-Key-0.1.12.dmg`. Verification videos: `app/build/verify/verify-0.1.12/`.
 - Proven: real downloads + bad-link errors on MBP, Sofia (0.1.8, Doctor OK), Studio D (0.1.8). J 2026-10-28 09:54: nothing on Studio D or E for now.
 - Bundled deno (yt-dlp EJS JS challenges) since 0.1.9. App mode never reads browser cookies automatically.
-- **Running: Task 14** (agent a79c95f012ebc9540, opus, worktree): drop Full Disk Access entirely (J: "wildly invasive"); in-app YouTube login window (WKWebView, own cookie file, `--cookies-file`), fallback = "age-restricted, can't download". Brief `.superpowers/sdd/2026-10-27-orion-v1/task-14-brief.md`, report → task-14-report.md. VERSION → 0.1.13.
+- **Running: Task 14** (agent a79c95f012ebc9540, opus, worktree) → 0.1.14: Full Disk Access AND login code removed entirely. Ruling 2026-10-28 12:48 (J's login test failed twice: Google forces a passkey, and passkeys in an embedded WKWebView need Apple's web-browser entitlement, which Beat Key can't get): age-restricted videos show `THIS VIDEO IS AGE-RESTRICTED` / `BEAT KEY CAN'T DOWNLOAD IT`, no button, no permissions. Report → task-14-report.md. Not installed to /Applications yet.
 - Spike result so far (J 12:29): Google showed "Something went wrong — make sure Bluetooth is on" = passkey step failed in WKWebView; J told to press "Try another way" → password. Not the "browser not secure" block yet.
-- Owed: [Now] open-source licences before public release (Essentia AGPL-3.0, ffmpeg build likely GPL): licences file in app + source/licence link for the site. Then J login test of 0.1.13, my video review, install MBP, quick Sofia check, merge/tag (J OK), final DMG path + sha256 to FLR site session.
+- Owed: [Now] open-source licences before public release (Essentia AGPL-3.0, ffmpeg build likely GPL): licences file in app + source/licence link for the site. Then my video review of 0.1.14, install MBP, quick Sofia check, merge/tag (J OK), final DMG path + sha256 to FLR site session.
 - Ledger (resume map, trust over memory): `.superpowers/sdd/2026-10-27-orion-v1/progress.md`. Every UI change is verified by screen-recording frames, never stills (lesson from 0.1.11 loop).
 - Standing: Sofia never restarted; ssh via ~/.claude/scripts/ssh-rc; trash not rm; no song names in code/logs.
 
