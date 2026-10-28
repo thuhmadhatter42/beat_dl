@@ -54,6 +54,7 @@ final class Engine: ObservableObject {
     private let launcher: ProcessLauncher
     private var results: [Result] = []
     private var sawTerminal = false
+    private var generation = 0
 
     init(runtime: Runtime = .appDefault(), launcher: ProcessLauncher = RealLauncher()) {
         self.runtime = runtime
@@ -72,6 +73,8 @@ final class Engine: ObservableObject {
     private func start(_ args: [String], stage: String) {
         runOnMain {
             guard !self.state.isBusy else { return }
+            self.generation += 1
+            let gen = self.generation
             self.state = .working(stage: stage)
             self.results = []
             self.sawTerminal = false
@@ -81,16 +84,16 @@ final class Engine: ObservableObject {
                 environment: self.runtime.environment(),
                 onLine: { line in
                     guard let e = Event.parse(line: line) else { return }
-                    DispatchQueue.main.async { self.handle(e) }
+                    DispatchQueue.main.async { if gen == self.generation { self.handle(e) } }
                 },
                 onExit: { code in
-                    DispatchQueue.main.async { self.finish(code) }
+                    DispatchQueue.main.async { if gen == self.generation { self.finish(code) } }
                 })
         }
     }
 
     private func runOnMain(_ f: @escaping () -> Void) {
-        if Thread.isMainThread { f() } else { DispatchQueue.main.sync(execute: f) }
+        if Thread.isMainThread { f() } else { DispatchQueue.main.async(execute: f) }
     }
 
     func handle(_ e: Event) {

@@ -3,11 +3,13 @@ import XCTest
 
 final class FakeLauncher: ProcessLauncher {
     var launches: [[String]] = []
-    var onLine: ((String) -> Void)?
-    var onExit: ((Int32) -> Void)?
+    var lines: [(String) -> Void] = []
+    var exits: [(Int32) -> Void] = []
+    var onLine: ((String) -> Void)? { lines.last }
+    var onExit: ((Int32) -> Void)? { exits.last }
     func launch(executable: URL, arguments: [String], environment: [String: String],
                 onLine: @escaping (String) -> Void, onExit: @escaping (Int32) -> Void) {
-        launches.append(arguments); self.onLine = onLine; self.onExit = onExit
+        launches.append(arguments); lines.append(onLine); exits.append(onExit)
     }
 }
 
@@ -46,6 +48,20 @@ final class EngineTests: XCTestCase {
         f.onLine?(#"{"stage":"analyzed","file":"/b.mp3","name":"b.mp3","bpm":"100.0","keys":[]}"#)
         f.onExit?(0); spin()
         if case .analyzed(let rs) = e.state { XCTAssertEqual(rs.count, 2) } else { XCTFail("\(e.state)") }
+    }
+
+    func testStaleExitDoesNotClobberNewRun() {
+        let f = FakeLauncher()
+        let e = Engine(runtime: rt(), launcher: f)
+        e.download("a")
+        f.lines[0](#"{"stage":"done","file":"/a.mp3","name":"a.mp3","bpm":null,"keys":[]}"#); spin()
+        e.download("b")
+        XCTAssertEqual(f.launches.count, 2)
+        f.exits[0](0); spin()
+        XCTAssertEqual(e.state, .working(stage: "downloading"))
+        f.lines[1](#"{"stage":"done","file":"/b.mp3","name":"b.mp3","bpm":null,"keys":[]}"#)
+        f.exits[1](0); spin()
+        if case .done(let r) = e.state { XCTAssertEqual(r.name, "b.mp3") } else { XCTFail("\(e.state)") }
     }
 
     func testCrashWithoutTerminalFails() {

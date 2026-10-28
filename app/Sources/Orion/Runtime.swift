@@ -44,10 +44,10 @@ struct Runtime {
 
     private func runs(_ exe: URL) -> Bool {
         guard FileManager.default.isExecutableFile(atPath: exe.path) else { return false }
-        return Runtime.run(exe, ["--version"]).status == 0
+        return Runtime.run(exe, ["--version"], timeout: 30).status == 0
     }
 
-    static func run(_ exe: URL, _ args: [String]) -> (status: Int32, output: String) {
+    static func run(_ exe: URL, _ args: [String], timeout: TimeInterval = 30) -> (status: Int32, output: String) {
         let p = Process()
         p.executableURL = exe
         p.arguments = args
@@ -55,8 +55,18 @@ struct Runtime {
         p.standardOutput = pipe
         p.standardError = pipe
         do { try p.run() } catch { return (-1, "\(error)") }
+        var timedOut = false
+        let lock = NSLock()
+        let kill = DispatchWorkItem {
+            lock.lock(); timedOut = true; lock.unlock()
+            if p.isRunning { p.terminate() }
+        }
+        DispatchQueue.global().asyncAfter(deadline: .now() + timeout, execute: kill)
         let data = pipe.fileHandleForReading.readDataToEndOfFile()
         p.waitUntilExit()
+        kill.cancel()
+        lock.lock(); let to = timedOut; lock.unlock()
+        if to { return (-2, "timed out") }
         return (p.terminationStatus, String(data: data, encoding: .utf8) ?? "")
     }
 
@@ -84,7 +94,7 @@ struct Runtime {
     }
 
     func upgradeYtDlpSync() {
-        _ = Runtime.run(ytdlp, ["-U"])
+        _ = Runtime.run(ytdlp, ["-U"], timeout: 120)
         if !runs(ytdlp) {
             try? reseed()
         }
