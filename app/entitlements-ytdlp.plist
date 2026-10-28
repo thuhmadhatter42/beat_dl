@@ -11,7 +11,7 @@
     <true/>
     <!-- On Intel (2013 Mac Pro, macOS 12.7.6) the hardened-runtime yt-dlp spins forever without
          this: its unpacked Python needs writable+executable memory there. Proven on that Mac:
-         re-signed with it, `yt-dlp --version` runs. -->
+         re-signed with it, yt-dlp prints its version. -->
     <key>com.apple.security.cs.allow-unsigned-executable-memory</key>
     <true/>
 </dict>
