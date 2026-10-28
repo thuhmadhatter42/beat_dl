@@ -45,10 +45,9 @@ enum Faceplate {
 
     // MARK: YouTube login (only after a video asks for it)
 
-    static let loginCapLabel = "OPEN YOUTUBE.COM & LOGIN"
-    static let retryCapLabel = "TRY AGAIN"
-    static let loginCaption = "macOS may ask for your password so \(Brand.name) can read the login."
-    static let noBrowserLine = "\(Brand.name) can use a YouTube login from Chrome, Brave, Edge, Firefox or Safari.".uppercased()
+    static let loginCapLabel = "LOG IN TO YOUTUBE"
+    static let loginNextLine = "NEXT TRY USES YOUR YOUTUBE LOGIN IN \(Brand.wordmark)"
+    static let cantDownloadLine = "\(Brand.wordmark) CAN'T DOWNLOAD IT"
 
     /// The prompt to show: only while the link in the field is the one that asked for it.
     static func loginPrompt(_ state: ViewState, url: String) -> LoginPrompt? {
@@ -57,25 +56,21 @@ enum Faceplate {
         return p
     }
 
-    /// The two LCD lines. browser = the one the next try uses (nil = none installed).
-    static func loginLines(_ p: LoginPrompt, browser: LoginBrowser?) -> (String, String) {
-        if p.tried != nil {
-            let n = (LoginBrowser.named(p.tried)?.display ?? "your browser").uppercased()
-            return ("LOG IN TO YOUTUBE IN \(n)", "THEN PRESS TRY AGAIN")
-        }
+    /// The two LCD lines. inApp = the login window is on (YouTubeLogin.inApp); off = the
+    /// fallback readout, which only says the video can't be downloaded.
+    static func loginLines(_ p: LoginPrompt, inApp: Bool = YouTubeLogin.inApp) -> (String, String) {
         let first: String
         switch p.reason {
         case "age": first = "THIS VIDEO IS AGE-RESTRICTED"
         case "members": first = "THIS VIDEO IS FOR MEMBERS"
         default: first = "YOUTUBE WANTS A LOGIN"
         }
-        return (first, browser == nil ? noBrowserLine : "NEXT TRY USES A LOGIN COOKIE FROM YOUR BROWSER")
+        return (first, inApp ? loginNextLine : cantDownloadLine)
     }
 
-    /// The login cap's legend, and whether it is lit (needs a supported browser unless retrying).
-    static func loginCap(_ p: LoginPrompt, browser: LoginBrowser?, busy: Bool) -> (label: String, lit: Bool) {
-        if p.tried != nil { return (retryCapLabel, !busy) }
-        return (loginCapLabel, !busy && browser != nil)
+    /// The login cap: shown only with the login window on; lit unless something is running.
+    static func loginCap(busy: Bool, inApp: Bool = YouTubeLogin.inApp) -> (label: String, lit: Bool)? {
+        inApp ? (loginCapLabel, !busy) : nil
     }
 
     enum Step: Equatable { case done, on, off }
@@ -176,11 +171,11 @@ final class FaceplateModel: ObservableObject {
     @Published var pinnedDrop = false
 }
 
-/// ORION_FAKE_STATE=needs-login|needs-login-retry|idle|working|done|drop|error|lit|multi|picked|picked-multi|eperm|
-/// analyze-error|doctor-working|doctor-ok|doctor-fixed|doctor-failed|needs-access|access-granted pins the faceplate for screenshots (no Python).
-/// access-flip runs the real permission wait against a fake probe that says no for 5 s, then yes (videos).
+/// ORION_FAKE_STATE=needs-login|needs-login-off|idle|working|done|drop|error|lit|multi|picked|picked-multi|eperm|
+/// analyze-error|doctor-working|doctor-ok|doctor-fixed|doctor-failed pins the faceplate for screenshots (no Python).
+/// needs-login-off = the fallback readout (YouTubeLogin.inApp off).
 enum FakeState {
-    static func apply(_ name: String, engine: Engine, model: FaceplateModel, access: AccessController? = nil) {
+    static func apply(_ name: String, engine: Engine, model: FaceplateModel) {
         let dl = URL(fileURLWithPath: NSHomeDirectory()).appendingPathComponent("Downloads")
         switch name {
         case "idle":
@@ -203,24 +198,10 @@ enum FakeState {
                 .map { n, b, k in Result(file: dl.appendingPathComponent(n), name: n, bpm: b,
                                          keys: [(k, 61), ("Eb", 18), ("Gm", 9)]) }
             engine.state = .analyzed(rs)
-        case "needs-login":
+        case "needs-login", "needs-login-off", "login-window":
+            if name == "needs-login-off" { YouTubeLogin.inApp = false }
             model.url = "https://www.youtube.com/watch?v=xxxxxxxxxxx"
-            engine.state = .needsLogin(LoginPrompt(url: model.url, reason: "age", tried: nil))
-        case "needs-login-retry":
-            model.url = "https://www.youtube.com/watch?v=xxxxxxxxxxx"
-            engine.state = .needsLogin(LoginPrompt(url: model.url, reason: "age", tried: "brave"))
-        case "needs-access", "access-granted":
-            model.url = "https://www.youtube.com/watch?v=xxxxxxxxxxx"
-            // pinned first, so the state change below cannot start a real wait
-            access?.pin(name == "needs-access" ? .asking(browser: "brave") : .granted(browser: "brave"),
-                        url: model.url)
-            engine.state = .needsAccess(AccessPrompt(url: model.url, browser: "brave"))
-        case "access-flip":
-            model.url = "https://www.youtube.com/watch?v=xxxxxxxxxxx"
-            let yes = Date().addingTimeInterval(5)
-            access?.probe = AccessProbe(home: URL(fileURLWithPath: "/fake-home"),
-                                        open: { _ in Date() < yes ? EPERM : nil })
-            engine.state = .needsAccess(AccessPrompt(url: model.url, browser: "brave"))
+            engine.state = .needsLogin(LoginPrompt(url: model.url, reason: "age"))
         case "lit":
             model.url = "https://www.youtube.com/watch?v=xxxxxxxxxxx"
         case "picked":

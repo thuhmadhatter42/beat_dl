@@ -1,5 +1,5 @@
 #!/bin/bash
-# Test stub for yt-dlp. STUB_MODE: ok | ok-weird-title | fail-network | fail-then-ok | fail-unavailable | fail-age | fail-bot | fail-members | fail-keychain | fail-cookie-missing | fail-cookie-blocked | cookie-warn-ok | fail-format | fail-region | cookie-ok | hang | upgrade
+# Test stub for yt-dlp. STUB_MODE: ok | ok-weird-title | fail-network | fail-then-ok | fail-unavailable | fail-age | fail-bot | fail-members | fail-keychain | fail-cookie-missing | fail-cookie-blocked | cookie-warn-ok | fail-format | fail-region | cookie-ok | cookie-stale | hang | upgrade
 # STUB_AUDIO = file to "download"; STUB_STATE = dir for state; STUB_ARGV_LOG = file to append argv to.
 MODE="${STUB_MODE:-ok}"
 STATE="${STUB_STATE:-/tmp}"
@@ -21,7 +21,13 @@ if [ "$MODE" = "fail-unavailable" ]; then
   echo "ERROR: [youtube] xxxxxxxxxxx: Video unavailable" >&2
   exit 1
 fi
-COOKIES=0; for a in "$@"; do [ "$a" = "--cookies-from-browser" ] && COOKIES=1; done
+COOKIES=0; for a in "$@"; do [ "$a" = "--cookies-from-browser" ] || [ "$a" = "--cookies" ] && COOKIES=1; done
+if [ "$MODE" = "cookie-stale" ] && [ $COOKIES = 1 ]; then
+  # the saved login was rotated/signed out: yt-dlp warns, then YouTube still asks for a login
+  echo "WARNING: [youtube] The provided YouTube account cookies are no longer valid. They have likely been rotated in the browser as a security measure." >&2
+  echo "ERROR: [youtube] xxxxxxxxxxx: Sign in to confirm your age. This video may be inappropriate for some users." >&2
+  exit 1
+fi
 if [ "$MODE" = "fail-age" ] || { [ "$MODE" = "cookie-ok" ] && [ $COOKIES = 0 ]; }; then
   echo "ERROR: [youtube] xxxxxxxxxxx: Sign in to confirm your age. This video may be inappropriate for some users." >&2
   exit 1

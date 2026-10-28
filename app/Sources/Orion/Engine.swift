@@ -8,8 +8,6 @@ enum ViewState: Equatable {
     case failed(String)
     /// Not a failure: the next try needs a YouTube login. Not busy.
     case needsLogin(LoginPrompt)
-    /// Not a failure: a login run needs Full Disk Access first (the sheet walks the user there).
-    case needsAccess(AccessPrompt)
     case doctor(DoctorReport)
 
     var stageName: String? { if case .working(let s) = self { return s } else { return nil } }
@@ -20,13 +18,6 @@ enum ViewState: Equatable {
 struct LoginPrompt: Equatable {
     let url: String
     let reason: String      // "age" | "bot" | "members"
-    let tried: String?      // yt-dlp browser name already tried; nil = first time
-}
-
-/// The link and browser waiting on macOS's permission.
-struct AccessPrompt: Equatable {
-    let url: String
-    let browser: String     // yt-dlp browser name
 }
 
 /// Launches a process and streams stdout lines. Injected so tests never spawn Python.
@@ -83,10 +74,12 @@ final class Engine: ObservableObject {
     /// Touches the Downloads folder so macOS asks for access when DOWNLOAD is pressed, not after
     /// the download. nil = no probe (tests, and ORION_DOWNLOADS runs).
     private let downloadsProbe: (() -> Bool)?
-    /// Before a login run: is the browser's data known blocked? nil = never checked (tests).
-    private let accessCheck: ((String) -> AccessStatus)?
-    /// Remembers that a login was tried (Run Doctor's login line). nil = not recorded.
-    private let noteLogin: ((String) -> Void)?
+    /// The saved YouTube login (cookies file) for yt-dlp, nil = none. Tests inject their own.
+    private let savedLogin: () -> URL?
+    /// YouTube no longer takes the saved login: delete it.
+    private let dropLogin: () -> Void
+    /// The running download uses the saved login.
+    private var usedLogin = false
 
     /// The app's probe: create and remove a hidden file in ~/Downloads. None when ORION_DOWNLOADS
     /// is set (a test/debug run that never touches the real folder).
@@ -100,11 +93,11 @@ final class Engine: ObservableObject {
          doctor: ((Runtime) -> Doctor)? = nil,
          doctorQueue: DispatchQueue = .global(qos: .userInitiated),
          downloadsProbe: (() -> Bool)? = nil,
-         accessCheck: ((String) -> AccessStatus)? = nil,
-         noteLogin: ((String) -> Void)? = nil) {
+         savedLogin: @escaping () -> URL? = { nil },
+         dropLogin: @escaping () -> Void = {}) {
         self.downloadsProbe = downloadsProbe
-        self.accessCheck = accessCheck
-        self.noteLogin = noteLogin
+        self.savedLogin = savedLogin
+        self.dropLogin = dropLogin
         self.runtime = runtime
         self.launcher = launcher
         self.makeDoctor = doctor ?? { Doctor(runtime: $0) }
@@ -132,28 +125,25 @@ final class Engine: ObservableObject {
         }
     }
 
-    /// browser = a yt-dlp browser name: the only way a download ever reads browser cookies.
-    func download(_ url: String, browser: String? = nil) {
+    /// useLogin = run with the saved YouTube login (`--cookies-file`), the only way a download
+    /// ever carries a login. No saved login = the login prompt again, nothing launched.
+    func download(_ url: String, useLogin: Bool = false) {
         runOnMain {
             guard !self.state.isBusy else { return }
             self.pendingURL = url
-            if let b = browser {
-                self.noteLogin?(b)
-                // already known blocked: ask for the permission first instead of failing
-                if self.accessCheck?(b) == .denied {
-                    self.generation += 1
-                    self.state = .needsAccess(AccessPrompt(url: url, browser: b))
-                    return
-                }
+            if useLogin && self.savedLogin() == nil {
+                self.generation += 1
+                self.state = .needsLogin(LoginPrompt(url: url, reason: "age"))
+                return
             }
-            self.start(["download", url] + (browser.map { ["--browser", $0] } ?? []),
-                       stage: "downloading", probe: self.downloadsProbe)
+            self.begin(self.downloadArgs(url, useLogin: useLogin), stage: "downloading", probe: self.downloadsProbe)
         }
     }
 
-    /// The permission prompt is dropped (the link changed): back to idle.
-    func clearAccess() {
-        runOnMain { if case .needsAccess = self.state { self.state = .idle } }
+    private func downloadArgs(_ url: String, useLogin: Bool) -> [String] {
+        let login = useLogin ? savedLogin() : nil
+        usedLogin = login != nil
+        return ["download", url] + (login.map { ["--cookies-file", $0.path] } ?? [])
     }
 
     /// Drops the login prompt (the link changed). Anything else is left alone.
@@ -169,6 +159,14 @@ final class Engine: ObservableObject {
     private func start(_ args: [String], stage: String, expected: Int = 0, probe: (() -> Bool)? = nil) {
         runOnMain {
             guard !self.state.isBusy else { return }
+            if args.first != "download" { self.usedLogin = false }
+            self.begin(args, stage: stage, expected: expected, probe: probe)
+        }
+    }
+
+    /// start without the busy check: also the automatic re-run with the saved login.
+    private func begin(_ args: [String], stage: String, expected: Int = 0, probe: (() -> Bool)? = nil) {
+        runOnMain {
             self.generation += 1
             let gen = self.generation
             self.state = .working(stage: probe == nil ? stage : "allow-downloads")
@@ -235,12 +233,20 @@ final class Engine: ObservableObject {
         case .done(let r): sawTerminal = true; state = .done(r)
         case .analyzed(let r): results.append(r)
         case .error(let m): sawTerminal = true; state = .failed(m)
-        case .needsLogin(let reason, _, let tried):
+        case .needsLogin(let reason, _, let stale):
             sawTerminal = true
-            state = .needsLogin(LoginPrompt(url: pendingURL, reason: reason, tried: tried))
-        case .needsAccess(let browser, _):
-            sawTerminal = true
-            state = .needsAccess(AccessPrompt(url: pendingURL, browser: browser))
+            if stale || usedLogin {
+                // YouTube no longer takes the saved login: throw it away, ask for a new one
+                dropLogin()
+            } else if YouTubeLogin.inApp, savedLogin() != nil {
+                // a later blocked video: straight to the saved login, no window
+                let url = pendingURL
+                state = .working(stage: "downloading")
+                begin(downloadArgs(url, useLogin: true), stage: "downloading")
+                return
+            }
+            usedLogin = false
+            state = .needsLogin(LoginPrompt(url: pendingURL, reason: reason))
         }
     }
 

@@ -2,7 +2,7 @@
 """
 Orchestrator for the Orion app. The Swift app spawns this and renders its JSON-lines events.
 
-  app_run.py download <url> [--browser <name>]
+  app_run.py download <url> [--cookies-file <path>]
   app_run.py analyze <file>...
 
 One JSON object per stdout line, flushed. Exit code 0 unless the process itself crashed.
@@ -101,7 +101,7 @@ def ytdlp_timeout():
         return YTDLP_TIMEOUT
 
 
-def _attempt(url, browser=None, raw=None):
+def _attempt(url, cookies_file=None, raw=None):
     """One run_download pass. Returns (Path | None, message_text). raw (a list) receives yt-dlp's
     raw error lines."""
     out, err = io.StringIO(), io.StringIO()
@@ -109,7 +109,8 @@ def _attempt(url, browser=None, raw=None):
     with contextlib.redirect_stdout(out), contextlib.redirect_stderr(err):
         try:
             path = downloader.run_download(url, silent=True, app_order=True, ytdlp=ytdlp_path(),
-                                           timeout=ytdlp_timeout(), browser=browser, raw_errors=raw)
+                                           timeout=ytdlp_timeout(), cookies_file=cookies_file,
+                                           raw_errors=raw)
         except Exception as exc:  # keep the process alive; report as a download error
             err.write(f"Download failed: {exc}\n")
     msg = (err.getvalue() or out.getvalue()).strip()
@@ -129,10 +130,6 @@ def _upgrade_ytdlp():
     return True
 
 
-BROWSER_NAMES = {"brave": "Brave", "chrome": "Chrome", "chromium": "Chromium", "edge": "Edge",
-                 "firefox": "Firefox", "opera": "Opera", "safari": "Safari", "vivaldi": "Vivaldi",
-                 "whale": "Whale"}
-
 LOGIN_MESSAGES = {
     "age": "This video is age-restricted. A YouTube login is needed.",
     "bot": "YouTube wants a login before it will serve this video.",
@@ -140,70 +137,19 @@ LOGIN_MESSAGES = {
 }
 
 
-def needs_login(reason, tried=None):
-    extra = {"tried": tried} if tried else {}
+def needs_login(reason, stale=False):
+    """stale = the saved login was used and YouTube no longer takes it: the app deletes it and
+    asks for a new one."""
+    extra = {"stale": True} if stale else {}
     emit(stage="needs_login", reason=reason, message=LOGIN_MESSAGES[reason], **extra)
 
 
-# Where yt-dlp looks for each browser's cookies on macOS (yt_dlp/cookies.py).
-BROWSER_DIRS = {
-    "brave": "BraveSoftware/Brave-Browser", "chrome": "Google/Chrome", "chromium": "Chromium",
-    "edge": "Microsoft Edge", "opera": "com.operasoftware.Opera", "vivaldi": "Vivaldi",
-    "whale": "Naver/Whale", "firefox": "Firefox/Profiles",
-}
-
-
-def browser_dir_blocked(browser):
-    """True when the browser's data folder exists but macOS will not let us list it. yt-dlp
-    searches that folder with os.walk, which swallows the refusal, so a macOS 27 privacy block
-    reaches us as "could not find <browser> cookies database"."""
-    sub = BROWSER_DIRS.get(browser)
-    if not sub:
-        return False
-    d = Path.home() / "Library" / "Application Support" / sub
+def keep_private(path):
+    """yt-dlp writes the cookie jar back after a run; keep the file owner-only whatever it did."""
     try:
-        if not d.is_dir():
-            return False
-        os.listdir(d)
-    except PermissionError:
-        return True
+        os.chmod(path, 0o600)
     except OSError:
-        return False
-    return False
-
-
-def cookie_kind(raw, browser):
-    """downloader.cookie_failure, with 'missing' turned into 'blocked' when macOS hid the folder."""
-    kind = downloader.cookie_failure(raw)
-    if kind == "missing" and browser_dir_blocked(browser):
-        return "blocked"
-    return kind
-
-
-def cookie_error_message(browser, kind="blocked"):
-    """kind = downloader.cookie_failure(): blocked | missing | keychain."""
-    name = BROWSER_NAMES.get(browser, browser)
-    if kind == "missing":
-        return f"Couldn't find {name}'s YouTube login. Log in to YouTube in {name}, then try again."
-    if kind == "keychain":
-        return (f"macOS didn't unlock {name}'s YouTube login. Try again and allow Keychain "
-                "access when macOS asks.")
-    # blocked: macOS 27 guards Chrome/Brave/Edge/Firefox's own folders (and Safari's container);
-    # only Full Disk Access for Beat Key, the responsible app of its yt-dlp, opens them.
-    return access_message(browser)
-
-
-def access_message(browser):
-    """The sentence the app's permission sheet shows (and the LCD fallback)."""
-    name = BROWSER_NAMES.get(browser, browser)
-    return (f"macOS keeps other apps' data private. To use your {name} login, turn on "
-            "Full Disk Access for Beat Key.")
-
-
-def needs_access(browser):
-    """The browser's login is behind macOS privacy: the app walks the user through Full Disk
-    Access instead of showing an error."""
-    emit(stage="needs_access", browser=browser, message=access_message(browser))
+        pass
 
 
 # The last download's yt-dlp stderr, overwritten every run, for whoever debugs the next failure.
@@ -218,10 +164,10 @@ def last_run_log_path():
     return base / "last-run.log"
 
 
-def write_last_run_log(url, browser, outcome):
+def write_last_run_log(url, cookies_file, outcome):
     try:
         lines = [f"Beat Key last run  {date.today().isoformat()}",
-                 f"url: {url}", f"browser: {browser or '-'}", f"outcome: {outcome}", ""]
+                 f"url: {url}", f"login: {'saved YouTube login' if cookies_file else '-'}", f"outcome: {outcome}", ""]
         for argv, code, err in downloader.RUN_LOG:
             lines.append(f"$ {' '.join(argv)}")
             lines.append(f"exit: {'timeout' if code is None else code}")
@@ -234,35 +180,33 @@ def write_last_run_log(url, browser, outcome):
         pass  # the log must never cost a download
 
 
-def cmd_download(url, browser=None):
+def cmd_download(url, cookies_file=None):
     downloader.RUN_LOG.clear()
     outcome = ["crashed"]
     try:
-        _cmd_download(url, browser, outcome)
+        _cmd_download(url, cookies_file, outcome)
     finally:
-        write_last_run_log(url, browser, outcome[0])
+        if cookies_file:
+            keep_private(cookies_file)
+        write_last_run_log(url, cookies_file, outcome[0])
 
 
-def _cmd_download(url, browser, outcome):
+def _cmd_download(url, cookies_file, outcome):
     emit(stage="downloading")
     raw = []
-    path, msg = _attempt(url, browser=browser, raw=raw)
+    path, msg = _attempt(url, cookies_file=cookies_file, raw=raw)
     if not path:
-        kind = cookie_kind(raw, browser) if browser else None
-        if kind == "blocked":
-            outcome[0] = "needs_access: cookies blocked"
-            needs_access(browser)
-            return
-        if kind:
-            outcome[0] = f"error: cookies {kind}"
-            emit(stage="error", message=cookie_error_message(browser, kind))
-            return
         reason = downloader.login_reason(raw)
+        if cookies_file and (reason or downloader.cookies_stale(raw)):
+            # the saved login did not get past YouTube: the app throws it away and asks again
+            outcome[0] = "needs_login: saved login no longer works"
+            needs_login(reason or "age", stale=True)
+            return
         if reason:
             outcome[0] = f"needs_login: {reason}"
-            needs_login(reason, tried=browser)
+            needs_login(reason)
             return
-    if not browser:
+    if not cookies_file:
         # A dead link (private / unavailable / removed / invalid) or a timeout: an upgrade will
         # not help and a retry would only repeat the wait. Report it.
         hopeless = msg == downloader.TIMEOUT_MESSAGE or msg in downloader._FINAL_MESSAGES
@@ -360,18 +304,19 @@ def main(argv):
 
 def _main(argv):
     if len(argv) >= 3 and argv[1] == "download":
-        browser = None
-        if "--browser" in argv[3:]:
-            i = argv.index("--browser", 3)
-            browser = argv[i + 1].strip().lower() if i + 1 < len(argv) else ""
-            if browser not in downloader.BROWSERS:
-                emit(stage="error", message="Unknown browser for the YouTube login.")
+        cookies_file = None
+        if "--cookies-file" in argv[3:]:
+            i = argv.index("--cookies-file", 3)
+            cookies_file = argv[i + 1] if i + 1 < len(argv) else ""
+            if not cookies_file or not os.path.isfile(cookies_file):
+                # the saved login is gone: ask for one again rather than run without it
+                needs_login("age", stale=True)
                 return 0
-        cmd_download(argv[2].strip(), browser)
+        cmd_download(argv[2].strip(), cookies_file)
     elif len(argv) >= 3 and argv[1] == "analyze":
         cmd_analyze(argv[2:])
     else:
-        emit(stage="error", message="usage: app_run.py download <url> [--browser <name>] | analyze <file>...")
+        emit(stage="error", message="usage: app_run.py download <url> [--cookies-file <path>] | analyze <file>...")
     return 0
 
 

@@ -26,18 +26,15 @@ _STRATEGIES = [
 ]
 
 
-# yt-dlp's --cookies-from-browser names. The Beat Key app only uses one when the user asks for it.
-BROWSERS = ("brave", "chrome", "chromium", "edge", "firefox", "opera", "safari", "vivaldi", "whale")
-
-
-def strategies(app_order, browser=None):
+def strategies(app_order, cookies_file=None):
     """The strategy list. app_order=False (run.sh / CLI): the original order, cookies first.
     app_order=True (Beat Key app): the non-cookie strategies only, never a browser-cookie one;
-    browser=<name> instead gives exactly one --cookies-from-browser attempt with that name."""
+    cookies_file=<path> instead gives exactly one `--cookies <path>` attempt (the login the
+    app saved from its own YouTube login window)."""
     if not app_order:
         return list(_STRATEGIES)
-    if browser:
-        return [["--cookies-from-browser", browser]]
+    if cookies_file:
+        return [["--cookies", str(cookies_file)]]
     return [s for s in _STRATEGIES if s[:1] != ["--cookies-from-browser"]]
 
 
@@ -56,38 +53,11 @@ def login_reason(lines):
     return None
 
 
-def _error_lines(lines):
-    return [l.strip().lower() for l in lines if l.strip().lower().startswith("error:")]
-
-
-def cookie_failure(lines):
-    """Why yt-dlp could not use the browser's cookies, from its own messages (yt_dlp/cookies.py),
-    else None:
-      'blocked'  a fatal ERROR: [Errno 1] Operation not permitted / [Errno 13] Permission denied
-                 (macOS privacy: Full Disk Access for Safari; on macOS 27 also the per-app data
-                 protection over Chrome/Brave/Edge/Firefox's Application Support folders)
-      'missing'  a fatal ERROR: could not find <browser> cookies database
-      'keychain' the Keychain refused the browser's Safe Storage password. yt-dlp only warns
-                 ("find-generic-password failed", "cannot decrypt v10 cookies: no key found") and
-                 carries on without a login, so this one is read from WARNING lines.
-    yt-dlp also prints harmless cookie warnings (a few cookies it could not decrypt while the rest
-    load fine, an unknown cookie version): those never count."""
-    errs = " ".join(_error_lines(lines))
-    if "operation not permitted" in errs or "permission denied" in errs \
-            or "[errno 1]" in errs or "[errno 13]" in errs:
-        return "blocked"
-    if "could not find" in errs and "cookies database" in errs:
-        return "missing"
+def cookies_stale(lines):
+    """True when yt-dlp says the --cookies login no longer works: YouTube rotated or signed it
+    out ("The provided YouTube account cookies are no longer valid", yt_dlp/extractor/youtube)."""
     text = " ".join(lines).lower()
-    if "find-generic-password failed" in text or "exception running find-generic-password" in text \
-            or ("cannot decrypt" in text and "no key found" in text):
-        return "keychain"
-    return None
-
-
-def cookie_access_failed(lines):
-    """True when yt-dlp could not read the browser's cookies (see cookie_failure)."""
-    return cookie_failure(lines) is not None
+    return "cookies are no longer valid" in text
 
 
 def js_runtime_args(env=None):
@@ -297,7 +267,7 @@ def safe_name(text):
 
 # ── Main ──────────────────────────────────────────────────────────────────────
 
-def run_download(url, silent=False, app_order=False, ytdlp=None, timeout=None, browser=None,
+def run_download(url, silent=False, app_order=False, ytdlp=None, timeout=None, cookies_file=None,
                  raw_errors=None):
     """
     Download one URL. Returns the output Path on success, None on failure.
@@ -306,8 +276,8 @@ def run_download(url, silent=False, app_order=False, ytdlp=None, timeout=None, b
 
     The last four arguments are for the Beat Key app (app_order=True) and are ignored otherwise:
     ytdlp = the yt-dlp executable, timeout = seconds per yt-dlp call (a timeout is reported as
-    "Download timed out."), browser = run only one --cookies-from-browser <browser> attempt
-    (app mode never uses browser cookies otherwise), raw_errors = a list that receives yt-dlp's
+    "Download timed out."), cookies_file = run only one `--cookies <file>` attempt
+    (app mode never reads a browser's cookies), raw_errors = a list that receives yt-dlp's
     raw error lines when the download fails.
     """
     info = None
@@ -318,8 +288,8 @@ def run_download(url, silent=False, app_order=False, ytdlp=None, timeout=None, b
         exe = ytdlp or "yt-dlp"
     else:
         timeout = None
-        browser = None
-    order = strategies(app_order, browser)
+        cookies_file = None
+    order = strategies(app_order, cookies_file)
     if app_order:
         js = js_runtime_args()
         order = [js + s for s in order]

@@ -4,15 +4,21 @@ import SwiftUI
 @main
 struct OrionApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) private var delegate
-    @StateObject private var engine = Engine(downloadsProbe: Engine.defaultProbe(),
-                                             accessCheck: { AccessProbe().browserData($0) },
-                                             noteLogin: { PendingRetryStore().lastLoginBrowser = $0 })
+    @StateObject private var login: YouTubeSession
+    @StateObject private var engine: Engine
     @StateObject private var model = FaceplateModel()
-    @StateObject private var access = AccessController()
+
+    init() {
+        let session = YouTubeSession()
+        _login = StateObject(wrappedValue: session)
+        _engine = StateObject(wrappedValue: Engine(downloadsProbe: Engine.defaultProbe(),
+                                                   savedLogin: { session.savedLogin },
+                                                   dropLogin: { session.file.delete() }))
+    }
 
     var body: some Scene {
         WindowGroup {
-            FaceplateView(engine: engine, model: model, access: access)
+            FaceplateView(engine: engine, model: model, login: login)
                 .background(WindowConfigurator())
                 .onAppear(perform: launch)
         }
@@ -26,6 +32,10 @@ struct OrionApp: App {
                 }
                 Button(Brand.runDoctor) { engine.runDoctor() }
                     .disabled(engine.state.isBusy)
+                if login.loggedIn && YouTubeLogin.inApp {
+                    Button("Log Out of YouTube") { login.logOut() }
+                        .disabled(engine.state.isBusy)
+                }
             }
             CommandGroup(replacing: .appVisibility) {
                 Button(Brand.hide) { NSApp.hide(nil) }.keyboardShortcut("h")
@@ -41,10 +51,17 @@ struct OrionApp: App {
     private func launch() {
         let env = ProcessInfo.processInfo.environment
         if let fake = env["ORION_FAKE_STATE"], !fake.isEmpty {
-            FakeState.apply(fake, engine: engine, model: model, access: access)
+            FakeState.apply(fake, engine: engine, model: model)
             if fake != "idle" {   // the mockup shows the field unfocused in every other state
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
                     NSApp.windows.forEach { $0.makeFirstResponder(nil) }
+                }
+            }
+            if fake == "login-window" {   // the window LOG IN TO YOUTUBE opens (videos); saves nowhere real
+                let scratch = CookieFile(url: FileManager.default.temporaryDirectory
+                    .appendingPathComponent("orion-fake-\(CookieFile.fileName)"))
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) {
+                    LoginWindow.open(saving: scratch) { scratch.delete() }
                 }
             }
             return
@@ -52,14 +69,6 @@ struct OrionApp: App {
         // Seed yt-dlp into Application Support, then the weekly self-update, on the shared
         // maintenance queue. The Engine stays idle; downloads and Run Doctor wait their turn.
         Runtime.appDefault().launchMaintenance()
-        // Restart & Try Again: no relaunch to come back from (swift run) = retry in this process
-        access.retryHere = { [engine, model] p in
-            model.url = p.url
-            model.lastAction = .download
-            engine.download(p.url, browser: p.browser)
-        }
-        // Back from Restart & Try Again: run that link once with the browser login.
-        if let p = access.store.take() { access.retryHere?(p) }
     }
 }
 

@@ -74,8 +74,10 @@ class TestPure(unittest.TestCase):
     def test_app_order_never_has_cookie_strategies(self):
         self.assertTrue(all(x[:1] != ["--cookies-from-browser"] for x in downloader.strategies(True)))
         self.assertEqual(len(downloader.strategies(True)), 3)
-        self.assertEqual(downloader.strategies(True, "brave"), [["--cookies-from-browser", "brave"]])
-        self.assertEqual(downloader.strategies(False, "brave")[0], ["--cookies-from-browser", "firefox"])
+        self.assertEqual(downloader.strategies(True, "/x/youtube-cookies.txt"),
+                         [["--cookies", "/x/youtube-cookies.txt"]])
+        # the CLI / run.sh order ignores a cookies file
+        self.assertEqual(downloader.strategies(False, "/x/c.txt")[0], ["--cookies-from-browser", "firefox"])
 
     def test_old_strategy_order_literal(self):
         self.assertEqual(downloader.strategies(False), [
@@ -205,11 +207,11 @@ class TestDownload(Base):
 class TestLogin(Base):
     URL = "https://www.youtube.com/watch?v=xxxxxxxxxxx"
 
-    def test_app_never_passes_cookies_without_browser(self):
+    def test_app_never_reads_browser_cookies(self):
         for mode in ("fail-age", "fail-bot", "fail-network", "fail-unavailable", "ok", "fail-then-ok"):
             log = self.tmp / f"argv-{mode}.log"
             run_cli(["download", self.URL], mode, self.dl, self.state, argv_log=log)
-            self.assertNotIn("--cookies-from-browser", log.read_text(), mode)
+            self.assertNotIn("--cookies", log.read_text(), mode)
             for f in self.state.iterdir():
                 f.unlink()
 
@@ -219,7 +221,7 @@ class TestLogin(Base):
             self.assertEqual(ev[-1]["stage"], "needs_login", ev)
             self.assertEqual(ev[-1]["reason"], reason)
             self.assertTrue(ev[-1]["message"])
-            self.assertNotIn("tried", ev[-1])
+            self.assertNotIn("stale", ev[-1])
             self.assertNotIn("updating", [e["stage"] for e in ev])
             self.assertNotIn("error", [e["stage"] for e in ev])
 
@@ -228,104 +230,86 @@ class TestLogin(Base):
         self.assertEqual(ev[-1]["stage"], "error")
         self.assertNotIn("needs_login", [e["stage"] for e in ev])
 
-    def test_browser_runs_exactly_one_cookie_attempt(self):
+    def _cookie_file(self):
+        f = self.tmp / "youtube-cookies.txt"
+        f.write_text("# Netscape HTTP Cookie File\n")
+        f.chmod(0o600)
+        return f
+
+    def test_cookies_file_runs_exactly_one_cookie_attempt(self):
         log = self.tmp / "argv.log"
-        p, ev = run_cli(["download", self.URL, "--browser", "brave"], "cookie-ok", self.dl, self.state,
+        f = self._cookie_file()
+        p, ev = run_cli(["download", self.URL, "--cookies-file", str(f)], "cookie-ok", self.dl, self.state,
                         argv_log=log)
         self.assertEqual(ev[-1]["stage"], "done", ev)
         lines = log.read_text().splitlines()
         self.assertTrue(lines)
-        self.assertTrue(all("--cookies-from-browser brave" in l for l in lines), lines)
+        self.assertTrue(all(f"--cookies {f}" in l for l in lines), lines)
+        self.assertNotIn("--cookies-from-browser", log.read_text())
         self.assertEqual(sum("--dump-json" in l for l in lines), 1)
         self.assertNotIn("-U", log.read_text().split())
         self.assertNotIn("updating", [e["stage"] for e in ev])
 
-    def test_browser_still_login_error_reports_tried(self):
+    def test_cookies_file_stays_owner_only(self):
+        f = self._cookie_file()
+        f.chmod(0o644)   # yt-dlp rewrote it under a loose umask
+        run_cli(["download", self.URL, "--cookies-file", str(f)], "cookie-ok", self.dl, self.state)
+        self.assertEqual(f.stat().st_mode & 0o777, 0o600)
+
+    def test_stale_login_asks_again(self):
         log = self.tmp / "argv.log"
-        p, ev = run_cli(["download", self.URL, "--browser", "firefox"], "fail-age", self.dl, self.state,
+        f = self._cookie_file()
+        p, ev = run_cli(["download", self.URL, "--cookies-file", str(f)], "cookie-stale", self.dl, self.state,
                         argv_log=log)
         self.assertEqual(ev[-1]["stage"], "needs_login", ev)
-        self.assertEqual(ev[-1]["tried"], "firefox")
+        self.assertEqual(ev[-1]["reason"], "age")
+        self.assertIs(ev[-1]["stale"], True)
         self.assertEqual(len(log.read_text().splitlines()), 1)
+        last = (self.state.parent / "logs" / "last-run.log").read_text()
+        self.assertIn("outcome: needs_login: saved login no longer works", last)
+        self.assertIn("login: saved YouTube login", last)
 
-    def test_browser_keychain_refusal_is_error_not_login(self):
-        # yt-dlp only warns when the Keychain says no, then YouTube asks for a login: the
-        # Keychain is the real cause, not a missing YouTube login
-        p, ev = run_cli(["download", self.URL, "--browser", "chrome"], "fail-keychain", self.dl, self.state)
+    def test_login_still_refused_with_cookies_asks_again(self):
+        f = self._cookie_file()
+        p, ev = run_cli(["download", self.URL, "--cookies-file", str(f)], "fail-age", self.dl, self.state)
+        self.assertEqual(ev[-1]["stage"], "needs_login", ev)
+        self.assertIs(ev[-1]["stale"], True)
+
+    def test_missing_cookies_file_asks_again(self):
+        log = self.tmp / "argv.log"
+        p, ev = run_cli(["download", self.URL, "--cookies-file", str(self.tmp / "gone.txt")], "ok",
+                        self.dl, self.state, argv_log=log)
+        self.assertEqual(ev[-1]["stage"], "needs_login", ev)
+        self.assertIs(ev[-1]["stale"], True)
+        self.assertFalse(log.exists())   # yt-dlp never ran
+
+    def test_dead_link_with_cookies_is_error(self):
+        f = self._cookie_file()
+        p, ev = run_cli(["download", self.URL, "--cookies-file", str(f)], "fail-unavailable", self.dl, self.state)
         self.assertEqual(ev[-1]["stage"], "error", ev)
-        self.assertEqual(ev[-1]["message"], "macOS didn't unlock Chrome's YouTube login. Try again and "
-                                            "allow Keychain access when macOS asks.")
 
-    def test_safari_blocked_asks_for_full_disk_access(self):
-        p, ev = run_cli(["download", self.URL, "--browser", "safari"], "fail-cookie-blocked", self.dl, self.state)
-        self.assertEqual(ev[-1], {"stage": "needs_access", "browser": "safari",
-                                  "message": "macOS keeps other apps' data private. To use your Safari "
-                                             "login, turn on Full Disk Access for Beat Key."})
-        self.assertNotIn("updating", [e["stage"] for e in ev])
+    def test_browser_flag_is_gone(self):
+        # app mode has no --browser: the flag is ignored and no browser is ever read
+        log = self.tmp / "argv.log"
+        run_cli(["download", self.URL, "--browser", "brave"], "ok", self.dl, self.state, argv_log=log)
+        self.assertNotIn("--cookies-from-browser", log.read_text())
 
-    def test_missing_cookie_database(self):
-        home = self.tmp / "home"
-        home.mkdir()
-        p, ev = run_cli(["download", self.URL, "--browser", "chrome"], "fail-cookie-missing", self.dl,
-                        self.state, extra_env={"HOME": str(home)})
-        self.assertEqual(ev[-1]["stage"], "error")
-        self.assertEqual(ev[-1]["message"], "Couldn't find Chrome's YouTube login. "
-                                            "Log in to YouTube in Chrome, then try again.")
-
-    def test_macos_hiding_the_browser_folder_is_blocked(self):
-        # macOS 27 guards the browser's Application Support folder; yt-dlp's os.walk swallows
-        # the refusal and reports "could not find ... cookies database"
-        home = self.tmp / "home"
-        d = home / "Library" / "Application Support" / "Google" / "Chrome"
-        d.mkdir(parents=True)
-        d.chmod(0)
-        try:
-            p, ev = run_cli(["download", self.URL, "--browser", "chrome"], "fail-cookie-missing", self.dl,
-                            self.state, extra_env={"HOME": str(home)})
-        finally:
-            d.chmod(0o700)
-        self.assertEqual(ev[-1]["stage"], "needs_access", ev)
-        self.assertEqual(ev[-1]["browser"], "chrome")
-        self.assertEqual(ev[-1]["message"], "macOS keeps other apps' data private. To use your Chrome "
-                                            "login, turn on Full Disk Access for Beat Key.")
-        log = (self.state.parent / "logs" / "last-run.log").read_text()
-        self.assertIn("outcome: needs_access: cookies blocked", log)
-
-    def test_no_copy_mentions_files_and_folders(self):
-        for b in app_run.BROWSER_NAMES:
-            m = app_run.cookie_error_message(b, "blocked")
-            self.assertNotIn("Files", m)
-            self.assertIn("Full Disk Access", m)
-            self.assertNotIn("operation not permitted", m.lower())
-
-    def test_harmless_cookie_warning_still_downloads(self):
-        p, ev = run_cli(["download", self.URL, "--browser", "brave"], "cookie-warn-ok", self.dl, self.state)
-        self.assertEqual(ev[-1]["stage"], "done", ev)
+    def test_stale_classifier(self):
+        self.assertTrue(downloader.cookies_stale(["WARNING: [youtube] The provided YouTube account cookies "
+                                                  "are no longer valid. They have likely been rotated"]))
+        self.assertFalse(downloader.cookies_stale(["ERROR: Sign in to confirm your age"]))
 
     def test_unsolved_js_challenge_is_blocked_not_region(self):
-        for browser in (None, "brave"):
-            args = ["download", self.URL] + (["--browser", browser] if browser else [])
+        f = self.tmp / "c.txt"
+        f.write_text("")
+        for cookies in (None, f):
+            args = ["download", self.URL] + (["--cookies-file", str(cookies)] if cookies else [])
             p, ev = run_cli(args, "fail-format", self.dl, self.state)
             self.assertEqual(ev[-1]["stage"], "error", ev)
             self.assertEqual(ev[-1]["message"], "YouTube blocked this download. Try Beat Key › Run Doctor.")
             for f in self.state.iterdir():
                 if f.is_file():
                     f.unlink()
-
-    def test_cookie_failure_classifier(self):
-        c = downloader.cookie_failure
-        self.assertEqual(c(["ERROR: could not find brave cookies database in \"/x\""]), "missing")
-        self.assertEqual(c(["ERROR: [Errno 1] Operation not permitted: '/x/Cookies'"]), "blocked")
-        self.assertEqual(c(["ERROR: [Errno 13] Permission denied: '/x/Cookies'"]), "blocked")
-        self.assertEqual(c(["WARNING: find-generic-password failed"]), "keychain")
-        self.assertEqual(c(["WARNING: cannot decrypt v10 cookies: no key found"]), "keychain")
-        # harmless warnings and the old over-broad words never count
-        self.assertIsNone(c(["WARNING: failed to decrypt cookie (AES-GCM) because the MAC check failed. "
-                             "Possibly the key is wrong?"]))
-        self.assertIsNone(c(["Extracted 1699 cookies from brave (3 could not be decrypted)"]))
-        self.assertIsNone(c(["WARNING: unknown cookie version: \"v12\""]))
-        self.assertIsNone(c(["ERROR: [youtube] x: Requested format is not available"]))
-        self.assertIsNone(c(["WARNING: keyring something"]))
 
     def test_error_mapping_uses_ytdlp_wording(self):
         e = downloader.explain_error
@@ -354,10 +338,6 @@ class TestLogin(Base):
         # a region-locked video is final (no upgrade); a blocked download is not
         self.assertTrue(downloader.is_final_error(["The uploader has not made this video available in your country"]))
         self.assertFalse(downloader.is_final_error(["Requested format is not available"]))
-
-    def test_unknown_browser_is_error(self):
-        p, ev = run_cli(["download", self.URL, "--browser", "arc"], "ok", self.dl, self.state)
-        self.assertEqual(ev[-1]["stage"], "error")
 
     def test_reason_classifier(self):
         r = downloader.login_reason
@@ -389,9 +369,11 @@ class TestJsRuntimeAndLog(Base):
         self.assertTrue(calls)
         self.assertTrue(all(f"--js-runtimes deno:{deno}" in l for l in calls), calls)
         log.unlink()
-        p, ev = run_cli(["download", self.URL, "--browser", "brave"], "cookie-ok", self.dl, self.state,
+        cf = self.tmp / "c.txt"
+        cf.write_text("")
+        p, ev = run_cli(["download", self.URL, "--cookies-file", str(cf)], "cookie-ok", self.dl, self.state,
                         argv_log=log, extra_env={"ORION_DENO": str(deno)})
-        self.assertTrue(all(f"--js-runtimes deno:{deno}" in l and "--cookies-from-browser brave" in l
+        self.assertTrue(all(f"--js-runtimes deno:{deno}" in l and f"--cookies {cf}" in l
                             for l in log.read_text().splitlines()))
 
     def test_no_or_missing_deno_passes_no_flag(self):
