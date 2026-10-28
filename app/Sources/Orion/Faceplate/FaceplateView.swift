@@ -6,7 +6,6 @@ import UniformTypeIdentifiers
 struct FaceplateView: View {
     @ObservedObject var engine: Engine
     @ObservedObject var model: FaceplateModel
-    @ObservedObject var access: AccessController
     @State private var keyMonitor: Any?
 
     var body: some View {
@@ -31,14 +30,11 @@ struct FaceplateView: View {
             case .analyzed(let rs): model.pager.reset(count: rs.count); model.picked = []
             default: break
             }
-            // the permission flow lives on the faceplate: open while the state asks, gone after
-            if case .needsAccess(let p) = s { access.blocked(url: p.url, browser: p.browser) } else { access.leave() }
         }
         .onReceive(model.$url) { u in
-            // changing the link drops a pending login or permission prompt (it belongs to the old link)
+            // changing the link drops the can't-download readout (it belongs to the old link)
             let t = u.trimmingCharacters(in: .whitespacesAndNewlines)
             if case .needsLogin(let p) = engine.state, t != p.url { engine.clearLogin() }
-            if case .needsAccess(let p) = engine.state, t != p.url { engine.clearAccess() }
         }
         .onAppear(perform: installKeys)
         .onDisappear { if let m = keyMonitor { NSEvent.removeMonitor(m) } }
@@ -49,8 +45,6 @@ struct FaceplateView: View {
     static let size = CGSize(width: 552, height: 410)
     /// Both caps share one width so the two fields line up.
     static let capLegendWidth: CGFloat = 92
-    /// The login cap's longer legend (8 pt) needs a wider cap.
-    static let loginLegendWidth: CGFloat = 170
 
     // MARK: module: LCD + row
 
@@ -62,27 +56,11 @@ struct FaceplateView: View {
             }
             HStack(spacing: 12) {
                 LinkField(text: $model.url, focused: $model.fieldFocused, onSubmit: download)
-                if let phase = accessPhase {
-                    let cap = AccessCopy.cap(phase)
-                    Button(action: accessAction) {
-                        SSLCapStyle.label(cap.label, size: 8).lineLimit(1).fixedSize().frame(width: FaceplateView.loginLegendWidth)
-                    }
-                    .buttonStyle(SSLCapStyle(lit: cap.lit))
-                    .accessibility(label: Text(cap.label.capitalized))
-                } else if let p = loginPrompt {
-                    let cap = Faceplate.loginCap(p, browser: loginBrowser, busy: engine.state.isBusy)
-                    Button(action: login) {
-                        SSLCapStyle.label(cap.label, size: 8).lineLimit(1).fixedSize().frame(width: FaceplateView.loginLegendWidth)
-                    }
-                    .buttonStyle(SSLCapStyle(lit: cap.lit))
-                    .accessibility(label: Text(cap.label.capitalized))
-                } else {
-                    Button(action: download) { SSLCapStyle.label("DOWNLOAD").frame(width: FaceplateView.capLegendWidth) }
-                        // not .disabled(): AppKit would grey the legend; download() ignores an unlit cap
-                        .buttonStyle(SSLCapStyle(lit: lit))
-                        .accessibility(label: Text("Download"))
-                        .accessibility(hint: Text(lit ? "Downloads the link as an MP3 into Downloads" : "Paste a YouTube link first"))
-                }
+                Button(action: download) { SSLCapStyle.label("DOWNLOAD").frame(width: FaceplateView.capLegendWidth) }
+                    // not .disabled(): AppKit would grey the legend; download() ignores an unlit cap
+                    .buttonStyle(SSLCapStyle(lit: lit))
+                    .accessibility(label: Text("Download"))
+                    .accessibility(hint: Text(lit ? "Downloads the link as an MP3 into Downloads" : "Paste a YouTube link first"))
             }
             .padding(.top, 14)
             HStack(spacing: 12) {
@@ -105,15 +83,9 @@ struct FaceplateView: View {
     // MARK: derived state
 
     private var loginPrompt: LoginPrompt? { Faceplate.loginPrompt(engine.state, url: model.url) }
-    /// The permission flow's phase while it owns the faceplate (the link that asked is still in the field).
-    private var accessPhase: AccessPhase? {
-        guard case .needsAccess(let p) = engine.state, access.phase.isOpen,
-              model.url.trimmingCharacters(in: .whitespacesAndNewlines) == p.url else { return nil }
-        return access.phase
-    }
-    private var loginBrowser: LoginBrowser? { loginPrompt.flatMap { _ in LoginBrowser.current() } }
 
-    private var lit: Bool { Faceplate.isLit(model.url, busy: engine.state.isBusy) }
+    /// Unlit while the link is one YouTube wants a login for: a re-try would only fail again.
+    private var lit: Bool { Faceplate.isLit(model.url, busy: engine.state.isBusy) && loginPrompt == nil }
     private var findLit: Bool { Faceplate.isFindLit(model.picked, busy: engine.state.isBusy) }
     private var showDrop: Bool { model.pinnedDrop || (model.dropTargeted && !engine.state.isBusy) }
 
@@ -140,11 +112,8 @@ struct FaceplateView: View {
             return .result(rs[i], page: model.pager.caption, download: false, note: engine.note)
         case .failed(let m): return .error(m, download: dl)
         case .needsLogin(let p):
-            let (a, b) = Faceplate.loginLines(p, browser: LoginBrowser.current())
-            return .login(a, b, caption: p.tried == nil ? Faceplate.loginCaption : nil)
-        case .needsAccess:
-            let (a, b, c) = AccessCopy.lines(access.phase)
-            return .login(a, b, caption: c)
+            let (a, b) = Faceplate.blockedLines(p)
+            return .login(a, b, caption: nil)
         }
     }
 
@@ -154,35 +123,8 @@ struct FaceplateView: View {
 
     // MARK: actions
 
-    /// The login cap: first press opens youtube.com in the browser and runs the cookie try;
-    /// the retry only runs the cookie try again.
-    private func login() {
-        guard let p = loginPrompt, !engine.state.isBusy else { return }
-        model.lastAction = .download
-        if let t = p.tried {
-            engine.download(p.url, browser: t)
-        } else if let b = LoginBrowser.current() {
-            b.openYouTube()
-            engine.download(p.url, browser: b.name)
-        }
-        NSApp.keyWindow?.makeFirstResponder(nil)
-    }
-
-    /// The cap in the DOWNLOAD slot while the permission flow is open: System Settings, then
-    /// Restart & Retry once macOS lets Beat Key in.
-    private func accessAction() {
-        guard let phase = accessPhase else { return }
-        switch phase {
-        case .asking: FullDiskAccessPane.open()
-        case .granted: access.restart()
-        case .closed, .restarting: break
-        }
-        NSApp.keyWindow?.makeFirstResponder(nil)
-    }
-
     private func download() {
-        if accessPhase != nil { accessAction(); return }
-        if loginPrompt != nil { login(); return }
+        if loginPrompt != nil { return }
         guard lit else { return }
         model.lastAction = .download
         engine.download(model.url.trimmingCharacters(in: .whitespacesAndNewlines))

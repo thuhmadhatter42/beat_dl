@@ -20,11 +20,6 @@
     <key>NSDownloadsFolderUsageDescription</key><string>Beat Key saves your MP3s to the Downloads folder.</string>
     <key>NSDesktopFolderUsageDescription</key><string>Beat Key reads the audio files you choose to find their BPM and key.</string>
     <key>NSDocumentsFolderUsageDescription</key><string>Beat Key reads the audio files you choose to find their BPM and key.</string>
-    <!-- macOS 27 guards Chrome/Brave/Edge/Firefox's Application Support folders
-         (kTCCServiceSystemPolicyAppDataDetailed). tccd's usage key for that service; without it
-         tccd logs "does not allow prompting for unentitled binaries" and only posts "Data Access
-         Blocked". Read only after the user presses the YouTube login button. -->
-    <key>NSSystemPolicyAppDataDetailedUsageDescription</key><string>Beat Key reads your browser's YouTube login only when a video needs one and you ask it to.</string>
     <key>NSHighResolutionCapable</key><true/>
     <key>NSSupportsAutomaticGraphicsSwitching</key><true/>
 </dict>

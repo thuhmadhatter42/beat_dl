@@ -23,9 +23,11 @@ final class EventTests: XCTestCase {
     }
     func testParseNeedsLogin() {
         XCTAssertEqual(Event.parse(line: #"{"stage":"needs_login","reason":"age","message":"m"}"#),
-                       .needsLogin(reason: "age", message: "m", tried: nil))
+                       .needsLogin(reason: "age", message: "m"))
         XCTAssertEqual(Event.parse(line: #"{"stage":"needs_login","reason":"bot","message":"m","tried":"brave"}"#),
-                       .needsLogin(reason: "bot", message: "m", tried: "brave"))
+                       .needsLogin(reason: "bot", message: "m"))
+        // the Full Disk Access event is gone
+        XCTAssertNil(Event.parse(line: #"{"stage":"needs_access","browser":"brave","message":"m"}"#))
     }
     func testParseNullBpm() {
         let line = #"{"stage":"analyzed","file":"/x/a.mp3","name":"a.mp3","bpm":null,"keys":[]}"#

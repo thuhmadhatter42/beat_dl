@@ -1,87 +1,44 @@
 import XCTest
 @testable import Orion
 
+/// A video YouTube wants a login for: Beat Key has no login, it just says it can't download it.
 final class LoginTests: XCTestCase {
     private func rt() -> Runtime {
         Runtime(root: URL(fileURLWithPath: "/R/runtime"), arch: "arm64",
                 support: URL(fileURLWithPath: "/S/Orion"), osMajor: 14)
     }
 
-    func testBundleMapping() {
-        let m = [("com.brave.Browser", "brave"), ("com.google.Chrome", "chrome"),
-                 ("org.chromium.Chromium", "chromium"), ("com.microsoft.edgemac", "edge"),
-                 ("org.mozilla.firefox", "firefox"), ("com.operasoftware.Opera", "opera"),
-                 ("com.apple.Safari", "safari"), ("com.vivaldi.Vivaldi", "vivaldi"),
-                 ("com.naver.Whale", "whale")]
-        for (id, name) in m { XCTAssertEqual(LoginBrowser.forBundle(id)?.name, name) }
-        XCTAssertEqual(LoginBrowser.forBundle("com.brave.Browser")?.display, "Brave")
-        XCTAssertNil(LoginBrowser.forBundle("company.thebrowser.Browser"))   // Arc
+    func testReadoutCopy() {
+        let age = Faceplate.blockedLines(LoginPrompt(url: "u", reason: "age"))
+        XCTAssertEqual(age.0, "THIS VIDEO IS AGE-RESTRICTED"); XCTAssertEqual(age.1, "BEAT KEY CAN'T DOWNLOAD IT")
+        let bot = Faceplate.blockedLines(LoginPrompt(url: "u", reason: "bot"))
+        XCTAssertEqual(bot.0, "YOUTUBE BLOCKED THIS DOWNLOAD"); XCTAssertEqual(bot.1, "TRY AGAIN LATER")
+        let mem = Faceplate.blockedLines(LoginPrompt(url: "u", reason: "members"))
+        XCTAssertEqual(mem.0, "THIS VIDEO IS FOR MEMBERS"); XCTAssertEqual(mem.1, "BEAT KEY CAN'T DOWNLOAD IT")
+        // anything unknown reads as the age line
+        XCTAssertEqual(Faceplate.blockedLines(LoginPrompt(url: "u", reason: "x")).0, "THIS VIDEO IS AGE-RESTRICTED")
     }
 
-    func testResolveUsesSupportedDefault() {
-        XCTAssertEqual(LoginBrowser.resolve(defaultBundleID: "com.brave.Browser") { _ in false }?.name, "brave")
-    }
-
-    func testResolveFallbackOrder() {
-        let installed: Set<String> = ["com.apple.Safari", "com.microsoft.edgemac", "org.mozilla.firefox"]
-        XCTAssertEqual(LoginBrowser.resolve(defaultBundleID: "company.thebrowser.Browser") { installed.contains($0) }?.name, "edge")
-        XCTAssertEqual(LoginBrowser.resolve(defaultBundleID: nil) { $0 == "com.apple.Safari" }?.name, "safari")
-        XCTAssertEqual(LoginBrowser.resolve(defaultBundleID: nil) { $0 == "com.google.Chrome" || $0 == "com.brave.Browser" }?.name, "chrome")
-        XCTAssertNil(LoginBrowser.resolve(defaultBundleID: "x") { _ in false })
-    }
-
-    func testLcdCopy() {
-        let second = "NEXT TRY USES A LOGIN COOKIE FROM YOUR BROWSER"
-        let b = LoginBrowser.named("brave")
-        let age = Faceplate.loginLines(LoginPrompt(url: "u", reason: "age", tried: nil), browser: b)
-        XCTAssertEqual(age.0, "THIS VIDEO IS AGE-RESTRICTED"); XCTAssertEqual(age.1, second)
-        let bot = Faceplate.loginLines(LoginPrompt(url: "u", reason: "bot", tried: nil), browser: b)
-        XCTAssertEqual(bot.0, "YOUTUBE WANTS A LOGIN"); XCTAssertEqual(bot.1, second)
-        let mem = Faceplate.loginLines(LoginPrompt(url: "u", reason: "members", tried: nil), browser: b)
-        XCTAssertEqual(mem.0, "THIS VIDEO IS FOR MEMBERS")
-        let none = Faceplate.loginLines(LoginPrompt(url: "u", reason: "age", tried: nil), browser: nil)
-        XCTAssertEqual(none.1, "BEAT KEY CAN USE A YOUTUBE LOGIN FROM CHROME, BRAVE, EDGE, FIREFOX OR SAFARI.")
-        let retry = Faceplate.loginLines(LoginPrompt(url: "u", reason: "age", tried: "brave"), browser: b)
-        XCTAssertEqual(retry.0, "LOG IN TO YOUTUBE IN BRAVE"); XCTAssertEqual(retry.1, "THEN PRESS TRY AGAIN")
-    }
-
-    func testCapLabelAndLit() {
-        let first = LoginPrompt(url: "u", reason: "age", tried: nil)
-        let retry = LoginPrompt(url: "u", reason: "age", tried: "brave")
-        let b = LoginBrowser.named("brave")
-        XCTAssertEqual(Faceplate.loginCap(first, browser: b, busy: false).label, "OPEN YOUTUBE.COM & LOGIN")
-        XCTAssertTrue(Faceplate.loginCap(first, browser: b, busy: false).lit)
-        XCTAssertFalse(Faceplate.loginCap(first, browser: nil, busy: false).lit)
-        XCTAssertFalse(Faceplate.loginCap(first, browser: b, busy: true).lit)
-        XCTAssertEqual(Faceplate.loginCap(retry, browser: nil, busy: false).label, "TRY AGAIN")
-        XCTAssertTrue(Faceplate.loginCap(retry, browser: nil, busy: false).lit)
-        XCTAssertFalse(Faceplate.loginCap(retry, browser: nil, busy: true).lit)
-    }
-
-    func testPromptOnlyForItsLink() {
-        let st = ViewState.needsLogin(LoginPrompt(url: "https://a", reason: "bot", tried: nil))
+    func testReadoutOnlyForItsLink() {
+        let st = ViewState.needsLogin(LoginPrompt(url: "https://a", reason: "bot"))
         XCTAssertNotNil(Faceplate.loginPrompt(st, url: " https://a "))
         XCTAssertNil(Faceplate.loginPrompt(st, url: "https://b"))
         XCTAssertNil(Faceplate.loginPrompt(.idle, url: "https://a"))
         XCTAssertFalse(st.isBusy)
     }
 
-    func testEngineNeedsLoginPassesBrowserAndClears() {
+    func testEngineNeverPassesALogin() {
         let f = FakeLauncher()
         let e = Engine(runtime: rt(), launcher: f)
         e.download("https://a")
         let deadline = Date().addingTimeInterval(5)
         while f.launches.count < 1 && Date() < deadline { RunLoop.main.run(until: Date().addingTimeInterval(0.01)) }
-        XCTAssertFalse(f.launches[0].contains("--browser"))
+        XCTAssertEqual(Array(f.launches[0].suffix(2)), ["download", "https://a"])
+        XCTAssertFalse(f.launches[0].contains { $0.hasPrefix("--cookies") || $0 == "--browser" })
         f.onLine?(#"{"stage":"needs_login","reason":"age","message":"m"}"#); f.onExit?(0)
         RunLoop.main.run(until: Date().addingTimeInterval(0.1))
-        XCTAssertEqual(e.state, .needsLogin(LoginPrompt(url: "https://a", reason: "age", tried: nil)))
-        e.download("https://a", browser: "brave")
-        while f.launches.count < 2 && Date() < deadline { RunLoop.main.run(until: Date().addingTimeInterval(0.01)) }
-        XCTAssertEqual(Array(f.launches[1].suffix(4)), ["download", "https://a", "--browser", "brave"])
-        f.onLine?(#"{"stage":"needs_login","reason":"age","message":"m","tried":"brave"}"#); f.onExit?(0)
-        RunLoop.main.run(until: Date().addingTimeInterval(0.1))
-        XCTAssertEqual(e.state, .needsLogin(LoginPrompt(url: "https://a", reason: "age", tried: "brave")))
+        XCTAssertEqual(e.state, .needsLogin(LoginPrompt(url: "https://a", reason: "age")))
+        XCTAssertEqual(f.launches.count, 1)   // no second try of any kind
         e.clearLogin()
         RunLoop.main.run(until: Date().addingTimeInterval(0.05))
         XCTAssertEqual(e.state, .idle)
@@ -93,10 +50,28 @@ final class LoginTests: XCTestCase {
         XCTAssertEqual(e.state, .failed("x"))
     }
 
-    func testSuccessfulDownloadClearsLogin() {
+    func testSuccessfulDownloadClearsReadout() {
         let e = Engine(runtime: rt(), launcher: FakeLauncher())
-        e.state = .needsLogin(LoginPrompt(url: "u", reason: "age", tried: nil))
+        e.state = .needsLogin(LoginPrompt(url: "u", reason: "age"))
         e.handle(.done(Result(file: URL(fileURLWithPath: "/a.mp3"), name: "a.mp3", bpm: "90.0", keys: [])))
         if case .done = e.state {} else { XCTFail("\(e.state)") }
+    }
+
+    func testNoBrowserDataNoLoginFile() throws {
+        let app = URL(fileURLWithPath: #filePath).deletingLastPathComponent()
+            .deletingLastPathComponent().deletingLastPathComponent()
+        let plist = try XCTUnwrap(NSDictionary(contentsOf: app.appendingPathComponent("Info.plist")))
+        XCTAssertNil(plist["NSSystemPolicyAppDataDetailedUsageDescription"])
+        // no source file reads browser data, opens a login window or keeps cookies
+        let src = app.appendingPathComponent("Sources/Orion")
+        let files = FileManager.default.enumerator(at: src, includingPropertiesForKeys: nil)!
+            .compactMap { $0 as? URL }.filter { $0.pathExtension == "swift" }
+        XCTAssertFalse(files.isEmpty)
+        for f in files {
+            let text = try String(contentsOf: f)
+            for banned in ["WKWebView", "cookies-file", "cookies-from-browser", "Full Disk Access", "HTTPCookie"] {
+                XCTAssertFalse(text.contains(banned), "\(f.lastPathComponent) mentions \(banned)")
+            }
+        }
     }
 }
