@@ -3,7 +3,8 @@
 #   python/  (python-build-standalone 3.11 + essentia + numpy, installed offline from vendor wheels)
 #   bin/     ffmpeg ffprobe yt-dlp   (arm64 also gets bin-legacy/ = ffmpeg 7.1.1 for macOS 11)
 #   scripts/ downloader.py bpm.py tempocnn_np.py app_run.py models/
-# Usage: app/runtime.sh build | sign | all
+# Usage: app/runtime.sh build | scripts | sign | all
+#   scripts = refresh only scripts/ (+ their .pyc) in an already built runtime: fast; build.sh runs it every time
 set -euo pipefail
 APP="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT="$(cd "$APP/.." && pwd)"
@@ -91,7 +92,8 @@ do_sign() {
 
 case "${1:-}" in
   build) do_build ;;
+  scripts) build_scripts; "$OUT/arm64/python/bin/python3" -m compileall -q "$OUT/scripts" ;;
   sign) do_sign ;;
   all) do_build; do_sign ;;
-  *) echo "usage: $0 build|sign|all"; exit 2 ;;
+  *) echo "usage: $0 build|scripts|sign|all"; exit 2 ;;
 esac

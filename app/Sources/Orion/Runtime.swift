@@ -42,6 +42,8 @@ struct Runtime {
             "PYTHONDONTWRITEBYTECODE": "1",
             "PYTHONNOUSERSITE": "1",
             "PIP_CONFIG_FILE": "/dev/null",
+            // The one yt-dlp the helper may run and upgrade (never the copy inside the signed bundle).
+            "ORION_YTDLP": ytdlp.path,
         ]
         // Test/debug override of the output folder, read by app_run.py; unset = ~/Downloads.
         if let d = env["ORION_DOWNLOADS"], !d.isEmpty { e["ORION_DOWNLOADS"] = d }
@@ -80,6 +82,27 @@ struct Runtime {
         lock.lock(); let to = timedOut; lock.unlock()
         if to { return (-2, "timed out") }
         return (p.terminationStatus, String(data: data, encoding: .utf8) ?? "")
+    }
+
+    /// Every seed / upgrade / reseed / doctor run goes through this one serial queue, so the launch
+    /// upgrade, Run Doctor and the first download never touch the App Support yt-dlp at once.
+    static let maintenanceQueue = DispatchQueue(label: "com.jshriver.orion.maintenance")
+    private static var seededPaths = Set<String>()   // touched only on maintenanceQueue
+
+    /// Launch-time work, off the main thread and not tied to the Engine's busy state: seed yt-dlp,
+    /// then the weekly self-update. Anything that needs yt-dlp waits behind it.
+    func launchMaintenance() {
+        Runtime.maintenanceQueue.async {
+            self.ensureSeeded()
+            if self.needsWeeklyUpgrade { self.upgradeYtDlpSync() }
+        }
+    }
+
+    /// Seed once per process (a `--version` run costs seconds on old Intel Macs). Call only on
+    /// maintenanceQueue.
+    func ensureSeeded() {
+        guard Runtime.seededPaths.insert(ytdlp.path).inserted else { return }
+        try? seedYtDlp()
     }
 
     /// Copy the bundle's yt-dlp (signature intact) to App Support if missing or broken.

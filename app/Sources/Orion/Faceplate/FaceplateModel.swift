@@ -73,6 +73,11 @@ enum Faceplate {
     /// The one-line hint under every red FAILED readout.
     static func failureHint(download: Bool) -> String { download ? Brand.downloadHint : Brand.doctorHint }
 
+    /// The caption under a partial analysis: some files read, the helper then stopped.
+    static func partialNote(_ unread: Int) -> String {
+        "\(unread) \(unread == 1 ? "FILE" : "FILES") COULDN'T BE READ · \(Brand.doctorHint)"
+    }
+
     /// An error sentence from explain_error, as the LCD shows it. A permission refusal becomes
     /// the place to allow it.
     static func errorText(_ message: String) -> String {

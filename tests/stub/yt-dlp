@@ -1,5 +1,5 @@
 #!/bin/bash
-# Test stub for yt-dlp. STUB_MODE: ok | ok-weird-title | fail-network | fail-then-ok | upgrade
+# Test stub for yt-dlp. STUB_MODE: ok | ok-weird-title | fail-network | fail-then-ok | fail-unavailable | hang | upgrade
 # STUB_AUDIO = file to "download"; STUB_STATE = dir for state; STUB_ARGV_LOG = file to append argv to.
 MODE="${STUB_MODE:-ok}"
 STATE="${STUB_STATE:-/tmp}"
@@ -15,6 +15,14 @@ done
 
 if [ "$MODE" = "fail-network" ]; then
   echo "ERROR: <urlopen error [Errno 8] nodename nor servname provided> network" >&2
+  exit 1
+fi
+if [ "$MODE" = "fail-unavailable" ]; then
+  echo "ERROR: [youtube] xxxxxxxxxxx: Video unavailable" >&2
+  exit 1
+fi
+if [ "$MODE" = "hang" ]; then
+  sleep 30
   exit 1
 fi
 if [ "$MODE" = "fail-then-ok" ] && [ ! -e "$STATE/upgraded" ]; then

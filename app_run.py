@@ -9,6 +9,9 @@ One JSON object per stdout line, flushed. Exit code 0 unless the process itself 
 Output matches run.sh: rename "<stem> (<bpm> BPM <k1> <k2> <k3>).<ext>", log entry
 "Input URL: <url>\\nDownloaded: <name>\\n\\n" in "<Downloads>/(YY-M-D) Youtube DL LINKS.txt".
 The Downloads folder comes from ORION_DOWNLOADS (default ~/Downloads).
+ORION_YTDLP = the yt-dlp to use (the app's copy in Application Support). It runs the downloads
+and is the only file `-U` ever touches; unset or missing = no upgrade step (never PATH).
+ORION_YTDLP_TIMEOUT = seconds allowed per yt-dlp call (default 600).
 """
 
 import contextlib
@@ -77,13 +80,32 @@ def analyze_file(path, timeout=120):
     return bpm, keys
 
 
-def _attempt(url):
+YTDLP_TIMEOUT = 600
+
+
+def ytdlp_path():
+    """The app's yt-dlp (ORION_YTDLP) if it exists, else None."""
+    p = os.environ.get("ORION_YTDLP")
+    if p and os.path.isfile(p) and os.access(p, os.X_OK):
+        return p
+    return None
+
+
+def ytdlp_timeout():
+    try:
+        return float(os.environ.get("ORION_YTDLP_TIMEOUT") or YTDLP_TIMEOUT)
+    except ValueError:
+        return YTDLP_TIMEOUT
+
+
+def _attempt(url, cookies=True):
     """One run_download pass. Returns (Path | None, message_text)."""
     out, err = io.StringIO(), io.StringIO()
     path = None
     with contextlib.redirect_stdout(out), contextlib.redirect_stderr(err):
         try:
-            path = downloader.run_download(url, silent=True, app_order=True)
+            path = downloader.run_download(url, silent=True, app_order=True, ytdlp=ytdlp_path(),
+                                           timeout=ytdlp_timeout(), cookies=cookies)
         except Exception as exc:  # keep the process alive; report as a download error
             err.write(f"Download failed: {exc}\n")
     msg = (err.getvalue() or out.getvalue()).strip()
@@ -91,20 +113,29 @@ def _attempt(url):
 
 
 def _upgrade_ytdlp():
+    """`yt-dlp -U` on ORION_YTDLP only. Returns False (and does nothing) when that is unset or
+    missing: never PATH, which could be the copy inside the signed bundle."""
+    exe = ytdlp_path()
+    if not exe:
+        return False
     try:
-        subprocess.run(["yt-dlp", "-U"], capture_output=True, text=True, timeout=180)
+        subprocess.run([exe, "-U"], capture_output=True, text=True, timeout=180)
     except (subprocess.TimeoutExpired, OSError):
         pass
+    return True
 
 
 def cmd_download(url):
     emit(stage="downloading")
     path, msg = _attempt(url)
-    if not path:
+    # A dead link (private / unavailable / removed / invalid) or a timeout: an upgrade will not
+    # help and a retry would only repeat the wait. Report it.
+    hopeless = msg == downloader.TIMEOUT_MESSAGE or msg in downloader._FINAL_MESSAGES
+    if not path and not hopeless and ytdlp_path():
         emit(stage="updating")
-        _upgrade_ytdlp()
-        emit(stage="downloading")
-        path, msg = _attempt(url)
+        if _upgrade_ytdlp():
+            emit(stage="downloading")
+            path, msg = _attempt(url, cookies=False)   # the cookie strategies already had their turn
     if not path:
         emit(stage="error", message=msg or "Download failed for an unknown reason.")
         return
@@ -140,6 +171,18 @@ def cmd_download(url):
          keys=[[k, p] for k, p in keys])
 
 
+def read_error(path):
+    """'permission' when macOS refuses to let us read the file (EPERM/EACCES), else None."""
+    try:
+        with open(path, "rb") as f:
+            f.read(1)
+    except PermissionError:
+        return "permission"
+    except OSError:
+        return None
+    return None
+
+
 def cmd_analyze(files):
     for raw in files:
         path = Path(raw).expanduser()
@@ -152,8 +195,11 @@ def cmd_analyze(files):
             full = str(path.resolve())
         except Exception:
             full = str(path)
+        extra = {}
+        if not bpm and read_error(path):
+            extra["error"] = "permission"
         emit(stage="analyzed", file=full, name=path.name,
-             bpm=bpm or None, keys=[[k, p] for k, p in keys])
+             bpm=bpm or None, keys=[[k, p] for k, p in keys], **extra)
 
 
 def main(argv):

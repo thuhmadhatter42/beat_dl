@@ -17,6 +17,9 @@
     <key>NSHumanReadableCopyright</key><string>© J Shriver</string>
     <key>LSMinimumSystemVersion</key><string>12.0</string>
     <key>LSApplicationCategoryType</key><string>public.app-category.music</string>
+    <key>NSDownloadsFolderUsageDescription</key><string>Beat Key saves your MP3s to the Downloads folder.</string>
+    <key>NSDesktopFolderUsageDescription</key><string>Beat Key reads the audio files you choose to find their BPM and key.</string>
+    <key>NSDocumentsFolderUsageDescription</key><string>Beat Key reads the audio files you choose to find their BPM and key.</string>
     <key>NSHighResolutionCapable</key><true/>
     <key>NSSupportsAutomaticGraphicsSwitching</key><true/>
 </dict>

@@ -42,6 +42,9 @@ case "$ARCHS" in *arm64*x86_64*|*x86_64*arm64*) ;; *) echo "binary is not univer
 
 echo "== runtime"
 [ -d "$B/runtime/arm64" ] && [ -d "$B/runtime/x86_64" ] && [ -d "$B/runtime/scripts" ] || "$APP/runtime.sh" build
+# The scripts (downloader.py, app_run.py, ...) are refreshed on every build, so an edit never ships
+# stale behind an old runtime; only the heavy part (python, essentia, ffmpeg) is conditional.
+"$APP/runtime.sh" scripts
 "$APP/runtime.sh" sign
 
 echo "== assemble $OUTAPP"

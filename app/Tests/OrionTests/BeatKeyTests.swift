@@ -143,6 +143,7 @@ final class BeatKeyTests: XCTestCase {
         e.runDoctor()
         XCTAssertTrue(e.state.isBusy)
         e.download("https://a"); e.analyze([URL(fileURLWithPath: "/x.mp3")]); e.runDoctor()
+        RunLoop.main.run(until: Date().addingTimeInterval(0.2))
         XCTAssertEqual(f.launches.count, 0)        // ignored while the doctor runs
         gate.signal()
         let deadline = Date().addingTimeInterval(3)
@@ -150,6 +151,54 @@ final class BeatKeyTests: XCTestCase {
         XCTAssertEqual(e.state, .doctor(DoctorReport(outcome: .ok, title: "DOCTOR OK",
                                                      line: "YT-DLP 2026.10.26 · ALL CHECKS PASSED")))
         XCTAssertEqual(r.calls.filter { $0 == "yt-dlp -U" }.count, 1)   // the second runDoctor was ignored
+    }
+
+    /// Launch upgrade, Run Doctor and a download share one serial queue: the launch work leaves the
+    /// Engine idle, and Doctor and the download wait their turn behind it.
+    func testDoctorAndDownloadWaitBehindLaunchMaintenance() {
+        let hold = DispatchSemaphore(value: 0)
+        let started = DispatchSemaphore(value: 0)
+        Runtime.maintenanceQueue.async { started.signal(); hold.wait() }   // stands in for the launch upgrade
+        started.wait()
+        let r = FakeRunner(); r.answers["yt-dlp --version"] = [(0, "2026.10.26")]
+        let f = FakeLauncher()
+        let e = Engine(runtime: rt, launcher: f, doctor: { rt in
+            Doctor(runtime: rt, runner: r, reseed: {}, downloadsWritable: { true })
+        })
+        XCTAssertFalse(e.state.isBusy)             // the launch upgrade does not mark the Engine busy
+        e.runDoctor()
+        XCTAssertTrue(e.state.isBusy)
+        RunLoop.main.run(until: Date().addingTimeInterval(0.3))
+        XCTAssertEqual(r.calls, [])                // waiting its turn: yt-dlp untouched
+        hold.signal()
+        let deadline = Date().addingTimeInterval(3)
+        while e.state.isBusy && Date() < deadline { RunLoop.main.run(until: Date().addingTimeInterval(0.02)) }
+        XCTAssertEqual(r.calls.filter { $0 == "yt-dlp -U" }.count, 1)
+        // and a download queued behind a held queue does not launch until it frees
+        let hold2 = DispatchSemaphore(value: 0)
+        let started2 = DispatchSemaphore(value: 0)
+        Runtime.maintenanceQueue.async { started2.signal(); hold2.wait() }
+        started2.wait()
+        e.download("https://a")
+        RunLoop.main.run(until: Date().addingTimeInterval(0.3))
+        XCTAssertEqual(f.launches.count, 0)
+        XCTAssertTrue(e.state.isBusy)
+        hold2.signal()
+        let d2 = Date().addingTimeInterval(3)
+        while f.launches.isEmpty && Date() < d2 { RunLoop.main.run(until: Date().addingTimeInterval(0.02)) }
+        XCTAssertEqual(f.launches.count, 1)
+    }
+
+    func testInfoPlistExplainsFolderAccess() throws {
+        let app = URL(fileURLWithPath: #filePath).deletingLastPathComponent()
+            .deletingLastPathComponent().deletingLastPathComponent()
+        let plist = try XCTUnwrap(NSDictionary(contentsOf: app.appendingPathComponent("Info.plist")))
+        XCTAssertEqual(plist["NSDownloadsFolderUsageDescription"] as? String,
+                       "Beat Key saves your MP3s to the Downloads folder.")
+        for k in ["NSDesktopFolderUsageDescription", "NSDocumentsFolderUsageDescription"] {
+            XCTAssertEqual(plist[k] as? String,
+                           "Beat Key reads the audio files you choose to find their BPM and key.")
+        }
     }
 
     func testYtDlpTimeoutsSuitSlowIntelMacs() {

@@ -51,9 +51,12 @@ final class RealLauncher: ProcessLauncher {
 
 final class Engine: ObservableObject {
     @Published var state: ViewState = .idle
+    /// Caption under a partial analysis ("2 FILES COULDN'T BE READ · ..."); nil otherwise.
+    @Published var note: String?
     private let runtime: Runtime
     private let launcher: ProcessLauncher
     private var results: [Result] = []
+    private var expected = 0
     private var sawTerminal = false
     private var generation = 0
     private let makeDoctor: (Runtime) -> Doctor
@@ -78,8 +81,11 @@ final class Engine: ObservableObject {
             self.state = .working(stage: Doctor.stages[0])
             let doctor = self.makeDoctor(self.runtime)
             self.doctorQueue.async {
-                let report = doctor.run { stage in
-                    DispatchQueue.main.async { if gen == self.generation { self.state = .working(stage: stage) } }
+                // waits its turn behind the launch seed / upgrade
+                let report = Runtime.maintenanceQueue.sync {
+                    doctor.run { stage in
+                        DispatchQueue.main.async { if gen == self.generation { self.state = .working(stage: stage) } }
+                    }
                 }
                 DispatchQueue.main.async { if gen == self.generation { self.state = .doctor(report) } }
             }
@@ -92,28 +98,39 @@ final class Engine: ObservableObject {
 
     func analyze(_ files: [URL]) {
         guard !files.isEmpty else { return }
-        start(["analyze"] + files.map { $0.path }, stage: "analyzing")
+        start(["analyze"] + files.map { $0.path }, stage: "analyzing", expected: files.count)
     }
 
-    private func start(_ args: [String], stage: String) {
+    private func start(_ args: [String], stage: String, expected: Int = 0) {
         runOnMain {
             guard !self.state.isBusy else { return }
             self.generation += 1
             let gen = self.generation
             self.state = .working(stage: stage)
             self.results = []
+            self.note = nil
+            self.expected = expected
             self.sawTerminal = false
-            self.launcher.launch(
-                executable: self.runtime.python,
-                arguments: [self.runtime.script.path] + args,
-                environment: self.runtime.environment(),
-                onLine: { line in
-                    guard let e = Event.parse(line: line) else { return }
-                    DispatchQueue.main.async { if gen == self.generation { self.handle(e) } }
-                },
-                onExit: { code in
-                    DispatchQueue.main.async { if gen == self.generation { self.finish(code) } }
-                })
+            // Shows as working at once; the helper starts when yt-dlp is seeded and no
+            // maintenance (launch upgrade, doctor) is running.
+            let rt = self.runtime
+            Runtime.maintenanceQueue.async {
+                rt.ensureSeeded()
+                DispatchQueue.main.async {
+                    guard gen == self.generation else { return }
+                    self.launcher.launch(
+                        executable: rt.python,
+                        arguments: [rt.script.path] + args,
+                        environment: rt.environment(),
+                        onLine: { line in
+                            guard let e = Event.parse(line: line) else { return }
+                            DispatchQueue.main.async { if gen == self.generation { self.handle(e) } }
+                        },
+                        onExit: { code in
+                            DispatchQueue.main.async { if gen == self.generation { self.finish(code) } }
+                        })
+                }
+            }
         }
     }
 
@@ -133,6 +150,14 @@ final class Engine: ObservableObject {
     private func finish(_ code: Int32) {
         guard !sawTerminal else { return }
         if !results.isEmpty {
+            // Nothing readable and macOS refused it: say where to allow it, not a blank readout.
+            if results.allSatisfy({ $0.bpm == nil && $0.readError == "permission" }) {
+                state = .failed("Operation not permitted: \(results[0].name)")
+                return
+            }
+            if code != 0 {
+                note = Faceplate.partialNote(max(expected - results.count, 1))
+            }
             state = .analyzed(results)
         } else if state.isBusy {
             state = .failed("The helper stopped unexpectedly (exit \(code)).")

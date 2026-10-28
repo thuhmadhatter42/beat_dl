@@ -46,12 +46,9 @@ struct OrionApp: App {
             }
             return
         }
-        // Seed yt-dlp into Application Support, then the weekly self-update, off the main thread.
-        let rt = Runtime.appDefault()
-        DispatchQueue.global(qos: .utility).async {
-            try? rt.seedYtDlp()
-            if rt.needsWeeklyUpgrade { rt.upgradeYtDlpSync() }
-        }
+        // Seed yt-dlp into Application Support, then the weekly self-update, on the shared
+        // maintenance queue. The Engine stays idle; downloads and Run Doctor wait their turn.
+        Runtime.appDefault().launchMaintenance()
     }
 }
 

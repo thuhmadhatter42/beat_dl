@@ -20,8 +20,9 @@ import app_run  # noqa: E402
 import downloader  # noqa: E402
 
 
-def run_cli(args, mode="ok", downloads=None, state=None, argv_log=None):
+def run_cli(args, mode="ok", downloads=None, state=None, argv_log=None, ytdlp="stub", extra_env=None):
     env = dict(os.environ)
+    env.pop("ORION_YTDLP", None)
     env.update({
         "PATH": f"{STUB_DIR}{os.pathsep}{env.get('PATH', '')}",
         "STUB_MODE": mode,
@@ -32,6 +33,11 @@ def run_cli(args, mode="ok", downloads=None, state=None, argv_log=None):
     })
     if argv_log:
         env["STUB_ARGV_LOG"] = str(argv_log)
+    if ytdlp == "stub":
+        env["ORION_YTDLP"] = str(STUB_DIR / "yt-dlp")
+    elif ytdlp:
+        env["ORION_YTDLP"] = str(ytdlp)
+    env.update(extra_env or {})
     p = subprocess.run([sys.executable, str(ROOT / "app_run.py")] + args,
                        capture_output=True, text=True, env=env, timeout=300)
     events = [json.loads(l) for l in p.stdout.splitlines() if l.strip()]
@@ -118,6 +124,70 @@ class TestDownload(Base):
         self.assertLess(stages.index("updating"), stages.index("done"))
         self.assertEqual(stages[-1], "done")
 
+    def test_unavailable_stops_before_cookies_and_upgrade(self):
+        log = self.tmp / "argv.log"
+        p, ev = run_cli(["download", "https://www.youtube.com/watch?v=xxxxxxxxxxx"], "fail-unavailable",
+                        self.dl, self.state, argv_log=log)
+        self.assertEqual(ev[-1]["stage"], "error")
+        self.assertTrue(ev[-1]["message"].startswith("That video is unavailable"), ev[-1])
+        argv = log.read_text()
+        self.assertNotIn("--cookies-from-browser", argv)
+        self.assertNotIn("-U", argv.split())
+        self.assertNotIn("updating", [e["stage"] for e in ev])
+        self.assertFalse((self.state / "upgraded").exists())
+
+    def test_timeout_is_an_error_event(self):
+        p, ev = run_cli(["download", "https://example.com/v"], "hang", self.dl, self.state,
+                        extra_env={"ORION_YTDLP_TIMEOUT": "1"})
+        self.assertEqual(ev[-1]["stage"], "error")
+        self.assertEqual(ev[-1]["message"], "Download timed out.")
+        self.assertNotIn("updating", [e["stage"] for e in ev])
+
+    def test_upgrade_only_touches_orion_ytdlp(self):
+        # ORION_YTDLP unset: no -U anywhere (PATH has the stub, which would log it)
+        log = self.tmp / "argv.log"
+        p, ev = run_cli(["download", "https://example.com/v"], "fail-then-ok", self.dl, self.state,
+                        argv_log=log, ytdlp=None)
+        self.assertEqual(ev[-1]["stage"], "error", ev)
+        self.assertNotIn("updating", [e["stage"] for e in ev])
+        self.assertNotIn("-U", log.read_text().split())
+        self.assertFalse((self.state / "upgraded").exists())
+        # ORION_YTDLP set to a missing path: same
+        p, ev = run_cli(["download", "https://example.com/v"], "fail-then-ok", self.dl, self.state,
+                        ytdlp=self.tmp / "nope")
+        self.assertEqual(ev[-1]["stage"], "error")
+        self.assertFalse((self.state / "upgraded").exists())
+
+    def test_downloads_run_through_orion_ytdlp(self):
+        # a wrapper that logs its own name proves ORION_YTDLP, not PATH, ran the downloads
+        wrap = self.tmp / "my-ytdlp"
+        wrap.write_text('#!/bin/bash\necho used >> "%s"\nexec "%s" "$@"\n' % (self.tmp / "used.log", STUB_DIR / "yt-dlp"))
+        wrap.chmod(0o755)
+        p, ev = run_cli(["download", "https://example.com/v"], "ok", self.dl, self.state, ytdlp=wrap)
+        self.assertEqual(ev[-1]["stage"], "done", ev)
+        self.assertTrue((self.tmp / "used.log").read_text().count("used") >= 2)
+
+    def test_retry_skips_cookie_strategies(self):
+        log = self.tmp / "argv.log"
+        p, ev = run_cli(["download", "https://example.com/v"], "fail-then-ok", self.dl, self.state, argv_log=log)
+        self.assertEqual(ev[-1]["stage"], "done")
+        # first pass: 3 plain + 3 cookie metadata attempts; after -U: succeeds on the first plain one
+        lines = log.read_text().splitlines()
+        i = next(n for n, l in enumerate(lines) if l.split()[:1] == ["-U"])
+        self.assertNotIn("--cookies-from-browser", " ".join(lines[i + 1:]))
+
+    def test_cli_downloader_has_no_timeout_or_cookie_stop(self):
+        calls = []
+
+        def fake_fetch(url, extra_args=(), exe="yt-dlp", timeout=None):
+            calls.append((tuple(extra_args), exe, timeout))
+            return None, ["ERROR: Video unavailable"]
+        with mock.patch.object(downloader, "fetch_info", fake_fetch), contextlib.redirect_stdout(io.StringIO()):
+            downloader.run_download("https://example.com/v", silent=True, ytdlp="/x/y", timeout=5)
+        self.assertEqual(len(calls), 6)                       # every strategy still tried, cookies first
+        self.assertEqual(calls[0][0], ("--cookies-from-browser", "firefox"))
+        self.assertTrue(all(c[1] == "yt-dlp" and c[2] is None for c in calls))
+
     def test_playlist_url(self):
         log = self.tmp / "argv.log"
         p, ev = run_cli(["download", "https://example.com/watch?v=x&list=PL123"], "ok",
@@ -129,6 +199,24 @@ class TestDownload(Base):
 
 
 class TestAnalyze(Base):
+    def test_unreadable_file_reports_permission(self):
+        t = self.tmp / "locked.wav"
+        t.write_bytes(b"x")
+        t.chmod(0)
+        try:
+            p, ev = run_cli(["analyze", str(t)], "ok", self.dl, self.state)
+        finally:
+            t.chmod(0o600)
+        self.assertEqual(ev[-1]["stage"], "analyzed")
+        self.assertIsNone(ev[-1]["bpm"])
+        self.assertEqual(ev[-1].get("error"), "permission")
+
+    def test_plain_failure_has_no_error_flag(self):
+        t = self.tmp / "notes.txt"
+        t.write_text("not audio")
+        p, ev = run_cli(["analyze", str(t)], "ok", self.dl, self.state)
+        self.assertNotIn("error", ev[-1])
+
     def test_analyze_text_file(self):
         t = self.tmp / "notes.txt"
         t.write_text("not audio")

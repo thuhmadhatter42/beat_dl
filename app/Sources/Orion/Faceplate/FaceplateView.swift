@@ -101,7 +101,7 @@ struct FaceplateView: View {
         case .analyzed(let rs):
             guard !rs.isEmpty else { return .idle }
             let i = min(model.pager.index, rs.count - 1)
-            return .result(rs[i], page: model.pager.caption, download: false)
+            return .result(rs[i], page: model.pager.caption, download: false, note: engine.note)
         case .failed(let m): return .error(m, download: dl)
         }
     }

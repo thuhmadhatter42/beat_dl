@@ -6,7 +6,7 @@ enum Readout {
     case idle
     case drop
     case working(stage: String, download: Bool)
-    case result(Result, page: String?, download: Bool)
+    case result(Result, page: String?, download: Bool, note: String? = nil)
     case error(String, download: Bool)
     case doctor(DoctorReport)
 }
@@ -53,7 +53,7 @@ struct LCD: View {
         case .idle: IdleReadout()
         case .drop: DropReadout()
         case let .working(stage, download): WorkingReadout(stage: stage, download: download)
-        case let .result(r, page, _): ResultReadout(result: r, page: page, onPage: onPage)
+        case let .result(r, page, _, note): ResultReadout(result: r, page: page, note: note, onPage: onPage)
         case let .error(m, download): ErrorReadout(message: m, download: download)
         case let .doctor(r): DoctorReadout(report: r)
         }
@@ -190,6 +190,7 @@ struct ResultReadout: View {
     let result: Result
 
     let page: String?
+    var note: String? = nil
     var onPage: ((Int) -> Void)?
 
     var body: some View {
@@ -226,6 +227,12 @@ struct ResultReadout: View {
                     .accessibility(label: Text(keyLabel))
                 }
                 Spacer(minLength: 0)
+                if let n = note {
+                    Text(n).font(Theme.face(10)).tracking(1.2)
+                        .foregroundColor(Theme.amber(0.8))
+                        .lineLimit(1).truncationMode(.tail)
+                        .padding(.bottom, 6)
+                }
                 HStack(spacing: 14) {
                     Text(Faceplate.fileLine(result)).font(Theme.face(10)).tracking(1.2)
                         .foregroundColor(Theme.amber(0.6))

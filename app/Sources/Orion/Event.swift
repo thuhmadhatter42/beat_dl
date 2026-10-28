@@ -5,9 +5,11 @@ struct Result: Equatable {
     let name: String
     let bpm: String?
     let keys: [(String, Int)]
+    /// "permission" when macOS refused to let the helper read the file.
+    var readError: String? = nil
 
     static func == (a: Result, b: Result) -> Bool {
-        a.file == b.file && a.name == b.name && a.bpm == b.bpm
+        a.file == b.file && a.name == b.name && a.bpm == b.bpm && a.readError == b.readError
             && a.keys.count == b.keys.count
             && zip(a.keys, b.keys).allSatisfy { $0.0 == $1.0 && $0.1 == $1.1 }
     }
@@ -39,7 +41,8 @@ enum Event: Equatable {
                 keys.append((k, p))
             }
             let r = Result(file: URL(fileURLWithPath: file), name: name,
-                           bpm: obj["bpm"] as? String, keys: keys)
+                           bpm: obj["bpm"] as? String, keys: keys,
+                           readError: obj["error"] as? String)
             return kind == "done" ? .done(r) : .analyzed(r)
         case "error":
             return .error((obj["message"] as? String) ?? "Unknown error.")

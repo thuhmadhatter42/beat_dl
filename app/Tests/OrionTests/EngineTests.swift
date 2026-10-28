@@ -19,11 +19,17 @@ final class EngineTests: XCTestCase {
                 support: URL(fileURLWithPath: "/S/Orion"), osMajor: os)
     }
     func spin() { RunLoop.main.run(until: Date().addingTimeInterval(0.1)) }
+    /// A run starts after the maintenance queue has seeded yt-dlp: wait for the n-th launch.
+    func waitLaunch(_ f: FakeLauncher, _ n: Int = 1) {
+        let deadline = Date().addingTimeInterval(5)
+        while f.launches.count < n && Date() < deadline { RunLoop.main.run(until: Date().addingTimeInterval(0.01)) }
+    }
 
     func testBusyIgnoresSecondDownload() {
         let f = FakeLauncher()
         let e = Engine(runtime: rt(), launcher: f)
         e.download("https://a"); e.download("https://b"); e.analyze([URL(fileURLWithPath: "/x.mp3")])
+        waitLaunch(f); spin()
         XCTAssertEqual(f.launches.count, 1)
         XCTAssertEqual(Array(f.launches[0].suffix(2)), ["download", "https://a"])
         XCTAssertEqual(e.state, .working(stage: "downloading"))
@@ -32,7 +38,7 @@ final class EngineTests: XCTestCase {
     func testDoneFlow() {
         let f = FakeLauncher()
         let e = Engine(runtime: rt(), launcher: f)
-        e.download("u")
+        e.download("u"); waitLaunch(f)
         f.onLine?(#"{"stage":"analyzing"}"#); spin()
         XCTAssertEqual(e.state, .working(stage: "analyzing"))
         f.onLine?(#"{"stage":"done","file":"/a.mp3","name":"a.mp3","bpm":"90.0","keys":[["Am",50]]}"#)
@@ -43,19 +49,42 @@ final class EngineTests: XCTestCase {
     func testAnalyzeCollectsAll() {
         let f = FakeLauncher()
         let e = Engine(runtime: rt(), launcher: f)
-        e.analyze([URL(fileURLWithPath: "/a.mp3"), URL(fileURLWithPath: "/b.mp3")])
+        e.analyze([URL(fileURLWithPath: "/a.mp3"), URL(fileURLWithPath: "/b.mp3")]); waitLaunch(f)
         f.onLine?(#"{"stage":"analyzed","file":"/a.mp3","name":"a.mp3","bpm":null,"keys":[]}"#)
         f.onLine?(#"{"stage":"analyzed","file":"/b.mp3","name":"b.mp3","bpm":"100.0","keys":[]}"#)
         f.onExit?(0); spin()
         if case .analyzed(let rs) = e.state { XCTAssertEqual(rs.count, 2) } else { XCTFail("\(e.state)") }
+        XCTAssertNil(e.note)
+    }
+
+    func testPartialAnalyzeKeepsResultsAndCaptionsTheRest() {
+        let f = FakeLauncher()
+        let e = Engine(runtime: rt(), launcher: f)
+        e.analyze(["a", "b", "c"].map { URL(fileURLWithPath: "/\($0).mp3") }); waitLaunch(f)
+        f.onLine?(#"{"stage":"analyzed","file":"/a.mp3","name":"a.mp3","bpm":"90.0","keys":[]}"#)
+        f.onExit?(9); spin()
+        if case .analyzed(let rs) = e.state { XCTAssertEqual(rs.count, 1) } else { XCTFail("\(e.state)") }
+        XCTAssertEqual(e.note, "2 FILES COULDN'T BE READ · TRY BEAT KEY › RUN DOCTOR")
+        XCTAssertEqual(Faceplate.partialNote(1), "1 FILE COULDN'T BE READ · TRY BEAT KEY › RUN DOCTOR")
+    }
+
+    func testUnreadableByPermissionShowsThePermissionHint() {
+        let f = FakeLauncher()
+        let e = Engine(runtime: rt(), launcher: f)
+        e.analyze([URL(fileURLWithPath: "/a.wav")]); waitLaunch(f)
+        f.onLine?(#"{"stage":"analyzed","file":"/a.wav","name":"a.wav","bpm":null,"keys":[],"error":"permission"}"#)
+        f.onExit?(0); spin()
+        guard case .failed(let m) = e.state else { return XCTFail("\(e.state)") }
+        XCTAssertTrue(Faceplate.isPermissionError(m))
+        XCTAssertEqual(Faceplate.errorText(m), Doctor.permissionHint.uppercased())
     }
 
     func testStaleExitDoesNotClobberNewRun() {
         let f = FakeLauncher()
         let e = Engine(runtime: rt(), launcher: f)
-        e.download("a")
+        e.download("a"); waitLaunch(f)
         f.lines[0](#"{"stage":"done","file":"/a.mp3","name":"a.mp3","bpm":null,"keys":[]}"#); spin()
-        e.download("b")
+        e.download("b"); waitLaunch(f, 2)
         XCTAssertEqual(f.launches.count, 2)
         f.exits[0](0); spin()
         XCTAssertEqual(e.state, .working(stage: "downloading"))
@@ -67,7 +96,7 @@ final class EngineTests: XCTestCase {
     func testCrashWithoutTerminalFails() {
         let f = FakeLauncher()
         let e = Engine(runtime: rt(), launcher: f)
-        e.download("u"); f.onExit?(9); spin()
+        e.download("u"); waitLaunch(f); f.onExit?(9); spin()
         if case .failed = e.state {} else { XCTFail("\(e.state)") }
     }
 
@@ -79,6 +108,8 @@ final class EngineTests: XCTestCase {
         XCTAssertEqual(env["PIP_CONFIG_FILE"], "/dev/null")
         XCTAssertEqual(env["ORION_BIN"], "/R/runtime/arm64/bin")
         XCTAssertEqual(env["PATH"], "/S/Orion/bin:/R/runtime/arm64/bin:/usr/bin:/bin")
+        // -U and the downloads use this yt-dlp and no other
+        XCTAssertEqual(env["ORION_YTDLP"], "/S/Orion/bin/yt-dlp")
     }
 
     func testLegacyBinOnArm64Macos11() {
