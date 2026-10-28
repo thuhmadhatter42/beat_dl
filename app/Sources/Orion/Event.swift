@@ -20,9 +20,8 @@ enum Event: Equatable {
     case done(Result)
     case analyzed(Result)
     case error(String)
-    /// A YouTube login would fix this: reason "age" | "bot" | "members"; stale = the saved login
-    /// was used and YouTube no longer takes it (the app deletes it and asks again).
-    case needsLogin(reason: String, message: String, stale: Bool)
+    /// YouTube wants a login for this video: reason "age" | "bot" | "members".
+    case needsLogin(reason: String, message: String)
 
     /// One JSON line from app_run.py. app_run.py puts the event kind in "stage"
     /// ("downloading"... are progress, "done"/"analyzed"/"error" are terminal).
@@ -51,8 +50,7 @@ enum Event: Equatable {
             return .error((obj["message"] as? String) ?? "Unknown error.")
         case "needs_login":
             return .needsLogin(reason: (obj["reason"] as? String) ?? "bot",
-                               message: (obj["message"] as? String) ?? "",
-                               stale: (obj["stale"] as? Bool) ?? false)
+                               message: (obj["message"] as? String) ?? "")
         case "stage":
             guard let s = obj["stage"] as? String else { return nil }
             return .stage(s)

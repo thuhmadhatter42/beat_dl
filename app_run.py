@@ -2,7 +2,7 @@
 """
 Orchestrator for the Orion app. The Swift app spawns this and renders its JSON-lines events.
 
-  app_run.py download <url> [--cookies-file <path>]
+  app_run.py download <url>
   app_run.py analyze <file>...
 
 One JSON object per stdout line, flushed. Exit code 0 unless the process itself crashed.
@@ -101,7 +101,7 @@ def ytdlp_timeout():
         return YTDLP_TIMEOUT
 
 
-def _attempt(url, cookies_file=None, raw=None):
+def _attempt(url, raw=None):
     """One run_download pass. Returns (Path | None, message_text). raw (a list) receives yt-dlp's
     raw error lines."""
     out, err = io.StringIO(), io.StringIO()
@@ -109,8 +109,7 @@ def _attempt(url, cookies_file=None, raw=None):
     with contextlib.redirect_stdout(out), contextlib.redirect_stderr(err):
         try:
             path = downloader.run_download(url, silent=True, app_order=True, ytdlp=ytdlp_path(),
-                                           timeout=ytdlp_timeout(), cookies_file=cookies_file,
-                                           raw_errors=raw)
+                                           timeout=ytdlp_timeout(), raw_errors=raw)
         except Exception as exc:  # keep the process alive; report as a download error
             err.write(f"Download failed: {exc}\n")
     msg = (err.getvalue() or out.getvalue()).strip()
@@ -137,19 +136,9 @@ LOGIN_MESSAGES = {
 }
 
 
-def needs_login(reason, stale=False):
-    """stale = the saved login was used and YouTube no longer takes it: the app deletes it and
-    asks for a new one."""
-    extra = {"stale": True} if stale else {}
-    emit(stage="needs_login", reason=reason, message=LOGIN_MESSAGES[reason], **extra)
-
-
-def keep_private(path):
-    """yt-dlp writes the cookie jar back after a run; keep the file owner-only whatever it did."""
-    try:
-        os.chmod(path, 0o600)
-    except OSError:
-        pass
+def needs_login(reason):
+    """YouTube wants a login for this video. The app has none: it says it can't download it."""
+    emit(stage="needs_login", reason=reason, message=LOGIN_MESSAGES[reason])
 
 
 # The last download's yt-dlp stderr, overwritten every run, for whoever debugs the next failure.
@@ -164,10 +153,10 @@ def last_run_log_path():
     return base / "last-run.log"
 
 
-def write_last_run_log(url, cookies_file, outcome):
+def write_last_run_log(url, outcome):
     try:
         lines = [f"Beat Key last run  {date.today().isoformat()}",
-                 f"url: {url}", f"login: {'saved YouTube login' if cookies_file else '-'}", f"outcome: {outcome}", ""]
+                 f"url: {url}", f"outcome: {outcome}", ""]
         for argv, code, err in downloader.RUN_LOG:
             lines.append(f"$ {' '.join(argv)}")
             lines.append(f"exit: {'timeout' if code is None else code}")
@@ -180,48 +169,40 @@ def write_last_run_log(url, cookies_file, outcome):
         pass  # the log must never cost a download
 
 
-def cmd_download(url, cookies_file=None):
+def cmd_download(url):
     downloader.RUN_LOG.clear()
     outcome = ["crashed"]
     try:
-        _cmd_download(url, cookies_file, outcome)
+        _cmd_download(url, outcome)
     finally:
-        if cookies_file:
-            keep_private(cookies_file)
-        write_last_run_log(url, cookies_file, outcome[0])
+        write_last_run_log(url, outcome[0])
 
 
-def _cmd_download(url, cookies_file, outcome):
+def _cmd_download(url, outcome):
     emit(stage="downloading")
     raw = []
-    path, msg = _attempt(url, cookies_file=cookies_file, raw=raw)
+    path, msg = _attempt(url, raw=raw)
     if not path:
         reason = downloader.login_reason(raw)
-        if cookies_file and (reason or downloader.cookies_stale(raw)):
-            # the saved login did not get past YouTube: the app throws it away and asks again
-            outcome[0] = "needs_login: saved login no longer works"
-            needs_login(reason or "age", stale=True)
-            return
         if reason:
             outcome[0] = f"needs_login: {reason}"
             needs_login(reason)
             return
-    if not cookies_file:
-        # A dead link (private / unavailable / removed / invalid) or a timeout: an upgrade will
-        # not help and a retry would only repeat the wait. Report it.
-        hopeless = msg == downloader.TIMEOUT_MESSAGE or msg in downloader._FINAL_MESSAGES
-        if not path and not hopeless and ytdlp_path():
-            emit(stage="updating")
-            if _upgrade_ytdlp():
-                emit(stage="downloading")
-                raw = []
-                path, msg = _attempt(url, raw=raw)
-                if not path:
-                    reason = downloader.login_reason(raw)
-                    if reason:
-                        outcome[0] = f"needs_login: {reason}"
-                        needs_login(reason)
-                        return
+    # A dead link (private / unavailable / removed / invalid) or a timeout: an upgrade will
+    # not help and a retry would only repeat the wait. Report it.
+    hopeless = msg == downloader.TIMEOUT_MESSAGE or msg in downloader._FINAL_MESSAGES
+    if not path and not hopeless and ytdlp_path():
+        emit(stage="updating")
+        if _upgrade_ytdlp():
+            emit(stage="downloading")
+            raw = []
+            path, msg = _attempt(url, raw=raw)
+            if not path:
+                reason = downloader.login_reason(raw)
+                if reason:
+                    outcome[0] = f"needs_login: {reason}"
+                    needs_login(reason)
+                    return
     if not path:
         msg = msg or "Download failed for an unknown reason."
         outcome[0] = f"error: {msg}"
@@ -304,19 +285,11 @@ def main(argv):
 
 def _main(argv):
     if len(argv) >= 3 and argv[1] == "download":
-        cookies_file = None
-        if "--cookies-file" in argv[3:]:
-            i = argv.index("--cookies-file", 3)
-            cookies_file = argv[i + 1] if i + 1 < len(argv) else ""
-            if not cookies_file or not os.path.isfile(cookies_file):
-                # the saved login is gone: ask for one again rather than run without it
-                needs_login("age", stale=True)
-                return 0
-        cmd_download(argv[2].strip(), cookies_file)
+        cmd_download(argv[2].strip())
     elif len(argv) >= 3 and argv[1] == "analyze":
         cmd_analyze(argv[2:])
     else:
-        emit(stage="error", message="usage: app_run.py download <url> [--cookies-file <path>] | analyze <file>...")
+        emit(stage="error", message="usage: app_run.py download <url> | analyze <file>...")
     return 0
 
 

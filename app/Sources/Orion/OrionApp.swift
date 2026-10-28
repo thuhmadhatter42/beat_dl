@@ -4,21 +4,12 @@ import SwiftUI
 @main
 struct OrionApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) private var delegate
-    @StateObject private var login: YouTubeSession
-    @StateObject private var engine: Engine
+    @StateObject private var engine = Engine(downloadsProbe: Engine.defaultProbe())
     @StateObject private var model = FaceplateModel()
-
-    init() {
-        let session = YouTubeSession()
-        _login = StateObject(wrappedValue: session)
-        _engine = StateObject(wrappedValue: Engine(downloadsProbe: Engine.defaultProbe(),
-                                                   savedLogin: { session.savedLogin },
-                                                   dropLogin: { session.file.delete() }))
-    }
 
     var body: some Scene {
         WindowGroup {
-            FaceplateView(engine: engine, model: model, login: login)
+            FaceplateView(engine: engine, model: model)
                 .background(WindowConfigurator())
                 .onAppear(perform: launch)
         }
@@ -32,10 +23,6 @@ struct OrionApp: App {
                 }
                 Button(Brand.runDoctor) { engine.runDoctor() }
                     .disabled(engine.state.isBusy)
-                if login.loggedIn && YouTubeLogin.inApp {
-                    Button("Log Out of YouTube") { login.logOut() }
-                        .disabled(engine.state.isBusy)
-                }
             }
             CommandGroup(replacing: .appVisibility) {
                 Button(Brand.hide) { NSApp.hide(nil) }.keyboardShortcut("h")
@@ -55,13 +42,6 @@ struct OrionApp: App {
             if fake != "idle" {   // the mockup shows the field unfocused in every other state
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
                     NSApp.windows.forEach { $0.makeFirstResponder(nil) }
-                }
-            }
-            if fake == "login-window" {   // the window LOG IN TO YOUTUBE opens (videos); saves nowhere real
-                let scratch = CookieFile(url: FileManager.default.temporaryDirectory
-                    .appendingPathComponent("orion-fake-\(CookieFile.fileName)"))
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) {
-                    LoginWindow.open(saving: scratch) { scratch.delete() }
                 }
             }
             return

@@ -74,10 +74,6 @@ class TestPure(unittest.TestCase):
     def test_app_order_never_has_cookie_strategies(self):
         self.assertTrue(all(x[:1] != ["--cookies-from-browser"] for x in downloader.strategies(True)))
         self.assertEqual(len(downloader.strategies(True)), 3)
-        self.assertEqual(downloader.strategies(True, "/x/youtube-cookies.txt"),
-                         [["--cookies", "/x/youtube-cookies.txt"]])
-        # the CLI / run.sh order ignores a cookies file
-        self.assertEqual(downloader.strategies(False, "/x/c.txt")[0], ["--cookies-from-browser", "firefox"])
 
     def test_old_strategy_order_literal(self):
         self.assertEqual(downloader.strategies(False), [
@@ -230,81 +226,18 @@ class TestLogin(Base):
         self.assertEqual(ev[-1]["stage"], "error")
         self.assertNotIn("needs_login", [e["stage"] for e in ev])
 
-    def _cookie_file(self):
-        f = self.tmp / "youtube-cookies.txt"
-        f.write_text("# Netscape HTTP Cookie File\n")
-        f.chmod(0o600)
-        return f
-
-    def test_cookies_file_runs_exactly_one_cookie_attempt(self):
-        log = self.tmp / "argv.log"
-        f = self._cookie_file()
-        p, ev = run_cli(["download", self.URL, "--cookies-file", str(f)], "cookie-ok", self.dl, self.state,
-                        argv_log=log)
-        self.assertEqual(ev[-1]["stage"], "done", ev)
-        lines = log.read_text().splitlines()
-        self.assertTrue(lines)
-        self.assertTrue(all(f"--cookies {f}" in l for l in lines), lines)
-        self.assertNotIn("--cookies-from-browser", log.read_text())
-        self.assertEqual(sum("--dump-json" in l for l in lines), 1)
-        self.assertNotIn("-U", log.read_text().split())
-        self.assertNotIn("updating", [e["stage"] for e in ev])
-
-    def test_cookies_file_stays_owner_only(self):
-        f = self._cookie_file()
-        f.chmod(0o644)   # yt-dlp rewrote it under a loose umask
-        run_cli(["download", self.URL, "--cookies-file", str(f)], "cookie-ok", self.dl, self.state)
-        self.assertEqual(f.stat().st_mode & 0o777, 0o600)
-
-    def test_stale_login_asks_again(self):
-        log = self.tmp / "argv.log"
-        f = self._cookie_file()
-        p, ev = run_cli(["download", self.URL, "--cookies-file", str(f)], "cookie-stale", self.dl, self.state,
-                        argv_log=log)
-        self.assertEqual(ev[-1]["stage"], "needs_login", ev)
-        self.assertEqual(ev[-1]["reason"], "age")
-        self.assertIs(ev[-1]["stale"], True)
-        self.assertEqual(len(log.read_text().splitlines()), 1)
-        last = (self.state.parent / "logs" / "last-run.log").read_text()
-        self.assertIn("outcome: needs_login: saved login no longer works", last)
-        self.assertIn("login: saved YouTube login", last)
-
-    def test_login_still_refused_with_cookies_asks_again(self):
-        f = self._cookie_file()
-        p, ev = run_cli(["download", self.URL, "--cookies-file", str(f)], "fail-age", self.dl, self.state)
-        self.assertEqual(ev[-1]["stage"], "needs_login", ev)
-        self.assertIs(ev[-1]["stale"], True)
-
-    def test_missing_cookies_file_asks_again(self):
-        log = self.tmp / "argv.log"
-        p, ev = run_cli(["download", self.URL, "--cookies-file", str(self.tmp / "gone.txt")], "ok",
-                        self.dl, self.state, argv_log=log)
-        self.assertEqual(ev[-1]["stage"], "needs_login", ev)
-        self.assertIs(ev[-1]["stale"], True)
-        self.assertFalse(log.exists())   # yt-dlp never ran
-
-    def test_dead_link_with_cookies_is_error(self):
-        f = self._cookie_file()
-        p, ev = run_cli(["download", self.URL, "--cookies-file", str(f)], "fail-unavailable", self.dl, self.state)
-        self.assertEqual(ev[-1]["stage"], "error", ev)
-
-    def test_browser_flag_is_gone(self):
-        # app mode has no --browser: the flag is ignored and no browser is ever read
-        log = self.tmp / "argv.log"
-        run_cli(["download", self.URL, "--browser", "brave"], "ok", self.dl, self.state, argv_log=log)
-        self.assertNotIn("--cookies-from-browser", log.read_text())
-
-    def test_stale_classifier(self):
-        self.assertTrue(downloader.cookies_stale(["WARNING: [youtube] The provided YouTube account cookies "
-                                                  "are no longer valid. They have likely been rotated"]))
-        self.assertFalse(downloader.cookies_stale(["ERROR: Sign in to confirm your age"]))
+    def test_extra_flags_never_add_a_login(self):
+        # app mode has no --browser / --cookies-file: extra flags are ignored, no login is ever used
+        for flags in (["--browser", "brave"], ["--cookies-file", "/x/c.txt"]):
+            log = self.tmp / "argv.log"
+            p, ev = run_cli(["download", self.URL] + flags, "ok", self.dl, self.state, argv_log=log)
+            self.assertEqual(ev[-1]["stage"], "done", ev)
+            self.assertNotIn("--cookies", log.read_text())
+            log.unlink()
 
     def test_unsolved_js_challenge_is_blocked_not_region(self):
-        f = self.tmp / "c.txt"
-        f.write_text("")
-        for cookies in (None, f):
-            args = ["download", self.URL] + (["--cookies-file", str(cookies)] if cookies else [])
-            p, ev = run_cli(args, "fail-format", self.dl, self.state)
+        for _ in range(1):
+            p, ev = run_cli(["download", self.URL], "fail-format", self.dl, self.state)
             self.assertEqual(ev[-1]["stage"], "error", ev)
             self.assertEqual(ev[-1]["message"], "YouTube blocked this download. Try Beat Key › Run Doctor.")
             for f in self.state.iterdir():
@@ -368,13 +301,6 @@ class TestJsRuntimeAndLog(Base):
         calls = [l for l in log.read_text().splitlines() if l.split()[:1] != ["-U"]]
         self.assertTrue(calls)
         self.assertTrue(all(f"--js-runtimes deno:{deno}" in l for l in calls), calls)
-        log.unlink()
-        cf = self.tmp / "c.txt"
-        cf.write_text("")
-        p, ev = run_cli(["download", self.URL, "--cookies-file", str(cf)], "cookie-ok", self.dl, self.state,
-                        argv_log=log, extra_env={"ORION_DENO": str(deno)})
-        self.assertTrue(all(f"--js-runtimes deno:{deno}" in l and f"--cookies {cf}" in l
-                            for l in log.read_text().splitlines()))
 
     def test_no_or_missing_deno_passes_no_flag(self):
         log = self.tmp / "argv.log"

@@ -6,7 +6,6 @@ import UniformTypeIdentifiers
 struct FaceplateView: View {
     @ObservedObject var engine: Engine
     @ObservedObject var model: FaceplateModel
-    @ObservedObject var login: YouTubeSession
     @State private var keyMonitor: Any?
 
     var body: some View {
@@ -31,10 +30,9 @@ struct FaceplateView: View {
             case .analyzed(let rs): model.pager.reset(count: rs.count); model.picked = []
             default: break
             }
-            login.refresh()   // a stale login was just dropped, or a new one saved
         }
         .onReceive(model.$url) { u in
-            // changing the link drops a pending login prompt (it belongs to the old link)
+            // changing the link drops the can't-download readout (it belongs to the old link)
             let t = u.trimmingCharacters(in: .whitespacesAndNewlines)
             if case .needsLogin(let p) = engine.state, t != p.url { engine.clearLogin() }
         }
@@ -47,8 +45,6 @@ struct FaceplateView: View {
     static let size = CGSize(width: 552, height: 410)
     /// Both caps share one width so the two fields line up.
     static let capLegendWidth: CGFloat = 92
-    /// The login cap's longer legend (8 pt) needs a wider cap.
-    static let loginLegendWidth: CGFloat = 170
 
     // MARK: module: LCD + row
 
@@ -60,19 +56,11 @@ struct FaceplateView: View {
             }
             HStack(spacing: 12) {
                 LinkField(text: $model.url, focused: $model.fieldFocused, onSubmit: download)
-                if loginPrompt != nil, let cap = Faceplate.loginCap(busy: engine.state.isBusy) {
-                    Button(action: openLogin) {
-                        SSLCapStyle.label(cap.label, size: 8).lineLimit(1).fixedSize().frame(width: FaceplateView.loginLegendWidth)
-                    }
-                    .buttonStyle(SSLCapStyle(lit: cap.lit))
-                    .accessibility(label: Text(cap.label.capitalized))
-                } else {
-                    Button(action: download) { SSLCapStyle.label("DOWNLOAD").frame(width: FaceplateView.capLegendWidth) }
-                        // not .disabled(): AppKit would grey the legend; download() ignores an unlit cap
-                        .buttonStyle(SSLCapStyle(lit: lit))
-                        .accessibility(label: Text("Download"))
-                        .accessibility(hint: Text(lit ? "Downloads the link as an MP3 into Downloads" : "Paste a YouTube link first"))
-                }
+                Button(action: download) { SSLCapStyle.label("DOWNLOAD").frame(width: FaceplateView.capLegendWidth) }
+                    // not .disabled(): AppKit would grey the legend; download() ignores an unlit cap
+                    .buttonStyle(SSLCapStyle(lit: lit))
+                    .accessibility(label: Text("Download"))
+                    .accessibility(hint: Text(lit ? "Downloads the link as an MP3 into Downloads" : "Paste a YouTube link first"))
             }
             .padding(.top, 14)
             HStack(spacing: 12) {
@@ -96,7 +84,7 @@ struct FaceplateView: View {
 
     private var loginPrompt: LoginPrompt? { Faceplate.loginPrompt(engine.state, url: model.url) }
 
-    /// Unlit while the link is one that needs a login (the fallback readout): a re-try would only fail again.
+    /// Unlit while the link is one YouTube wants a login for: a re-try would only fail again.
     private var lit: Bool { Faceplate.isLit(model.url, busy: engine.state.isBusy) && loginPrompt == nil }
     private var findLit: Bool { Faceplate.isFindLit(model.picked, busy: engine.state.isBusy) }
     private var showDrop: Bool { model.pinnedDrop || (model.dropTargeted && !engine.state.isBusy) }
@@ -124,7 +112,7 @@ struct FaceplateView: View {
             return .result(rs[i], page: model.pager.caption, download: false, note: engine.note)
         case .failed(let m): return .error(m, download: dl)
         case .needsLogin(let p):
-            let (a, b) = Faceplate.loginLines(p)
+            let (a, b) = Faceplate.blockedLines(p)
             return .login(a, b, caption: nil)
         }
     }
@@ -135,21 +123,8 @@ struct FaceplateView: View {
 
     // MARK: actions
 
-    /// LOG IN TO YOUTUBE: Beat Key's own login window. Once it has the login, the same link runs
-    /// again with it (if that link is still the one waiting).
-    private func openLogin() {
-        guard let p = loginPrompt, !engine.state.isBusy, YouTubeLogin.inApp else { return }
-        LoginWindow.open(saving: login.file) { [engine, model, login] in
-            login.refresh()
-            guard Faceplate.loginPrompt(engine.state, url: model.url)?.url == p.url else { return }
-            model.lastAction = .download
-            engine.download(p.url, useLogin: true)
-        }
-        NSApp.keyWindow?.makeFirstResponder(nil)
-    }
-
     private func download() {
-        if loginPrompt != nil { if YouTubeLogin.inApp { openLogin() }; return }
+        if loginPrompt != nil { return }
         guard lit else { return }
         model.lastAction = .download
         engine.download(model.url.trimmingCharacters(in: .whitespacesAndNewlines))

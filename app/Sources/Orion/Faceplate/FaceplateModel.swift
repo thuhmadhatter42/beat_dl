@@ -43,34 +43,24 @@ enum Faceplate {
         }
     }
 
-    // MARK: YouTube login (only after a video asks for it)
+    // MARK: a video YouTube wants a login for (Beat Key has no login)
 
-    static let loginCapLabel = "LOG IN TO YOUTUBE"
-    static let loginNextLine = "NEXT TRY USES YOUR YOUTUBE LOGIN IN \(Brand.wordmark)"
     static let cantDownloadLine = "\(Brand.wordmark) CAN'T DOWNLOAD IT"
 
-    /// The prompt to show: only while the link in the field is the one that asked for it.
+    /// The readout to show: only while the link in the field is the one that was refused.
     static func loginPrompt(_ state: ViewState, url: String) -> LoginPrompt? {
         guard case .needsLogin(let p) = state,
               url.trimmingCharacters(in: .whitespacesAndNewlines) == p.url else { return nil }
         return p
     }
 
-    /// The two LCD lines. inApp = the login window is on (YouTubeLogin.inApp); off = the
-    /// fallback readout, which only says the video can't be downloaded.
-    static func loginLines(_ p: LoginPrompt, inApp: Bool = YouTubeLogin.inApp) -> (String, String) {
-        let first: String
+    /// The two amber LCD lines. No button: there is nothing to press.
+    static func blockedLines(_ p: LoginPrompt) -> (String, String) {
         switch p.reason {
-        case "age": first = "THIS VIDEO IS AGE-RESTRICTED"
-        case "members": first = "THIS VIDEO IS FOR MEMBERS"
-        default: first = "YOUTUBE WANTS A LOGIN"
+        case "bot": return ("YOUTUBE BLOCKED THIS DOWNLOAD", "TRY AGAIN LATER")
+        case "members": return ("THIS VIDEO IS FOR MEMBERS", cantDownloadLine)
+        default: return ("THIS VIDEO IS AGE-RESTRICTED", cantDownloadLine)
         }
-        return (first, inApp ? loginNextLine : cantDownloadLine)
-    }
-
-    /// The login cap: shown only with the login window on; lit unless something is running.
-    static func loginCap(busy: Bool, inApp: Bool = YouTubeLogin.inApp) -> (label: String, lit: Bool)? {
-        inApp ? (loginCapLabel, !busy) : nil
     }
 
     enum Step: Equatable { case done, on, off }
@@ -171,9 +161,8 @@ final class FaceplateModel: ObservableObject {
     @Published var pinnedDrop = false
 }
 
-/// ORION_FAKE_STATE=needs-login|needs-login-off|idle|working|done|drop|error|lit|multi|picked|picked-multi|eperm|
+/// ORION_FAKE_STATE=needs-login|needs-login-bot|idle|working|done|drop|error|lit|multi|picked|picked-multi|eperm|
 /// analyze-error|doctor-working|doctor-ok|doctor-fixed|doctor-failed pins the faceplate for screenshots (no Python).
-/// needs-login-off = the fallback readout (YouTubeLogin.inApp off).
 enum FakeState {
     static func apply(_ name: String, engine: Engine, model: FaceplateModel) {
         let dl = URL(fileURLWithPath: NSHomeDirectory()).appendingPathComponent("Downloads")
@@ -198,10 +187,9 @@ enum FakeState {
                 .map { n, b, k in Result(file: dl.appendingPathComponent(n), name: n, bpm: b,
                                          keys: [(k, 61), ("Eb", 18), ("Gm", 9)]) }
             engine.state = .analyzed(rs)
-        case "needs-login", "needs-login-off", "login-window":
-            if name == "needs-login-off" { YouTubeLogin.inApp = false }
+        case "needs-login", "needs-login-bot":
             model.url = "https://www.youtube.com/watch?v=xxxxxxxxxxx"
-            engine.state = .needsLogin(LoginPrompt(url: model.url, reason: "age"))
+            engine.state = .needsLogin(LoginPrompt(url: model.url, reason: name == "needs-login" ? "age" : "bot"))
         case "lit":
             model.url = "https://www.youtube.com/watch?v=xxxxxxxxxxx"
         case "picked":
