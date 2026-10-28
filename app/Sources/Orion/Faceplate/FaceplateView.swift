@@ -96,7 +96,8 @@ struct FaceplateView: View {
 
     private var loginPrompt: LoginPrompt? { Faceplate.loginPrompt(engine.state, url: model.url) }
 
-    private var lit: Bool { Faceplate.isLit(model.url, busy: engine.state.isBusy) }
+    /// Unlit while the link is one that needs a login (the fallback readout): a re-try would only fail again.
+    private var lit: Bool { Faceplate.isLit(model.url, busy: engine.state.isBusy) && loginPrompt == nil }
     private var findLit: Bool { Faceplate.isFindLit(model.picked, busy: engine.state.isBusy) }
     private var showDrop: Bool { model.pinnedDrop || (model.dropTargeted && !engine.state.isBusy) }
 
@@ -148,7 +149,7 @@ struct FaceplateView: View {
     }
 
     private func download() {
-        if loginPrompt != nil && YouTubeLogin.inApp { openLogin(); return }
+        if loginPrompt != nil { if YouTubeLogin.inApp { openLogin() }; return }
         guard lit else { return }
         model.lastAction = .download
         engine.download(model.url.trimmingCharacters(in: .whitespacesAndNewlines))
