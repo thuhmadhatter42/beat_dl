@@ -151,7 +151,7 @@ final class Engine: ObservableObject {
         }
     }
 
-    /// The permission sheet closed (Not now): back to idle, the link stays in the field.
+    /// The permission prompt is dropped (the link changed): back to idle.
     func clearAccess() {
         runOnMain { if case .needsAccess = self.state { self.state = .idle } }
     }

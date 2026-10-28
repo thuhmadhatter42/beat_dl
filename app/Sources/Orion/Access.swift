@@ -1,4 +1,5 @@
 import AppKit
+import Combine
 import Foundation
 
 // MARK: The macOS permission a browser login needs
@@ -65,7 +66,7 @@ struct AccessProbe {
         return .unknown
     }
 
-    /// The check while the sheet waits. The Full Disk Access canary every time (refused
+    /// The check while the faceplate waits. The Full Disk Access canary every time (refused
     /// silently); the browser's own folder only when `withBrowser` (every few checks, since a
     /// refusal there can post macOS's "Data Access Blocked" notice) or when no canary exists.
     func waitingCheck(_ browser: String, withBrowser: Bool = true) -> AccessStatus {
@@ -128,12 +129,12 @@ struct PendingRetryStore {
     }
 }
 
-/// The permission sheet's states.
+/// The permission flow's states. It lives on the faceplate (LCD + cap), never in a sheet.
 enum AccessPhase: Equatable {
     case closed
     /// Waiting for the user to turn on Full Disk Access.
     case asking(browser: String)
-    /// macOS now lets Beat Key in: offer Restart & Try Again.
+    /// macOS now lets Beat Key in: offer Restart & Retry.
     case granted(browser: String)
     /// The retry is saved and Beat Key is relaunching.
     case restarting(PendingRetry)
@@ -148,35 +149,69 @@ enum AccessPhase: Equatable {
     }
 }
 
-/// The pure state machine behind the sheet.
+/// The pure state machine behind the permission flow.
 struct AccessFlow: Equatable {
     private(set) var phase: AccessPhase = .closed
     private(set) var url = ""
 
     /// A login run found the browser's data blocked (or it is known blocked before the run).
+    /// The same link and browser again changes nothing (no restart of the wait).
     mutating func blocked(url: String, browser: String) {
         if case .restarting = phase { return }
+        if url == self.url, phase.browser == browser, phase.isOpen { return }
         self.url = url
         phase = .asking(browser: browser)
     }
 
-    /// One check while the sheet waits.
+    /// One check while it waits.
     mutating func checked(_ s: AccessStatus) {
         if case .asking(let b) = phase, s == .granted { phase = .granted(browser: b) }
     }
 
-    /// Not now: the sheet closes, nothing is saved.
-    mutating func dismiss() {
+    /// The faceplate moved on (new link, new drop): back to normal, nothing is saved.
+    mutating func leave() {
         if case .restarting = phase { return }
         phase = .closed
+        url = ""
     }
 
-    /// Restart & Try Again: returns the retry to persist before relaunching.
+    /// Restart & Retry: returns the retry to persist before relaunching.
     mutating func restart() -> PendingRetry? {
         guard case .granted(let b) = phase else { return nil }
         let p = PendingRetry(url: url, browser: b)
         phase = .restarting(p)
         return p
+    }
+}
+
+/// The words on the faceplate while the flow is open, kept out of the views so they can be tested.
+enum AccessCopy {
+    static let lcdFirst = "TURN ON FULL DISK ACCESS"
+    static let lcdSecond = "SO \(Brand.wordmark) CAN USE YOUR BROWSER LOGIN"
+    static let lcdPath = "SYSTEM SETTINGS › PRIVACY & SECURITY › FULL DISK ACCESS › \(Brand.wordmark)"
+    static let grantedFirst = "ACCESS ON"
+    static let grantedSecond = "RESTART TO USE IT"
+    static let restartingSecond = "RESTARTING"
+
+    static let openSettings = "OPEN SETTINGS"
+    static let restart = "RESTART & RETRY"
+
+    /// The LCD's lines: (first, second, small third or nil).
+    static func lines(_ phase: AccessPhase) -> (String, String, String?) {
+        switch phase {
+        case .closed, .asking: return (lcdFirst, lcdSecond, lcdPath)
+        case .granted: return (grantedFirst, grantedSecond, nil)
+        case .restarting: return (grantedFirst, restartingSecond, nil)
+        }
+    }
+
+    /// The cap in the DOWNLOAD slot, and whether it is lit.
+    static func cap(_ phase: AccessPhase) -> (label: String, lit: Bool) {
+        switch phase {
+        case .closed, .asking: return (openSettings, true)
+        case .granted: return (restart, true)
+        case .restarting: return (restart, false)
+        }
     }
 }
 
@@ -204,65 +239,91 @@ enum Relauncher {
     }
 }
 
-/// Runs the sheet: polls every ~2 s while it asks, then saves the retry and relaunches.
+/// Runs the flow. While it asks: a check when the app becomes active again (back from System
+/// Settings) and every `interval` s at most. The check runs off main and only a changed answer
+/// reaches the main thread; `phase` is only published when it really changes, so a tick never
+/// re-renders the faceplate. Granted: saves the retry and relaunches.
 final class AccessController: ObservableObject {
-    @Published private(set) var flow = AccessFlow()
-    let probe: AccessProbe
+    @Published private(set) var phase: AccessPhase = .closed
+    private var flow = AccessFlow() {
+        didSet { if flow.phase != phase { phase = flow.phase } }
+    }
+    var probe: AccessProbe
     let store: PendingRetryStore
     private let interval: TimeInterval
+    private let checkQueue: DispatchQueue
     private let relaunch: () -> Bool
     /// Runs the retry in this process when there is nothing to relaunch (`swift run`).
     var retryHere: ((PendingRetry) -> Void)?
-    /// Not now: the LCD goes back to idle, the link stays in the field.
-    var onClose: (() -> Void)?
     private var timer: Timer?
+    private var activation: AnyCancellable?
+    private var answers: AnyCancellable?
+    private var statuses: PassthroughSubject<AccessStatus, Never>?
     private var ticks = 0
+    private var inFlight = false
+    /// Checks started since the flow opened (tests).
+    private(set) var checks = 0
     /// The browser's folder is opened on every n-th check (the canary on every one).
     static let browserEvery = 5
-    /// ORION_FAKE_STATE pins the sheet: no polling.
-    var pinned = false
+    /// ORION_FAKE_STATE pins the flow: no checks.
+    private(set) var pinned = false
 
     init(probe: AccessProbe = AccessProbe(), store: PendingRetryStore = PendingRetryStore(),
-         interval: TimeInterval = 2, relaunch: @escaping () -> Bool = { Relauncher.relaunch() }) {
+         interval: TimeInterval = 3, checkQueue: DispatchQueue = DispatchQueue(label: "orion.access", qos: .utility),
+         relaunch: @escaping () -> Bool = { Relauncher.relaunch() }) {
         self.probe = probe
         self.store = store
         self.interval = interval
+        self.checkQueue = checkQueue
         self.relaunch = relaunch
     }
 
-    var phase: AccessPhase { flow.phase }
+    var url: String { flow.url }
+    var isWatching: Bool { timer != nil }
 
     func blocked(url: String, browser: String) {
         guard !pinned else { return }
+        let before = flow
         flow.blocked(url: url, browser: browser)
-        startPolling()
+        if flow != before { startWatching() }
     }
 
     /// For screenshots only.
     func pin(_ phase: AccessPhase, url: String) {
+        stopWatching()
         pinned = true
         flow = AccessFlow()
         if let b = phase.browser { flow.blocked(url: url, browser: b) }
         if case .granted = phase { flow.checked(.granted) }
     }
 
+    /// One check, off main; ignored while one is still running or when not asking.
     func check() {
-        guard case .asking(let b) = flow.phase else { return }
+        guard !pinned, case .asking(let b) = flow.phase, !inFlight, let out = statuses else { return }
+        inFlight = true
         ticks += 1
-        flow.checked(probe.waitingCheck(b, withBrowser: ticks % AccessController.browserEvery == 0))
-        if case .granted = flow.phase { stopPolling() }
+        checks += 1
+        let withBrowser = ticks % AccessController.browserEvery == 0
+        let probe = self.probe
+        checkQueue.async {
+            let s = probe.waitingCheck(b, withBrowser: withBrowser)
+            DispatchQueue.main.async { [weak self] in
+                self?.inFlight = false
+                out.send(s)
+            }
+        }
     }
 
-    func dismiss() {
+    /// Back to the normal faceplate (the link changed, a beat was dropped).
+    func leave() {
         guard flow.phase.isOpen else { return }
-        flow.dismiss()
-        stopPolling()
-        if !flow.phase.isOpen { onClose?() }
+        flow.leave()
+        if !flow.phase.isOpen { stopWatching() }
     }
 
     func restart() {
         guard let p = flow.restart() else { return }
-        stopPolling()
+        stopWatching()
         store.save(p)
         if !relaunch() {
             // nothing to relaunch: retry now, once
@@ -272,18 +333,36 @@ final class AccessController: ObservableObject {
         }
     }
 
-    private func startPolling() {
-        stopPolling()
+    private func applied(_ s: AccessStatus) {
+        flow.checked(s)
+        if case .granted = flow.phase { stopWatching() }
+    }
+
+    private func startWatching() {
+        stopWatching()
         ticks = 0
+        checks = 0
         guard !pinned else { return }
+        // a fresh pipe per wait, so removeDuplicates never swallows this wait's first answer
+        let subject = PassthroughSubject<AccessStatus, Never>()
+        statuses = subject
+        answers = subject.removeDuplicates().sink { [weak self] in self?.applied($0) }
+        activation = NotificationCenter.default
+            .publisher(for: NSApplication.didBecomeActiveNotification)
+            .sink { [weak self] _ in self?.check() }
         let t = Timer(timeInterval: interval, repeats: true) { [weak self] _ in self?.check() }
+        t.tolerance = interval * 0.2
         RunLoop.main.add(t, forMode: .common)
         timer = t
         check()
     }
 
-    private func stopPolling() {
+    private func stopWatching() {
         timer?.invalidate()
         timer = nil
+        activation = nil
+        answers = nil
+        statuses = nil
+        inFlight = false
     }
 }

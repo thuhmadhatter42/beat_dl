@@ -178,6 +178,7 @@ final class FaceplateModel: ObservableObject {
 
 /// ORION_FAKE_STATE=needs-login|needs-login-retry|idle|working|done|drop|error|lit|multi|picked|picked-multi|eperm|
 /// analyze-error|doctor-working|doctor-ok|doctor-fixed|doctor-failed|needs-access|access-granted pins the faceplate for screenshots (no Python).
+/// access-flip runs the real permission wait against a fake probe that says no for 5 s, then yes (videos).
 enum FakeState {
     static func apply(_ name: String, engine: Engine, model: FaceplateModel, access: AccessController? = nil) {
         let dl = URL(fileURLWithPath: NSHomeDirectory()).appendingPathComponent("Downloads")
@@ -210,9 +211,16 @@ enum FakeState {
             engine.state = .needsLogin(LoginPrompt(url: model.url, reason: "age", tried: "brave"))
         case "needs-access", "access-granted":
             model.url = "https://www.youtube.com/watch?v=xxxxxxxxxxx"
-            engine.state = .needsAccess(AccessPrompt(url: model.url, browser: "brave"))
+            // pinned first, so the state change below cannot start a real wait
             access?.pin(name == "needs-access" ? .asking(browser: "brave") : .granted(browser: "brave"),
                         url: model.url)
+            engine.state = .needsAccess(AccessPrompt(url: model.url, browser: "brave"))
+        case "access-flip":
+            model.url = "https://www.youtube.com/watch?v=xxxxxxxxxxx"
+            let yes = Date().addingTimeInterval(5)
+            access?.probe = AccessProbe(home: URL(fileURLWithPath: "/fake-home"),
+                                        open: { _ in Date() < yes ? EPERM : nil })
+            engine.state = .needsAccess(AccessPrompt(url: model.url, browser: "brave"))
         case "lit":
             model.url = "https://www.youtube.com/watch?v=xxxxxxxxxxx"
         case "picked":

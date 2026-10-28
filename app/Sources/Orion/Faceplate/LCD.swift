@@ -184,6 +184,7 @@ private struct StepLabel: View {
 
 /// A 3 pt track with a 40% amber slug sweeping across (static under Reduce Motion).
 struct RunningBar: View {
+    static let sweepAnimation = Animation.timingCurve(0.4, 0, 0.2, 1, duration: 1.4).repeatForever(autoreverses: false)
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var sweep = false
 
@@ -195,16 +196,21 @@ struct RunningBar: View {
                 Theme.amber.frame(width: w)
                     .shadow(color: Theme.amberGlow, radius: 4)
                     .offset(x: reduceMotion ? 0 : (sweep ? w * 2.6 : -w))
+                    // the repeat is scoped to the slug's offset alone
+                    .animation(sweep ? RunningBar.sweepAnimation : nil, value: sweep)
             }
         }
         .frame(height: 3)
         .clipShape(RoundedRectangle(cornerRadius: 2))
         .onAppear {
             guard !reduceMotion else { return }
-            withAnimation(Animation.timingCurve(0.4, 0, 0.2, 1, duration: 1.4).repeatForever(autoreverses: false)) {
-                sweep = true
-            }
+            // Not withAnimation(repeatForever) here: onAppear runs inside the parent's first layout
+            // pass, and a repeating transaction there captures every frame change around it (the
+            // 0.1.11 permission sheet replayed its own appearance every 1.4 s). Start the sweep a
+            // turn later, once that layout has settled.
+            DispatchQueue.main.async { sweep = true }
         }
+        .onDisappear { sweep = false }
     }
 }
 

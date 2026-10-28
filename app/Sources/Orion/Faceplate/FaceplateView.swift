@@ -29,16 +29,16 @@ struct FaceplateView: View {
             switch s {
             case .done: model.url = ""
             case .analyzed(let rs): model.pager.reset(count: rs.count); model.picked = []
-            case .needsAccess(let p): access.blocked(url: p.url, browser: p.browser)
             default: break
             }
+            // the permission flow lives on the faceplate: open while the state asks, gone after
+            if case .needsAccess(let p) = s { access.blocked(url: p.url, browser: p.browser) } else { access.leave() }
         }
-        .sheet(isPresented: sheetBinding) { AccessSheet(access: access) }
         .onReceive(model.$url) { u in
-            // changing the link drops a pending login prompt (it belongs to the old link)
-            if case .needsLogin(let p) = engine.state, u.trimmingCharacters(in: .whitespacesAndNewlines) != p.url {
-                engine.clearLogin()
-            }
+            // changing the link drops a pending login or permission prompt (it belongs to the old link)
+            let t = u.trimmingCharacters(in: .whitespacesAndNewlines)
+            if case .needsLogin(let p) = engine.state, t != p.url { engine.clearLogin() }
+            if case .needsAccess(let p) = engine.state, t != p.url { engine.clearAccess() }
         }
         .onAppear(perform: installKeys)
         .onDisappear { if let m = keyMonitor { NSEvent.removeMonitor(m) } }
@@ -62,7 +62,14 @@ struct FaceplateView: View {
             }
             HStack(spacing: 12) {
                 LinkField(text: $model.url, focused: $model.fieldFocused, onSubmit: download)
-                if let p = loginPrompt {
+                if let phase = accessPhase {
+                    let cap = AccessCopy.cap(phase)
+                    Button(action: accessAction) {
+                        SSLCapStyle.label(cap.label, size: 8).lineLimit(1).fixedSize().frame(width: FaceplateView.loginLegendWidth)
+                    }
+                    .buttonStyle(SSLCapStyle(lit: cap.lit))
+                    .accessibility(label: Text(cap.label.capitalized))
+                } else if let p = loginPrompt {
                     let cap = Faceplate.loginCap(p, browser: loginBrowser, busy: engine.state.isBusy)
                     Button(action: login) {
                         SSLCapStyle.label(cap.label, size: 8).lineLimit(1).fixedSize().frame(width: FaceplateView.loginLegendWidth)
@@ -98,6 +105,12 @@ struct FaceplateView: View {
     // MARK: derived state
 
     private var loginPrompt: LoginPrompt? { Faceplate.loginPrompt(engine.state, url: model.url) }
+    /// The permission flow's phase while it owns the faceplate (the link that asked is still in the field).
+    private var accessPhase: AccessPhase? {
+        guard case .needsAccess(let p) = engine.state, access.phase.isOpen,
+              model.url.trimmingCharacters(in: .whitespacesAndNewlines) == p.url else { return nil }
+        return access.phase
+    }
     private var loginBrowser: LoginBrowser? { loginPrompt.flatMap { _ in LoginBrowser.current() } }
 
     private var lit: Bool { Faceplate.isLit(model.url, busy: engine.state.isBusy) }
@@ -130,12 +143,9 @@ struct FaceplateView: View {
             let (a, b) = Faceplate.loginLines(p, browser: LoginBrowser.current())
             return .login(a, b, caption: p.tried == nil ? Faceplate.loginCaption : nil)
         case .needsAccess:
-            return .login(AccessCopy.lcdFirst, AccessCopy.lcdSecond, caption: nil)
+            let (a, b, c) = AccessCopy.lines(access.phase)
+            return .login(a, b, caption: c)
         }
-    }
-
-    private var sheetBinding: Binding<Bool> {
-        Binding(get: { access.phase.isOpen }, set: { if !$0 { access.dismiss() } })
     }
 
     private var dropBinding: Binding<Bool> {
@@ -158,7 +168,20 @@ struct FaceplateView: View {
         NSApp.keyWindow?.makeFirstResponder(nil)
     }
 
+    /// The cap in the DOWNLOAD slot while the permission flow is open: System Settings, then
+    /// Restart & Retry once macOS lets Beat Key in.
+    private func accessAction() {
+        guard let phase = accessPhase else { return }
+        switch phase {
+        case .asking: FullDiskAccessPane.open()
+        case .granted: access.restart()
+        case .closed, .restarting: break
+        }
+        NSApp.keyWindow?.makeFirstResponder(nil)
+    }
+
     private func download() {
+        if accessPhase != nil { accessAction(); return }
         if loginPrompt != nil { login(); return }
         guard lit else { return }
         model.lastAction = .download

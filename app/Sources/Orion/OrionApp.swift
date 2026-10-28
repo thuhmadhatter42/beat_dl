@@ -40,7 +40,6 @@ struct OrionApp: App {
 
     private func launch() {
         let env = ProcessInfo.processInfo.environment
-        access.onClose = { [engine] in engine.clearAccess() }
         if let fake = env["ORION_FAKE_STATE"], !fake.isEmpty {
             FakeState.apply(fake, engine: engine, model: model, access: access)
             if fake != "idle" {   // the mockup shows the field unfocused in every other state

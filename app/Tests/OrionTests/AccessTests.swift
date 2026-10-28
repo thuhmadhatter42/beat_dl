@@ -60,7 +60,7 @@ final class AccessTests: XCTestCase {
 
     // MARK: state machine
 
-    func testFlowBlockedOpenGrantedRestart() {
+    func testFlowNeedsAccessGrantedRestartPending() {
         var f = AccessFlow()
         XCTAssertFalse(f.phase.isOpen)
         f.checked(.granted)                       // nothing to grant while closed
@@ -75,48 +75,84 @@ final class AccessTests: XCTestCase {
         let p = f.restart()
         XCTAssertEqual(p, PendingRetry(url: "https://a", browser: "brave"))
         XCTAssertEqual(f.phase, .restarting(p!))
-        f.dismiss(); f.blocked(url: "https://b", browser: "chrome")   // locked while restarting
+        f.leave(); f.blocked(url: "https://b", browser: "chrome")   // locked while restarting
         XCTAssertEqual(f.phase, .restarting(p!))
     }
 
-    func testFlowNotNowCloses() {
+    func testFlowSameLinkAgainChangesNothingANewOneAsksAgain() {
+        var f = AccessFlow()
+        f.blocked(url: "https://a", browser: "brave"); f.checked(.granted)
+        f.blocked(url: "https://a", browser: "brave")
+        XCTAssertEqual(f.phase, .granted(browser: "brave"))
+        f.blocked(url: "https://b", browser: "brave")
+        XCTAssertEqual(f.phase, .asking(browser: "brave"))
+        XCTAssertEqual(f.url, "https://b")
+    }
+
+    func testFlowLeavingReturnsToNormal() {
         var f = AccessFlow()
         f.blocked(url: "https://a", browser: "brave")
-        f.dismiss()
+        f.leave()
         XCTAssertEqual(f.phase, .closed)
-        f.blocked(url: "https://a", browser: "brave"); f.checked(.granted); f.dismiss()
+        f.blocked(url: "https://a", browser: "brave"); f.checked(.granted); f.leave()
         XCTAssertEqual(f.phase, .closed)
     }
 
-    func testControllerPollsUntilGrantedThenRelaunchesWithTheRetrySaved() {
+    func testControllerWaitsUntilGrantedThenRelaunchesWithTheRetrySavedAndRetriesOnce() {
         var answer = AccessStatus.denied
+        let lock = NSLock()
         var opened: [String] = []
         let probe = AccessProbe(home: URL(fileURLWithPath: "/H"), open: { path in
+            lock.lock(); defer { lock.unlock() }
             opened.append(path)
             switch answer { case .granted: return nil; case .denied: return EPERM; case .unknown: return ENOENT }
         })
         let store = PendingRetryStore(defaults: freshDefaults())
         var relaunches = 0
         let c = AccessController(probe: probe, store: store, interval: 0.05, relaunch: { relaunches += 1; return true })
-        var closed = 0
-        c.onClose = { closed += 1 }
+        var published: [AccessPhase] = []
+        let sub = c.$phase.dropFirst().sink { published.append($0) }
         c.blocked(url: "https://a", browser: "brave")
         XCTAssertEqual(c.phase, .asking(browser: "brave"))
-        RunLoop.main.run(until: Date().addingTimeInterval(0.3))
+        XCTAssertTrue(c.isWatching)
+        spin(0.4)
         XCTAssertEqual(c.phase, .asking(browser: "brave"))
-        XCTAssertEqual(opened.first, "/H/Library/Safari")     // the silent canary first
-        answer = .granted
-        RunLoop.main.run(until: Date().addingTimeInterval(0.3))
+        XCTAssertGreaterThan(c.checks, 3, "it keeps checking while it asks")
+        XCTAssertEqual(published, [.asking(browser: "brave")], "a denied tick publishes nothing")
+        lock.lock(); XCTAssertEqual(opened.first, "/H/Library/Safari"); lock.unlock()   // the silent canary first
+        c.blocked(url: "https://a", browser: "brave")       // the same prompt again: no restart, no publish
+        XCTAssertEqual(published.count, 1)
+        lock.lock(); answer = .granted; lock.unlock()
+        spin(0.4)
         XCTAssertEqual(c.phase, .granted(browser: "brave"))
-        let n = opened.count
-        RunLoop.main.run(until: Date().addingTimeInterval(0.2))
-        XCTAssertEqual(opened.count, n, "polling stops once granted")
+        XCTAssertEqual(published, [.asking(browser: "brave"), .granted(browser: "brave")])
+        XCTAssertFalse(c.isWatching, "the wait stops once granted")
+        lock.lock(); let n = opened.count; lock.unlock()
+        spin(0.2)
+        lock.lock(); XCTAssertEqual(opened.count, n); lock.unlock()
         c.restart()
         XCTAssertEqual(relaunches, 1)
-        XCTAssertEqual(closed, 0)
-        // the relaunched app takes it once
+        XCTAssertEqual(c.phase, .restarting(PendingRetry(url: "https://a", browser: "brave")))
+        // the relaunched app takes it once: the auto-retry runs once
         XCTAssertEqual(store.take(), PendingRetry(url: "https://a", browser: "brave"))
         XCTAssertNil(store.take())
+        sub.cancel()
+    }
+
+    func testControllerChecksWhenTheAppBecomesActive() {
+        let c = AccessController(probe: AccessProbe(home: URL(fileURLWithPath: "/H"), open: { _ in EPERM }),
+                                 store: PendingRetryStore(defaults: freshDefaults()), interval: 60)
+        c.blocked(url: "https://a", browser: "brave")
+        spin(0.1)
+        XCTAssertEqual(c.checks, 1)                         // the first check, at once
+        NotificationCenter.default.post(name: NSApplication.didBecomeActiveNotification, object: nil)
+        spin(0.1)
+        XCTAssertEqual(c.checks, 2)                         // back from System Settings
+        c.leave()
+        NotificationCenter.default.post(name: NSApplication.didBecomeActiveNotification, object: nil)
+        spin(0.1)
+        XCTAssertEqual(c.checks, 2, "no checks after leaving")
+        XCTAssertFalse(c.isWatching)
     }
 
     func testControllerWithoutABundleRetriesHereOnce() {
@@ -126,24 +162,38 @@ final class AccessTests: XCTestCase {
         var retried: [PendingRetry] = []
         c.retryHere = { retried.append($0) }
         c.blocked(url: "https://a", browser: "chrome")     // checks at once: granted
+        spin(0.2)
         XCTAssertEqual(c.phase, .granted(browser: "chrome"))
         c.restart()
         XCTAssertEqual(retried, [PendingRetry(url: "https://a", browser: "chrome")])
         XCTAssertEqual(c.phase, .closed)
         XCTAssertNil(store.take())
+        c.restart()
+        XCTAssertEqual(retried.count, 1)
     }
 
-    func testNotNowTellsTheFaceplate() {
+    func testLeavingStopsTheWait() {
         let c = AccessController(probe: AccessProbe(home: URL(fileURLWithPath: "/H"), open: { _ in EPERM }),
-                                 store: PendingRetryStore(defaults: freshDefaults()), interval: 10)
-        var closed = 0
-        c.onClose = { closed += 1 }
-        c.dismiss()
-        XCTAssertEqual(closed, 0)          // nothing open
+                                 store: PendingRetryStore(defaults: freshDefaults()), interval: 0.05)
+        c.leave()
+        XCTAssertEqual(c.phase, .closed)                  // nothing open: nothing happens
         c.blocked(url: "https://a", browser: "brave")
-        c.dismiss()
-        XCTAssertEqual(closed, 1)
+        c.leave()
         XCTAssertEqual(c.phase, .closed)
+        XCTAssertFalse(c.isWatching)
+        let n = c.checks
+        spin(0.2)
+        XCTAssertEqual(c.checks, n)
+    }
+
+    func testPinnedNeverChecks() {
+        let c = AccessController(probe: AccessProbe(home: URL(fileURLWithPath: "/H"), open: { _ in nil }),
+                                 store: PendingRetryStore(defaults: freshDefaults()), interval: 0.05)
+        c.pin(.asking(browser: "brave"), url: "https://a")
+        c.blocked(url: "https://a", browser: "brave")
+        spin(0.2)
+        XCTAssertEqual(c.phase, .asking(browser: "brave"))
+        XCTAssertEqual(c.checks, 0)
     }
 
     // MARK: probe
@@ -216,13 +266,20 @@ final class AccessTests: XCTestCase {
 
     // MARK: copy
 
-    func testCopy() {
-        XCTAssertEqual(AccessCopy.title, "Let Beat Key read your YouTube login")
-        XCTAssertEqual(AccessCopy.sentence("brave"),
-                       "macOS keeps other apps' data private. To use your Brave login, turn on Full Disk Access for Beat Key.")
-        XCTAssertEqual(AccessCopy.steps, ["Click Open System Settings", "Turn on Beat Key", "Come back here"])
-        XCTAssertEqual(AccessCopy.notListed, "If it's not in the list: click +, choose Beat Key in Applications")
-        for s in [AccessCopy.title, AccessCopy.sentence("chrome"), AccessCopy.lcdSecond, Doctor.accessLine("brave")] {
+    func testFaceplateCopy() {
+        XCTAssertEqual(AccessCopy.lines(.asking(browser: "brave")).0, "TURN ON FULL DISK ACCESS")
+        XCTAssertEqual(AccessCopy.lines(.asking(browser: "brave")).1, "SO BEAT KEY CAN USE YOUR BROWSER LOGIN")
+        XCTAssertEqual(AccessCopy.lines(.asking(browser: "brave")).2,
+                       "SYSTEM SETTINGS › PRIVACY & SECURITY › FULL DISK ACCESS › BEAT KEY")
+        XCTAssertEqual(AccessCopy.lines(.granted(browser: "brave")).0, "ACCESS ON")
+        XCTAssertEqual(AccessCopy.lines(.granted(browser: "brave")).1, "RESTART TO USE IT")
+        XCTAssertNil(AccessCopy.lines(.granted(browser: "brave")).2)
+        XCTAssertEqual(AccessCopy.cap(.asking(browser: "brave")).label, "OPEN SETTINGS")
+        XCTAssertTrue(AccessCopy.cap(.asking(browser: "brave")).lit)
+        XCTAssertEqual(AccessCopy.cap(.granted(browser: "brave")).label, "RESTART & RETRY")
+        XCTAssertTrue(AccessCopy.cap(.granted(browser: "brave")).lit)
+        XCTAssertFalse(AccessCopy.cap(.restarting(PendingRetry(url: "https://a", browser: "brave"))).lit)
+        for s in [AccessCopy.lcdFirst, AccessCopy.lcdSecond, AccessCopy.lcdPath, Doctor.accessLine("brave")] {
             XCTAssertFalse(s.lowercased().contains("files"), s)
         }
     }
@@ -237,6 +294,8 @@ final class AccessTests: XCTestCase {
         XCTAssertEqual(r.outcome, .failed)
         XCTAssertEqual(r.line, "TURN ON FULL DISK ACCESS FOR BEAT KEY TO USE YOUR BRAVE LOGIN")
     }
+
+    private func spin(_ t: TimeInterval) { RunLoop.main.run(until: Date().addingTimeInterval(t)) }
 
     private func freshDefaults() -> UserDefaults {
         let name = "orion-tests-\(UUID().uuidString)"
