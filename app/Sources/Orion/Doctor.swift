@@ -101,7 +101,7 @@ struct Doctor {
         // 3 the JavaScript runtime (V8 needs its JIT entitlements to start at all)
         progress(Doctor.stages[2])
         if runtime.hasJSRuntime {
-            let js = runner.run(runtime.deno, ["--version"], environment: nil, timeout: 60)
+            let js = runner.run(runtime.deno, ["--version"], environment: nil, timeout: Runtime.versionTimeout)
             if js.status != 0, problem == nil { problem = "JS RUNTIME WON'T RUN · REINSTALL \(Brand.wordmark)" }
         }
 

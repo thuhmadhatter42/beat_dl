@@ -100,8 +100,16 @@ struct Runtime {
     func launchMaintenance() {
         Runtime.maintenanceQueue.async {
             self.ensureSeeded()
+            self.warmJSRuntime()
             if self.needsWeeklyUpgrade { self.upgradeYtDlpSync() }
         }
+    }
+
+    /// The first start of a fresh deno is slow while macOS checks the 100 MB binary (measured
+    /// 60 s on the 2013 Intel Mac Pro, 0.2 s every time after). Pay it here, off the download.
+    func warmJSRuntime() {
+        guard hasJSRuntime else { return }
+        _ = Runtime.run(deno, ["--version"], timeout: Runtime.versionTimeout)
     }
 
     /// Seed once per process (a `--version` run costs seconds on old Intel Macs). Call only on
