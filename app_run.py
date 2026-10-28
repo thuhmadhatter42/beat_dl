@@ -2,7 +2,7 @@
 """
 Orchestrator for the Orion app. The Swift app spawns this and renders its JSON-lines events.
 
-  app_run.py download <url>
+  app_run.py download <url> [--browser <name>]
   app_run.py analyze <file>...
 
 One JSON object per stdout line, flushed. Exit code 0 unless the process itself crashed.
@@ -98,14 +98,15 @@ def ytdlp_timeout():
         return YTDLP_TIMEOUT
 
 
-def _attempt(url, cookies=True):
-    """One run_download pass. Returns (Path | None, message_text)."""
+def _attempt(url, browser=None, raw=None):
+    """One run_download pass. Returns (Path | None, message_text). raw (a list) receives yt-dlp's
+    raw error lines."""
     out, err = io.StringIO(), io.StringIO()
     path = None
     with contextlib.redirect_stdout(out), contextlib.redirect_stderr(err):
         try:
             path = downloader.run_download(url, silent=True, app_order=True, ytdlp=ytdlp_path(),
-                                           timeout=ytdlp_timeout(), cookies=cookies)
+                                           timeout=ytdlp_timeout(), browser=browser, raw_errors=raw)
         except Exception as exc:  # keep the process alive; report as a download error
             err.write(f"Download failed: {exc}\n")
     msg = (err.getvalue() or out.getvalue()).strip()
@@ -125,17 +126,56 @@ def _upgrade_ytdlp():
     return True
 
 
-def cmd_download(url):
+BROWSER_NAMES = {"brave": "Brave", "chrome": "Chrome", "chromium": "Chromium", "edge": "Edge",
+                 "firefox": "Firefox", "opera": "Opera", "safari": "Safari", "vivaldi": "Vivaldi",
+                 "whale": "Whale"}
+
+LOGIN_MESSAGES = {
+    "age": "This video is age-restricted. A YouTube login is needed.",
+    "bot": "YouTube wants a login before it will serve this video.",
+    "members": "This video is for channel members. A YouTube login is needed.",
+}
+
+
+def needs_login(reason, tried=None):
+    extra = {"tried": tried} if tried else {}
+    emit(stage="needs_login", reason=reason, message=LOGIN_MESSAGES[reason], **extra)
+
+
+def cookie_error_message(browser):
+    if browser == "safari":
+        return ("Couldn't read Safari's YouTube login. Allow Full Disk Access for Beat Key in "
+                "System Settings \u203a Privacy & Security.")
+    return f"Couldn't read {BROWSER_NAMES.get(browser, browser)}'s YouTube login."
+
+
+def cmd_download(url, browser=None):
     emit(stage="downloading")
-    path, msg = _attempt(url)
-    # A dead link (private / unavailable / removed / invalid) or a timeout: an upgrade will not
-    # help and a retry would only repeat the wait. Report it.
-    hopeless = msg == downloader.TIMEOUT_MESSAGE or msg in downloader._FINAL_MESSAGES
-    if not path and not hopeless and ytdlp_path():
-        emit(stage="updating")
-        if _upgrade_ytdlp():
-            emit(stage="downloading")
-            path, msg = _attempt(url, cookies=False)   # the cookie strategies already had their turn
+    raw = []
+    path, msg = _attempt(url, browser=browser, raw=raw)
+    if not path:
+        reason = downloader.login_reason(raw)
+        if reason:
+            needs_login(reason, tried=browser)
+            return
+        if browser and downloader.cookie_access_failed(raw):
+            emit(stage="error", message=cookie_error_message(browser))
+            return
+    if not browser:
+        # A dead link (private / unavailable / removed / invalid) or a timeout: an upgrade will
+        # not help and a retry would only repeat the wait. Report it.
+        hopeless = msg == downloader.TIMEOUT_MESSAGE or msg in downloader._FINAL_MESSAGES
+        if not path and not hopeless and ytdlp_path():
+            emit(stage="updating")
+            if _upgrade_ytdlp():
+                emit(stage="downloading")
+                raw = []
+                path, msg = _attempt(url, raw=raw)
+                if not path:
+                    reason = downloader.login_reason(raw)
+                    if reason:
+                        needs_login(reason)
+                        return
     if not path:
         emit(stage="error", message=msg or "Download failed for an unknown reason.")
         return
@@ -214,11 +254,18 @@ def main(argv):
 
 def _main(argv):
     if len(argv) >= 3 and argv[1] == "download":
-        cmd_download(argv[2].strip())
+        browser = None
+        if "--browser" in argv[3:]:
+            i = argv.index("--browser", 3)
+            browser = argv[i + 1].strip().lower() if i + 1 < len(argv) else ""
+            if browser not in downloader.BROWSERS:
+                emit(stage="error", message="Unknown browser for the YouTube login.")
+                return 0
+        cmd_download(argv[2].strip(), browser)
     elif len(argv) >= 3 and argv[1] == "analyze":
         cmd_analyze(argv[2:])
     else:
-        emit(stage="error", message="usage: app_run.py download <url> | analyze <file>...")
+        emit(stage="error", message="usage: app_run.py download <url> [--browser <name>] | analyze <file>...")
     return 0
 
 

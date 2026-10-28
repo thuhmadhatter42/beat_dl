@@ -68,15 +68,12 @@ class TestPure(unittest.TestCase):
 
     def test_cli_default_order_unchanged(self):
         self.assertEqual(downloader.strategies(False)[0], ["--cookies-from-browser", "firefox"])
-        self.assertEqual(downloader.strategies(True)[-1][0], "--cookies-from-browser")
-        self.assertEqual(downloader.strategies(True)[0][0], "--extractor-args")
-        self.assertEqual(sorted(map(tuple, downloader.strategies(True))),
-                         sorted(map(tuple, downloader.strategies(False))))
 
-    def test_app_cookie_strategies_have_one_switch(self):
-        with mock.patch.object(downloader, "APP_USE_COOKIES", False):
-            self.assertTrue(all(x[:1] != ["--cookies-from-browser"] for x in downloader.strategies(True)))
-            self.assertEqual(downloader.strategies(False)[0], ["--cookies-from-browser", "firefox"])
+    def test_app_order_never_has_cookie_strategies(self):
+        self.assertTrue(all(x[:1] != ["--cookies-from-browser"] for x in downloader.strategies(True)))
+        self.assertEqual(len(downloader.strategies(True)), 3)
+        self.assertEqual(downloader.strategies(True, "brave"), [["--cookies-from-browser", "brave"]])
+        self.assertEqual(downloader.strategies(False, "brave")[0], ["--cookies-from-browser", "firefox"])
 
     def test_old_strategy_order_literal(self):
         self.assertEqual(downloader.strategies(False), [
@@ -176,7 +173,7 @@ class TestDownload(Base):
         log = self.tmp / "argv.log"
         p, ev = run_cli(["download", "https://example.com/v"], "fail-then-ok", self.dl, self.state, argv_log=log)
         self.assertEqual(ev[-1]["stage"], "done")
-        # first pass: 3 plain + 3 cookie metadata attempts; after -U: succeeds on the first plain one
+        # first pass: the 3 plain metadata attempts only; after -U: succeeds on the first plain one
         lines = log.read_text().splitlines()
         i = next(n for n, l in enumerate(lines) if l.split()[:1] == ["-U"])
         self.assertNotIn("--cookies-from-browser", " ".join(lines[i + 1:]))
@@ -201,6 +198,73 @@ class TestDownload(Base):
         lines = log.read_text().splitlines()
         self.assertTrue(lines)
         self.assertTrue(all("--no-playlist" in l for l in lines), lines)
+
+
+class TestLogin(Base):
+    URL = "https://www.youtube.com/watch?v=xxxxxxxxxxx"
+
+    def test_app_never_passes_cookies_without_browser(self):
+        for mode in ("fail-age", "fail-bot", "fail-network", "fail-unavailable", "ok", "fail-then-ok"):
+            log = self.tmp / f"argv-{mode}.log"
+            run_cli(["download", self.URL], mode, self.dl, self.state, argv_log=log)
+            self.assertNotIn("--cookies-from-browser", log.read_text(), mode)
+            for f in self.state.iterdir():
+                f.unlink()
+
+    def test_age_and_bot_and_members_need_login(self):
+        for mode, reason in (("fail-age", "age"), ("fail-bot", "bot"), ("fail-members", "members")):
+            p, ev = run_cli(["download", self.URL], mode, self.dl, self.state)
+            self.assertEqual(ev[-1]["stage"], "needs_login", ev)
+            self.assertEqual(ev[-1]["reason"], reason)
+            self.assertTrue(ev[-1]["message"])
+            self.assertNotIn("tried", ev[-1])
+            self.assertNotIn("updating", [e["stage"] for e in ev])
+            self.assertNotIn("error", [e["stage"] for e in ev])
+
+    def test_dead_link_is_error_not_login(self):
+        p, ev = run_cli(["download", self.URL], "fail-unavailable", self.dl, self.state)
+        self.assertEqual(ev[-1]["stage"], "error")
+        self.assertNotIn("needs_login", [e["stage"] for e in ev])
+
+    def test_browser_runs_exactly_one_cookie_attempt(self):
+        log = self.tmp / "argv.log"
+        p, ev = run_cli(["download", self.URL, "--browser", "brave"], "cookie-ok", self.dl, self.state,
+                        argv_log=log)
+        self.assertEqual(ev[-1]["stage"], "done", ev)
+        lines = log.read_text().splitlines()
+        self.assertTrue(lines)
+        self.assertTrue(all("--cookies-from-browser brave" in l for l in lines), lines)
+        self.assertEqual(sum("--dump-json" in l for l in lines), 1)
+        self.assertNotIn("-U", log.read_text().split())
+        self.assertNotIn("updating", [e["stage"] for e in ev])
+
+    def test_browser_still_login_error_reports_tried(self):
+        log = self.tmp / "argv.log"
+        p, ev = run_cli(["download", self.URL, "--browser", "firefox"], "fail-age", self.dl, self.state,
+                        argv_log=log)
+        self.assertEqual(ev[-1]["stage"], "needs_login", ev)
+        self.assertEqual(ev[-1]["tried"], "firefox")
+        self.assertEqual(len(log.read_text().splitlines()), 1)
+
+    def test_browser_keychain_failure_is_error_with_hint(self):
+        p, ev = run_cli(["download", self.URL, "--browser", "chrome"], "fail-keychain", self.dl, self.state)
+        self.assertEqual(ev[-1]["stage"], "error")
+        self.assertEqual(ev[-1]["message"], "Couldn't read Chrome's YouTube login.")
+        p, ev = run_cli(["download", self.URL, "--browser", "safari"], "fail-keychain", self.dl, self.state)
+        self.assertIn("Full Disk Access for Beat Key", ev[-1]["message"])
+
+    def test_unknown_browser_is_error(self):
+        p, ev = run_cli(["download", self.URL, "--browser", "arc"], "ok", self.dl, self.state)
+        self.assertEqual(ev[-1]["stage"], "error")
+
+    def test_reason_classifier(self):
+        r = downloader.login_reason
+        self.assertEqual(r(["Sign in to confirm your age"]), "age")
+        self.assertEqual(r(["This video is age-restricted"]), "age")
+        self.assertEqual(r(["Sign in to confirm you\u2019re not a bot"]), "bot")
+        self.assertEqual(r(["members-only content"]), "members")
+        self.assertIsNone(r(["Private video. Sign in if you've been granted access"]))
+        self.assertIsNone(r(["Video unavailable"]))
 
 
 class TestAnalyze(Base):

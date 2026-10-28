@@ -26,20 +26,42 @@ _STRATEGIES = [
 ]
 
 
-# Beat Key app only: False drops the three browser-cookie strategies from app mode entirely.
-APP_USE_COOKIES = True
+# yt-dlp's --cookies-from-browser names. The Beat Key app only uses one when the user asks for it.
+BROWSERS = ("brave", "chrome", "chromium", "edge", "firefox", "opera", "safari", "vivaldi", "whale")
 
 
-def strategies(app_order, cookies=True):
-    """The strategy list. app_order=True (Beat Key app): non-cookie strategies first, the three
-    browser-cookie ones last (cookies=False drops them). False (run.sh / CLI): the original order."""
+def strategies(app_order, browser=None):
+    """The strategy list. app_order=False (run.sh / CLI): the original order, cookies first.
+    app_order=True (Beat Key app): the non-cookie strategies only, never a browser-cookie one;
+    browser=<name> instead gives exactly one --cookies-from-browser attempt with that name."""
     if not app_order:
         return list(_STRATEGIES)
-    plain = [s for s in _STRATEGIES if s[:1] != ["--cookies-from-browser"]]
-    if not cookies or not APP_USE_COOKIES:
-        return plain
-    cookie = [s for s in _STRATEGIES if s[:1] == ["--cookies-from-browser"]]
-    return plain + cookie
+    if browser:
+        return [["--cookies-from-browser", browser]]
+    return [s for s in _STRATEGIES if s[:1] != ["--cookies-from-browser"]]
+
+
+def login_reason(lines):
+    """'age' | 'bot' | 'members' when yt-dlp's error says a YouTube login would fix it, else None."""
+    text = " ".join(lines).lower().replace("\u2019", "'")
+    if "private video" in text:
+        return None
+    if "sign in to confirm your age" in text or "age-restricted" in text \
+            or "inappropriate for some users" in text:
+        return "age"
+    if "not a bot" in text:
+        return "bot"
+    if "members-only" in text or "members only" in text or "join this channel" in text:
+        return "members"
+    return None
+
+
+def cookie_access_failed(lines):
+    """True when yt-dlp could not read the browser's cookies (Keychain, keyring, file permission)."""
+    text = " ".join(lines).lower()
+    return ("keyring" in text or "keychain" in text or "operation not permitted" in text
+            or "permission denied" in text or ("could not find" in text and "cookie" in text)
+            or "failed to decrypt" in text)
 
 
 # ── Dependency check ──────────────────────────────────────────────────────────
@@ -204,16 +226,18 @@ def safe_name(text):
 
 # ── Main ──────────────────────────────────────────────────────────────────────
 
-def run_download(url, silent=False, app_order=False, ytdlp=None, timeout=None, cookies=True):
+def run_download(url, silent=False, app_order=False, ytdlp=None, timeout=None, browser=None,
+                 raw_errors=None):
     """
     Download one URL. Returns the output Path on success, None on failure.
     If silent=True, errors go to stderr and only the filepath is printed to stdout
     (for use when called from a shell script).
 
-    The last three arguments are for the Beat Key app (app_order=True) and are ignored otherwise:
+    The last four arguments are for the Beat Key app (app_order=True) and are ignored otherwise:
     ytdlp = the yt-dlp executable, timeout = seconds per yt-dlp call (a timeout is reported as
-    "Download timed out."), cookies=False = skip the browser-cookie strategies. In app mode a
-    link that is private / unavailable / removed / invalid stops before the cookie strategies.
+    "Download timed out."), browser = run only one --cookies-from-browser <browser> attempt
+    (app mode never uses browser cookies otherwise), raw_errors = a list that receives yt-dlp's
+    raw error lines when the download fails.
     """
     info = None
     meta_err = []
@@ -223,8 +247,8 @@ def run_download(url, silent=False, app_order=False, ytdlp=None, timeout=None, c
         exe = ytdlp or "yt-dlp"
     else:
         timeout = None
-        cookies = True
-    order = strategies(app_order, cookies)
+        browser = None
+    order = strategies(app_order, browser)
     kw = {"exe": exe, "timeout": timeout}
 
     def _fail(msg):
@@ -232,9 +256,6 @@ def run_download(url, silent=False, app_order=False, ytdlp=None, timeout=None, c
         return None
 
     for extra in order:
-        if app_order and extra[:1] == ["--cookies-from-browser"] and meta_err \
-                and is_final_error(meta_err, url):
-            break   # the plain attempts say the link is dead: cookies cannot help
         try:
             info, meta_err = fetch_info(url, extra_args=extra, **kw)
         except YtDlpTimeout:
@@ -247,6 +268,8 @@ def run_download(url, silent=False, app_order=False, ytdlp=None, timeout=None, c
             break
 
     if not info:
+        if raw_errors is not None:
+            raw_errors[:] = meta_err
         msg = explain_error(meta_err, url)
         if silent:
             print(msg, file=sys.stderr)
@@ -279,6 +302,8 @@ def run_download(url, silent=False, app_order=False, ytdlp=None, timeout=None, c
             break
 
     if not success:
+        if raw_errors is not None:
+            raw_errors[:] = last_err
         msg = explain_error(last_err, url)
         if silent:
             print(msg, file=sys.stderr)
