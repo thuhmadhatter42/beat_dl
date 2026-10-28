@@ -8,6 +8,7 @@ enum ViewState: Equatable {
     case failed(String)
     case doctor(DoctorReport)
 
+    var stageName: String? { if case .working(let s) = self { return s } else { return nil } }
     var isBusy: Bool { if case .working = self { return true } else { return false } }
 }
 
@@ -144,10 +145,20 @@ final class Engine: ObservableObject {
     /// Starts the helper once yt-dlp is seeded and no maintenance (launch upgrade, doctor) is running.
     private func launchHelper(_ args: [String], gen: Int) {
         let rt = runtime
+        let stage = state.stageName
+        var launched = false   // main thread only
+        if args.first == "download" {
+            // Waiting behind a seed / upgrade for more than a moment: say so.
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) {
+                if !launched && gen == self.generation { self.state = .working(stage: "updating") }
+            }
+        }
         Runtime.maintenanceQueue.async {
             rt.ensureSeeded()
             DispatchQueue.main.async {
                 guard gen == self.generation else { return }
+                launched = true
+                if let s = stage { self.state = .working(stage: s) }
                 self.launcher.launch(
                     executable: rt.python,
                     arguments: [rt.script.path] + args,

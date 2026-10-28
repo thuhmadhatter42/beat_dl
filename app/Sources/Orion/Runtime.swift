@@ -109,6 +109,10 @@ struct Runtime {
     func seedYtDlp() throws {
         if runs(ytdlp) { return }
         try reseed()
+        // The bundled yt-dlp is as fresh as this build: the first weekly -U is 7 days from now.
+        try? FileManager.default.createDirectory(at: support, withIntermediateDirectories: true)
+        FileManager.default.createFile(atPath: stamp.path, contents: Data())
+        try? FileManager.default.setAttributes([.modificationDate: Date()], ofItemAtPath: stamp.path)
     }
 
     func reseed() throws {

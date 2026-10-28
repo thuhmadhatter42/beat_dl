@@ -77,6 +77,20 @@ final class EngineTests: XCTestCase {
         XCTAssertNil(Engine.defaultProbe(env: ["ORION_DOWNLOADS": "/x"]))
     }
 
+    func testDownloadShowsUpdatingWhileWaitingBehindMaintenance() {
+        let f = FakeLauncher()
+        let e = Engine(runtime: rt(), launcher: f)
+        let hold = DispatchSemaphore(value: 0), started = DispatchSemaphore(value: 0)
+        Runtime.maintenanceQueue.async { started.signal(); hold.wait() }
+        started.wait()
+        e.download("https://a")
+        XCTAssertEqual(e.state, .working(stage: "downloading"))
+        RunLoop.main.run(until: Date().addingTimeInterval(0.7))
+        XCTAssertEqual(e.state, .working(stage: "updating"))
+        hold.signal(); waitLaunch(f); spin()
+        XCTAssertEqual(e.state, .working(stage: "downloading"))
+    }
+
     func testPartialAnalyzeKeepsResultsAndCaptionsTheRest() {
         let f = FakeLauncher()
         let e = Engine(runtime: rt(), launcher: f)
@@ -151,6 +165,7 @@ final class EngineTests: XCTestCase {
                         support: tmp.appendingPathComponent("support"), osMajor: 14)
         XCTAssertTrue(r.needsWeeklyUpgrade)
         try r.seedYtDlp()
+        XCTAssertFalse(r.needsWeeklyUpgrade)     // a fresh seed is as new as the build
         XCTAssertTrue(FileManager.default.isExecutableFile(atPath: r.ytdlp.path))
         r.upgradeYtDlpSync()
         XCTAssertFalse(r.needsWeeklyUpgrade)
