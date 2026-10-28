@@ -13,11 +13,14 @@ struct Runtime {
         return "x86_64"
     }
 
-    static func appDefault() -> Runtime {
+    /// The bundle's runtime. A debug run (`swift run`, no bundle) points ORION_RUNTIME_ROOT at a
+    /// locally built runtime (app/build/runtime); nothing else changes.
+    static func appDefault(env: [String: String] = ProcessInfo.processInfo.environment) -> Runtime {
         let res = Bundle.main.resourceURL ?? URL(fileURLWithPath: "/")
         let sup = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
             .appendingPathComponent("Orion")
-        return Runtime(root: res.appendingPathComponent("runtime"), arch: detectArch(), support: sup)
+        let override = env["ORION_RUNTIME_ROOT"].flatMap { $0.isEmpty ? nil : URL(fileURLWithPath: $0) }
+        return Runtime(root: override ?? res.appendingPathComponent("runtime"), arch: detectArch(), support: sup)
     }
 
     /// arm64 on macOS 11 uses the older ffmpeg build.
@@ -32,14 +35,17 @@ struct Runtime {
     var bundledYtDlp: URL { root.appendingPathComponent(arch).appendingPathComponent("bin/yt-dlp") }
     var stamp: URL { support.appendingPathComponent(".last-ytdlp-upgrade") }
 
-    func environment() -> [String: String] {
-        [
+    func environment(passing env: [String: String] = ProcessInfo.processInfo.environment) -> [String: String] {
+        var e = [
             "PATH": "\(supportBin.path):\(binDir.path):/usr/bin:/bin",
             "ORION_BIN": binDir.path,
             "PYTHONDONTWRITEBYTECODE": "1",
             "PYTHONNOUSERSITE": "1",
             "PIP_CONFIG_FILE": "/dev/null",
         ]
+        // Test/debug override of the output folder, read by app_run.py; unset = ~/Downloads.
+        if let d = env["ORION_DOWNLOADS"], !d.isEmpty { e["ORION_DOWNLOADS"] = d }
+        return e
     }
 
     private func runs(_ exe: URL) -> Bool {

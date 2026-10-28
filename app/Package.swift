@@ -5,7 +5,8 @@ let package = Package(
     name: "Orion",
     platforms: [.macOS(.v11)],
     targets: [
-        .executableTarget(name: "Orion", path: "Sources/Orion"),
+        .executableTarget(name: "Orion", path: "Sources/Orion",
+                          resources: [.process("Resources")]),
         .testTarget(name: "OrionTests", dependencies: ["Orion"], path: "Tests/OrionTests"),
     ]
 )
