@@ -26,12 +26,15 @@ _STRATEGIES = [
 ]
 
 
-def strategies(app_order):
+def strategies(app_order, cookies_file=None):
     """The strategy list. app_order=False (run.sh / CLI): the original order, cookies first.
-    app_order=True (Beat Key app): the non-cookie strategies only. The app never reads a
-    browser's data and has no YouTube login."""
+    app_order=True (Beat Key app): the non-cookie strategies only, never a browser-cookie one;
+    cookies_file=<path> instead gives exactly one `--cookies <path>` attempt (the login the
+    app saved from its own YouTube login window)."""
     if not app_order:
         return list(_STRATEGIES)
+    if cookies_file:
+        return [["--cookies", str(cookies_file)]]
     return [s for s in _STRATEGIES if s[:1] != ["--cookies-from-browser"]]
 
 
@@ -48,6 +51,13 @@ def login_reason(lines):
     if "members-only" in text or "members only" in text or "join this channel" in text:
         return "members"
     return None
+
+
+def cookies_stale(lines):
+    """True when yt-dlp says the --cookies login no longer works: YouTube rotated or signed it
+    out ("The provided YouTube account cookies are no longer valid", yt_dlp/extractor/youtube)."""
+    text = " ".join(lines).lower()
+    return "cookies are no longer valid" in text
 
 
 def js_runtime_args(env=None):
@@ -257,15 +267,17 @@ def safe_name(text):
 
 # ── Main ──────────────────────────────────────────────────────────────────────
 
-def run_download(url, silent=False, app_order=False, ytdlp=None, timeout=None, raw_errors=None):
+def run_download(url, silent=False, app_order=False, ytdlp=None, timeout=None, cookies_file=None,
+                 raw_errors=None):
     """
     Download one URL. Returns the output Path on success, None on failure.
     If silent=True, errors go to stderr and only the filepath is printed to stdout
     (for use when called from a shell script).
 
-    The last three arguments are for the Beat Key app (app_order=True) and are ignored otherwise:
+    The last four arguments are for the Beat Key app (app_order=True) and are ignored otherwise:
     ytdlp = the yt-dlp executable, timeout = seconds per yt-dlp call (a timeout is reported as
-    "Download timed out."), raw_errors = a list that receives yt-dlp's
+    "Download timed out."), cookies_file = run only one `--cookies <file>` attempt
+    (app mode never reads a browser's cookies), raw_errors = a list that receives yt-dlp's
     raw error lines when the download fails.
     """
     info = None
@@ -276,7 +288,8 @@ def run_download(url, silent=False, app_order=False, ytdlp=None, timeout=None, r
         exe = ytdlp or "yt-dlp"
     else:
         timeout = None
-    order = strategies(app_order)
+        cookies_file = None
+    order = strategies(app_order, cookies_file)
     if app_order:
         js = js_runtime_args()
         order = [js + s for s in order]
