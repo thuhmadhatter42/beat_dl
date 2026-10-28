@@ -1,7 +1,7 @@
 # iMessage Beat Watcher — Design
 
 **Date:** 2026-06-05
-**Status:** Approved (pending spec review)
+**Status:** CLOSED by J 2026-10-06 (one-off, not doing it; never built, never raise again). Kept as history only.
 
 ## Purpose
 

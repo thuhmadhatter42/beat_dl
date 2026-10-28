@@ -45,7 +45,7 @@ py3.14 + numba 0.67 (guvectorize compile), so the librosa BPM fallback uses `lib
 - `/opt/homebrew/bin/python3` 3.14.7; system librosa 0.11.0, numpy 2.5.3. Benchmark venv pinned
   `librosa==0.11.0` (bare `pip install librosa` now gives 1.0.0).
 - `essentia` / `essentia-tensorflow` 2.1b6.dev1438: cp314 wheels for macosx_15_0 arm64 **and**
-  x86_64 (Intel needs macOS ≥ 15; cp313/cp312 wheels are macosx_13_0 for x86_64). Both wheels
+  x86_64 (Intel needs macOS ≥ 15 [2026-10-28: moot, we ship our own essentia build, no TF]; cp313/cp312 wheels are macosx_13_0 for x86_64). Both wheels
   unpack into the same `essentia/` package; install only `essentia-tensorflow` (superset, has
   `KeyExtractor`, `HPCP`, `SpectralWhitening`, `TempoCNN`). The benchmark ran on the TF wheel.
 - torch 2.14 / torchaudio 2.11: arm64 wheels only. essentia mp3/m4a/webm decode works without ffmpeg
@@ -246,7 +246,7 @@ pip3 install "essentia-tensorflow==2.1b6.dev1438" --break-system-packages --pref
 ```
 Presence check: `python3 -c "import importlib.util,sys; sys.exit(0 if importlib.util.find_spec('essentia') else 1)"`.
 Intel Mac: same line works on py3.14 only with macOS ≥ 15; on py3.13/3.12 the wheel is
-macosx_13_0. Before shipping there, `sw_vers && python3 --version` (open item from the BPM doc).
+macosx_13_0. Before shipping there, `sw_vers && python3 --version` (open item from the BPM doc) [CLOSED 2026-10-06, see the BPM doc].
 
 ## Known failure modes
 

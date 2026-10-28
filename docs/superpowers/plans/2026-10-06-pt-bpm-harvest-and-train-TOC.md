@@ -6,9 +6,9 @@
 - [x] 3. Beat bounce + 11k copy → §3 (23:10: Beat Buss solo, 8 s probe, ExportMix to Sofia disk, 11k mono)
 - [x] 4. Label rows in SQLite → §4 (STRICT, name-free; id = NNNN = wav stem; artist = sha1[:10])
 - [x] 5. Sessions 2-5 verified → §5 (23:45: tempo = screen on all; key read EFX+/Pro proven)
-- [ ] 6. Batch to 200 rows → §6 (PAUSED 2026-10-09 10:04, iLok removed from Sofia: 101 sessions done, 78 usable; resume command in PICKUP; earlier note:  00:51 block on "Missing AAX Plugins" cleared 01:02 by adding OK to approved-dialogs.txt)
+- [ ] 6. Batch to 200 rows → §6 (PAUSED 2026-10-09 10:04, still paused 2026-10-28: iLok not in Sofia; 101 sessions done, 78 usable; resume command in PICKUP; earlier note:  00:51 block on "Missing AAX Plugins" cleared 01:02 by adding OK to approved-dialogs.txt)
 - [x] 7. Training harness, parity proven → §7 (merged 00e8dd0: parity 80/80 CPU+MPS, smoke run ok)
-- [x] 8. Train + evaluate, ship? → §8 (2026-10-09: run A held-out 75.0→87.5% but bpm-bench 87.5→85.0%, NOT shipped; candidates in tools/train-tempocnn/candidates/; ship-anyway decision open with J)
-- [ ] 9. Report to J → §9
-- [ ] 10. Full-mix bounces + beat-vs-mix eval → §10
-- [ ] 11. Smart beat finder + ALL MIXES → §11
+- [x] 8. Train + evaluate, ship? → §8 (2026-10-09: run A held-out 75.0→87.5% but bpm-bench 87.5→85.0%, NOT shipped; candidates in tools/train-tempocnn/candidates/; ship-anyway decision still open with J as of 2026-10-28, parked behind Beat Key)
+- [x] 9. Report to J → §9 (training result reported in PICKUP 2026-10-09; the final report waits for the 200-row run)
+- [x] 10. Full-mix bounces + beat-vs-mix eval → §10 (done 2026-10-09: 77 mix bounces, beat vs mix eval in PICKUP)
+- [x] 11. Smart beat finder + ALL MIXES → §11 (beat finder merged 2026-10-09, verify_beats 71/78; ALL MIXES entries are in the manifest, the rest of the harvest waits on §6)

@@ -1,14 +1,15 @@
 # Orion v1: beat_dl as a real Mac app with an installer (design)
 
 **Date:** 2026-10-27 · **Status:** Approved by J 2026-10-27 ("beautiful! make it!"). Plan `docs/superpowers/plans/2026-10-27-orion-v1.md`; Tasks 1-2 built (runtime payload, app_run.py), Task 3 next. See PICKUP.md.
+**Read §10 (Amendment 2026-10-28) first: it supersedes the name, macOS floor, delivery model and cookie policy below. Superseded rulings are tagged [SUPERSEDED 2026-10-28] in place.**
 
-**Name: Orion** (J, 2026-10-27). The downloader is Orion v1. The menu-bar listener from
+**Name: Orion** (J, 2026-10-27) [SUPERSEDED 2026-10-28 for the public name: Beat Key; Orion stays the internal/code name, see §10]. The downloader is Orion v1. The menu-bar listener from
 `2026-09-12-menubar-key-bpm-listener-design.md` joins the same app later as a second feature. Build v1 so a
 second mode can be added without restructuring (one app target, the readout as a shared component).
 
 ## 1. Why
 
-J's friend has no dev experience and wants to use beat_dl. Today that takes Terminal, git and
+[SUPERSEDED 2026-10-28: no longer a send-to-a-friend tool; it is the free product on fourletterrecords.com, see §10.] J's friend has no dev experience and wants to use beat_dl. Today that takes Terminal, git and
 a double-click on `run.command` that macOS blocks the first time. J wants him to get **one
 installer file, run it, open the app, and have it work**. J also asked for it to "look sexy".
 
@@ -59,7 +60,7 @@ version makes. He never sees a warning dialog, Terminal, or a setup step he has 
 ### 4.1 App shell (builder's call within this frame)
 - **Native SwiftUI app**, single window, built with Xcode 27 on the MBP. **My call:** SwiftUI over
   a web wrapper (Electron/Tauri), because it's smaller, it's native, and J has a native-app track (Orion).
-- **Universal binary** (arm64 + x86_64). **My call:** the floor is **macOS 11** on both. Intel Macs on 10.15
+- **Universal binary** (arm64 + x86_64). **My call:** the floor is **macOS 11** on both [SUPERSEDED 2026-10-28: floor is macOS 12, ruled in the ledger at Task 4, see §10]. Intel Macs on 10.15
   lose the app but keep `run.command`.
 - The Swift layer drives the existing scripts as subprocesses. It doesn't re-implement them. One
   orchestration point. The cleanest version is a small `app_run.py` (or a mode of an existing script)
@@ -85,7 +86,7 @@ version makes. He never sees a warning dialog, Terminal, or a setup step he has 
 - **`.dmg`** with the app and an Applications shortcut, a background showing "drag to Applications",
   signed, notarized, stapled. **My call:** a DMG over a `.pkg` wizard: it's the normal Mac way,
   with fewer screens and nothing for the friend to read.
-- How it reaches the friend: J sends the file (AirDrop/Drive/link). Publishing it as a GitHub Release
+- [SUPERSEDED 2026-10-28: ships as a download behind an FLR account, see §10] How it reaches the friend: J sends the file (AirDrop/Drive/link). Publishing it as a GitHub Release
   on the public repo is a separate ask that needs J's yes at that time.
 
 ### 4.4 yt-dlp freshness
@@ -94,7 +95,7 @@ stamp is older than 7 days, run `yt-dlp -U` against the copy in Application Supp
 the bundle). If a download fails, upgrade once and retry. If the updated binary won't run, fall back
 to the bundled one. This runs in the background and never blocks the window.
 
-### 4.5 Cookies (needs care in an app)
+### 4.5 Cookies (needs care in an app) [SUPERSEDED 2026-10-28: cookies on demand only (J 2026-10-27 22:24), then in-app YouTube login replacing browser cookies and Full Disk Access (Task 14, in progress); see §10]
 `downloader.py` tries `--cookies-from-browser firefox/safari/chrome` first. From a GUI app on a fresh
 Mac this can trigger a Keychain prompt (Chrome "Safe Storage") or a macOS privacy prompt (Safari
 container, Full Disk Access). Those are anti-goals. **Requirement:** in the app, the strategies that
@@ -138,10 +139,10 @@ no logos of anyone else's), and the exact sizes and spacing on a 4/8 grid.
 ## 6a. Settled after the builder check (my calls, J can override)
 - **One universal DMG with every per-arch variant.** No hard size limit. Expect 400–550 MB. One file beats a
   "which Mac do you have?" step.
-- **Floor macOS 11 on both chips.** The universal build covers whatever Mac the friend has, as long as it's on 11+.
+- [SUPERSEDED 2026-10-28: floor is macOS 12] **Floor macOS 11 on both chips.** The universal build covers whatever Mac the friend has, as long as it's on 11+.
 - **The Python scripts may change** (paths found relative to the bundle, PATH set by the app,
   a strategy-order flag on `downloader.py`) as long as `run.command` behaves exactly as before.
-- **Cookie order is app-only.** The app passes a flag that puts the no-permission strategies first.
+- [SUPERSEDED 2026-10-28: see §10 login-on-demand] **Cookie order is app-only.** The app passes a flag that puts the no-permission strategies first.
   The Terminal order stays the same. If the clean-account test shows any prompt from the cookie strategies, the app drops them. Age-restricted
   videos may then fail in the app with a plain-English error.
 - **Downloaded but analysis failed:** keep the original filename, log it (as run.sh does), and the readout says
@@ -151,10 +152,10 @@ no logos of anyone else's), and the exact sizes and spacing on a 4/8 grid.
   self-written file isn't quarantined. Still, a risk to **verify** on the clean account (Done #5). If it's blocked,
   ad-hoc re-sign it after the update (`codesign -s - -f`) and re-test.
 - **First-launch unpack** is fine if needed, with a progress state in the readout ("Setting up, one time…").
-- **Bundle ID** `com.jshriver.orion`. Application Support folder `~/Library/Application Support/Orion/`.
+- **Bundle ID** `com.jshriver.orion` (still current: code, bundle ID and App Support stay Orion, J 2026-10-27 "leave all the code, say Orion"). Application Support folder `~/Library/Application Support/Orion/`.
 - **Notarization profile:** `artemis-notary` (the `notarytool store-credentials` profile on the MBP that artemis and
   zeropoint already notarize with, same team). Signing identity `Developer ID Application: J Shriver (9WTFGV63S2)`.
-- **The friend's Mac** is assumed to be on macOS 11+ (J).
+- [SUPERSEDED 2026-10-28: audience is every FLR user, macOS 12+] **The friend's Mac** is assumed to be on macOS 11+ (J).
 - **The code lives in this repo** under `app/` (the scripts it drives live here). No separate `~/dev/orion` repo.
 
 ## 7. Done means
@@ -168,3 +169,18 @@ no logos of anyone else's), and the exact sizes and spacing on a 4/8 grid.
 5. A forced-stale yt-dlp (old binary in Application Support) → upgrade + retry happens by itself.
 6. `run.command` still works from the repo.
 7. Screenshots of every state from §5, critiqued with `impeccable`, fixes applied.
+
+## 10. Amendment 2026-10-28 (current truth; wins over anything above)
+
+Source: PICKUP.md CURRENT STATE 2026-10-28 12:30, ledger `.superpowers/sdd/2026-10-27-orion-v1/progress.md`, J 2026-10-28 12:20.
+
+- **Name:** public name **Beat Key** (J 2026-10-27 19:56). Internal name Orion: code, `com.jshriver.orion`, `~/Library/Application Support/Orion/` and the Swift target stay Orion. UI wordmark, DMG (`Beat-Key-<version>.dmg`), installed app (`/Applications/Beat Key.app`) and README say Beat Key.
+- **macOS 12+, not 11.** Xcode 27 / Swift 6.4 emits minos 12.0 even under `-target macos11`, there is no macOS 11 Mac to test, Sofia (12.7.6) is the oldest test machine. `LSMinimumSystemVersion` 12.0, `Package.swift` `.macOS(.v12)`. Universal (arm64 + x86_64) unchanged.
+- **Open Audio row:** a second row under the link field with **Open Audio...** and **Find Key/BPM** (pick a file instead of dropping one). Icon = a music staff cut out as a key.
+- **Run Doctor:** menu item Beat Key > Run Doctor checks the bundled tools (yt-dlp, ffmpeg, Python/Essentia, deno JS runtime) and reports plain-English results.
+- **Login on demand:** browser cookies are never read automatically (J 2026-10-27 22:24). If YouTube blocks a video the LCD says so and offers a login-and-retry; plain downloads need no login.
+- **Bundled deno** since 0.1.9 (yt-dlp EJS JS challenges need a JS runtime; absence caused the failed login retry at 00:27). DMG grew from about 296 MB to about 390 MB.
+- **No Full Disk Access, in-app YouTube login (IN PROGRESS, Task 14, 0.1.13):** J called Full Disk Access "wildly invasive". Replacement: an in-app YouTube login window (WKWebView, its own cookie file passed with `--cookies-file`); fallback if it cannot work = "age-restricted, can't download". Spike note: Google's passkey step fails in WKWebView, password route via "Try another way" is being tested. Until Task 14 reports, treat §4.5 and the above as the plan, not as shipped.
+- **Free FLR product:** J 2026-10-28 12:20: the free offer on fourletterrecords.com, downloaded behind an FLR account (like the Artemis installer), for all FLR users, not one friend. Page handoff: `handoff/TO-FLR-SITE-2026-10-28-beat-key-free-download.md`. Do not publish the download until beat_dl says go.
+- **Release gate [Now]:** open-source licences (Essentia AGPL-3.0, ffmpeg build likely GPL, TempoCNN weights CC BY-NC-SA 4.0) need a licences file in the app and a source/licence link on the site before public release.
+- **Version:** branch `orion-v1` at 0.1.12 (0.1.13 in Task 14). Merging to main and tagging needs J's OK.

@@ -1,8 +1,8 @@
 # Orion feature 2 — menu-bar BPM / key listener (design)
 
-**Date:** 2026-09-12 · **Status:** Draft, for J's review — nothing built yet.
+**Date:** 2026-09-12 · **Status:** Draft, nothing built. As of 2026-10-28 this is Beat Key feature 2, queued behind the v1 release (PICKUP).
 
-**2026-10-27 (J):** the name Orion now belongs to the beat_dl Mac app (`2026-10-27-beat-dl-mac-app-design.md`). This listener joins that app later as its second feature instead of being its own app.
+**2026-10-27 (J):** [2026-10-28: public name is Beat Key, Orion stays internal] the name Orion now belongs to the beat_dl Mac app (`2026-10-27-beat-dl-mac-app-design.md`). This listener joins that app later as its second feature instead of being its own app.
 
 ## 1. Goal
 
@@ -208,7 +208,7 @@ Shown next to the key line in the panel, e.g. "A minor · 8A".
 
 Not a folder under `beat_dl` — this is a standalone macOS app with its own build/sign/release
 cycle, unrelated to beat_dl's download pipeline; a sibling repo. Proposed names (J picks):
-**Orion** (J, 2026-09-12 20:24) — repo `/Users/jshriver/dev/orion`, bundle `Orion.app`. Version file `VERSION` at repo root, starting `0.1.0`, every edit
+**Orion** (J, 2026-09-12 20:24) [SUPERSEDED 2026-10-27/28: no separate repo; it joins the beat_dl app under `app/`, public name Beat Key] — repo `/Users/jshriver/dev/orion`, bundle `Orion.app`. Version file `VERSION` at repo root, starting `0.1.0`, every edit
 +1 on the last number per J's global scheme (`~/.claude/CLAUDE.md` — "0.x.y until the first real
 ship... every edit is a new version").
 
@@ -248,7 +248,7 @@ only the first app's audio.
   STRICT SQLite table in Application Support so it survives relaunch; clicking a row re-shows that
   song's key relations in the panel.
 
-Remaining:
+Remaining (open, no ruling as of 2026-10-28; feature 2 not started):
 1. Phase 1 uses the global system-output tap (matches "outs 1-2" literally); Artemis-style per-app
    taps come in phase 4. Confirm that order.
 

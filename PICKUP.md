@@ -24,23 +24,23 @@
 - 072cd89 — key names spelled like Auto-Tune's Key menu (J's screenshots): major `C Db D Eb E F F# G Ab A Bb B`, minor `C C# D Eb E F F# G G# A Bb B` (+m). bpm.py `MAJOR_NOTES` / `MINOR_NOTES` + `fmt_key`. Same pitch classes; `tools/train-tempocnn/key_eval.py` and `docs/research/key-bench/bench.py` parse the flat names (round-trip checked, all 24). Downloads are now named e.g. "(142.0 BPM Cm Eb Gm)".
 - Not changed: downloader.py's own interactive loop still says "Input URL:" (run.sh never uses it, only calls it with a URL); the daily links log keeps its "Input URL:" format (Jownloader's native/engine.py writes the same format).
 
-**PAUSED 10:30 — J: "save state, we will continue later." Goal (J 01:06): harvest 200 Pro Tools beats with BPM/key, then finish the training.** Plan `docs/superpowers/plans/2026-10-06-pt-bpm-harvest-and-train.md` + `-TOC.md` (§0-§5, §7 done; §6, §8-§11 open).
+**PAUSED 2026-10-09 10:30 (still paused 2026-10-28; the iLok is not in Sofia) — J: "save state, we will continue later." Goal (J 01:06): harvest 200 Pro Tools beats with BPM/key, then finish the training.** Plan `docs/superpowers/plans/2026-10-06-pt-bpm-harvest-and-train.md` + `-TOC.md` (§0-§5, §7 done; §6, §8-§11 open).
 - Harvest STOPPED 10:04: J took the iLok out of Sofia and Pro Tools showed "missing PACE authorization". Result: 101 sessions done, **78 usable** (14 confirmed, 64 tempo-only, 30 with key, 77 also with a full-mix bounce) = 155 audio files. All are on Sofia `~/pt-harvest/audio/` (NNNN.wav + NNNN_mix.wav, 11k copies in `audio11k/`). Rate ≈ 4.4 min/session, ~3 in 4 usable. 318-session ARCH-1 manifest is at id 101. Dialog clicker killed; Pro Tools left open on the PACE error.
 - Resume when the iLok is back in Sofia (~120 more usable rows, ~240 manifest entries left incl. 20 new from ALL MIXES, est. 10-14 h): `ssh js-mac-pro 'bash ~/pt-harvest/ptkill.sh; cd ~/pt-harvest && rm -f BLOCKED STOP && .venv/bin/python pt_launch.py 100 && nohup ./run_batch.sh 200 >> logs/batch.log 2>&1 < /dev/null &'`. Status: `cd ~/pt-harvest && .venv/bin/python harvest.py status`. Pull: `tools/pt-harvest/sv.sh pull <repo>`. Beat check: `tools/pt-harvest/verify_beats.py` (71/78 pass; 4 mixes identical to beat, 3 unsure). Extra auto-clicks the agent added (decline/close only; J may revoke by deleting the line in approved-dialogs.txt): PT Dashboard Cancel, iLok Enable Network Licenses No, PACE Activation required Quit.
 - Both agent branches merged (beat finder + training run) 10:55; worktrees removed. DB at id 101 + labels committed.
 - TRAINING RESULT on 78 sessions (run A, all rows, artist split 85/30/40): held-out Acc1 75.0% → 87.5% (beats 70→85, mixes 80→90), Acc2 100% both; **bpm-bench Acc1 87.5% → 85.0% (−1 clip)** → per plan rule NOT shipped. Run B (confirmed-only, 28 rows) overfit, bench 80%: discard. Candidates kept in `tools/train-tempocnn/candidates/` (ftA-78sessions.npz, ftB-confirmed-only.npz); evals `tools/train-tempocnn/runs/ftA|ftB/eval.md` (untracked runs dir).
 - Beat vs mix, original model, all rows: beats Acc1 61.5% / Acc2 98.7% (n78), mixes 67.5% / 97.4% (n77): vocals don't hurt.
 - Key, shipped bpm.py vs harvested key (30 sessions): top-1 78.3%, in top-3 95.0% (beat 80.0/93.3, mix 76.7/96.7).
-- Next with J: ship A anyway (better on his music, −1 bench clip)? or wait for iLok → harvest to 200 → retrain.
+- Open, J's call, no ruling as of 2026-10-28: ship A anyway (better on his music, −1 bench clip)? or wait for iLok → harvest to 200 → retrain. Parked behind Beat Key; the CLI analyzer is unchanged.
 - Names rule (J 22:45): no song/artist/session/file names anywhere; numbers + hashes only; number→path map only on Sofia `~/pt-harvest/manifest.json`.
 - Approved auto-clicks (`~/pt-harvest/approved-dialogs.txt`): UAD OK, Session Notes No, Missing Files OK, Save Don't Save, Missing AAX Plugins OK.
-- Open with J: Auto Backup writes files to the source drives (left on; listed in Sofia `~/pt-harvest/source-drive-writes.txt` for trashing later).
+- Open, no ruling as of 2026-10-28: Auto Backup writes files to the source drives (left on; listed in Sofia `~/pt-harvest/source-drive-writes.txt` for trashing later).
 - (2026-10-06) iLok was plugged into Sofia (seen on USB 21:45); J took it out 2026-10-09 10:04, see PAUSED above. J's "Arc-1 / 1-mixes" = `/Volumes/ARCH-1/1 - MIXES` on Sofia (Spotlight on): 5463 .ptx, 770 song folders, 323 valid newest mixes via `pick_latest_ptx()`.
 - 5 trial sessions picked (seed 20261006, all 2024+, 5 artists). Song/file names are kept off the record (J, 22:45); the list lives only on Sofia in `~/pt-harvest-trial/discover.json`.
 - Sofia scratch: `~/pt-harvest-trial/` (discover.py, discover.json, screenshots).
 - Sofia's screen re-locked whenever J closed VNC (macOS re-locks on Screen Sharing disconnect if it was locked at connect). J ran `sudo defaults write /Library/Preferences/com.apple.RemoteManagement RestoreMachineState -bool NO` on Sofia 21:57; read back = 0. Not yet proven by a real VNC disconnect.
 
-**J's goal (2026-10-06), DONE:** beat_dl works on anyone's Mac: every dependency ships in `vendor/`, no brew, no pip from the network, no system Python. First launch reads macOS version + chip and installs the build that runs there.
+**J's goal (2026-10-06), DONE (CLI version; Beat Key app floor is macOS 12 since 2026-10-28):** beat_dl works on anyone's Mac: every dependency ships in `vendor/`, no brew, no pip from the network, no system Python. First launch reads macOS version + chip and installs the build that runs there.
 
 **How it works now (deps.sh `ensure_deps`, every launch):**
 - `MACOS=$(sw_vers -productVersion)`; `CPU` from `sysctl hw.optional.arm64` (right even in a Rosetta terminal). Below macOS 10.15 → "❌ beat_dl needs macOS 10.15 or newer" and run.sh exits.
@@ -54,13 +54,13 @@
 
 **Tested 2026-10-06:** forced tiers on the MBP (native, arm64 11.7, x86_64 12.7, x86_64 10.15 under Rosetta, x86_64 10.14 refusal) + real Intel run on Sofia (macOS 12.7.6): every download named "(77.0 BPM D# D#m G#)", key line `D# (76.1%) | D#m (14.0%) | G# (2.8%)` everywhere. Not testable on hardware here: Apple Silicon macOS 11/12, Intel 10.15/11 (minos headers + forced tiers only). The pip-isolation fix came after the Sofia run; verified on the MBP with a `user = true` pip.conf (nothing went to ~/.local).
 
-**Owed / open:**
-1. Sofia test litter: moved to Sofia's ~/.Trash by J 2026-10-06 17:05, checked (all 4 paths gone).
-2. MBP: today's `~/Downloads/(26-10-6) Youtube DL LINKS.txt` got 12 test lines appended by the tier tests (file is J's, left as is).
-3. Studio-E-2: has 072cd89 (J, 2026-10-09). Done.
-4. Harvester trial: done and grown into the 101-session harvest above (paused on the iLok).
+**Owed / open (as of 2026-10-09; items 1-4 closed, 5 still open, 6 superseded by CURRENT STATE):**
+1. [CLOSED 2026-10-06] Sofia test litter: moved to Sofia's ~/.Trash by J 2026-10-06 17:05, checked (all 4 paths gone).
+2. [CLOSED, J's file, left as is] MBP `~/Downloads/(26-10-6) Youtube DL LINKS.txt` got 12 test lines from the tier tests.
+3. [CLOSED 2026-10-09] Studio-E-2: has 072cd89 (J). Per J 2026-10-28 09:54: nothing on Studio D or E for now.
+4. [CLOSED] Harvester trial: done and grown into the 101-session harvest above (paused on the iLok).
 5. Verify RestoreMachineState: after J's next VNC disconnect, check `ioreg -n Root -d1 -a | grep -A1 CGSSessionScreenIsLocked` on Sofia shows nothing.
-6. Orion: now the beat_dl app (see CURRENT STATE). The listener spec joins it later as feature 2.
+6. [CLOSED 2026-10-28, see CURRENT STATE] Orion = the beat_dl app, public name Beat Key. The listener spec joins it later as feature 2.
 
 **Plan done:** `docs/superpowers/plans/2026-10-06-old-mac-support.md` + `-TOC.md`, all boxes ticked.
 

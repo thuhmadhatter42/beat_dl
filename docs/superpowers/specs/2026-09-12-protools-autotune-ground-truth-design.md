@@ -1,7 +1,7 @@
 # Pro Tools Auto-Tune Ground-Truth Harvester — Design
 
 **Date:** 2026-09-12
-**Status:** Draft — read-only design, nothing built or run against Pro Tools.
+**Status:** Draft when written. As of 2026-10-28 the trial and BPM harvest were built and run (101 sessions, 78 usable, 2026-10-06 to 2026-10-09; see `docs/superpowers/plans/2026-10-06-pt-bpm-harvest-and-train.md`); the Auto-Tune key click is not part of that run, and the harvest is paused (iLok out of Sofia). Open questions below were answered in §7 (J, 2026-09-12 19:54).
 
 ## 1. Goal + why
 

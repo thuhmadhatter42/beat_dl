@@ -2,7 +2,7 @@
 
 J, 2026-10-06 15:47: "i need it for old macs too... you can test on sofia".
 Target: Apple Silicon macOS 11.0+ and Intel macOS 10.15+, with the same BPM/key results as today.
-Checklist: `2026-10-06-old-mac-support-TOC.md`.
+Checklist: `2026-10-06-old-mac-support-TOC.md`. **Status 2026-10-28: all done and shipped (CLI version). The Beat Key app has its own floor, macOS 12 (spec 2026-10-27 §10).**
 
 ## Measured starting point (2026-10-06)
 | Component | arm64 floor | x86_64 floor | Blocker |
