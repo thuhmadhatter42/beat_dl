@@ -2,7 +2,7 @@
 //   swift app/dmg/make_background.swift
 // build.sh joins the two into one HiDPI background.tiff (tiffutil -cathidpicheck).
 //
-// The Artemis chassis (mockup gradient, sheen, noise.png grain, four screws), "Drag Orion to
+// The Artemis chassis (mockup gradient, sheen, noise.png grain, four screws), "Drag Beat Key to
 // Applications" in Helvetica Neue, an amber arrow from the app to the Applications link, and two
 // mid-grey label strips where Finder draws the icon names: Finder draws them black in Light mode
 // and white in Dark mode, and the strip keeps both readable on a dark plate.
@@ -56,7 +56,7 @@ func draw(_ ctx: CGContext) {
 
     // title
     let para = NSMutableParagraphStyle(); para.alignment = .center
-    let title = NSAttributedString(string: "Drag Orion to Applications", attributes: [
+    let title = NSAttributedString(string: "Drag Beat Key to Applications", attributes: [
         .font: NSFont(name: "HelveticaNeue-Bold", size: 19)!, .kern: 0.6,
         .foregroundColor: NSColor(srgbRed: 238 / 255, green: 238 / 255, blue: 242 / 255, alpha: 0.9),
         .paragraphStyle: para])

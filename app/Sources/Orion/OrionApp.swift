@@ -16,6 +16,22 @@ struct OrionApp: App {
         .windowStyle(HiddenTitleBarWindowStyle())
         .commands {
             CommandGroup(replacing: .newItem) {}   // one window: no File > New
+            // The app menu says Beat Key whatever the process is called (swift run = "Orion").
+            CommandGroup(replacing: .appInfo) {
+                Button(Brand.about) {
+                    NSApp.orderFrontStandardAboutPanel(options: [.applicationName: Brand.name])
+                }
+                Button(Brand.runDoctor) { engine.runDoctor() }
+                    .disabled(engine.state.isBusy)
+            }
+            CommandGroup(replacing: .appVisibility) {
+                Button(Brand.hide) { NSApp.hide(nil) }.keyboardShortcut("h")
+                Button("Hide Others") { NSApp.hideOtherApplications(nil) }.keyboardShortcut("h", modifiers: [.command, .option])
+                Button("Show All") { NSApp.unhideAllApplications(nil) }
+            }
+            CommandGroup(replacing: .appTermination) {
+                Button(Brand.quit) { NSApp.terminate(nil) }.keyboardShortcut("q")
+            }
         }
     }
 
@@ -66,7 +82,7 @@ private struct WindowConfigurator: NSViewRepresentable {
             w.tabbingMode = .disallowed
             w.collectionBehavior.insert(.fullScreenNone)
             w.standardWindowButton(.zoomButton)?.isEnabled = false
-            w.title = "Orion"
+            w.title = Brand.name
         }
         return v
     }

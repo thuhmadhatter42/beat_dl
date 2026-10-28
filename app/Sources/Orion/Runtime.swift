@@ -50,13 +50,19 @@ struct Runtime {
 
     private func runs(_ exe: URL) -> Bool {
         guard FileManager.default.isExecutableFile(atPath: exe.path) else { return false }
-        return Runtime.run(exe, ["--version"], timeout: 30).status == 0
+        // A PyInstaller one-file yt-dlp unpacks itself on every call: ~33 s on a 2013 Intel Mac.
+        return Runtime.run(exe, ["--version"], timeout: Runtime.versionTimeout).status == 0
     }
 
-    static func run(_ exe: URL, _ args: [String], timeout: TimeInterval = 30) -> (status: Int32, output: String) {
+    static let versionTimeout: TimeInterval = 120
+    static let upgradeTimeout: TimeInterval = 300
+
+    static func run(_ exe: URL, _ args: [String], environment: [String: String]? = nil,
+                    timeout: TimeInterval = 30) -> (status: Int32, output: String) {
         let p = Process()
         p.executableURL = exe
         p.arguments = args
+        if let env = environment { p.environment = env.merging(["HOME": NSHomeDirectory()]) { a, _ in a } }
         let pipe = Pipe()
         p.standardOutput = pipe
         p.standardError = pipe
@@ -82,7 +88,7 @@ struct Runtime {
         try reseed()
     }
 
-    private func reseed() throws {
+    func reseed() throws {
         let fm = FileManager.default
         try fm.createDirectory(at: supportBin, withIntermediateDirectories: true)
         if fm.fileExists(atPath: ytdlp.path) { try fm.removeItem(at: ytdlp) }
@@ -100,7 +106,7 @@ struct Runtime {
     }
 
     func upgradeYtDlpSync() {
-        _ = Runtime.run(ytdlp, ["-U"], timeout: 120)
+        _ = Runtime.run(ytdlp, ["-U"], timeout: Runtime.upgradeTimeout)
         if !runs(ytdlp) {
             try? reseed()
         }

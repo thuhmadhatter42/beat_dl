@@ -1,11 +1,11 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<!-- Orion.app's Info.plist. build.sh writes CFBundleShortVersionString / CFBundleVersion from
+<!-- Beat Key.app's Info.plist (public name Beat Key; executable, bundle ID and code stay Orion). build.sh writes CFBundleShortVersionString / CFBundleVersion from
      VERSION and the copyright year into the bundle's copy; this file keeps placeholders. -->
 <plist version="1.0">
 <dict>
-    <key>CFBundleName</key><string>Orion</string>
-    <key>CFBundleDisplayName</key><string>Orion</string>
+    <key>CFBundleName</key><string>Beat Key</string>
+    <key>CFBundleDisplayName</key><string>Beat Key</string>
     <key>CFBundleIdentifier</key><string>com.jshriver.orion</string>
     <key>CFBundleExecutable</key><string>Orion</string>
     <key>CFBundleIconFile</key><string>Orion</string>

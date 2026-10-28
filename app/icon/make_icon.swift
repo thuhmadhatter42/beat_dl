@@ -1,15 +1,16 @@
-// Renders Orion's app icon and packs app/icon/Orion.icns.
+// Renders Beat Key's app icon and packs app/icon/Orion.icns (the file name stays internal).
 //
-//   swift app/icon/make_icon.swift                 the drawn constellation icon
-//   swift app/icon/make_icon.swift <source.png>    any square PNG (e.g. a marble Orion render
-//                                                  like Artemis's) masked into the same squircle
+//   swift app/icon/make_icon.swift                 the drawn key-staff icon
+//   swift app/icon/make_icon.swift <source.png>    any square PNG masked into the same squircle
 //
-// The drawn icon: Orion's seven bright stars (Betelgeuse + Bellatrix shoulders, the three belt
-// stars, Saiph + Rigel feet) in Artemis amber with a glow, on the Artemis chassis (the mockup's
-// #232326 -> #131315 gradient, its sheen and noise.png grain) inside a macOS squircle with a thin
-// silver bezel. Every iconset size is drawn from vectors, not downscaled: at 64 px and under the
-// stars grow and the faint sky and lines drop out, so 16/32 px still read as the constellation.
-// CoreGraphics, not Python: no PIL on this Mac, and Helvetica Neue / antialiasing come for free.
+// The drawn icon: a music staff cut out in the shape of a key. The five staff lines are the key's
+// blade; the teeth are notches cut into the lower lines; a thick barline is the shoulder; the bow
+// is a ring with a treble clef inside (Apple Symbols U+1D11E). Artemis amber with a glow, on the
+// Artemis chassis (the mockup's #232326 -> #131315 gradient, its sheen and noise.png grain) inside
+// a macOS squircle with a thin silver bezel. Every iconset size is drawn from vectors: at 64 px
+// and under the blade turns solid (staff lines would blur to mush) and grows, so 16/32 px read
+// as a key; from 128 px up the five lines and the clef read as a music staff.
+// CoreGraphics, not Python: no PIL on this Mac, and antialiasing comes for free.
 import AppKit
 import Foundation
 
@@ -48,15 +49,6 @@ func radial(_ ctx: CGContext, _ stops: [(CGColor, CGFloat)], at c: CGPoint, radi
     ctx.drawRadialGradient(g, startCenter: c, startRadius: 0, endCenter: c, endRadius: radius, options: [])
 }
 
-// The seven stars: (x, y) in degrees from the figure's centre (east left, north up; x stretched
-// 1.25 so the figure fills the squircle), visual magnitude.
-let stars: [(name: String, x: CGFloat, y: CGFloat, mag: CGFloat)] = [
-    ("Betelgeuse", -5.1, 7.4, 0.5), ("Bellatrix", 2.4, 6.35, 1.64),
-    ("Alnitak", -1.5, -1.94, 1.77), ("Alnilam", -0.35, -1.2, 1.69), ("Mintaka", 0.7, -0.3, 2.23),
-    ("Saiph", -3.2, -9.67, 2.09), ("Rigel", 5.1, -8.2, 0.13),
-]
-let lines = [(0, 1), (0, 2), (1, 4), (2, 3), (3, 4), (2, 5), (4, 6)]
-
 /// Draws the icon into a `px` x `px` canvas. 1024-unit geometry, scaled.
 func drawIcon(_ ctx: CGContext, px: Int) {
     let s = CGFloat(px) / 1024
@@ -85,20 +77,21 @@ func drawIcon(_ ctx: CGContext, px: Int) {
     if let src = source, let cg = src.cgImage(forProposedRect: nil, context: nil, hints: nil) {
         ctx.draw(cg, in: face)
     } else {
-        drawChassis(ctx, face, small: small, tiny: tiny)
+        drawChassis(ctx, face, small: small)
+        drawKey(ctx, small: small)
     }
     // inner ring: the face sits a hair below the bezel
     ctx.addPath(facePath); ctx.setStrokeColor(rgb(0, 0, 0, 0.8)); ctx.setLineWidth(tiny ? 10 : 5); ctx.strokePath()
     ctx.restoreGState()
 }
 
-func drawChassis(_ ctx: CGContext, _ face: CGRect, small: Bool, tiny: Bool) {
+func drawChassis(_ ctx: CGContext, _ face: CGRect, small: Bool) {
     // chassis gradient (CSS 180deg: top -> bottom; CG y is up)
     linear(ctx, [(rgb(35, 35, 38), 0), (rgb(25, 26, 28), 0.4), (rgb(19, 19, 21), 1)],
            from: CGPoint(x: 0, y: face.maxY), to: CGPoint(x: 0, y: face.minY))
-    // a faint amber haze behind the figure, so the face is not flat black
-    radial(ctx, [(rgb(amber.0, amber.1, amber.2, 0.07), 0), (rgb(amber.0, amber.1, amber.2, 0), 1)],
-           at: CGPoint(x: 512, y: 512), radius: 420)
+    // a faint amber haze behind the key, so the face is not flat black
+    radial(ctx, [(rgb(amber.0, amber.1, amber.2, 0.08), 0), (rgb(amber.0, amber.1, amber.2, 0), 1)],
+           at: CGPoint(x: 512, y: 512), radius: 440)
     // 115deg sheen band
     linear(ctx, [(rgb(255, 255, 255, 0), 0.32), (rgb(255, 255, 255, 0.05), 0.46), (rgb(255, 255, 255, 0), 0.60)],
            from: CGPoint(x: face.minX, y: face.maxY), to: CGPoint(x: face.maxX, y: face.minY))
@@ -111,50 +104,113 @@ func drawChassis(_ ctx: CGContext, _ face: CGRect, small: Bool, tiny: Bool) {
         ctx.draw(n, in: CGRect(x: 0, y: 0, width: 128, height: 128), byTiling: true)
         ctx.restoreGState()
     }
+}
 
-    // star positions in the 1024 canvas
-    let k: CGFloat = 30, xs: CGFloat = 1.25, cy: CGFloat = 512 + 1.13 * k
-    let pts = stars.map { CGPoint(x: 512 + $0.x * k * xs, y: cy + $0.y * k) }
 
-    // faint field stars (fixed seed), only where there are pixels for them
-    if !small {
-        var seed: UInt64 = 0x0819_2026
-        func rnd() -> CGFloat { seed = seed &* 6364136223846793005 &+ 1442695040888963407; return CGFloat(seed >> 33) / CGFloat(1 << 31) }
-        for _ in 0..<70 {
-            let p = CGPoint(x: face.minX + rnd() * face.width, y: face.minY + rnd() * face.height)
-            let r = 1.2 + rnd() * 2.2, a = 0.10 + rnd() * 0.22
-            ctx.setFillColor(rgb(235, 235, 240, a)); ctx.fillEllipse(in: CGRect(x: p.x - r, y: p.y - r, width: 2 * r, height: 2 * r))
+/// The key's parts in the 1024 canvas (CG y up), before the tilt.
+struct KeyParts {
+    var solid: CGPath          // the bow ring and the shoulder barline
+    var blade: CGPath          // the key silhouette: shoulder to tip, teeth cut into its lower edge
+    var lines: CGPath          // five staff lines, to be clipped by `blade`
+    var clef: CGPath?          // treble clef in the bow (128 px and up)
+}
+
+func keyParts(small: Bool) -> KeyParts {
+    let cy: CGFloat = 512
+    let bowX: CGFloat = small ? 262 : 268
+    let R: CGFloat = small ? 150 : 146             // bow outer radius
+    let ring: CGFloat = small ? 64 : 46            // bow ring width
+    let gap: CGFloat = small ? 46 : 40             // staff line spacing
+    let th: CGFloat = 17                           // staff line thickness
+    let ys = (0..<5).map { cy + CGFloat(2 - $0) * gap }    // top line first
+    let x0 = bowX + R - 10                         // the blade starts inside the ring
+    let tip: CGFloat = small ? 900 : 892
+    let yT = ys[0] + th / 2, yB = ys[4] - th / 2
+
+    let solid = CGMutablePath()
+    let mid = R - ring / 2
+    solid.addPath(CGPath(ellipseIn: CGRect(x: bowX - mid, y: cy - mid, width: 2 * mid, height: 2 * mid), transform: nil)
+        .copy(strokingWithWidth: ring, lineCap: .butt, lineJoin: .miter, miterLimit: 10))
+    // the shoulder: a thick barline standing a little proud of the blade
+    let barW: CGFloat = small ? 30 : 28, proud: CGFloat = small ? 22 : 30
+    solid.addRect(CGRect(x: x0, y: yB - proud, width: barW, height: yT - yB + 2 * proud))
+
+    // silhouette: flat top, bevelled tip, teeth cut up into the lower edge (right to left)
+    let b = CGMutablePath()
+    b.move(to: CGPoint(x: x0, y: yT))
+    b.addLine(to: CGPoint(x: tip - 70, y: yT))
+    b.addLine(to: CGPoint(x: tip, y: cy + gap * 0.5))         // bevel down to the point
+    b.addLine(to: CGPoint(x: tip, y: cy - gap * 0.9))
+    // teeth: (x offset back from the tip, how deep the cut reaches up from yB)
+    let d1 = gap * 1.35, d2 = gap * 0.6
+    let profile: [(CGFloat, CGFloat)] = small
+        ? [(30, 0), (70, d1 * 0.9), (110, 0), (150, 0), (190, d1), (230, 0), (290, 0)]
+        : [(24, 0), (58, d1), (92, 0), (126, d2), (150, d2), (180, 0), (214, 0), (250, d1), (286, 0), (330, 0)]
+    for (dx, depth) in profile { b.addLine(to: CGPoint(x: tip - dx, y: yB + depth)) }
+    b.addLine(to: CGPoint(x: x0, y: yB))
+    b.closeSubpath()
+
+    let lines = CGMutablePath()
+    if small {
+        lines.addRect(CGRect(x: x0, y: yB, width: tip - x0, height: yT - yB))   // solid blade
+    } else {
+        for y in ys { lines.addRect(CGRect(x: x0, y: y - th / 2, width: tip - x0, height: th)) }
+    }
+
+    var clef: CGPath?
+    if !small, let font = NSFont(name: "Apple Symbols", size: 300) {
+        var u = Array("\u{1D11E}".utf16); var g = [CGGlyph](repeating: 0, count: u.count)
+        if CTFontGetGlyphsForCharacters(font as CTFont, &u, &g, u.count),
+           let gp = CTFontCreatePathForGlyph(font as CTFont, g[0], nil) {
+            let bb = gp.boundingBoxOfPath
+            let k = (R - ring) * 2 * 0.84 / bb.height                    // fills the bow's hole
+            var t = CGAffineTransform(translationX: bowX, y: cy).scaledBy(x: k, y: k)
+                .translatedBy(x: -bb.midX, y: -bb.midY)
+            clef = gp.copy(using: &t)
         }
     }
-    // the stick figure
-    if !tiny {
-        ctx.setStrokeColor(rgb(amber.0, amber.1, amber.2, small ? 0.35 : 0.28))
-        ctx.setLineWidth(small ? 14 : 5); ctx.setLineCap(.round)
-        for (a, b) in lines { ctx.move(to: pts[a]); ctx.addLine(to: pts[b]) }
-        ctx.strokePath()
+    return KeyParts(solid: solid, blade: b, lines: lines, clef: clef)
+}
+
+func drawKey(_ ctx: CGContext, small: Bool) {
+    let parts = keyParts(small: small)
+    // a slight lean, up to the right, centred on the figure
+    let tilt: CGFloat = 0.30                                  // about 17 degrees
+    // centre the leaning figure on the face and size it to the grid (bigger when tiny)
+    let all = CGMutablePath(); all.addPath(parts.solid); all.addPath(parts.blade)
+    var rot = CGAffineTransform(rotationAngle: tilt)
+    let bb = all.copy(using: &rot)!.boundingBoxOfPath
+    let k = (small ? 760 : 700) / max(bb.width, bb.height)
+    ctx.saveGState()
+    ctx.translateBy(x: 512, y: 512); ctx.scaleBy(x: k, y: k)
+    ctx.translateBy(x: -bb.midX, y: -bb.midY); ctx.rotate(by: tilt)
+
+    // the glow under everything
+    ctx.saveGState()
+    ctx.setShadow(offset: .zero, blur: small ? 16 : 30, color: rgb(amber.0, amber.1, amber.2, 0.55))
+    ctx.beginTransparencyLayer(auxiliaryInfo: nil)
+    drawAmber(ctx, parts)
+    ctx.endTransparencyLayer()
+    ctx.restoreGState()
+    ctx.restoreGState()
+}
+
+/// Fills the key's parts with the lit-cap amber gradient (lighter at the top).
+func drawAmber(_ ctx: CGContext, _ k: KeyParts) {
+    let stops: [(CGColor, CGFloat)] = [(rgb(255, 228, 166), 0), (rgb(255, 192, 70), 0.38),
+                                       (rgb(amber.0, amber.1, amber.2), 0.62), (rgb(214, 136, 18), 1)]
+    func fill(_ build: () -> Void) {
+        ctx.saveGState(); build(); ctx.clip()
+        linear(ctx, stops, from: CGPoint(x: 0, y: 700), to: CGPoint(x: 0, y: 330))
+        ctx.restoreGState()
     }
-    // the stars: glow, amber disc, hot core. Brighter star = bigger. Small sizes boost the disc.
-    for (i, st) in stars.enumerated() {
-        let p = pts[i]
-        let bright = (2.6 - st.mag) / 2.5                         // 0 ... 1
-        var core = 13 + 13 * bright
-        if small { core *= tiny ? 2.6 : 1.9 }
-        let glow = core * (tiny ? 2.2 : 4.2)
-        radial(ctx, [(rgb(amber.0, amber.1, amber.2, 0.55), 0), (rgb(amber.0, amber.1, amber.2, 0.18), 0.35),
-                     (rgb(amber.0, amber.1, amber.2, 0), 1)], at: p, radius: glow)
-        if !small {   // four-point diffraction glint on the two brightest
-            if st.mag < 0.6 {
-                ctx.saveGState()
-                ctx.setStrokeColor(rgb(255, 214, 140, 0.55)); ctx.setLineWidth(3); ctx.setLineCap(.round)
-                let L = core * 2.8
-                ctx.move(to: CGPoint(x: p.x - L, y: p.y)); ctx.addLine(to: CGPoint(x: p.x + L, y: p.y))
-                ctx.move(to: CGPoint(x: p.x, y: p.y - L)); ctx.addLine(to: CGPoint(x: p.x, y: p.y + L))
-                ctx.strokePath(); ctx.restoreGState()
-            }
-        }
-        radial(ctx, [(rgb(255, 246, 222), 0), (rgb(255, 206, 110), 0.45), (rgb(amber.0, amber.1, amber.2), 0.8),
-                     (rgb(amber.0, amber.1, amber.2, 0), 1)], at: p, radius: core)
-    }
+    fill { ctx.addPath(k.solid) }
+    // the staff, cut out in the key's shape
+    ctx.saveGState()
+    ctx.addPath(k.blade); ctx.clip()
+    fill { ctx.addPath(k.lines) }
+    ctx.restoreGState()
+    if let c = k.clef { fill { ctx.addPath(c) } }
 }
 
 func render(_ px: Int) -> Data {

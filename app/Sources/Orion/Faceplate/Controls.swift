@@ -23,6 +23,88 @@ struct LinkField: View {
     }
 }
 
+/// The second row's recessed field: "Open Audio..." until audio is picked, then its name.
+/// Click (or Space / Return while it is focused and empty) opens the audio-only open panel.
+/// Return with audio picked = FIND KEY/BPM.
+struct AudioPickField: View {
+    let label: String?
+    @Binding var focused: Bool
+    let onOpen: () -> Void
+    let onSubmit: () -> Void
+
+    var body: some View {
+        let shape = RoundedRectangle(cornerRadius: 4, style: .continuous)
+        HStack(spacing: 8) {
+            Text(label ?? "Open Audio...")
+                .font(.custom("HelveticaNeue", size: 12)).tracking(label == nil ? 0.24 : 0)
+                .foregroundColor(label == nil ? Theme.textFaint : Theme.textHi)
+                .lineLimit(1).truncationMode(.middle)
+                .frame(maxWidth: .infinity, alignment: .leading)
+            // the field's own small affordance: a folder-open chevron in faint amber
+            Text("···").font(Theme.face(11)).tracking(1)
+                .foregroundColor(Theme.amber(label == nil ? 0.45 : 0.3))
+        }
+        .padding(.horizontal, 12)
+        .frame(height: 36)
+        .background(Theme.panelDeep.clipShape(shape))
+        .innerShadow(shape, Color.black.opacity(0.9), blur: 5, y: 2)
+        .ring(radius: 4, spread: 1, Theme.black)
+        .background(shape.fill(Color.white.opacity(0.05)).offset(y: 1).padding(-1))
+        .overlay(PickControl(focused: $focused, onOpen: onOpen, onSubmit: onSubmit))
+        .overlay(shape.stroke(Theme.amber(0.55), lineWidth: 2).padding(-2).opacity(focused ? 1 : 0)
+            .allowsHitTesting(false))
+        .pointingHand()
+    }
+}
+
+/// The picker field's input: a key-view NSView (Tab reaches it) that takes the click and keys.
+struct PickControl: NSViewRepresentable {
+    @Binding var focused: Bool
+    let onOpen: () -> Void
+    let onSubmit: () -> Void
+
+    func makeNSView(context: Context) -> PickNSView {
+        let v = PickNSView()
+        v.setAccessibilityElement(true)
+        v.setAccessibilityRole(.button)
+        v.setAccessibilityLabel("Open audio file")
+        update(v)
+        return v
+    }
+    func updateNSView(_ v: PickNSView, context: Context) { update(v) }
+
+    private func update(_ v: PickNSView) {
+        v.onOpen = onOpen
+        v.onSubmit = onSubmit
+        let binding = $focused
+        v.onFocus = { f in if binding.wrappedValue != f { DispatchQueue.main.async { binding.wrappedValue = f } } }
+    }
+}
+
+final class PickNSView: NSView {
+    var onOpen: (() -> Void)?
+    var onSubmit: (() -> Void)?
+    var onFocus: ((Bool) -> Void)?
+
+    override var acceptsFirstResponder: Bool { true }
+    override var canBecomeKeyView: Bool { true }
+    override func becomeFirstResponder() -> Bool { onFocus?(true); return true }
+    override func resignFirstResponder() -> Bool { onFocus?(false); return true }
+    override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
+    override func mouseDown(with event: NSEvent) {
+        window?.makeFirstResponder(self)
+        onOpen?()
+    }
+    override func keyDown(with e: NSEvent) {
+        switch e.keyCode {
+        case 36, 76: onSubmit?()        // Return / Enter
+        case 49: onOpen?()              // Space
+        default: super.keyDown(with: e)
+        }
+    }
+    override func accessibilityPerformPress() -> Bool { onOpen?(); return true }
+}
+
 /// An NSTextField so the caret is amber, the placeholder is Artemis's faint grey and Return
 /// submits, on macOS 11 (SwiftUI's TextField has none of these there).
 struct URLTextField: NSViewRepresentable {

@@ -8,6 +8,7 @@ enum Readout {
     case working(stage: String, download: Bool)
     case result(Result, page: String?, download: Bool)
     case error(String, download: Bool)
+    case doctor(DoctorReport)
 }
 
 /// The amber LCD: Artemis's `.lcd-hero` grown into the whole face.
@@ -54,6 +55,7 @@ struct LCD: View {
         case let .working(stage, download): WorkingReadout(stage: stage, download: download)
         case let .result(r, page, _): ResultReadout(result: r, page: page, onPage: onPage)
         case let .error(m, download): ErrorReadout(message: m, download: download)
+        case let .doctor(r): DoctorReadout(report: r)
         }
     }
 }
@@ -72,7 +74,7 @@ struct IdleReadout: View {
             Text("---.-").font(Theme.face(58).monospacedDigit()).tracking(58 * 0.06)
                 .foregroundColor(Theme.amber(0.12))
                 .accessibility(hidden: true)
-            Text.cap("PASTE A LINK · OR DROP A BEAT").padding(.top, 10)
+            Text.cap("PASTE A LINK · OPEN OR DROP A BEAT").padding(.top, 10)
         }
     }
 }
@@ -99,12 +101,49 @@ struct WorkingReadout: View {
             RunningBar().padding(.top, 14)
             Spacer(minLength: 0)
             HStack(spacing: 20) {
-                ForEach(download ? Faceplate.steps(stage).map { $0 } : [("ANALYZE", .on)], id: \.0) { name, step in
+                ForEach(stepLights, id: \.0) { name, step in
                     StepLabel(name: name, step: step)
                 }
             }
             .accessibility(hidden: true)
         }
+    }
+
+    private var stepLights: [(String, Faceplate.Step)] {
+        if Faceplate.isDoctorStage(stage) { return Faceplate.doctorSteps(stage) }
+        return download ? Faceplate.steps(stage) : [("ANALYZE", .on)]
+    }
+}
+
+/// Beat Key › Run Doctor's result: amber DOCTOR OK / DOCTOR FIXED IT, or red with the one thing to do.
+struct DoctorReadout: View {
+    let report: DoctorReport
+
+    var body: some View {
+        let failed = report.outcome == .failed
+        VStack(alignment: .leading, spacing: 0) {
+            Text.cap("DOCTOR")
+            Group {
+                if failed {
+                    Text(report.title).font(Theme.face(26)).tracking(26 * 0.04)
+                        .foregroundColor(Theme.redText)
+                        .shadow(color: Theme.red.opacity(0.6), radius: 3)
+                        .shadow(color: Theme.red.opacity(0.3), radius: 8)
+                } else {
+                    Text(report.title).font(Theme.face(34)).tracking(34 * 0.05)
+                        .foregroundColor(Theme.amber).amberGlow()
+                }
+            }
+            .lineLimit(1)
+            .padding(.top, 8)
+            Spacer(minLength: 0)
+            Text(report.line).font(Theme.face(10)).tracking(1.2)
+                .foregroundColor(failed ? Theme.rgb(255, 106, 92, 0.85) : Theme.amber(0.6))
+                .lineLimit(2)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .accessibilityElement(children: .ignore)
+        .accessibility(label: Text("\(report.title.capitalized). \(report.line.lowercased())"))
     }
 }
 
@@ -318,9 +357,10 @@ struct ErrorReadout: View {
                 .lineLimit(4)
                 .fixedSize(horizontal: false, vertical: true)
                 .accessibility(label: Text(message))
-            Text(download ? "CHECK THE LINK AND TRY AGAIN" : "TRY ANOTHER FILE")
+            Text(Faceplate.failureHint(download: download))
                 .font(Theme.face(9)).tracking(9 * 0.24)
                 .foregroundColor(Theme.rgb(255, 106, 92, 0.6))
+                .lineLimit(1)
                 .padding(.top, 8)
         }
     }

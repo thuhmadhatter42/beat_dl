@@ -6,6 +6,7 @@ enum ViewState: Equatable {
     case done(Result)
     case analyzed([Result])
     case failed(String)
+    case doctor(DoctorReport)
 
     var isBusy: Bool { if case .working = self { return true } else { return false } }
 }
@@ -55,10 +56,34 @@ final class Engine: ObservableObject {
     private var results: [Result] = []
     private var sawTerminal = false
     private var generation = 0
+    private let makeDoctor: (Runtime) -> Doctor
+    private let doctorQueue: DispatchQueue
 
-    init(runtime: Runtime = .appDefault(), launcher: ProcessLauncher = RealLauncher()) {
+    init(runtime: Runtime = .appDefault(), launcher: ProcessLauncher = RealLauncher(),
+         doctor: ((Runtime) -> Doctor)? = nil,
+         doctorQueue: DispatchQueue = .global(qos: .userInitiated)) {
         self.runtime = runtime
         self.launcher = launcher
+        self.makeDoctor = doctor ?? { Doctor(runtime: $0) }
+        self.doctorQueue = doctorQueue
+    }
+
+    /// Beat Key › Run Doctor. Off main; the LCD shows each step. Ignored while busy, and while it
+    /// runs the state is .working, so downloads and analyses are ignored.
+    func runDoctor() {
+        runOnMain {
+            guard !self.state.isBusy else { return }
+            self.generation += 1
+            let gen = self.generation
+            self.state = .working(stage: Doctor.stages[0])
+            let doctor = self.makeDoctor(self.runtime)
+            self.doctorQueue.async {
+                let report = doctor.run { stage in
+                    DispatchQueue.main.async { if gen == self.generation { self.state = .working(stage: stage) } }
+                }
+                DispatchQueue.main.async { if gen == self.generation { self.state = .doctor(report) } }
+            }
+        }
     }
 
     func download(_ url: String) {

@@ -8,6 +8,18 @@ enum Faceplate {
         !busy && text.trimmingCharacters(in: .whitespacesAndNewlines).lowercased().hasPrefix("http")
     }
 
+    /// FIND KEY/BPM lights when audio is picked and nothing is running (DOWNLOAD's rule).
+    static func isFindLit(_ picked: [URL], busy: Bool) -> Bool { !busy && !picked.isEmpty }
+
+    /// The picker field's text: nil = the "Open Audio..." placeholder, else "x.wav" / "3 files".
+    static func pickLabel(_ picked: [URL]) -> String? {
+        switch picked.count {
+        case 0: return nil
+        case 1: return picked[0].lastPathComponent
+        default: return "\(picked.count) files"
+        }
+    }
+
     /// The TEMPO light's period in seconds: one flash per beat. nil = no light.
     static func tempoPeriod(_ bpm: String?) -> TimeInterval? {
         guard let s = bpm, let v = Double(s), v.isFinite, v > 0 else { return nil }
@@ -21,6 +33,10 @@ enum Faceplate {
         case "updating": return "UPDATING THE DOWNLOADER"
         case "analyzing": return "FINDING BPM AND KEY"
         case "renaming": return "RENAMING THE FILE"
+        case "doctor-ytdlp": return "DOCTOR · YT-DLP"
+        case "doctor-ffmpeg": return "DOCTOR · FFMPEG"
+        case "doctor-python": return "DOCTOR · PYTHON"
+        case "doctor-downloads": return "DOCTOR · DOWNLOADS"
         default: return stage.uppercased()
         }
     }
@@ -39,8 +55,28 @@ enum Faceplate {
         return order.enumerated().map { i, n in (n, i < at ? .done : (i == at ? .on : .off)) }
     }
 
-    /// An error sentence from explain_error, as the LCD shows it.
+    /// The doctor's four lights, done / on / off, for a doctor stage.
+    static func doctorSteps(_ stage: String) -> [(String, Step)] {
+        let names = ["YT-DLP", "FFMPEG", "PYTHON", "DOWNLOADS"]
+        let at = Doctor.stages.firstIndex(of: stage) ?? 0
+        return names.enumerated().map { i, n in (n, i < at ? .done : (i == at ? .on : .off)) }
+    }
+
+    static func isDoctorStage(_ stage: String) -> Bool { stage.hasPrefix("doctor-") }
+
+    /// macOS said no to the Downloads folder (the user clicked Don't Allow): EPERM.
+    static func isPermissionError(_ message: String) -> Bool {
+        let m = message.lowercased()
+        return m.contains("operation not permitted") || m.contains("eperm") || m.contains("[errno 1]")
+    }
+
+    /// The one-line hint under every red FAILED readout.
+    static func failureHint(download: Bool) -> String { download ? Brand.downloadHint : Brand.doctorHint }
+
+    /// An error sentence from explain_error, as the LCD shows it. A permission refusal becomes
+    /// the place to allow it.
     static func errorText(_ message: String) -> String {
+        if isPermissionError(message) { return Doctor.permissionHint.uppercased() }
         var m = message.trimmingCharacters(in: .whitespacesAndNewlines)
         while m.hasSuffix(".") { m.removeLast() }
         return m.uppercased()
@@ -88,6 +124,9 @@ enum LastAction { case download, analyze }
 final class FaceplateModel: ObservableObject {
     @Published var url = ""
     @Published var fieldFocused = false
+    /// Audio chosen with the Open Audio... field, waiting for FIND KEY/BPM.
+    @Published var picked: [URL] = []
+    @Published var pickFocused = false
     @Published var dropTargeted = false
     @Published var pager = Pager()
     @Published var lastAction: LastAction = .download
@@ -95,7 +134,8 @@ final class FaceplateModel: ObservableObject {
     @Published var pinnedDrop = false
 }
 
-/// ORION_FAKE_STATE=idle|working|done|drop|error|lit pins the faceplate for screenshots (no Python).
+/// ORION_FAKE_STATE=idle|working|done|drop|error|lit|multi|picked|picked-multi|eperm|
+/// analyze-error|doctor-working|doctor-ok|doctor-fixed|doctor-failed pins the faceplate for screenshots (no Python).
 enum FakeState {
     static func apply(_ name: String, engine: Engine, model: FaceplateModel) {
         let dl = URL(fileURLWithPath: NSHomeDirectory()).appendingPathComponent("Downloads")
@@ -122,6 +162,27 @@ enum FakeState {
             engine.state = .analyzed(rs)
         case "lit":
             model.url = "https://www.youtube.com/watch?v=xxxxxxxxxxx"
+        case "picked":
+            model.picked = [dl.appendingPathComponent("Beat A.wav")]
+        case "picked-multi":
+            model.picked = ["Beat A.wav", "Beat B.wav", "Beat C.wav"].map { dl.appendingPathComponent($0) }
+        case "eperm":
+            model.url = "https://youtu.be/xxxxxxxxxxx"
+            engine.state = .failed("Download failed: [Errno 1] Operation not permitted: '/Users/x/Downloads'")
+        case "analyze-error":
+            model.lastAction = .analyze
+            engine.state = .failed("The helper stopped unexpectedly (exit 9).")
+        case "doctor-working":
+            engine.state = .working(stage: "doctor-ffmpeg")
+        case "doctor-ok":
+            engine.state = .doctor(DoctorReport(outcome: .ok, title: "DOCTOR OK",
+                                                line: "YT-DLP 2026.10.26 · ALL CHECKS PASSED"))
+        case "doctor-fixed":
+            engine.state = .doctor(DoctorReport(outcome: .fixed, title: "DOCTOR FIXED IT",
+                                                line: "RESTORED YT-DLP · YT-DLP 2026.10.26"))
+        case "doctor-failed":
+            engine.state = .doctor(DoctorReport(outcome: .failed, title: "DOCTOR FOUND A PROBLEM",
+                                                line: Doctor.permissionHint.uppercased()))
         default:
             break
         }

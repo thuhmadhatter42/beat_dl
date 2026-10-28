@@ -97,16 +97,16 @@ struct Rail: View {
     }
 }
 
-/// ORION in Helvetica Neue Bold, .22em tracking, chrome gradient.
+/// BEAT KEY (Brand.wordmark) in Helvetica Neue Bold, .22em tracking, chrome gradient.
 struct Wordmark: View {
     var body: some View {
-        let t = Text("ORION").font(Theme.face(24)).tracking(24 * 0.22)
+        let t = Text(Brand.wordmark).font(Theme.face(24)).tracking(24 * 0.22)
         t.foregroundColor(.clear)
             .overlay(
                 Theme.vertical([(Theme.hex(0xf4f4f6), 0), (Theme.hex(0xababb0), 0.55), (Theme.hex(0xcbcbcf), 1)])
                     .mask(t))
             .lineBox(24, 1)
-            .accessibility(label: Text("Orion"))
+            .accessibility(label: Text(Brand.name))
     }
 }
 

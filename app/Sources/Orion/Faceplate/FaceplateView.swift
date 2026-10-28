@@ -1,5 +1,6 @@
 import AppKit
 import SwiftUI
+import UniformTypeIdentifiers
 
 /// The whole window: the plate on the desk, with the rail, the LCD and the link row.
 struct FaceplateView: View {
@@ -26,7 +27,7 @@ struct FaceplateView: View {
         .onReceive(engine.$state) { s in
             switch s {
             case .done: model.url = ""
-            case .analyzed(let rs): model.pager.reset(count: rs.count)
+            case .analyzed(let rs): model.pager.reset(count: rs.count); model.picked = []
             default: break
             }
         }
@@ -34,8 +35,11 @@ struct FaceplateView: View {
         .onDisappear { if let m = keyMonitor { NSEvent.removeMonitor(m) } }
     }
 
-    /// The content below the title bar; the window is 552 x 392 with the bar.
-    static let size = CGSize(width: 552, height: 364)
+    /// The content below the title bar; the window is 552 x 438 with the bar.
+    /// (One 36 pt row + its 10 pt gap more than the mockup's 552 x 392.)
+    static let size = CGSize(width: 552, height: 410)
+    /// Both caps share one width so the two fields line up.
+    static let capLegendWidth: CGFloat = 92
 
     // MARK: module: LCD + row
 
@@ -47,13 +51,22 @@ struct FaceplateView: View {
             }
             HStack(spacing: 12) {
                 LinkField(text: $model.url, focused: $model.fieldFocused, onSubmit: download)
-                Button(action: download) { SSLCapStyle.label("DOWNLOAD") }
+                Button(action: download) { SSLCapStyle.label("DOWNLOAD").frame(width: FaceplateView.capLegendWidth) }
                     // not .disabled(): AppKit would grey the legend; download() ignores an unlit cap
                     .buttonStyle(SSLCapStyle(lit: lit))
                     .accessibility(label: Text("Download"))
                     .accessibility(hint: Text(lit ? "Downloads the link as an MP3 into Downloads" : "Paste a YouTube link first"))
             }
             .padding(.top, 14)
+            HStack(spacing: 12) {
+                AudioPickField(label: Faceplate.pickLabel(model.picked), focused: $model.pickFocused,
+                               onOpen: openAudio, onSubmit: { findLit ? find() : openAudio() })
+                Button(action: find) { SSLCapStyle.label("FIND KEY/BPM").frame(width: FaceplateView.capLegendWidth) }
+                    .buttonStyle(SSLCapStyle(lit: findLit))
+                    .accessibility(label: Text("Find key and BPM"))
+                    .accessibility(hint: Text(findLit ? "Finds the BPM and key of the chosen audio" : "Open an audio file first"))
+            }
+            .padding(.top, 10)
         }
         .padding(EdgeInsets(top: 14, leading: 16, bottom: 16, trailing: 16))
         .background(Theme.vertical([(Theme.hex(0x1d1d20), 0), (Theme.hex(0x151517), 1)]).clipShape(shape))
@@ -65,12 +78,14 @@ struct FaceplateView: View {
     // MARK: derived state
 
     private var lit: Bool { Faceplate.isLit(model.url, busy: engine.state.isBusy) }
+    private var findLit: Bool { Faceplate.isFindLit(model.picked, busy: engine.state.isBusy) }
     private var showDrop: Bool { model.pinnedDrop || (model.dropTargeted && !engine.state.isBusy) }
 
     private var railStatus: Rail.Status {
         switch engine.state {
         case .working: return .working
         case .failed: return .failed
+        case .doctor(let r): return r.outcome == .failed ? .failed : .ready
         default: return .ready
         }
     }
@@ -81,6 +96,7 @@ struct FaceplateView: View {
         switch engine.state {
         case .idle: return .idle
         case .working(let s): return .working(stage: s, download: dl)
+        case .doctor(let r): return .doctor(r)
         case .done(let r): return .result(r, page: nil, download: true)
         case .analyzed(let rs):
             guard !rs.isEmpty else { return .idle }
@@ -101,6 +117,31 @@ struct FaceplateView: View {
         model.lastAction = .download
         engine.download(model.url.trimmingCharacters(in: .whitespacesAndNewlines))
         NSApp.keyWindow?.makeFirstResponder(nil)
+    }
+
+    /// The audio-only open panel (the drop filter's allowlist), several files allowed.
+    private func openAudio() {
+        guard !engine.state.isBusy else { return }
+        let panel = NSOpenPanel()
+        panel.allowsMultipleSelection = true
+        panel.canChooseDirectories = false
+        panel.canChooseFiles = true
+        panel.allowedContentTypes = Faceplate.audioExtensions.sorted().compactMap { UTType(filenameExtension: $0) }
+        panel.prompt = "Choose"
+        panel.message = "Choose a beat to find its BPM and key"
+        let pick = { (resp: NSApplication.ModalResponse) in
+            guard resp == .OK else { return }
+            let files = Faceplate.audioFiles(panel.urls)
+            if !files.isEmpty { model.picked = files }
+        }
+        if let w = NSApp.keyWindow ?? NSApp.windows.first { panel.beginSheetModal(for: w, completionHandler: pick) }
+        else { pick(panel.runModal()) }
+    }
+
+    private func find() {
+        guard findLit else { return }
+        model.lastAction = .analyze
+        engine.analyze(model.picked)
     }
 
     private func drop(_ providers: [NSItemProvider]) -> Bool {
