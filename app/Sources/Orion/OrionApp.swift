@@ -4,12 +4,15 @@ import SwiftUI
 @main
 struct OrionApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) private var delegate
-    @StateObject private var engine = Engine(downloadsProbe: Engine.defaultProbe())
+    @StateObject private var engine = Engine(downloadsProbe: Engine.defaultProbe(),
+                                             accessCheck: { AccessProbe().browserData($0) },
+                                             noteLogin: { PendingRetryStore().lastLoginBrowser = $0 })
     @StateObject private var model = FaceplateModel()
+    @StateObject private var access = AccessController()
 
     var body: some Scene {
         WindowGroup {
-            FaceplateView(engine: engine, model: model)
+            FaceplateView(engine: engine, model: model, access: access)
                 .background(WindowConfigurator())
                 .onAppear(perform: launch)
         }
@@ -37,8 +40,9 @@ struct OrionApp: App {
 
     private func launch() {
         let env = ProcessInfo.processInfo.environment
+        access.onClose = { [engine] in engine.clearAccess() }
         if let fake = env["ORION_FAKE_STATE"], !fake.isEmpty {
-            FakeState.apply(fake, engine: engine, model: model)
+            FakeState.apply(fake, engine: engine, model: model, access: access)
             if fake != "idle" {   // the mockup shows the field unfocused in every other state
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
                     NSApp.windows.forEach { $0.makeFirstResponder(nil) }
@@ -49,6 +53,14 @@ struct OrionApp: App {
         // Seed yt-dlp into Application Support, then the weekly self-update, on the shared
         // maintenance queue. The Engine stays idle; downloads and Run Doctor wait their turn.
         Runtime.appDefault().launchMaintenance()
+        // Restart & Try Again: no relaunch to come back from (swift run) = retry in this process
+        access.retryHere = { [engine, model] p in
+            model.url = p.url
+            model.lastAction = .download
+            engine.download(p.url, browser: p.browser)
+        }
+        // Back from Restart & Try Again: run that link once with the browser login.
+        if let p = access.store.take() { access.retryHere?(p) }
     }
 }
 

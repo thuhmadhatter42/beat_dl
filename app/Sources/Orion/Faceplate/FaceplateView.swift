@@ -6,6 +6,7 @@ import UniformTypeIdentifiers
 struct FaceplateView: View {
     @ObservedObject var engine: Engine
     @ObservedObject var model: FaceplateModel
+    @ObservedObject var access: AccessController
     @State private var keyMonitor: Any?
 
     var body: some View {
@@ -28,9 +29,11 @@ struct FaceplateView: View {
             switch s {
             case .done: model.url = ""
             case .analyzed(let rs): model.pager.reset(count: rs.count); model.picked = []
+            case .needsAccess(let p): access.blocked(url: p.url, browser: p.browser)
             default: break
             }
         }
+        .sheet(isPresented: sheetBinding) { AccessSheet(access: access) }
         .onReceive(model.$url) { u in
             // changing the link drops a pending login prompt (it belongs to the old link)
             if case .needsLogin(let p) = engine.state, u.trimmingCharacters(in: .whitespacesAndNewlines) != p.url {
@@ -126,7 +129,13 @@ struct FaceplateView: View {
         case .needsLogin(let p):
             let (a, b) = Faceplate.loginLines(p, browser: LoginBrowser.current())
             return .login(a, b, caption: p.tried == nil ? Faceplate.loginCaption : nil)
+        case .needsAccess:
+            return .login(AccessCopy.lcdFirst, AccessCopy.lcdSecond, caption: nil)
         }
+    }
+
+    private var sheetBinding: Binding<Bool> {
+        Binding(get: { access.phase.isOpen }, set: { if !$0 { access.dismiss() } })
     }
 
     private var dropBinding: Binding<Bool> {

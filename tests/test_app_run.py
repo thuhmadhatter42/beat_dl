@@ -256,10 +256,12 @@ class TestLogin(Base):
         self.assertEqual(ev[-1]["message"], "macOS didn't unlock Chrome's YouTube login. Try again and "
                                             "allow Keychain access when macOS asks.")
 
-    def test_safari_blocked_says_full_disk_access(self):
+    def test_safari_blocked_asks_for_full_disk_access(self):
         p, ev = run_cli(["download", self.URL, "--browser", "safari"], "fail-cookie-blocked", self.dl, self.state)
-        self.assertEqual(ev[-1]["stage"], "error")
-        self.assertIn("Full Disk Access for Beat Key", ev[-1]["message"])
+        self.assertEqual(ev[-1], {"stage": "needs_access", "browser": "safari",
+                                  "message": "macOS keeps other apps' data private. To use your Safari "
+                                             "login, turn on Full Disk Access for Beat Key."})
+        self.assertNotIn("updating", [e["stage"] for e in ev])
 
     def test_missing_cookie_database(self):
         home = self.tmp / "home"
@@ -282,11 +284,19 @@ class TestLogin(Base):
                             self.state, extra_env={"HOME": str(home)})
         finally:
             d.chmod(0o700)
-        self.assertEqual(ev[-1]["stage"], "error")
-        self.assertEqual(ev[-1]["message"], "macOS blocked Beat Key from reading Chrome's YouTube login. "
-                                            "Allow it in System Settings › Privacy & Security › "
-                                            "Files & Folders.")
-        self.assertFalse(app_run.cookie_error_message("chrome").lower().count("operation not permitted"))
+        self.assertEqual(ev[-1]["stage"], "needs_access", ev)
+        self.assertEqual(ev[-1]["browser"], "chrome")
+        self.assertEqual(ev[-1]["message"], "macOS keeps other apps' data private. To use your Chrome "
+                                            "login, turn on Full Disk Access for Beat Key.")
+        log = (self.state.parent / "logs" / "last-run.log").read_text()
+        self.assertIn("outcome: needs_access: cookies blocked", log)
+
+    def test_no_copy_mentions_files_and_folders(self):
+        for b in app_run.BROWSER_NAMES:
+            m = app_run.cookie_error_message(b, "blocked")
+            self.assertNotIn("Files", m)
+            self.assertIn("Full Disk Access", m)
+            self.assertNotIn("operation not permitted", m.lower())
 
     def test_harmless_cookie_warning_still_downloads(self):
         p, ev = run_cli(["download", self.URL, "--browser", "brave"], "cookie-warn-ok", self.dl, self.state)

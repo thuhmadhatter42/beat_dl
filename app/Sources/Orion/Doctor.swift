@@ -24,7 +24,8 @@ struct RealRunner: CommandRunner {
 ///   2 ffmpeg / ffprobe: `-version` from the bin dir the Runtime picks
 ///   3 JS: `deno --version`, the JavaScript runtime yt-dlp needs for YouTube (none on macOS 11)
 ///   4 python: `import essentia, numpy` in the bundled python
-///   5 the downloads folder is writable
+///   5 the downloads folder is writable (and, if a login was ever tried, its browser's data is
+///     readable: Full Disk Access)
 struct Doctor {
     static let stages = ["doctor-ytdlp", "doctor-ffmpeg", "doctor-js", "doctor-python", "doctor-downloads"]
     static let permissionHint = "Allow Downloads access in System Settings › Privacy & Security › Files and Folders"
@@ -35,14 +36,30 @@ struct Doctor {
     var reseed: () throws -> Void
     /// Write and remove a probe file in the downloads folder.
     var downloadsWritable: () -> Bool
+    /// The browser whose login macOS keeps from Beat Key, only if a login was ever tried
+    /// (nil = no line: Doctor never nags someone who never used a login).
+    var loginBlocked: () -> String?
 
     init(runtime: Runtime, runner: CommandRunner = RealRunner(),
          reseed: (() throws -> Void)? = nil, downloadsWritable: (() -> Bool)? = nil,
-         downloads: URL = Doctor.downloadsFolder()) {
+         downloads: URL = Doctor.downloadsFolder(),
+         loginBlocked: (() -> String?)? = nil) {
         self.runtime = runtime
         self.runner = runner
+        self.loginBlocked = loginBlocked ?? Doctor.realLoginBlocked
         self.reseed = reseed ?? { try runtime.reseed() }
         self.downloadsWritable = downloadsWritable ?? { Doctor.probeWritable(downloads) }
+    }
+
+    static func realLoginBlocked() -> String? {
+        guard let b = PendingRetryStore().lastLoginBrowser else { return nil }
+        return AccessProbe().browserData(b) == .denied ? b : nil
+    }
+
+    /// The Doctor line when a browser login is behind macOS privacy.
+    static func accessLine(_ browser: String) -> String {
+        let name = (LoginBrowser.named(browser)?.display ?? browser).uppercased()
+        return "TURN ON FULL DISK ACCESS FOR \(Brand.wordmark) TO USE YOUR \(name) LOGIN"
     }
 
     static func downloadsFolder(env: [String: String] = ProcessInfo.processInfo.environment) -> URL {
@@ -114,6 +131,8 @@ struct Doctor {
         // 5 downloads folder
         progress(Doctor.stages[4])
         if !downloadsWritable(), problem == nil { problem = Doctor.permissionHint.uppercased() }
+        // the browser login, only for someone who has used one
+        if problem == nil, let b = loginBlocked() { problem = Doctor.accessLine(b) }
 
         if let p = problem { return DoctorReport(outcome: .failed, title: "DOCTOR FOUND A PROBLEM", line: p) }
         if !fixed.isEmpty {

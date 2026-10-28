@@ -8,6 +8,8 @@ enum ViewState: Equatable {
     case failed(String)
     /// Not a failure: the next try needs a YouTube login. Not busy.
     case needsLogin(LoginPrompt)
+    /// Not a failure: a login run needs Full Disk Access first (the sheet walks the user there).
+    case needsAccess(AccessPrompt)
     case doctor(DoctorReport)
 
     var stageName: String? { if case .working(let s) = self { return s } else { return nil } }
@@ -19,6 +21,12 @@ struct LoginPrompt: Equatable {
     let url: String
     let reason: String      // "age" | "bot" | "members"
     let tried: String?      // yt-dlp browser name already tried; nil = first time
+}
+
+/// The link and browser waiting on macOS's permission.
+struct AccessPrompt: Equatable {
+    let url: String
+    let browser: String     // yt-dlp browser name
 }
 
 /// Launches a process and streams stdout lines. Injected so tests never spawn Python.
@@ -75,6 +83,10 @@ final class Engine: ObservableObject {
     /// Touches the Downloads folder so macOS asks for access when DOWNLOAD is pressed, not after
     /// the download. nil = no probe (tests, and ORION_DOWNLOADS runs).
     private let downloadsProbe: (() -> Bool)?
+    /// Before a login run: is the browser's data known blocked? nil = never checked (tests).
+    private let accessCheck: ((String) -> AccessStatus)?
+    /// Remembers that a login was tried (Run Doctor's login line). nil = not recorded.
+    private let noteLogin: ((String) -> Void)?
 
     /// The app's probe: create and remove a hidden file in ~/Downloads. None when ORION_DOWNLOADS
     /// is set (a test/debug run that never touches the real folder).
@@ -87,8 +99,12 @@ final class Engine: ObservableObject {
     init(runtime: Runtime = .appDefault(), launcher: ProcessLauncher = RealLauncher(),
          doctor: ((Runtime) -> Doctor)? = nil,
          doctorQueue: DispatchQueue = .global(qos: .userInitiated),
-         downloadsProbe: (() -> Bool)? = nil) {
+         downloadsProbe: (() -> Bool)? = nil,
+         accessCheck: ((String) -> AccessStatus)? = nil,
+         noteLogin: ((String) -> Void)? = nil) {
         self.downloadsProbe = downloadsProbe
+        self.accessCheck = accessCheck
+        self.noteLogin = noteLogin
         self.runtime = runtime
         self.launcher = launcher
         self.makeDoctor = doctor ?? { Doctor(runtime: $0) }
@@ -121,9 +137,23 @@ final class Engine: ObservableObject {
         runOnMain {
             guard !self.state.isBusy else { return }
             self.pendingURL = url
+            if let b = browser {
+                self.noteLogin?(b)
+                // already known blocked: ask for the permission first instead of failing
+                if self.accessCheck?(b) == .denied {
+                    self.generation += 1
+                    self.state = .needsAccess(AccessPrompt(url: url, browser: b))
+                    return
+                }
+            }
             self.start(["download", url] + (browser.map { ["--browser", $0] } ?? []),
                        stage: "downloading", probe: self.downloadsProbe)
         }
+    }
+
+    /// The permission sheet closed (Not now): back to idle, the link stays in the field.
+    func clearAccess() {
+        runOnMain { if case .needsAccess = self.state { self.state = .idle } }
     }
 
     /// Drops the login prompt (the link changed). Anything else is left alone.
@@ -208,6 +238,9 @@ final class Engine: ObservableObject {
         case .needsLogin(let reason, _, let tried):
             sawTerminal = true
             state = .needsLogin(LoginPrompt(url: pendingURL, reason: reason, tried: tried))
+        case .needsAccess(let browser, _):
+            sawTerminal = true
+            state = .needsAccess(AccessPrompt(url: pendingURL, browser: browser))
         }
     }
 

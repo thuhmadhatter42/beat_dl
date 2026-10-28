@@ -23,6 +23,8 @@ enum Event: Equatable {
     /// A YouTube login would fix this: reason "age" | "bot" | "members"; tried = the browser
     /// whose cookie was already used (the cookie try failed again).
     case needsLogin(reason: String, message: String, tried: String?)
+    /// macOS keeps the browser's data from Beat Key: Full Disk Access would fix it.
+    case needsAccess(browser: String, message: String)
 
     /// One JSON line from app_run.py. app_run.py puts the event kind in "stage"
     /// ("downloading"... are progress, "done"/"analyzed"/"error" are terminal).
@@ -53,6 +55,9 @@ enum Event: Equatable {
             return .needsLogin(reason: (obj["reason"] as? String) ?? "bot",
                                message: (obj["message"] as? String) ?? "",
                                tried: obj["tried"] as? String)
+        case "needs_access":
+            guard let b = obj["browser"] as? String, !b.isEmpty else { return nil }
+            return .needsAccess(browser: b, message: (obj["message"] as? String) ?? "")
         case "stage":
             guard let s = obj["stage"] as? String else { return nil }
             return .stage(s)

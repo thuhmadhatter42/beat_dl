@@ -177,9 +177,9 @@ final class FaceplateModel: ObservableObject {
 }
 
 /// ORION_FAKE_STATE=needs-login|needs-login-retry|idle|working|done|drop|error|lit|multi|picked|picked-multi|eperm|
-/// analyze-error|doctor-working|doctor-ok|doctor-fixed|doctor-failed pins the faceplate for screenshots (no Python).
+/// analyze-error|doctor-working|doctor-ok|doctor-fixed|doctor-failed|needs-access|access-granted pins the faceplate for screenshots (no Python).
 enum FakeState {
-    static func apply(_ name: String, engine: Engine, model: FaceplateModel) {
+    static func apply(_ name: String, engine: Engine, model: FaceplateModel, access: AccessController? = nil) {
         let dl = URL(fileURLWithPath: NSHomeDirectory()).appendingPathComponent("Downloads")
         switch name {
         case "idle":
@@ -208,6 +208,11 @@ enum FakeState {
         case "needs-login-retry":
             model.url = "https://www.youtube.com/watch?v=xxxxxxxxxxx"
             engine.state = .needsLogin(LoginPrompt(url: model.url, reason: "age", tried: "brave"))
+        case "needs-access", "access-granted":
+            model.url = "https://www.youtube.com/watch?v=xxxxxxxxxxx"
+            engine.state = .needsAccess(AccessPrompt(url: model.url, browser: "brave"))
+            access?.pin(name == "needs-access" ? .asking(browser: "brave") : .granted(browser: "brave"),
+                        url: model.url)
         case "lit":
             model.url = "https://www.youtube.com/watch?v=xxxxxxxxxxx"
         case "picked":

@@ -188,13 +188,22 @@ def cookie_error_message(browser, kind="blocked"):
     if kind == "keychain":
         return (f"macOS didn't unlock {name}'s YouTube login. Try again and allow Keychain "
                 "access when macOS asks.")
-    if browser == "safari":
-        return ("Couldn't read Safari's YouTube login. Allow Full Disk Access for Beat Key in "
-                "System Settings \u203a Privacy & Security.")
-    # macOS 27 guards Chrome/Brave/Edge/Firefox's own folders; its notification points to
-    # Files & Folders, where Beat Key gets a switch for that browser's data.
-    return (f"macOS blocked Beat Key from reading {name}'s YouTube login. Allow it in "
-            "System Settings \u203a Privacy & Security \u203a Files & Folders.")
+    # blocked: macOS 27 guards Chrome/Brave/Edge/Firefox's own folders (and Safari's container);
+    # only Full Disk Access for Beat Key, the responsible app of its yt-dlp, opens them.
+    return access_message(browser)
+
+
+def access_message(browser):
+    """The sentence the app's permission sheet shows (and the LCD fallback)."""
+    name = BROWSER_NAMES.get(browser, browser)
+    return (f"macOS keeps other apps' data private. To use your {name} login, turn on "
+            "Full Disk Access for Beat Key.")
+
+
+def needs_access(browser):
+    """The browser's login is behind macOS privacy: the app walks the user through Full Disk
+    Access instead of showing an error."""
+    emit(stage="needs_access", browser=browser, message=access_message(browser))
 
 
 # The last download's yt-dlp stderr, overwritten every run, for whoever debugs the next failure.
@@ -240,6 +249,10 @@ def _cmd_download(url, browser, outcome):
     path, msg = _attempt(url, browser=browser, raw=raw)
     if not path:
         kind = cookie_kind(raw, browser) if browser else None
+        if kind == "blocked":
+            outcome[0] = "needs_access: cookies blocked"
+            needs_access(browser)
+            return
         if kind:
             outcome[0] = f"error: cookies {kind}"
             emit(stage="error", message=cookie_error_message(browser, kind))
