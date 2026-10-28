@@ -57,6 +57,26 @@ final class EngineTests: XCTestCase {
         XCTAssertNil(e.note)
     }
 
+    func testDownloadProbesDownloadsFirstAndDenialDoesNotLaunch() {
+        let f = FakeLauncher()
+        let gate = DispatchSemaphore(value: 0)
+        var allow = false
+        let e = Engine(runtime: rt(), launcher: f, downloadsProbe: { gate.wait(); return allow })
+        e.download("https://a")
+        XCTAssertEqual(e.state, .working(stage: "allow-downloads"))
+        XCTAssertEqual(Faceplate.stageText("allow-downloads"), "ALLOW DOWNLOADS ACCESS")
+        spin(); XCTAssertEqual(f.launches.count, 0)
+        gate.signal(); spin(); spin()
+        guard case .failed(let m) = e.state else { return XCTFail("\(e.state)") }
+        XCTAssertTrue(Faceplate.isPermissionError(m))
+        XCTAssertEqual(f.launches.count, 0)
+        // granted: launches
+        allow = true
+        e.download("https://b"); gate.signal(); waitLaunch(f)
+        XCTAssertEqual(f.launches.count, 1)
+        XCTAssertNil(Engine.defaultProbe(env: ["ORION_DOWNLOADS": "/x"]))
+    }
+
     func testPartialAnalyzeKeepsResultsAndCaptionsTheRest() {
         let f = FakeLauncher()
         let e = Engine(runtime: rt(), launcher: f)

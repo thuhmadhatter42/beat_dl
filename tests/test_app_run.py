@@ -73,6 +73,11 @@ class TestPure(unittest.TestCase):
         self.assertEqual(sorted(map(tuple, downloader.strategies(True))),
                          sorted(map(tuple, downloader.strategies(False))))
 
+    def test_app_cookie_strategies_have_one_switch(self):
+        with mock.patch.object(downloader, "APP_USE_COOKIES", False):
+            self.assertTrue(all(x[:1] != ["--cookies-from-browser"] for x in downloader.strategies(True)))
+            self.assertEqual(downloader.strategies(False)[0], ["--cookies-from-browser", "firefox"])
+
     def test_old_strategy_order_literal(self):
         self.assertEqual(downloader.strategies(False), [
             ["--cookies-from-browser", "firefox"],

@@ -31,6 +31,7 @@ enum Faceplate {
         switch stage {
         case "downloading": return "DOWNLOADING"
         case "updating": return "UPDATING THE DOWNLOADER"
+        case "allow-downloads": return "ALLOW DOWNLOADS ACCESS"
         case "analyzing": return "FINDING BPM AND KEY"
         case "renaming": return "RENAMING THE FILE"
         case "doctor-ytdlp": return "DOCTOR · YT-DLP"

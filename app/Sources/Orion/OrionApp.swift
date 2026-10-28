@@ -4,7 +4,7 @@ import SwiftUI
 @main
 struct OrionApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) private var delegate
-    @StateObject private var engine = Engine()
+    @StateObject private var engine = Engine(downloadsProbe: Engine.defaultProbe())
     @StateObject private var model = FaceplateModel()
 
     var body: some Scene {

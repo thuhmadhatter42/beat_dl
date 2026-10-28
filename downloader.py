@@ -26,13 +26,17 @@ _STRATEGIES = [
 ]
 
 
+# Beat Key app only: False drops the three browser-cookie strategies from app mode entirely.
+APP_USE_COOKIES = True
+
+
 def strategies(app_order, cookies=True):
     """The strategy list. app_order=True (Beat Key app): non-cookie strategies first, the three
     browser-cookie ones last (cookies=False drops them). False (run.sh / CLI): the original order."""
     if not app_order:
         return list(_STRATEGIES)
     plain = [s for s in _STRATEGIES if s[:1] != ["--cookies-from-browser"]]
-    if not cookies:
+    if not cookies or not APP_USE_COOKIES:
         return plain
     cookie = [s for s in _STRATEGIES if s[:1] == ["--cookies-from-browser"]]
     return plain + cookie

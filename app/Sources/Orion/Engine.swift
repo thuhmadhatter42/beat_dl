@@ -61,10 +61,23 @@ final class Engine: ObservableObject {
     private var generation = 0
     private let makeDoctor: (Runtime) -> Doctor
     private let doctorQueue: DispatchQueue
+    /// Touches the Downloads folder so macOS asks for access when DOWNLOAD is pressed, not after
+    /// the download. nil = no probe (tests, and ORION_DOWNLOADS runs).
+    private let downloadsProbe: (() -> Bool)?
+
+    /// The app's probe: create and remove a hidden file in ~/Downloads. None when ORION_DOWNLOADS
+    /// is set (a test/debug run that never touches the real folder).
+    static func defaultProbe(env: [String: String] = ProcessInfo.processInfo.environment) -> (() -> Bool)? {
+        if let d = env["ORION_DOWNLOADS"], !d.isEmpty { return nil }
+        let dir = Doctor.downloadsFolder(env: env)
+        return { Doctor.probeWritable(dir) }
+    }
 
     init(runtime: Runtime = .appDefault(), launcher: ProcessLauncher = RealLauncher(),
          doctor: ((Runtime) -> Doctor)? = nil,
-         doctorQueue: DispatchQueue = .global(qos: .userInitiated)) {
+         doctorQueue: DispatchQueue = .global(qos: .userInitiated),
+         downloadsProbe: (() -> Bool)? = nil) {
+        self.downloadsProbe = downloadsProbe
         self.runtime = runtime
         self.launcher = launcher
         self.makeDoctor = doctor ?? { Doctor(runtime: $0) }
@@ -93,7 +106,7 @@ final class Engine: ObservableObject {
     }
 
     func download(_ url: String) {
-        start(["download", url], stage: "downloading")
+        start(["download", url], stage: "downloading", probe: downloadsProbe)
     }
 
     func analyze(_ files: [URL]) {
@@ -101,35 +114,51 @@ final class Engine: ObservableObject {
         start(["analyze"] + files.map { $0.path }, stage: "analyzing", expected: files.count)
     }
 
-    private func start(_ args: [String], stage: String, expected: Int = 0) {
+    private func start(_ args: [String], stage: String, expected: Int = 0, probe: (() -> Bool)? = nil) {
         runOnMain {
             guard !self.state.isBusy else { return }
             self.generation += 1
             let gen = self.generation
-            self.state = .working(stage: stage)
+            self.state = .working(stage: probe == nil ? stage : "allow-downloads")
             self.results = []
             self.note = nil
             self.expected = expected
             self.sawTerminal = false
-            // Shows as working at once; the helper starts when yt-dlp is seeded and no
-            // maintenance (launch upgrade, doctor) is running.
-            let rt = self.runtime
-            Runtime.maintenanceQueue.async {
-                rt.ensureSeeded()
+            guard let probe = probe else { self.launchHelper(args, gen: gen); return }
+            // Touch ~/Downloads first so the macOS prompt shows now; the helper waits for the answer.
+            DispatchQueue.global(qos: .userInitiated).async {
+                let ok = probe()
                 DispatchQueue.main.async {
                     guard gen == self.generation else { return }
-                    self.launcher.launch(
-                        executable: rt.python,
-                        arguments: [rt.script.path] + args,
-                        environment: rt.environment(),
-                        onLine: { line in
-                            guard let e = Event.parse(line: line) else { return }
-                            DispatchQueue.main.async { if gen == self.generation { self.handle(e) } }
-                        },
-                        onExit: { code in
-                            DispatchQueue.main.async { if gen == self.generation { self.finish(code) } }
-                        })
+                    if ok {
+                        self.state = .working(stage: stage)
+                        self.launchHelper(args, gen: gen)
+                    } else {
+                        self.state = .failed("Operation not permitted: Downloads")
+                    }
                 }
+            }
+        }
+    }
+
+    /// Starts the helper once yt-dlp is seeded and no maintenance (launch upgrade, doctor) is running.
+    private func launchHelper(_ args: [String], gen: Int) {
+        let rt = runtime
+        Runtime.maintenanceQueue.async {
+            rt.ensureSeeded()
+            DispatchQueue.main.async {
+                guard gen == self.generation else { return }
+                self.launcher.launch(
+                    executable: rt.python,
+                    arguments: [rt.script.path] + args,
+                    environment: rt.environment(),
+                    onLine: { line in
+                        guard let e = Event.parse(line: line) else { return }
+                        DispatchQueue.main.async { if gen == self.generation { self.handle(e) } }
+                    },
+                    onExit: { code in
+                        DispatchQueue.main.async { if gen == self.generation { self.finish(code) } }
+                    })
             }
         }
     }
