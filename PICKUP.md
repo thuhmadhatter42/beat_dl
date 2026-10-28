@@ -1,16 +1,17 @@
 # PICKUP — beat_dl
 
-## CURRENT STATE — 2026-10-27 16:52
+## CURRENT STATE — 2026-10-28 12:30
 
-**NOW: building Orion v1** = beat_dl as a real Mac app (J 2026-10-27: "make a UI and make a real application", "make it look like Artemis kinda", "beautiful! make it!"). Goal: J sends his friend (no dev experience, Mac assumed macOS 11+) one DMG → drag → open → paste link → DOWNLOAD → same MP3 run.sh makes.
-- Spec: `docs/superpowers/specs/2026-10-27-beat-dl-mac-app-design.md`. Mockup J approved: `docs/superpowers/specs/orion-v1-mockup.html` (Artemis faceplate: chassis, screws, chrome ORION wordmark, amber LCD hero, green lamp, pale SSL DOWNLOAD cap; dark only).
-- Plan: `docs/superpowers/plans/2026-10-27-orion-v1.md` + `-TOC.md` (6 tasks). Executed with superpowers:subagent-driven-development; ledger (resume map, trust it over memory): `.superpowers/sdd/2026-10-27-orion-v1/progress.md` (gitignored), briefs/reports/review diffs beside it.
-- Branch `orion-v1` (main checkout is ON this branch). Commits: main 38081a0 (spec+plan) → faf7c1b (.gitignore) → 2f216ac Task 1 (runtime.sh build+sign, VERSION 0.1.0; notarization of the runtime zip Accepted id 48bac7ac-2499-41c1-97df-ab5d2ff403f3; yt-dlp needs `disable-library-validation` → app/entitlements-ytdlp.plist).
-- Task 2 DONE (app_run.py JSON-events orchestrator, downloader.strategies(app_order), ORION_DOWNLOADS, ORION_BIN; 16/16 tests; review + fix re-review clean): orion-v1 = 2a84f2b.
-- **Next: Task 3** (Swift package + engine, no UI). Brief ready: `.superpowers/sdd/2026-10-27-orion-v1/task-3-brief.md`. Then Task 4 UI, 5 icon/sign/notarize/DMG, 6 verify. Rulings for Task 3: arm64 on macOS 11 uses `runtime/arm64/bin-legacy/` ffmpeg; yt-dlp keeps its own entitlement when re-signed.
-- Decisions (J): name Orion (the menu-bar listener joins this app later as feature 2; no ~/dev/orion repo); notarize with existing profile `artemis-notary`; bundle ID com.jshriver.orion.
-- Owed (controller, Task 6): manual real-URL `./run.sh` check that the CLI is unchanged; quarantined-DMG Gatekeeper test on MBP; Intel test on Sofia via sofia-screen (never restart Sofia).
-- Deferred minors for the final review are in the ledger.
+**NOW: Beat Key (internal Orion) = beat_dl as a signed, notarized Mac app; it ships as the FREE product on fourletterrecords.com behind an FLR account** (J 2026-10-28 12:20; no longer "send to a friend"). Page handoff: `handoff/TO-FLR-SITE-2026-10-28-beat-key-free-download.md` (FLR site session building it; don't publish download until beat_dl says go).
+- Branch `orion-v1` (main checkout on it) head = 0.1.12 (dedfafb merged ff). main = 38081a0. Merging orion-v1 to main + tag needs J's OK (open).
+- Installed: MBP /Applications/Beat Key.app 0.1.12 (spctl Notarized). DMG: `app/build/Beat-Key-0.1.12.dmg`. Verification videos: `app/build/verify/verify-0.1.12/`.
+- Proven: real downloads + bad-link errors on MBP, Sofia (0.1.8, Doctor OK), Studio D (0.1.8). J 2026-10-28 09:54: nothing on Studio D or E for now.
+- Bundled deno (yt-dlp EJS JS challenges) since 0.1.9. App mode never reads browser cookies automatically.
+- **Running: Task 14** (agent a79c95f012ebc9540, opus, worktree): drop Full Disk Access entirely (J: "wildly invasive"); in-app YouTube login window (WKWebView, own cookie file, `--cookies-file`), fallback = "age-restricted, can't download". Brief `.superpowers/sdd/2026-10-27-orion-v1/task-14-brief.md`, report → task-14-report.md. VERSION → 0.1.13.
+- Spike result so far (J 12:29): Google showed "Something went wrong — make sure Bluetooth is on" = passkey step failed in WKWebView; J told to press "Try another way" → password. Not the "browser not secure" block yet.
+- Owed: [Now] open-source licences before public release (Essentia AGPL-3.0, ffmpeg build likely GPL): licences file in app + source/licence link for the site. Then J login test of 0.1.13, my video review, install MBP, quick Sofia check, merge/tag (J OK), final DMG path + sha256 to FLR site session.
+- Ledger (resume map, trust over memory): `.superpowers/sdd/2026-10-27-orion-v1/progress.md`. Every UI change is verified by screen-recording frames, never stills (lesson from 0.1.11 loop).
+- Standing: Sofia never restarted; ssh via ~/.claude/scripts/ssh-rc; trash not rm; no song names in code/logs.
 
 ## STATE BEFORE ORION — 2026-10-09 23:40
 
