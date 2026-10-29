@@ -1,16 +1,20 @@
 # PICKUP — beat_dl
 
-## CURRENT STATE — 2026-10-28 12:30
+## CURRENT STATE — 2026-10-28 21:55
 
-**NOW: Beat Key (internal Orion) = beat_dl as a signed, notarized Mac app; it ships as the FREE product on fourletterrecords.com behind an FLR account** (J 2026-10-28 12:20; no longer "send to a friend"). Page handoff: `handoff/TO-FLR-SITE-2026-10-28-beat-key-free-download.md` (FLR site session building it; don't publish download until beat_dl says go).
-- Branch `orion-v1` (main checkout on it) head = 0.1.12 (dedfafb merged ff). main = 38081a0. Merging orion-v1 to main + tag needs J's OK (open).
-- Installed: MBP /Applications/Beat Key.app 0.1.12 (spctl Notarized). DMG: `app/build/Beat-Key-0.1.12.dmg`. Verification videos: `app/build/verify/verify-0.1.12/`.
-- Proven: real downloads + bad-link errors on MBP, Sofia (0.1.8, Doctor OK), Studio D (0.1.8). J 2026-10-28 09:54: nothing on Studio D or E for now.
-- Bundled deno (yt-dlp EJS JS challenges) since 0.1.9. App mode never reads browser cookies automatically.
-- **RELEASED 0.1.16 (2026-10-28 15:30, J: "it worked!! complete the build and push to the site and github")**: merged to main, tag Beat-Key-0.1.16, GitHub release https://github.com/thuhmadhatter42/beat_dl/releases/tag/Beat-Key-0.1.16 (DMG + ffmpeg/LAME sources), sha256 df4f6d98...bfe5, installed MBP. THIRD-PARTY-LICENSES.md + app menu Licenses. Site GO handoff: handoff/TO-FLR-SITE-2026-10-28-beat-key-0.1.16-GO.md. Owed: quick 0.1.16 check on Sofia (no J needed); repo LICENSE is MIT while combined app is AGPL (fine, MIT is AGPL-compatible; J may relicense).
-- Spike result so far (J 12:29): Google showed "Something went wrong — make sure Bluetooth is on" = passkey step failed in WKWebView; J told to press "Try another way" → password. Not the "browser not secure" block yet.
-- Owed: [Now] open-source licences before public release (Essentia AGPL-3.0, ffmpeg build likely GPL): licences file in app + source/licence link for the site. Then my video review of 0.1.14, install MBP, quick Sofia check, merge/tag (J OK), final DMG path + sha256 to FLR site session.
-- Ledger (resume map, trust over memory): `.superpowers/sdd/2026-10-27-orion-v1/progress.md`. Every UI change is verified by screen-recording frames, never stills (lesson from 0.1.11 loop).
+**Beat Key (internal Orion, bundle com.jshriver.orion) 0.1.18 is RELEASED and live.** Free item on fourletterrecords.com behind an FLR account (page https://fourletterrecords.com/beat-key, download /account/download/beat-key; owned by the FLR site session). Repo is AGPL-3.0 since 2026-10-28 (commit f9e0031; ≤0.1.16 were also MIT).
+- Git: main = origin/main = c3ff709; orion-v1 pushed. Tag Beat-Key-0.1.18, GitHub release https://github.com/thuhmadhatter42/beat_dl/releases/tag/Beat-Key-0.1.18 (DMG + appcast.xml). DMG sha256 bc1af29832add5847842ef75e3594e03479857cdd7d70e0db8c890c7a4d69c15. Installed MBP /Applications (spctl OK). Sofia runs 0.1.17 (left there after the Sparkle test).
+- Icon: golden key plate (app/icon/, source-golden-key.png); macOS 26+ asset catalog (Assets.car via actool, CFBundleIconName=AppIcon) so no grey squircle; Orion.icns kept for macOS 12.
+- Updates: Sparkle 2.10.1. Menu: About / Check for Updates… / Run Doctor / Licenses. Daily auto check; Run Doctor ends with an update check. Feed = https://github.com/thuhmadhatter42/beat_dl/releases/latest/download/appcast.xml → EVERY release must attach app/build/appcast.xml. Private EdDSA key: MBP login Keychain (account beat-key) + ~/.config/beat-key/sparkle_ed25519_private (600; never print/commit). Real update test on Sofia passed (0.1.18→0.1.19 test build).
+- Release steps: app/RELEASING.md. Build with `DMG_LAYOUT_FROM=<previous dmg> app/build.sh` (no Finder window on J's screen). Site publish: copy DMG to Sofia ~/fourletterrecords/beat-key-releases/Beat-Key-<ver>.dmg (never overwrite), then write ~/fourletterrecords/beat-key-latest.json = {"version": "<ver>"}.
+- yt-dlp weekly self-update verified on Sofia (2026.08.19 → 2026.10.26, 18:42).
+- **Friends link (J's spin-off, close friends only): https://beatkey.jshriver.com** — email in, no confirmation, 303 to the GitHub DMG of the version in beat-key-latest.json. Code friends-page/ (c3ff709); live on Sofia ~/beatkey/ (serve.py port 8171, tunnel `beatkey` a362a727-085e-4b43-bea8-6c90ef205d05, LaunchAgents com.jshriver.beatkey-{server,tunnel}). Emails logged to Sofia ~/beatkey/downloads.jsonl. Tested end to end (200/400/303); page look not yet screenshotted.
+- Owed:
+  1. J: back up the Sparkle private key ~/.config/beat-key/sparkle_ed25519_private (lose it = no more auto-updates for installed copies).
+  2. FLR site session: new icon + "Source code and licences" link + "updates itself" line (handoff/TO-FLR-SITE-2026-10-28-beat-key-0.1.18.md); await handoff/FROM-FLR-SITE-*.md reply.
+  3. Optional: add beatkey (8171) to ~/.claude/skills/jshriver-subdomain/references/players.md port table.
+  4. Question for J: dashboard item "Launchagent command?" (accepted 18:12) — unclear what he meant; ask.
+- Ledger: `.superpowers/sdd/2026-10-27-orion-v1/progress.md` (task-17 = Sparkle). UI checks run on Sofia, recorded frames, never J's MBP screen.
 - Standing: Sofia never restarted; ssh via ~/.claude/scripts/ssh-rc; trash not rm; no song names in code/logs.
 
 ## STATE BEFORE ORION — 2026-10-09 23:40
