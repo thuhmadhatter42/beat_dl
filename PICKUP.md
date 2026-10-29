@@ -1,6 +1,6 @@
 # PICKUP — beat_dl
 
-## CURRENT STATE — 2026-10-28 21:55
+## CURRENT STATE — 2026-10-29 06:15
 
 **Beat Key (internal Orion, bundle com.jshriver.orion) 0.1.18 is RELEASED and live.** Free item on fourletterrecords.com behind an FLR account (page https://fourletterrecords.com/beat-key, download /account/download/beat-key; owned by the FLR site session). Repo is AGPL-3.0 since 2026-10-28 (commit f9e0031; ≤0.1.16 were also MIT).
 - Git: main = origin/main = c3ff709; orion-v1 pushed. Tag Beat-Key-0.1.18, GitHub release https://github.com/thuhmadhatter42/beat_dl/releases/tag/Beat-Key-0.1.18 (DMG + appcast.xml). DMG sha256 bc1af29832add5847842ef75e3594e03479857cdd7d70e0db8c890c7a4d69c15. Installed MBP /Applications (spctl OK). Sofia runs 0.1.17 (left there after the Sparkle test).
@@ -14,6 +14,7 @@
   2. FLR site session: new icon + "Source code and licences" link + "updates itself" line (handoff/TO-FLR-SITE-2026-10-28-beat-key-0.1.18.md); await handoff/FROM-FLR-SITE-*.md reply.
   3. Optional: add beatkey (8171) to ~/.claude/skills/jshriver-subdomain/references/players.md port table.
   4. [DROPPED 2026-10-29] "Launchagent command?" was a dashboard artifact, not J's ask.
+  5. Question for J (asked 2026-10-29 06:14, unanswered): put both signing keys in the Passwords app (iCloud, leaves the house)? Plan: write a Passwords CSV import file in the scratchpad (Artemis key = `security find-generic-password -s artemis-license-signing -w`, may raise an Allow box; Beat Key = ~/.config/beat-key/sparkle_ed25519_private), J clicks File > Import once, then delete the CSV. Both keys already in MBP + Sofia login keychains (artemis-license-signing + .backup-20261013-1558; https://sparkle-project.org / beat-key). Artemis/Zeropoint have no self-updater, so no update key; they share the licence key, owned by the Artemis session.
 - Ledger: `.superpowers/sdd/2026-10-27-orion-v1/progress.md` (task-17 = Sparkle). UI checks run on Sofia, recorded frames, never J's MBP screen.
 - Standing: Sofia never restarted; ssh via ~/.claude/scripts/ssh-rc; trash not rm; no song names in code/logs.
 
