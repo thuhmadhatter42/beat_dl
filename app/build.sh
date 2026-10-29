@@ -28,7 +28,7 @@ WIN_W=600; WIN_H=380; ICON=112; APP_X=160; LINK_X=440; ICON_Y=190
 
 security find-identity -v -p codesigning | grep -qF "\"$IDENTITY\"" \
   || { echo "no '$IDENTITY' signing identity in the keychain"; exit 1; }
-for f in "$APP/icon/Orion.icns" "$APP/dmg/background.png" "$APP/dmg/background@2x.png"; do
+for f in "$APP/icon/Orion.icns" "$APP/icon/Assets.xcassets/AppIcon.appiconset/Contents.json" "$APP/dmg/background.png" "$APP/dmg/background@2x.png"; do
   [ -f "$f" ] || { echo "missing $f (icon: app/icon/Orion.icns from source-golden-key.png; DMG art: app/dmg/make_background.swift)"; exit 1; }
 done
 echo "== $APP_NAME $VER"
@@ -57,7 +57,16 @@ plutil -replace CFBundleVersion -string "$VER" "$OUTAPP/Contents/Info.plist"
 plutil -replace NSHumanReadableCopyright -string "© $(date +%Y) J Shriver" "$OUTAPP/Contents/Info.plist"
 plutil -lint "$OUTAPP/Contents/Info.plist" >/dev/null
 printf 'APPL????' > "$OUTAPP/Contents/PkgInfo"
-cp "$APP/icon/Orion.icns" "$OUTAPP/Contents/Resources/Orion.icns"
+cp "$APP/icon/Orion.icns" "$OUTAPP/Contents/Resources/Orion.icns"   # macOS < 26 (CFBundleIconFile)
+# macOS 26+ draws its own squircle and puts a grey box behind icons that lack an AppIcon in Assets.car,
+# so the full-bleed art is compiled with actool (before signing) and named by CFBundleIconName.
+ACT="$(mktemp -d)"
+xcrun actool "$APP/icon/Assets.xcassets" --compile "$OUTAPP/Contents/Resources" --platform macosx \
+  --minimum-deployment-target 12.0 --app-icon AppIcon --output-partial-info-plist "$ACT/partial.plist" \
+  --errors --warnings >/dev/null
+rm -rf "$ACT"
+[ -f "$OUTAPP/Contents/Resources/Assets.car" ] || { echo "actool produced no Assets.car"; exit 1; }
+plutil -replace CFBundleIconName -string AppIcon "$OUTAPP/Contents/Info.plist"
 [ -f "$ROOT/THIRD-PARTY-LICENSES.md" ] || { echo "missing THIRD-PARTY-LICENSES.md"; exit 1; }
 cp "$ROOT/THIRD-PARTY-LICENSES.md" "$OUTAPP/Contents/Resources/THIRD-PARTY-LICENSES.md"
 [ -d "$PROD/Orion_Orion.bundle" ] || { echo "no Orion_Orion.bundle in $PROD"; exit 1; }
