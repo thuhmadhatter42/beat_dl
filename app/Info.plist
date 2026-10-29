@@ -22,5 +22,12 @@
     <key>NSDocumentsFolderUsageDescription</key><string>Beat Key reads the audio files you choose to find their BPM and key.</string>
     <key>NSHighResolutionCapable</key><true/>
     <key>NSSupportsAutomaticGraphicsSwitching</key><true/>
+    <!-- Sparkle updates (app/RELEASING.md). The feed is the appcast.xml attached to the newest
+         GitHub release; the private half of SUPublicEDKey is in the login Keychain (account
+         beat-key) and ~/.config/beat-key/sparkle_ed25519_private, never in the repo. -->
+    <key>SUFeedURL</key><string>https://github.com/thuhmadhatter42/beat_dl/releases/latest/download/appcast.xml</string>
+    <key>SUPublicEDKey</key><string>ss+JogewI0vocoCCYnKwn4VuDrcU1APzhm4A4RDF9Ik=</string>
+    <key>SUEnableAutomaticChecks</key><true/>
+    <key>SUScheduledCheckInterval</key><integer>86400</integer>
 </dict>
 </plist>

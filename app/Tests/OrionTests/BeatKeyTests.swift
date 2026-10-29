@@ -197,6 +197,50 @@ final class BeatKeyTests: XCTestCase {
         XCTAssertEqual(r.calls.filter { $0 == "yt-dlp -U" }.count, 1)   // the second runDoctor was ignored
     }
 
+    /// Run Doctor ends by asking for a newer Beat Key: once, after the LCD shows the report.
+    func testDoctorEndsWithAnUpdateCheck() {
+        let r = FakeRunner(); r.answers["yt-dlp --version"] = [(0, "2026.10.26")]
+        var checks = 0
+        var stateAtCheck: ViewState?
+        var e: Engine!
+        e = Engine(runtime: rt, launcher: FakeLauncher(), doctor: { rt in
+            Doctor(runtime: rt, runner: r, reseed: {}, downloadsWritable: { true })
+        }, afterDoctor: { checks += 1; stateAtCheck = e.state })
+        e.runDoctor()
+        XCTAssertEqual(checks, 0)                  // not before the tools are checked
+        let deadline = Date().addingTimeInterval(3)
+        while checks == 0 && Date() < deadline { RunLoop.main.run(until: Date().addingTimeInterval(0.02)) }
+        RunLoop.main.run(until: Date().addingTimeInterval(0.1))
+        XCTAssertEqual(checks, 1)
+        XCTAssertEqual(stateAtCheck, .doctor(DoctorReport(outcome: .ok, title: "DOCTOR OK",
+                                                          line: "YT-DLP 2026.10.26 · ALL CHECKS PASSED")))
+    }
+
+    // MARK: updates (Sparkle)
+
+    func testUpdaterSettingsInInfoPlist() throws {
+        let app = URL(fileURLWithPath: #filePath).deletingLastPathComponent()
+            .deletingLastPathComponent().deletingLastPathComponent()      // app/
+        let plist = try XCTUnwrap(NSDictionary(contentsOf: app.appendingPathComponent("Info.plist")))
+        XCTAssertEqual(plist["SUFeedURL"] as? String,
+                       "https://github.com/thuhmadhatter42/beat_dl/releases/latest/download/appcast.xml")
+        let key = try XCTUnwrap(plist["SUPublicEDKey"] as? String)
+        XCTAssertEqual(Data(base64Encoded: key)?.count, 32)               // an ed25519 public key
+        XCTAssertEqual(plist["SUEnableAutomaticChecks"] as? Bool, true)   // no "check automatically?" prompt
+        XCTAssertEqual(plist["SUScheduledCheckInterval"] as? Int, 86400)  // once a day
+        XCTAssertNil(plist["SUEnableInstallerLauncherService"])           // not sandboxed: no XPC services
+        XCTAssertEqual(Brand.checkForUpdates, "Check for Updates…")
+    }
+
+    func testUpdaterIsInertOutsideABundledApp() {
+        // the test runner is no .app with a feed: no Sparkle, and a check is a no-op
+        XCTAssertFalse(AppUpdater.isUpdatable(bundle: .main))
+        let u = AppUpdater(bundle: .main)
+        XCTAssertFalse(u.canCheck)
+        u.checkForUpdates()
+        RunLoop.main.run(until: Date().addingTimeInterval(0.1))
+    }
+
     /// Launch upgrade, Run Doctor and a download share one serial queue: the launch work leaves the
     /// Engine idle, and Doctor and the download wait their turn behind it.
     func testDoctorAndDownloadWaitBehindLaunchMaintenance() {

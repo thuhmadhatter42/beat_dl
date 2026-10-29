@@ -7,13 +7,17 @@ struct OrionApp: App {
     @StateObject private var login: YouTubeSession
     @StateObject private var engine: Engine
     @StateObject private var model = FaceplateModel()
+    @StateObject private var updater: AppUpdater
 
     init() {
         let session = YouTubeSession()
+        let updater = AppUpdater()
         _login = StateObject(wrappedValue: session)
+        _updater = StateObject(wrappedValue: updater)
         _engine = StateObject(wrappedValue: Engine(downloadsProbe: Engine.defaultProbe(),
                                                    savedLogin: { session.savedLogin },
-                                                   dropLogin: { session.file.delete() }))
+                                                   dropLogin: { session.file.delete() },
+                                                   afterDoctor: { updater.checkForUpdates() }))
     }
 
     var body: some Scene {
@@ -30,6 +34,7 @@ struct OrionApp: App {
                 Button(Brand.about) {
                     NSApp.orderFrontStandardAboutPanel(options: [.applicationName: Brand.name])
                 }
+                CheckForUpdatesButton(updater: updater)
                 Button(Brand.runDoctor) { engine.runDoctor() }
                     .disabled(engine.state.isBusy)
                 Button(Brand.licenses) { Licenses.open() }

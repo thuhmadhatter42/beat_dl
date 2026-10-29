@@ -12,6 +12,7 @@ enum Brand {
     static let hide = "Hide \(name)"
     static let quit = "Quit \(name)"
     static let runDoctor = "Run Doctor"
+    static let checkForUpdates = "Check for Updates…"
     static let licenses = "Licenses"
     /// Bundled in Contents/Resources by app/build.sh (copied from the repo root).
     static let licensesFile = "THIRD-PARTY-LICENSES"

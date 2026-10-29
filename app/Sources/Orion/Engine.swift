@@ -71,6 +71,8 @@ final class Engine: ObservableObject {
     private var generation = 0
     private let makeDoctor: (Runtime) -> Doctor
     private let doctorQueue: DispatchQueue
+    /// After Run Doctor shows its report: the app asks Sparkle for a newer Beat Key.
+    private let afterDoctor: () -> Void
     /// Touches the Downloads folder so macOS asks for access when DOWNLOAD is pressed, not after
     /// the download. nil = no probe (tests, and ORION_DOWNLOADS runs).
     private let downloadsProbe: (() -> Bool)?
@@ -94,7 +96,9 @@ final class Engine: ObservableObject {
          doctorQueue: DispatchQueue = .global(qos: .userInitiated),
          downloadsProbe: (() -> Bool)? = nil,
          savedLogin: @escaping () -> URL? = { nil },
-         dropLogin: @escaping () -> Void = {}) {
+         dropLogin: @escaping () -> Void = {},
+         afterDoctor: @escaping () -> Void = {}) {
+        self.afterDoctor = afterDoctor
         self.downloadsProbe = downloadsProbe
         self.savedLogin = savedLogin
         self.dropLogin = dropLogin
@@ -120,7 +124,12 @@ final class Engine: ObservableObject {
                         DispatchQueue.main.async { if gen == self.generation { self.state = .working(stage: stage) } }
                     }
                 }
-                DispatchQueue.main.async { if gen == self.generation { self.state = .doctor(report) } }
+                DispatchQueue.main.async {
+                    guard gen == self.generation else { return }
+                    self.state = .doctor(report)
+                    // the tools are checked; now the app itself (Sparkle's own window)
+                    self.afterDoctor()
+                }
             }
         }
     }

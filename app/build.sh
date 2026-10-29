@@ -75,6 +75,28 @@ ditto "$B/runtime" "$OUTAPP/Contents/Resources/runtime"
 find "$OUTAPP" -name .DS_Store -delete
 xattr -cr "$OUTAPP"
 
+# ---- BEGIN sparkle: embed + sign Sparkle.framework (app updates; app/RELEASING.md) ----
+# Inside-out per sparkle-project.org/documentation/sandboxing (#code-signing): Autoupdate and
+# Updater.app, then the framework, each with the Developer ID, hardened runtime and a timestamp,
+# all before the app is signed. Beat Key is not sandboxed, so the XPC services are removed
+# (same page, "Removing XPC Services"), and the headers/modules are build-time only. The binary
+# finds the framework via @executable_path/../Frameworks (Package.swift linkerSettings).
+echo "== sparkle"
+SPK="$OUTAPP/Contents/Frameworks/Sparkle.framework"
+[ -d "$PROD/Sparkle.framework" ] || { echo "no Sparkle.framework in $PROD"; exit 1; }
+mkdir -p "$OUTAPP/Contents/Frameworks"
+ditto "$PROD/Sparkle.framework" "$SPK"                      # ditto keeps the Versions symlinks
+rm -rf "$SPK/Versions/B/XPCServices" "$SPK/XPCServices" "$SPK/Headers" "$SPK/PrivateHeaders" \
+       "$SPK/Modules" "$SPK/Versions/B/Headers" "$SPK/Versions/B/PrivateHeaders" "$SPK/Versions/B/Modules"
+xattr -cr "$SPK"
+codesign --force --options runtime --timestamp --sign "$IDENTITY" "$SPK/Versions/B/Autoupdate"
+codesign --force --options runtime --timestamp --sign "$IDENTITY" "$SPK/Versions/B/Updater.app"
+codesign --force --options runtime --timestamp --sign "$IDENTITY" "$SPK"
+codesign --verify --deep --strict "$SPK"
+otool -l "$OUTAPP/Contents/MacOS/Orion" | grep -q '@executable_path/../Frameworks' \
+  || { echo "Orion has no @executable_path/../Frameworks rpath"; exit 1; }
+# ---- END sparkle ----
+
 echo "== sign app"
 codesign --force --options runtime --timestamp --entitlements "$APP/entitlements.plist" \
   --sign "$IDENTITY" "$OUTAPP"
@@ -184,4 +206,41 @@ fi
 xcrun stapler staple "$DMG"
 xcrun stapler validate "$DMG"
 spctl -a -vv -t open --context context:primary-signature "$DMG"
+
+# ---- BEGIN sparkle: appcast.xml for this DMG (attach both to the GitHub release) ----
+# One <item>: the stapled DMG, EdDSA-signed by sign_update with the exported signing file (no
+# Keychain prompt). Versions = VERSION (CFBundleVersion = CFBundleShortVersionString). The
+# enclosure is the release asset URL; APPCAST_DOWNLOAD_PREFIX overrides it for a local test feed.
+ED_FILE="${SPARKLE_ED_FILE:-$HOME/.config/beat-key/sparkle_ed25519_private}"
+SPARKLE_BIN="$APP/.build/artifacts/sparkle/Sparkle/bin"
+DL_PREFIX="${APPCAST_DOWNLOAD_PREFIX:-https://github.com/thuhmadhatter42/beat_dl/releases/download/Beat-Key-$VER/}"
+APPCAST="$B/appcast.xml"
+echo "== appcast ($APPCAST)"
+[ -f "$ED_FILE" ] || { echo "no Sparkle EdDSA signing file (app/RELEASING.md)"; exit 1; }
+[ -x "$SPARKLE_BIN/sign_update" ] || { echo "no sign_update in $SPARKLE_BIN (swift package resolve)"; exit 1; }
+ENC="$("$SPARKLE_BIN/sign_update" --ed-key-file "$ED_FILE" "$DMG")"   # sparkle:edSignature="…" length="…"
+case "$ENC" in *'sparkle:edSignature="'*'length="'*) ;; *) echo "sign_update gave no signature"; exit 1 ;; esac
+cat > "$APPCAST" <<XML
+<?xml version="1.0" encoding="utf-8"?>
+<rss version="2.0" xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle">
+  <channel>
+    <title>$APP_NAME</title>
+    <link>https://github.com/thuhmadhatter42/beat_dl/releases</link>
+    <item>
+      <title>$APP_NAME $VER</title>
+      <link>https://github.com/thuhmadhatter42/beat_dl/releases/tag/Beat-Key-$VER</link>
+      <pubDate>$(LC_ALL=C date -u '+%a, %d %b %Y %H:%M:%S +0000')</pubDate>
+      <sparkle:version>$VER</sparkle:version>
+      <sparkle:shortVersionString>$VER</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>12.0.0</sparkle:minimumSystemVersion>
+      <enclosure url="${DL_PREFIX}Beat-Key-$VER.dmg" $ENC type="application/octet-stream" />
+    </item>
+  </channel>
+</rss>
+XML
+xmllint --noout "$APPCAST"
+"$SPARKLE_BIN/sign_update" --verify --ed-key-file "$ED_FILE" "$DMG" \
+  "$(sed -n 's/.*sparkle:edSignature="\([^"]*\)".*/\1/p' <<<"$ENC")"
+echo "appcast: $APPCAST"
+# ---- END sparkle ----
 echo "done: $DMG"
