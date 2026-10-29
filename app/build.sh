@@ -29,7 +29,7 @@ WIN_W=600; WIN_H=380; ICON=112; APP_X=160; LINK_X=440; ICON_Y=190
 security find-identity -v -p codesigning | grep -qF "\"$IDENTITY\"" \
   || { echo "no '$IDENTITY' signing identity in the keychain"; exit 1; }
 for f in "$APP/icon/Orion.icns" "$APP/dmg/background.png" "$APP/dmg/background@2x.png"; do
-  [ -f "$f" ] || { echo "missing $f (run app/icon/make_icon.swift / app/dmg/make_background.swift)"; exit 1; }
+  [ -f "$f" ] || { echo "missing $f (icon: app/icon/Orion.icns from source-golden-key.png; DMG art: app/dmg/make_background.swift)"; exit 1; }
 done
 echo "== $APP_NAME $VER"
 
