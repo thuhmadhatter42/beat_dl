@@ -14,7 +14,7 @@ Beat Key is the same tool as a normal Mac app. No Terminal, nothing to install f
 4. Paste a YouTube link and press Return. The MP3 lands in your Downloads folder with the BPM and key in its name, for example `Some Beat (140.0 BPM Cm Eb Gm).mp3`.
 5. To read the BPM and key of a file you already have, drop the audio file onto the Beat Key window. The file isn't changed.
 
-If macOS asks whether Beat Key may access your Downloads folder, click **Allow**. Needs macOS 12 or newer, on Apple Silicon or Intel. yt-dlp updates itself; there is nothing to maintain. Beat Key is the free product on fourletterrecords.com (download behind a Four Letter Records account). Age-restricted videos ask you to log in to YouTube once, inside Beat Key's own window; it never reads your browser or asks for Full Disk Access. Licences for every bundled part are under Beat Key › Licenses and in `THIRD-PARTY-LICENSES.md`.
+If macOS asks whether Beat Key may access your Downloads folder, click **Allow**. Needs macOS 12 or newer, on Apple Silicon or Intel. yt-dlp updates itself weekly, and Beat Key updates itself too (Beat Key > Check for Updates, plus a daily check; Sparkle); there is nothing to maintain. Beat Key is the free product on fourletterrecords.com (download behind a Four Letter Records account). Age-restricted videos ask you to log in to YouTube once, inside Beat Key's own window; it never reads your browser or asks for Full Disk Access. Licences for every bundled part are under Beat Key › Licenses and in `THIRD-PARTY-LICENSES.md`.
 
 The sections below are for the command-line version.
 
@@ -49,17 +49,17 @@ The link log looks like this:
 
 ```text
 Input URL: https://www.youtube.com/watch?v=...
-Downloaded: Veeze x Lil Yachty type beat (142.0 BPM Cm Eb Gm).mp3
+Downloaded: Some Beat (142.0 BPM Cm Eb Gm).mp3
 
 Input URL: https://www.youtube.com/watch?v=...
-Downloaded: Another Beat Name (95.0 BPM Am C Em).mp3
+Downloaded: Another Beat (95.0 BPM Am C Em).mp3
 ```
 
 **Example output:**
 ```
 URL/Beat: https://www.youtube.com/watch?v=...
 Downloading...
-Downloaded: Veeze x Lil Yachty type beat (142.0 BPM Cm Eb Gm).mp3
+Downloaded: Some Beat (142.0 BPM Cm Eb Gm).mp3
 Key: Cm (90.0%) | Eb (4.1%) | Gm (2.7%)
 ```
 

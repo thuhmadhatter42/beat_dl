@@ -1,6 +1,6 @@
 # Orion v1: beat_dl as a real Mac app with an installer (design)
 
-**Date:** 2026-10-27 · **Status:** Approved by J 2026-10-27 ("beautiful! make it!"). Plan `docs/superpowers/plans/2026-10-27-orion-v1.md`; Tasks 1-2 built (runtime payload, app_run.py), Task 3 next. See PICKUP.md.
+**Date:** 2026-10-27 · **Status:** Approved by J 2026-10-27 ("beautiful! make it!"). Plan `docs/superpowers/plans/2026-10-27-orion-v1.md`; [2026-10-28: built and released, Beat Key 0.1.18 live; see PICKUP.md CURRENT STATE.]
 **Read §10 (Amendment 2026-10-28) first: it supersedes the name, macOS floor, delivery model and cookie policy below. Superseded rulings are tagged [SUPERSEDED 2026-10-28] in place.**
 
 **Name: Orion** (J, 2026-10-27) [SUPERSEDED 2026-10-28 for the public name: Beat Key; Orion stays the internal/code name, see §10]. The downloader is Orion v1. The menu-bar listener from
@@ -32,7 +32,7 @@ version makes. He never sees a warning dialog, Terminal, or a setup step he has 
 
 **Non-goals (v1)**
 - No queue, playlists, batch URLs, format picker, destination picker or settings pane.
-- No auto-update of the app itself. Only yt-dlp updates itself (§4.4). A new app version = J sends a new DMG.
+- [SUPERSEDED 2026-10-28: Sparkle 2 auto-update shipped in 0.1.18, feed = latest GitHub release's appcast.xml, see app/RELEASING.md] No auto-update of the app itself. Only yt-dlp updates itself (§4.4). A new app version = J sends a new DMG.
 - No Windows or Linux.
 - No changes to how BPM/key is detected. The app calls the same `bpm.py`.
 
@@ -180,7 +180,7 @@ Source: PICKUP.md CURRENT STATE 2026-10-28 12:30, ledger `.superpowers/sdd/2026-
 - **Run Doctor:** menu item Beat Key > Run Doctor checks the bundled tools (yt-dlp, ffmpeg, Python/Essentia, deno JS runtime) and reports plain-English results.
 - **Login on demand:** browser cookies are never read automatically (J 2026-10-27 22:24). If YouTube blocks a video the LCD says so and offers a login-and-retry; plain downloads need no login.
 - **Bundled deno** since 0.1.9 (yt-dlp EJS JS challenges need a JS runtime; absence caused the failed login retry at 00:27). DMG grew from about 296 MB to about 390 MB.
-- **No Full Disk Access, no login (ruled 2026-10-28 12:48, Task 14, 0.1.14):** J called Full Disk Access "wildly invasive". The in-app YouTube login (WKWebView) was tried and failed on J's real account: Google forces a passkey, and WebAuthn in an embedded WKWebView needs Apple's web-browser entitlement (developer.apple.com/forums/thread/829169, passkeys.dev/docs/reference/macos/). So the app never logs in: age-restricted → amber `THIS VIDEO IS AGE-RESTRICTED` / `BEAT KEY CAN'T DOWNLOAD IT`; bot check → `YOUTUBE BLOCKED THIS DOWNLOAD` / `TRY AGAIN LATER`. No browser data, no cookies, no permissions.
-- **Free FLR product:** J 2026-10-28 12:20: the free offer on fourletterrecords.com, downloaded behind an FLR account (like the Artemis installer), for all FLR users, not one friend. Page handoff: `handoff/TO-FLR-SITE-2026-10-28-beat-key-free-download.md`. Do not publish the download until beat_dl says go.
-- **Release gate [Now]:** open-source licences (Essentia AGPL-3.0, ffmpeg build likely GPL, TempoCNN weights CC BY-NC-SA 4.0) need a licences file in the app and a source/licence link on the site before public release.
-- **Version:** branch `orion-v1` at 0.1.12 (0.1.14 from Task 14). Merging to main and tagging needs J's OK.
+- **No Full Disk Access, no login (ruled 2026-10-28 12:48, Task 14, 0.1.14) [Full Disk Access half stands; the "no login" half is SUPERSEDED by 2026-10-28 15:02: in-app YouTube login (WKWebView with WebAuthn hidden so Google skips the passkey, cookies in App Support/Orion/youtube-cookies.txt) works since 0.1.15, J: "it worked!!"; age-restricted videos now ask for a one-time login inside Beat Key's own window]:** J called Full Disk Access "wildly invasive". The in-app YouTube login (WKWebView) was tried and failed on J's real account: Google forces a passkey, and WebAuthn in an embedded WKWebView needs Apple's web-browser entitlement (developer.apple.com/forums/thread/829169, passkeys.dev/docs/reference/macos/). So the app never logs in: age-restricted → amber `THIS VIDEO IS AGE-RESTRICTED` / `BEAT KEY CAN'T DOWNLOAD IT`; bot check → `YOUTUBE BLOCKED THIS DOWNLOAD` / `TRY AGAIN LATER`. No browser data, no cookies, no permissions.
+- **Free FLR product:** J 2026-10-28 12:20: the free offer on fourletterrecords.com, downloaded behind an FLR account (like the Artemis installer), for all FLR users, not one friend. Page handoff: `handoff/TO-FLR-SITE-2026-10-28-beat-key-free-download.md`. [CLOSED 2026-10-28 15:30: GO given in handoff/TO-FLR-SITE-2026-10-28-beat-key-0.1.16-GO.md; page and download live.]
+- **Release gate [CLOSED 2026-10-28: THIRD-PARTY-LICENSES.md, app menu Licenses, repo AGPL-3.0 f9e0031, 0.1.16]:** open-source licences (Essentia AGPL-3.0, ffmpeg build likely GPL, TempoCNN weights CC BY-NC-SA 4.0) need a licences file in the app and a source/licence link on the site before public release.
+- **Version:** [SUPERSEDED 2026-10-28] released 0.1.16 (J's OK, merged to main, tag Beat-Key-0.1.16), then 0.1.18 (tag Beat-Key-0.1.18, Sparkle, golden key icon). orion-v1 fully merged; local branch deleted.

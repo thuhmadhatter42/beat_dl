@@ -1,7 +1,7 @@
 {
   "title": "beat_dl — the whole job",
   "subtitle": "YouTube → MP3 with BPM/key tagging, March 2026 → now. Refresh: edit tracker.json, then python3 ~/.claude/skills/progress-tracker/build_tracker.py tracker.json",
-  "stamp": "2026-10-27 17:05",
+  "stamp": "2026-10-28 22:30",
   "statuses": [
     {
       "key": "done",
@@ -74,21 +74,21 @@
       "status": "done",
       "title": "Messages DB dig",
       "size": "",
-      "detail": "Pulled the YouTube links out of the CCASH2 / DOUBLE CUP threads straight from the macOS Messages DB and scoped the download+heart loop. .remember/today-2026-06-05.done.md, Jun 5.",
+      "detail": "Pulled the YouTube links out of two contacts' threads straight from the macOS Messages DB and scoped the download+heart loop. .remember/today-2026-06-05.done.md, Jun 5.",
       "weight": 2
     },
     {
       "status": "done",
       "title": "iMessage watcher spec",
       "size": "",
-      "detail": "Design approved (pending review): a link from CCASH2 or DOUBLE CUP downloads itself through beat_dl and answers with a 👍 tapback. docs/superpowers/specs/2026-06-05-imessage-watcher-design.md, commit e236dd4.",
+      "detail": "Design approved (pending review): a link from either of two allowlisted contacts downloads itself through beat_dl and answers with a thumbs-up tapback. docs/superpowers/specs/2026-06-05-imessage-watcher-design.md, commit e236dd4. Closed by J 2026-10-06, never built.",
       "weight": 3
     },
     {
       "status": "done",
       "title": "Tag errors in filenames",
       "size": "",
-      "detail": "The miss: from Sep 8 a missing librosa baked its own error text into the MP3 name (\"Roddy Ricch - The Box (Missing: librosa …).mp3\") and J only found it on Studio-E-2. Fixed ae70d59, Sep 10 — it now fails cleanly instead.",
+      "detail": "The miss: from Sep 8 a missing librosa baked its own error text into the MP3 name (\"<title> (Missing: librosa ...).mp3\") and J only found it on Studio-E-2. Fixed ae70d59, Sep 10 - it now fails cleanly instead.",
       "weight": 2
     },
     {
@@ -172,7 +172,7 @@
       "status": "done",
       "title": "Orion spec",
       "size": "",
-      "detail": "b804057 + a1046d6, Sep 12: menu-bar app that listens to the interface main outs, shows \"140 · A min\" live, opens a panel with Camelot code and a playable piano roll; loading state until confident, collapsed history list persisted. Draft for J's review — nothing built.",
+      "detail": "b804057 + a1046d6, Sep 12: menu-bar app that listens to the interface main outs, shows \"140 · A min\" live, opens a panel with Camelot code and a playable piano roll; loading state until confident, collapsed history list persisted. Draft; feature 2 of the Beat Key app, not started as of 2026-10-28.",
       "weight": 4
     },
     {
@@ -197,10 +197,10 @@
       "weight": 1
     },
     {
-      "status": "run",
-      "title": "Build Orion v1 (beat_dl Mac app)",
-      "size": "",
-      "detail": "Orion is now the beat_dl app (spec 2026-10-27, J approved). Tasks 1-2 of 6 done on branch orion-v1 (runtime payload, app_run.py); Task 3 Swift engine next. The menu-bar listener joins later as feature 2; no ~/dev/orion repo.",
+      "status": "done",
+      "title": "Beat Key (internal Orion) 0.1.18 released",
+      "size": "0.1.0 to 0.1.18",
+      "detail": "beat_dl as a signed, notarized Mac app, free on fourletterrecords.com behind an FLR account. 0.1.16 released 2026-10-28 (tag Beat-Key-0.1.16), 0.1.18 (tag Beat-Key-0.1.18): Sparkle auto-update, golden key icon, in-app YouTube login (since 0.1.15), repo AGPL-3.0 (f9e0031), orion-v1 merged to main. Friends link beatkey.jshriver.com (friends-page/). Owed: J backs up the Sparkle private key; FLR site page update (icon, licences link).",
       "weight": 6
     },
     {
@@ -209,6 +209,13 @@
       "size": "thousands of sessions",
       "detail": "Paused 2026-10-09: 101 sessions run, 78 usable, on Sofia ~/pt-harvest. Resume when the iLok is back in Sofia (~120 more usable rows). Run-A model not shipped (bench -1 clip); decision with J.",
       "weight": 5
+    },
+    {
+      "status": "idea",
+      "title": "Menu-bar BPM/key listener (Beat Key feature 2)",
+      "size": "",
+      "detail": "Spec 2026-09-12; not started. Waits for J to say go; open question: phase 1 uses the global system-output tap, per-app taps in phase 4.",
+      "weight": 4
     }
   ]
 }

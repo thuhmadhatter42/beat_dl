@@ -8,7 +8,7 @@ benchmark in `docs/research/bpm-bench/` (run log: `run-2026-09-11.txt`) unless a
 1. **Essentia TempoCNN, `deeptemp-k16-3` model** — 87.5 % Acc1 / 100 % Acc2 on the 40-clip
    set vs. 30 % / 55 % for the current code. ~1.7 s wall per fresh process (import 0.8 s, mp3
    decode 0.8 s, inference 0.1 s). No torch, no numba. `pip install essentia-tensorflow`
-   (single wheel, cp314 arm64 + x86_64). Models are CC BY-NC-SA 4.0 (fine for J's own use; [2026-10-28] Beat Key ships to the public, so the licence needs a decision before release, see PICKUP).
+   (single wheel, cp314 arm64 + x86_64). Models are CC BY-NC-SA 4.0 (fine for J's own use; [2026-10-28] Beat Key ships to the public as a free product; licence handled in 0.1.16, see `THIRD-PARTY-LICENSES.md` [CLOSED 2026-10-28]).
 2. **Essentia TempoCNN `deepsquare-k16-3`** — 82.5 % / 97.5 %, same install. Keep as a
    second opinion only if you want a confidence flag; it does not beat deeptemp on its own.
 3. **Beat This! (CPU)** — 77.5 % / 95 %, but needs torch (590 MB) and an 81 MB checkpoint

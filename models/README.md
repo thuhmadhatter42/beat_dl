@@ -23,7 +23,7 @@ Fabra (Essentia), based on Schreiber & Müller 2018. Licensed CC BY-NC-SA 4.0." 
 vendored here unmodified for personal, non-commercial use; this license applies to the
 model file only, not to the rest of this repository (see ../LICENSE).
 
-**Beat Key (2026-10-28):** the Beat Key app bundles this model and is being released free on fourletterrecords.com. "Personal, non-commercial use" above was written for the CLI; the CC BY-NC-SA 4.0 terms for the public app (attribution, share-alike, non-commercial) are part of the open-source licences check owed before public release (PICKUP).
+**Beat Key (2026-10-28):** the Beat Key app bundles this model and is being released free on fourletterrecords.com. "Personal, non-commercial use" above was written for the CLI; the CC BY-NC-SA 4.0 terms for the public app (attribution, share-alike, non-commercial) were handled for the 0.1.16 public release (2026-10-28): `THIRD-PARTY-LICENSES.md`, Beat Key > Licenses in the app, and the repo is AGPL-3.0 with this model kept CC BY-NC-SA 4.0 (so Beat Key must stay free). [CLOSED 2026-10-28]
 
 ## deeptemp-k16-3.npz
 

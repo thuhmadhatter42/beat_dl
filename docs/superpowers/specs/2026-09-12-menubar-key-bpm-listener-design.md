@@ -1,6 +1,6 @@
 # Orion feature 2 — menu-bar BPM / key listener (design)
 
-**Date:** 2026-09-12 · **Status:** Draft, nothing built. As of 2026-10-28 this is Beat Key feature 2, queued behind the v1 release (PICKUP).
+**Date:** 2026-09-12 · **Status:** Draft, nothing built. As of 2026-10-28 this is Beat Key feature 2, queued; v1 (Beat Key 0.1.18) is released, feature 2 not started (PICKUP).
 
 **2026-10-27 (J):** [2026-10-28: public name is Beat Key, Orion stays internal] the name Orion now belongs to the beat_dl Mac app (`2026-10-27-beat-dl-mac-app-design.md`). This listener joins that app later as its second feature instead of being its own app.
 
