@@ -8,7 +8,7 @@ That repository holds all of Beat Key's own code (the Swift app in `app/`, the P
 
 ## How the licences combine
 
-- **Beat Key as a whole is distributed under the GNU Affero General Public License v3.0 (AGPL-3.0).** The bundled analyzer scripts (`bpm.py`, `app_run.py`) import Essentia, which is AGPL-3.0, so the combined work is conveyed under the AGPL. The full text is below (Appendix A). Beat Key's own source files are additionally available under the MIT licence in the repository's `LICENSE` file; that does not change the terms of the combined work.
+- **Beat Key as a whole is distributed under the GNU Affero General Public License v3.0 (AGPL-3.0).** The bundled analyzer scripts (`bpm.py`, `app_run.py`) import Essentia, which is AGPL-3.0, so the combined work is conveyed under the AGPL. The full text is below (Appendix A). Beat Key's own source files are AGPL-3.0 as well (repository `LICENSE`, since 2026-10-28; versions up to 0.1.16 also offered them under MIT).
 - **ffmpeg and ffprobe** are separate programs that Beat Key starts as child processes. They are GPL-3.0-or-later (the Apple-silicon and Intel builds) or LGPL-2.1-or-later (the macOS 11 build). They are not linked into Beat Key. Their source is offered below.
 - **The TempoCNN model** is licensed CC BY-NC-SA 4.0: attribution, non-commercial use only, share-alike. Beat Key is free of charge; do not sell it or bundle it into a paid product.
 - **yt-dlp** (Unlicense) is shipped as the project's PyInstaller-built executable; yt-dlp states that such executables include GPLv3+ code and that the combined executable is GPLv3+.
@@ -17,7 +17,7 @@ That repository holds all of Beat Key's own code (the Swift app in `app/`, the P
 
 | Component | Version | Licence | Upstream / source |
 |---|---|---|---|
-| Beat Key (Swift app, `downloader.py`, `bpm.py`, `app_run.py`, `tempocnn_np.py`) | 0.1.16 | MIT for the source files (`LICENSE`); combined work AGPL-3.0 | https://github.com/thuhmadhatter42/beat_dl |
+| Beat Key (Swift app, `downloader.py`, `bpm.py`, `app_run.py`, `tempocnn_np.py`) | 0.1.16 | AGPL-3.0 (`LICENSE`) | https://github.com/thuhmadhatter42/beat_dl |
 | Essentia (audio analysis library, Python extension) | 2.1b6.dev1110, commit 77a6a954f9497278ac214467e8040d40cbecdc30, built by `tools/build-old-mac/essentia.sh` (no TensorFlow, no ffmpeg) | AGPL-3.0 | https://github.com/MTG/essentia , https://essentia.upf.edu |
 | TempoCNN model `deeptemp-k16-3` (`.pb` and its numpy conversion `.npz`) | as published by Essentia | CC BY-NC-SA 4.0 | https://essentia.upf.edu/models.html#tempocnn , https://github.com/hendriks73/tempo-cnn |
 | FFTW (linked statically into Essentia) | 3.3.10 | GPL-2.0-or-later | https://www.fftw.org , https://fftw.org/pub/fftw/fftw-3.3.10.tar.gz |

@@ -14,7 +14,7 @@ Beat Key is the same tool as a normal Mac app. No Terminal, nothing to install f
 4. Paste a YouTube link and press Return. The MP3 lands in your Downloads folder with the BPM and key in its name, for example `Some Beat (140.0 BPM Cm Eb Gm).mp3`.
 5. To read the BPM and key of a file you already have, drop the audio file onto the Beat Key window. The file isn't changed.
 
-If macOS asks whether Beat Key may access your Downloads folder, click **Allow**. Needs macOS 12 or newer, on Apple Silicon or Intel. yt-dlp updates itself; there is nothing to maintain. Beat Key is the free product on fourletterrecords.com (download behind a Four Letter Records account; the page is not live yet). Some videos need a YouTube sign-in: Beat Key is getting its own sign-in window (in progress, 0.1.13), so it never reads your browser's cookies or asks for Full Disk Access. If it can't, it says the video is age-restricted. Open-source licences for the bundled parts ship with the public release.
+If macOS asks whether Beat Key may access your Downloads folder, click **Allow**. Needs macOS 12 or newer, on Apple Silicon or Intel. yt-dlp updates itself; there is nothing to maintain. Beat Key is the free product on fourletterrecords.com (download behind a Four Letter Records account). Age-restricted videos ask you to log in to YouTube once, inside Beat Key's own window; it never reads your browser or asks for Full Disk Access. Licences for every bundled part are under Beat Key › Licenses and in `THIRD-PARTY-LICENSES.md`.
 
 The sections below are for the command-line version.
 
@@ -103,3 +103,7 @@ python3 downloader.py                  # interactive loop
 python3 downloader.py <url>            # single download
 bin/python/bin/python3 bpm.py <file>   # analyze a file
 ```
+
+## License
+
+GNU Affero General Public License v3.0 (AGPL-3.0); see `LICENSE`. Beat Key includes Essentia (AGPL-3.0), so the whole project uses the same licence. The bundled tempo model (TempoCNN) is CC BY-NC-SA 4.0, so Beat Key is free and may not be sold. Third-party licences: `THIRD-PARTY-LICENSES.md`.
