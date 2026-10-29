@@ -10,10 +10,10 @@
 - yt-dlp weekly self-update verified on Sofia (2026.08.19 → 2026.10.26, 18:42).
 - **Friends link (J's spin-off, close friends only): https://beatkey.jshriver.com** — email in, no confirmation, 303 to the GitHub DMG of the version in beat-key-latest.json. Code friends-page/ (c3ff709); live on Sofia ~/beatkey/ (serve.py port 8171, tunnel `beatkey` a362a727-085e-4b43-bea8-6c90ef205d05, LaunchAgents com.jshriver.beatkey-{server,tunnel}). Emails logged to Sofia ~/beatkey/downloads.jsonl. Tested end to end (200/400/303); page look not yet screenshotted.
 - Owed:
-  1. J: back up the Sparkle private key ~/.config/beat-key/sparkle_ed25519_private (lose it = no more auto-updates for installed copies).
+  1. [DONE 2026-10-29 05:15] Sparkle private key backed up to Sofia ~/.config/beat-key/sparkle_ed25519_private (600, sha256 matches MBP copy).
   2. FLR site session: new icon + "Source code and licences" link + "updates itself" line (handoff/TO-FLR-SITE-2026-10-28-beat-key-0.1.18.md); await handoff/FROM-FLR-SITE-*.md reply.
   3. Optional: add beatkey (8171) to ~/.claude/skills/jshriver-subdomain/references/players.md port table.
-  4. Question for J: dashboard item "Launchagent command?" (accepted 18:12) — unclear what he meant; ask.
+  4. [DROPPED 2026-10-29] "Launchagent command?" was a dashboard artifact, not J's ask.
 - Ledger: `.superpowers/sdd/2026-10-27-orion-v1/progress.md` (task-17 = Sparkle). UI checks run on Sofia, recorded frames, never J's MBP screen.
 - Standing: Sofia never restarted; ssh via ~/.claude/scripts/ssh-rc; trash not rm; no song names in code/logs.
 
