@@ -121,6 +121,8 @@ struct OrionApp: App {
                 LoginWindow.open(saving: login.file) { login.refresh() }
             }
         }
+        // The menu-bar readout ("Ebm 128" + lamp) follows the LCD from here on.
+        StatusItemController.shared.install(engine: engine, model: model)
         // Seed yt-dlp into Application Support, then the weekly self-update, on the shared
         // maintenance queue. The Engine stays idle; downloads and Run Doctor wait their turn.
         Runtime.appDefault().launchMaintenance()

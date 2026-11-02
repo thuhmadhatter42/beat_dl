@@ -136,7 +136,7 @@ struct WorkingReadout: View {
                 }
                 if stage == "analyzing" {
                     Spacer(minLength: 0)
-                    StateLamp(color: Theme.red, text: "ANALYZING", textColor: Theme.redText)
+                    StateLamp(lamp: .listening, text: "ANALYZING")
                 }
             }
             .accessibility(hidden: true)
@@ -335,11 +335,9 @@ struct ResultReadout: View {
     @ViewBuilder private var statusLine: some View {
         let conf = Faceplate.confidenceLine(result.keys)
         if conf != nil || options.tuning != nil {
-            let locked = KeyConfidence.of(result.keys) == .locked
             HStack(spacing: 16) {
-                if let c = conf {
-                    StateLamp(color: locked ? Theme.green : Theme.amber, text: c,
-                              textColor: locked ? Theme.greenText : Theme.amber(0.8))
+                if let c = conf, let lamp = Lamp.of(result.keys) {
+                    StateLamp(lamp: lamp, text: c)
                 }
                 if let t = options.tuning {
                     Text(t).font(Theme.face(9)).tracking(1.4).foregroundColor(Theme.amber(0.7)).lineLimit(1)
@@ -363,15 +361,14 @@ struct ResultReadout: View {
     }
 }
 
-/// A small lit lamp and a caption: green LOCKED, amber UNSURE, red ANALYZING.
+/// A small lit lamp and a caption: green LOCKED, amber UNSURE, red ANALYZING / LISTENING.
 struct StateLamp: View {
-    let color: Color
+    let lamp: Lamp
     let text: String
-    var textColor: Color? = nil
     var body: some View {
         HStack(spacing: 6) {
-            Circle().fill(color).frame(width: 6, height: 6).shadow(color: color.opacity(0.8), radius: 3)
-            Text(text).font(Theme.face(9)).tracking(1.4).foregroundColor(textColor ?? color).lineLimit(1)
+            Circle().fill(lamp.color).frame(width: 6, height: 6).shadow(color: lamp.color.opacity(0.8), radius: 3)
+            Text(text).font(Theme.face(9)).tracking(1.4).foregroundColor(lamp.textColor).lineLimit(1)
         }
     }
 }
