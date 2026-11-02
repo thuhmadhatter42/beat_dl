@@ -75,3 +75,10 @@ Mobile route (for contrast): Auto-Key Mobile -> Antares account/internet -> Anta
 - Undocumented, Antares can change the filename/format in any update (re-check on Auto-Tune version bumps; ship a Doctor line).
 - The path is under ~/Music: a sandboxed Beat Key would need the right entitlement; the app is not sandboxed today (verify in app/entitlements.plist).
 - Reference pitch is not applied by Auto-Tune from the file (per its tooltip); Beat Key's tuning offset would remain a manual Detune step.
+
+## 5. Checked while building (2026-11-01, plan 4.2 / 4.3)
+
+- **Pro Tools: PTSL has no tempo or key setter.** Every CommandId in the SDK 2026.04 `PTSL.proto` (0 to 165) was read: tempo/key appear only as track types, as `SessionDataImport.tempo_meter_map` / `key_signature_choed_map` (import from another session), and in time conversion. So the table's "sets tempo/key: yes" for Pro Tools was wrong; Beat Key gives Pro Tools the MIDI file plus the current session tempo read back with `CId_GetTimeAsType` (beat 1 in samples vs `CId_GetSessionSampleRate`). Analyze Selection uses `CId_ExportClipsAsFiles` (selected clips, WAV, temp folder). [doc: PTSL.proto]
+- **Ableton:** LOM `Song.tempo` (20-999), `Song.root_note` (0-11), `Song.scale_name` are get/set/observe; `Song.View.detail_clip`; `Clip.file_path` (audio clips only). [doc: docs.cycling74.com/apiref/lom/song, song_view, clip]
+- **REAPER:** Lua signatures for `SetCurrentBPM`, `Get/SetTempoTimeSigMarker`, `GetSelectedMediaItem`, `GetActiveTake`, `TakeIsMIDI`, `GetMediaItemTake_Source`, `GetMediaSourceParent`, `GetMediaSourceFileName`, `Master_GetTempo`, `reaper.defer` read from reascripthelp.html. `__startup.lua` auto-run is not in the official ReaScript pages, so Beat Key asks the person to run the listener from the Action list. [doc]
+- **Bitwig:** `host.addDatagramPacketObserver(name, port, fn)`, `host.sendDatagramPacket(host, port, bytes)`, `transport.tempo().value().setRaw(bpm)` confirmed from API stubs and working public scripts (no official page reachable). [code: github justlep/bitwig api stubs, remymazmanian/bitwig-control-deck]
