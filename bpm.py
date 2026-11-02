@@ -13,7 +13,11 @@ Fallback without essentia-tensorflow: librosa (tempo on the loudest 60 s; HPSS +
 chroma + edma profiles for key). Warnings go to stderr only; stdout is the 4-line contract.
 Also reads MIDI files (midi_analyze.py). After the 4 lines it prints "bpm_exact: <0.01 BPM>" and,
 when the key is confident, "tuning_cents: <cents vs A=440>".
+Live listening: `bpm.py --stream` reads raw float32 mono PCM on stdin and prints one JSON
+reading per line (LiveAnalyzer, stream_main); the app pipes the mic / system audio in, nothing
+is saved.
 Usage: python3 bpm.py <filepath>
+       python3 bpm.py --stream [--rate 44100] [--hop 2] [--gap 3]
        python3 bpm.py          (prompts for a path)
 """
 
@@ -243,8 +247,13 @@ def hpcp_to_pcp12(avg):
 
 
 def detect_keys_essentia(audio_44k, peaks_out=None):
+    return keys_from_hpcp(hpcp_frames(audio_44k, peaks_out))
+
+
+def keys_from_hpcp(H):
+    """Top-3 keys with confidence from HPCP frames (n, 36): the whole-track key plus agreement of
+    its 10 s windows. Shared by files (detect_keys_essentia) and live listening (LiveAnalyzer)."""
     import numpy as np
-    H = hpcp_frames(audio_44k, peaks_out)
     if len(H) == 0 or H.max() == 0:
         return [('C', 0.0), ('Am', 0.0), ('G', 0.0)]
     scores = key_scores(hpcp_to_pcp12(H.mean(axis=0)), BGATE)
@@ -355,6 +364,190 @@ def detect_keys_librosa(y, sr):
     return [(fmt_key(*ranked[i][0]), round(100 * float(p[i]), 1)) for i in range(3)]
 
 
+# ---------------------------------------------------------------- live listening (--stream)
+
+STREAM_CHUNK_SECS = 0.5      # stdin is read, level-checked and HPCP'd in pieces this long
+STREAM_MIN_KEY_SECS = 4.0    # a key reading needs this much non-silent audio
+STREAM_TEMPO_SECS = 12.0     # TempoCNN's patch is 256 frames at 11025 Hz / hop 512 = 11.9 s
+
+
+class LiveAnalyzer:
+    """Key + BPM of a live signal (Beat Key's Listen). Mono float32 audio arrives in chunks
+    (`push`); nothing is written anywhere. Keeps the last `window` s for TempoCNN and the last
+    `key_window` s of HPCP frames for the key, so a reading costs one 12 s TempoCNN pass, never a
+    re-read of everything heard. A silence of `gap` s or more is a new song: everything is dropped
+    and a "reset" event says so ("start over after a gap").
+    Events are dicts, printed as one JSON line each:
+      {"event": "reading", "bpm": "128.0" | null, "bpm_exact": 128.02 | null,
+       "keys": [["Ebm", 82], ...], "secs": <s of audio behind it>}
+      {"event": "reset"}"""
+
+    def __init__(self, rate=None, window=STREAM_TEMPO_SECS, hop=2.0, gap=3.0, key_window=30.0,
+                 silence_db=-50.0):
+        import numpy as np
+        self.np = np
+        self.rate = rate or KEY_SR
+        self.window, self.hop, self.gap = max(window, STREAM_TEMPO_SECS), hop, gap
+        self.key_window, self.silence_db = key_window, silence_db
+        self._resample = None
+        if self.rate != KEY_SR:
+            import essentia.standard as es
+            self._resample = es.Resample(inputSampleRate=self.rate, outputSampleRate=KEY_SR)
+        self.clear()
+
+    def clear(self):
+        np = self.np
+        self.audio = np.zeros(0, np.float32)     # last `window` s at 44.1 kHz (tempo)
+        self.carry = np.zeros(0, np.float32)     # samples not yet framed for HPCP
+        self.frames = []                         # HPCP frames, last `key_window` s
+        self.heard = 0.0                         # s of non-silent audio since the last reset
+        self.silent_run = 0.0
+        self.since_reading = 0.0
+
+    @staticmethod
+    def level_db(x):
+        import numpy as np
+        if len(x) == 0:
+            return -120.0
+        rms = float(np.sqrt(np.mean(np.square(x, dtype=np.float64))))
+        return 20 * float(np.log10(max(rms, 1e-6)))
+
+    def push(self, chunk):
+        """Feed mono float32 at `rate`. Returns the events it causes: a reading every `hop` s of
+        audio, and one last reading before a reset, so a song's final word is never lost."""
+        np = self.np
+        x = np.asarray(chunk, dtype=np.float32)
+        if self._resample is not None and len(x):
+            x = self._resample(x)
+        secs = len(x) / KEY_SR
+        events = []
+        if self.level_db(x) < self.silence_db:
+            self.silent_run += secs
+            if self.silent_run >= self.gap and self.heard > 0:
+                if self.since_reading > 0:
+                    r = self.reading()
+                    if r:
+                        events.append(r)
+                self.clear()
+                events.append({"event": "reset"})
+            return events
+        self.silent_run = 0.0
+        self.heard += secs
+        self.since_reading += secs
+        keep = int(self.window * KEY_SR)
+        self.audio = np.concatenate([self.audio, x])[-keep:]
+        buf = np.concatenate([self.carry, x])
+        n = (len(buf) // FRAME) * FRAME
+        if n:
+            self.frames.extend(hpcp_frames(buf[:n]))
+            limit = max(1, int(self.key_window * KEY_SR / HOP))
+            del self.frames[:-limit]
+        self.carry = buf[n:]
+        if self.since_reading >= self.hop:
+            r = self.reading()
+            if r:
+                events.append(r)
+        return events
+
+    def reading(self):
+        """The reading for what is buffered now, or None while there is too little to say."""
+        np = self.np
+        if self.heard < STREAM_MIN_KEY_SECS or not self.frames:
+            return None
+        self.since_reading = 0.0
+        keys = keys_from_hpcp(np.array(self.frames))
+        out = {"event": "reading", "bpm": None, "bpm_exact": None,
+               "keys": [[k, int(round(p))] for k, p in keys], "secs": round(self.heard, 1)}
+        if len(self.audio) >= int(STREAM_TEMPO_SECS * KEY_SR):
+            import essentia.standard as es
+            a11 = es.Resample(inputSampleRate=KEY_SR, outputSampleRate=TEMPOCNN_SR)(self.audio)
+            bpm = detect_bpm_essentia(a11)
+            out["bpm"] = str(bpm)
+            try:
+                out["bpm_exact"] = refine_bpm(a11, bpm)
+            except Exception as exc:               # the whole number stands
+                _warn(f"decimal BPM skipped: {exc}")
+        return out
+
+    def finish(self):
+        """End of input: the last reading, if audio came in since the previous one."""
+        if self.since_reading > 0:
+            r = self.reading()
+            return [r] if r else []
+        return []
+
+
+def stream_main(argv, inp=None, out=None):
+    """`bpm.py --stream [--rate 44100] [--hop 2] [--gap 3] [--window 12] [--key-window 30]
+    [--silence-db -50]`: raw little-endian float32 mono PCM on stdin, one JSON event per line on
+    stdout ("ready" first). A reader thread drains stdin into a queue so the app's writes never
+    block while a reading is computed. When readings fall behind, all queued audio is still fed
+    (level and HPCP are cheap) but only the newest reading of the backlog is printed. Ends at EOF."""
+    import argparse
+    import json
+    import queue
+    import threading
+    import numpy as np
+    ap = argparse.ArgumentParser(prog="bpm.py --stream")
+    ap.add_argument("--rate", type=int, default=KEY_SR)
+    ap.add_argument("--hop", type=float, default=2.0)
+    ap.add_argument("--gap", type=float, default=3.0)
+    ap.add_argument("--window", type=float, default=STREAM_TEMPO_SECS)
+    ap.add_argument("--key-window", type=float, default=30.0)
+    ap.add_argument("--silence-db", type=float, default=-50.0)
+    a = ap.parse_args(argv)
+    inp = inp or sys.stdin.buffer
+    out = out or sys.stdout
+
+    def emit(ev):
+        out.write(json.dumps(ev) + "\n")
+        out.flush()
+
+    if not _have_essentia() or not _tempocnn_model_present():
+        emit({"event": "error", "message": "The analyzer is incomplete. Run Doctor."})
+        return 2
+    live = LiveAnalyzer(rate=a.rate, window=a.window, hop=a.hop, gap=a.gap,
+                        key_window=a.key_window, silence_db=a.silence_db)
+    chunk_bytes = max(1, int(a.rate * STREAM_CHUNK_SECS)) * 4
+    q = queue.Queue()
+
+    def reader():
+        rest = b""
+        while True:
+            data = inp.read(chunk_bytes)
+            if not data:
+                break
+            data = rest + data
+            n = len(data) // 4 * 4
+            rest = data[n:]
+            if n:
+                q.put(np.frombuffer(data[:n], dtype="<f4"))
+        q.put(None)
+
+    threading.Thread(target=reader, daemon=True).start()
+    emit({"event": "ready"})
+    done = False
+    while not done:
+        chunk = q.get()
+        if chunk is None:
+            break
+        evs = live.push(chunk)
+        while not q.empty():                       # behind: drop all but the newest reading
+            nxt = q.get()
+            if nxt is None:
+                done = True
+                break
+            more = live.push(nxt)
+            if any(e["event"] == "reading" for e in more) and not any(e["event"] == "reset" for e in more):
+                evs = [e for e in evs if e["event"] != "reading"]
+            evs += more
+        for e in evs:
+            emit(e)
+    for e in live.finish():
+        emit(e)
+    return 0
+
+
 # ---------------------------------------------------------------- entry
 
 def _tempocnn_model_present():
@@ -407,6 +600,9 @@ def analyze(filepath):
 def main():
     if not check_deps():
         sys.exit(1)
+
+    if len(sys.argv) > 1 and sys.argv[1] == "--stream":
+        sys.exit(stream_main(sys.argv[2:]))
 
     if len(sys.argv) > 1:
         path = Path(sys.argv[1])

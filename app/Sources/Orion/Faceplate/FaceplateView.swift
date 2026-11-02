@@ -8,6 +8,8 @@ struct FaceplateView: View {
     @ObservedObject var model: FaceplateModel
     @ObservedObject var login: YouTubeSession
     @ObservedObject var tuning: TuningSettings
+    @ObservedObject var live: LiveController
+    @ObservedObject var display: DisplaySettings
     @State private var keyMonitor: Any?
 
     var body: some View {
@@ -27,6 +29,8 @@ struct FaceplateView: View {
         .background(Theme.desk.edgesIgnoringSafeArea(.all))
         .onDrop(of: ["public.file-url"], isTargeted: dropBinding, perform: drop)
         .onReceive(engine.$state) { s in
+            // a download, an analysis, Run Doctor or a recent reading takes the LCD back from Listen
+            if s != .idle && live.state != .off { live.stop() }
             switch s {
             case .done: model.url = ""; model.tempoFactor = .one
             case .analyzed(let rs): model.pager.reset(count: rs.count); model.picked = []; model.tempoFactor = .one
@@ -61,6 +65,7 @@ struct FaceplateView: View {
             LCD(readout: readout, highlighted: showDrop) { step in
                 if step < 0 { model.pager.previous() } else { model.pager.next() }
             }
+            .id(display.highContrast)   // Theme.highContrast is read while drawing: redraw the readout
             HStack(spacing: 12) {
                 LinkField(text: $model.url, focused: $model.fieldFocused, onSubmit: download)
                 if loginPrompt != nil, let cap = Faceplate.loginCap(busy: engine.state.isBusy) {
@@ -115,6 +120,10 @@ struct FaceplateView: View {
 
     private var readout: Readout {
         if showDrop { return .drop }
+        if let l = Faceplate.liveReadout(live.state, source: live.sourceName, factor: model.tempoFactor,
+                                         onCycleTempo: { model.tempoFactor = model.tempoFactor.next }) {
+            return l
+        }
         let dl = model.lastAction == .download
         switch engine.state {
         case .idle: return .idle

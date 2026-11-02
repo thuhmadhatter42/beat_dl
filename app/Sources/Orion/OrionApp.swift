@@ -10,6 +10,11 @@ struct OrionApp: App {
     @StateObject private var updater: AppUpdater
     @StateObject private var tuning = TuningSettings()
     @StateObject private var recents: RecentStore
+    @StateObject private var shortcuts = ShortcutStore()
+    @StateObject private var loginItem = LoginItemSettings()
+    @StateObject private var display = DisplaySettings()
+    @StateObject private var live = LiveController(settings: LiveSettings(),
+                                                   launch: LiveProcess.launcher(runtime: .appDefault()))
 
     init() {
         let session = YouTubeSession()
@@ -27,7 +32,7 @@ struct OrionApp: App {
 
     var body: some Scene {
         WindowGroup {
-            FaceplateView(engine: engine, model: model, login: login, tuning: tuning)
+            FaceplateView(engine: engine, model: model, login: login, tuning: tuning, live: live, display: display)
                 .background(WindowConfigurator())
                 .onAppear(perform: launch)
         }
@@ -36,7 +41,7 @@ struct OrionApp: App {
             // one window: no File > New; the File menu is for reading files instead
             CommandGroup(replacing: .newItem) {
                 Button("Analyze a File…") { Intake.analyzeAFile() }
-                    .keyboardShortcut("f", modifiers: [.control, .option, .command])
+                    .optionalShortcut(shortcuts.shortcut(.analyzeFile)?.menuShortcut)
                     .disabled(engine.state.isBusy)
                 Menu("Recent Readings") {
                     ForEach(Array(recents.readings.enumerated()), id: \.offset) { _, r in
@@ -49,6 +54,10 @@ struct OrionApp: App {
                 ExportMidiMenuItem(engine: engine)
             }
             CommandMenu("Reading") {
+                Button(live.state.isActive ? "Stop Listening" : "Start Listening") { toggleListening() }   // the computed closure, run now
+                    .optionalShortcut(shortcuts.shortcut(.listen)?.menuShortcut)
+                    .disabled(engine.state.isBusy && !live.state.isActive)
+                Divider()
                 Menu("Reference Pitch") {
                     ForEach(Tuning.presets, id: \.self) { hz in
                         Toggle("A = \(Tuning.refText(hz)) Hz", isOn: referenceBinding(hz))
@@ -61,6 +70,10 @@ struct OrionApp: App {
                 }
                 SendToAutoTuneMenuItem(engine: engine, tuning: tuning)
                 Button("Half / Double Tempo") { model.tempoFactor = model.tempoFactor.next }
+            }
+            // View menu: the readout's accessibility switch (plan 5.1)
+            CommandGroup(before: .toolbar) {
+                Toggle("High Contrast Readout", isOn: $display.highContrast)
             }
             // The app menu says Beat Key whatever the process is called (swift run = "Orion").
             CommandGroup(replacing: .appInfo) {
@@ -85,6 +98,23 @@ struct OrionApp: App {
                 Button(Brand.quit) { NSApp.terminate(nil) }.keyboardShortcut("q")
             }
         }
+        Settings {
+            SettingsView(shortcuts: shortcuts, loginItem: loginItem, live: live.settings, display: display)
+        }
+    }
+
+    /// Reading › Start / Stop Listening, the global shortcut and the menu-bar item. Not while a
+    /// download or an analysis is running (the LCD belongs to it).
+    private static func toggleListening(live: LiveController, engine: Engine, model: FaceplateModel) {
+        if !live.state.isActive && engine.state.isBusy { NSSound.beep(); return }
+        model.tempoFactor = .one
+        live.toggle()
+    }
+
+    /// The objects themselves, captured (not the App struct's wrappers), for callers outside a view update.
+    private var toggleListening: () -> Void {
+        let (l, e, m) = (live, engine, model)
+        return { OrionApp.toggleListening(live: l, engine: e, model: m) }
     }
 
     /// A checkmark row that sets the reference pitch to `hz`.
@@ -123,6 +153,16 @@ struct OrionApp: App {
                 LoginWindow.open(saving: login.file) { login.refresh() }
             }
         }
+        // The menu-bar readout ("Ebm 128" + lamp) follows the LCD from here on.
+        StatusItemController.shared.install(engine: engine, model: model, live: live,
+                                            toggleListening: toggleListening)
+        // Global shortcuts (Settings › Global shortcuts), live in every app.
+        HotkeyCenter.shared.actions[.listen] = toggleListening
+        HotkeyCenter.shared.actions[.analyzeFile] = {
+            StatusItemController.bringWindowForward()
+            Intake.analyzeAFile()
+        }
+        HotkeyCenter.shared.apply(shortcuts)
         // Seed yt-dlp into Application Support, then the weekly self-update, on the shared
         // maintenance queue. The Engine stays idle; downloads and Run Doctor wait their turn.
         Runtime.appDefault().launchMaintenance()

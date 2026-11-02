@@ -7,10 +7,13 @@ enum Readout {
     case drop
     case working(stage: String, download: Bool)
     case result(Result, page: String?, download: Bool, note: String? = nil, options: ResultOptions = ResultOptions())
-    case error(String, download: Bool)
+    /// hint = the line under the error; nil = Run Doctor (or the link) as always.
+    case error(String, download: Bool, hint: String? = nil)
     case doctor(DoctorReport)
     /// Amber next step, not a failure: (first line, second line).
     case login(String, String, caption: String?)
+    /// Live listening with nothing to say yet: the red lamp and its caption.
+    case listening(status: String)
 }
 
 /// How a result is dressed beyond the analyzer's numbers: the tempo factor the BPM click chose,
@@ -19,6 +22,9 @@ struct ResultOptions {
     var factor: TempoFactor = .one
     var tuning: String? = nil
     var onCycleTempo: (() -> Void)? = nil
+    /// Live listening: the lamp and caption it chose (instead of the key's own confidence), and
+    /// the source in place of the file line (no Show in Finder: there is no file).
+    var live: (lamp: Lamp, status: String, source: String)? = nil
 }
 
 /// The amber LCD: Artemis's `.lcd-hero` grown into the whole face.
@@ -37,11 +43,12 @@ struct LCD: View {
                 .padding(.horizontal, 20)
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
             // the glass
-            Theme.vertical([(Color.white.opacity(0.07), 0), (Color.white.opacity(0), 0.45)])
+            Theme.vertical([(Color.white.opacity(Theme.highContrast ? 0 : 0.07), 0), (Color.white.opacity(0), 0.45)])
                 .allowsHitTesting(false)
         }
         .frame(height: 170)
-        .background(Theme.vertical([(Theme.hex(0x0a0c09), 0), (Theme.hex(0x050604), 1)]))
+        .background(Theme.highContrast ? Theme.vertical([(Theme.black, 0), (Theme.black, 1)])
+                                       : Theme.vertical([(Theme.hex(0x0a0c09), 0), (Theme.hex(0x050604), 1)]))
         .clipShape(shape)
         .innerShadow(shape, Color.black.opacity(0.95), blur: 6, y: 2)
         .innerShadow(shape, Color.white.opacity(0.03), blur: 0, y: -1)
@@ -64,9 +71,10 @@ struct LCD: View {
         case .drop: DropReadout()
         case let .working(stage, download): WorkingReadout(stage: stage, download: download)
         case let .result(r, page, _, note, o): ResultReadout(result: r, page: page, note: note, options: o, onPage: onPage)
-        case let .error(m, download): ErrorReadout(message: m, download: download)
+        case let .error(m, download, hint): ErrorReadout(message: m, download: download, hint: hint)
         case let .doctor(r): DoctorReadout(report: r)
         case let .login(a, b, c): LoginReadout(first: a, second: b, caption: c)
+        case let .listening(status): ListeningReadout(status: status)
         }
     }
 }
@@ -136,7 +144,7 @@ struct WorkingReadout: View {
                 }
                 if stage == "analyzing" {
                     Spacer(minLength: 0)
-                    StateLamp(color: Theme.red, text: "ANALYZING", textColor: Theme.redText)
+                    StateLamp(lamp: .listening, text: "ANALYZING")
                 }
             }
             .accessibility(hidden: true)
@@ -146,6 +154,25 @@ struct WorkingReadout: View {
     private var stepLights: [(String, Faceplate.Step)] {
         if Faceplate.isDoctorStage(stage) { return Faceplate.doctorSteps(stage) }
         return download ? Faceplate.steps(stage) : [("ANALYZE", .on)]
+    }
+}
+
+/// Live listening before the first reading (and again after a gap): the empty readout, the
+/// running bar, the red lamp.
+struct ListeningReadout: View {
+    let status: String
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            Text("LISTENING").font(Theme.face(18)).tracking(0.9)
+                .foregroundColor(Theme.amber).amberGlow()
+            RunningBar().padding(.top, 14)
+            Spacer(minLength: 0)
+            Text.cap("PLAY SOMETHING · KEY IN A FEW SECONDS, BPM IN 12").padding(.bottom, 8)
+            StateLamp(lamp: .listening, text: status)
+        }
+        .accessibilityElement(children: .ignore)
+        .accessibility(label: Text("Listening. \(status.lowercased())"))
     }
 }
 
@@ -280,22 +307,13 @@ struct ResultReadout: View {
                 }
                 statusLine.padding(.bottom, 6)
                 HStack(spacing: 14) {
-                    Text(Faceplate.fileLine(result)).font(Theme.face(10)).tracking(1.2)
+                    Text(options.live.map { "LIVE · \($0.source.uppercased())" } ?? Faceplate.fileLine(result))
+                        .font(Theme.face(10)).tracking(1.2)
                         .foregroundColor(Theme.amber(0.6))
                         .lineLimit(1).truncationMode(.tail)
                         .frame(maxWidth: .infinity, alignment: .leading)
-                        .accessibility(label: Text(result.name))
-                    Button(action: {
-                        NSWorkspace.shared.activateFileViewerSelecting([result.file])
-                    }) {
-                        Text("SHOW IN FINDER ›").font(Theme.face(9)).tracking(1.8)
-                            .foregroundColor(Theme.amber)
-                            .shadow(color: Theme.amberGlow, radius: 2.5)
-                            .fixedSize()
-                    }
-                    .buttonStyle(PlainButtonStyle())
-                    .pointingHand()
-                    .accessibility(label: Text("Show in Finder"))
+                        .accessibility(label: Text(options.live.map { "Live, \($0.source)" } ?? result.name))
+                    if options.live == nil { finderButton }
                 }
             }
             HStack(spacing: 7) {
@@ -316,6 +334,20 @@ struct ResultReadout: View {
         }
     }
 
+    private var finderButton: some View {
+                    Button(action: {
+                        NSWorkspace.shared.activateFileViewerSelecting([result.file])
+                    }) {
+                        Text("SHOW IN FINDER ›").font(Theme.face(9)).tracking(1.8)
+                            .foregroundColor(Theme.amber)
+                            .shadow(color: Theme.amberGlow, radius: 2.5)
+                            .fixedSize()
+                    }
+                    .buttonStyle(PlainButtonStyle())
+                    .pointingHand()
+                    .accessibility(label: Text("Show in Finder"))
+    }
+
     /// The big BPM. A click cycles x1 / x2 / x0.5 when there is a BPM to cycle.
     @ViewBuilder private var bpmNumber: some View {
         let text = Text(bpmShown ?? "---.-").font(Theme.face(68).monospacedDigit()).tracking(68 * 0.02)
@@ -333,13 +365,11 @@ struct ResultReadout: View {
 
     /// Confidence lamp (locked / unsure) and the tuning, one line above the file line.
     @ViewBuilder private var statusLine: some View {
-        let conf = Faceplate.confidenceLine(result.keys)
+        let conf = options.live?.status ?? Faceplate.confidenceLine(result.keys)
         if conf != nil || options.tuning != nil {
-            let locked = KeyConfidence.of(result.keys) == .locked
             HStack(spacing: 16) {
-                if let c = conf {
-                    StateLamp(color: locked ? Theme.green : Theme.amber, text: c,
-                              textColor: locked ? Theme.greenText : Theme.amber(0.8))
+                if let c = conf, let lamp = options.live?.lamp ?? Lamp.of(result.keys) {
+                    StateLamp(lamp: lamp, text: c)
                 }
                 if let t = options.tuning {
                     Text(t).font(Theme.face(9)).tracking(1.4).foregroundColor(Theme.amber(0.7)).lineLimit(1)
@@ -363,15 +393,16 @@ struct ResultReadout: View {
     }
 }
 
-/// A small lit lamp and a caption: green LOCKED, amber UNSURE, red ANALYZING.
+/// A small lit lamp and a caption: green LOCKED, amber UNSURE, red ANALYZING / LISTENING.
 struct StateLamp: View {
-    let color: Color
+    let lamp: Lamp
     let text: String
-    var textColor: Color? = nil
     var body: some View {
         HStack(spacing: 6) {
-            Circle().fill(color).frame(width: 6, height: 6).shadow(color: color.opacity(0.8), radius: 3)
-            Text(text).font(Theme.face(9)).tracking(1.4).foregroundColor(textColor ?? color).lineLimit(1)
+            // the shape says the state without the colour (octagon / triangle / circle)
+            LampShape(lamp: lamp).fill(lamp.color).frame(width: 8, height: 8)
+                .shadow(color: Theme.highContrast ? .clear : lamp.color.opacity(0.8), radius: 3)
+            Text(text).font(Theme.face(9)).tracking(1.4).foregroundColor(lamp.textColor).lineLimit(1)
         }
     }
 }
@@ -453,6 +484,7 @@ struct TempoLight: View {
 struct ErrorReadout: View {
     let message: String
     let download: Bool
+    var hint: String? = nil
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -463,7 +495,7 @@ struct ErrorReadout: View {
                 .lineLimit(4)
                 .fixedSize(horizontal: false, vertical: true)
                 .accessibility(label: Text(message))
-            Text(Faceplate.failureHint(download: download))
+            Text(hint ?? Faceplate.failureHint(download: download))
                 .font(Theme.face(9)).tracking(9 * 0.24)
                 .foregroundColor(Theme.rgb(255, 106, 92, 0.6))
                 .lineLimit(1)

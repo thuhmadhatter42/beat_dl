@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <!-- Beat Key.app's own executable only (build.sh "sign app"). The runtime's binaries keep the
+         empty app/entitlements.plist: the Python analyzer never touches an audio device, it reads
+         samples on stdin.
+         audio-input: hardened runtime blocks microphone / input-device capture without it (Listen,
+         plan 3.2); macOS still asks the user, with NSMicrophoneUsageDescription.
+         System audio (ScreenCaptureKit, plan 3.1) needs no entitlement, only the Screen (& System
+         Audio) Recording permission the user grants. -->
+    <key>com.apple.security.device.audio-input</key>
+    <true/>
+</dict>
+</plist>

@@ -98,9 +98,12 @@ otool -l "$OUTAPP/Contents/MacOS/Orion" | grep -q '@executable_path/../Framework
 # ---- END sparkle ----
 
 echo "== sign app"
-codesign --force --options runtime --timestamp --entitlements "$APP/entitlements.plist" \
+codesign --force --options runtime --timestamp --entitlements "$APP/entitlements-app.plist" \
   --sign "$IDENTITY" "$OUTAPP"
 codesign --verify --deep --strict --verbose=2 "$OUTAPP"
+# Listen needs the microphone entitlement on the app (hardened runtime)
+codesign -d --entitlements - "$OUTAPP" 2>/dev/null | grep -q com.apple.security.device.audio-input \
+  || { echo "Beat Key has no audio-input entitlement (Listen would be refused)"; exit 1; }
 # the yt-dlp entitlements survived (the app sign must not have re-signed nested code)
 for a in arm64 x86_64; do
   ents="$(codesign -d --entitlements - "$OUTAPP/Contents/Resources/runtime/$a/bin/yt-dlp" 2>/dev/null)"
