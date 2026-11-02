@@ -230,6 +230,10 @@ final class StatusItemController: NSObject, NSMenuDelegate {
             else { NSSound.beep(); return false }
             return true
         }
+        a.sendWavesTune = {
+            guard let key = shown()?.keys.first?.0, WavesTuneSend.write(key: key) else { NSSound.beep(); return false }
+            return true
+        }
         a.exportMidi = { [weak self] in
             guard let r = shown() else { NSSound.beep(); return }
             self?.closePopover()

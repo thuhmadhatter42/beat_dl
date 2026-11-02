@@ -21,6 +21,7 @@ struct PocketActions {
     var sendDAW: () -> Void = {}
     /// False = the key could not be written (a beep, and the cap says so).
     var sendAutoTune: () -> Bool = { true }
+    var sendWavesTune: () -> Bool = { true }
     var exportMidi: () -> Void = {}
     var showRecents: () -> Void = {}
     var openWindow: () -> Void = {}
@@ -42,6 +43,7 @@ struct PocketView: View {
     var actions = PocketActions()
     @State private var fieldFocused = false
     @State private var flash: String?
+    @State private var wavesFlash: String?
 
     var body: some View {
         VStack(spacing: 10) {
@@ -130,6 +132,13 @@ struct PocketView: View {
                         flash = ok ? "SENT TO AUTO-TUNE ✓" : "AUTO-TUNE: NO KEY"
                         DispatchQueue.main.asyncAfter(deadline: .now() + 1.6) { flash = nil }
                     }
+                    actionCap(wavesFlash ?? "SEND TO WAVES TUNE", ready: state.canAutoTune, label: "Send key to Waves Tune") {
+                        let ok = actions.sendWavesTune()
+                        wavesFlash = ok ? "LOAD PRESET “BEAT KEY”" : "WAVES TUNE: NO KEY"
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 2.4) { wavesFlash = nil }
+                    }
+                }
+                HStack(spacing: 10) {
                     actionCap("EXPORT MIDI", ready: state.canSend, label: "Export MIDI tempo and key file",
                               action: actions.exportMidi)
                 }
