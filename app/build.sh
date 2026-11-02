@@ -93,7 +93,9 @@ codesign --force --options runtime --timestamp --sign "$IDENTITY" "$SPK/Versions
 codesign --force --options runtime --timestamp --sign "$IDENTITY" "$SPK/Versions/B/Updater.app"
 codesign --force --options runtime --timestamp --sign "$IDENTITY" "$SPK"
 codesign --verify --deep --strict "$SPK"
-otool -l "$OUTAPP/Contents/MacOS/Orion" | grep -q '@executable_path/../Frameworks' \
+# capture first: grep -q exits early, otool gets SIGPIPE, and pipefail fails the check
+RPATHS="$(otool -l "$OUTAPP/Contents/MacOS/Orion")"
+grep -q '@executable_path/../Frameworks' <<<"$RPATHS" \
   || { echo "Orion has no @executable_path/../Frameworks rpath"; exit 1; }
 # ---- END sparkle ----
 
