@@ -15,7 +15,8 @@ Also reads MIDI files (midi_analyze.py). After the 4 lines it prints "bpm_exact:
 when the key is confident, "tuning_cents: <cents vs A=440>".
 Live listening: `bpm.py --stream` reads raw float32 mono PCM on stdin and prints one JSON
 reading per line (LiveAnalyzer, stream_main); the app pipes the mic / system audio in, nothing
-is saved.
+is saved. A new song with no pause between is found by BoundaryDetector ({"event":"boundary"});
+SIGUSR1 from the app (the player's title changed) forces one.
 Usage: python3 bpm.py <filepath>
        python3 bpm.py --stream [--rate 44100] [--hop 2] [--gap 3]
        python3 bpm.py          (prompts for a path)
@@ -371,21 +372,198 @@ STREAM_MIN_KEY_SECS = 4.0    # a key reading needs this much non-silent audio
 STREAM_TEMPO_SECS = 12.0     # TempoCNN's patch is 256 frames at 11025 Hz / hop 512 = 11.9 s
 
 
+class BoundaryDetector:
+    """New song without a pause (J, 2026-11-01: beats back to back with no gap; the level at a
+    track change dips no lower than quiet passages inside songs, so level says nothing).
+    A boundary needs a DISCONTINUITY, not just change. Every `tick` s it compares the last
+    `cur_secs` of audio with the `ref_secs` before them:
+      disappeared (0..1): share of the reference's SUSTAINED tonal peaks (per 10.8 Hz bin, 80 Hz -
+          4 kHz: its 30th-percentile level stands 6+ dB above the neighbouring bins) that are gone
+          now: no longer a peak and not louder (so not merely masked by drums). An intro -> drop
+          only ADDS (drums, 808 over strings that keep going): nothing disappears. A new song takes
+          the old one's notes and sounds away.
+      grid: the reference's pulse (the tempo whose phase is most coherent in the onset envelope)
+          either continues ("same") or breaks: "phase" (it slipped by more than `phase_tol` of a
+          beat) or "tempo" (the current audio pulses elsewhere). None when either side has no clear
+          pulse (a string intro, a breakdown).
+      harmonic (0..2): 1 - correlation of the two windows' chroma.
+    Candidate = disappeared >= `disappear` AND (the grid broke and harmonic >= `harm_grid`, or
+    there is no grid to judge and harmonic >= `harm`). Evidence builds `tick` s per candidate tick
+    and drains `leak` times as fast on the others; a boundary is declared at `sustain` s. While it
+    builds, the reference is frozen at the moment it began.
+    Tuned 2026-11-01 on real back-to-back type beats (7 songs, 12 boundaries: 12 caught, 0 false,
+    median 4.4 s late); on the held-out 7 songs it caught 5 of 12 with 1 false (inside a rubato
+    piano ballad) and never split an intro -> drop (7 such songs). Precision first: a missed change
+    with the same key and tempo costs nothing, a false one throws a good reading away. The player
+    title watcher (app) is the sure signal; this is the fallback.
+    Pure numpy, ~1 % of one core; nothing is written anywhere."""
+
+    N_FFT, FHOP = 4096, 1024        # 93 ms frames, 23 ms hop at 44.1 kHz
+    BPM_LO, BPM_HI, BPM_STEP = 70.0, 180.0, 0.25
+
+    def __init__(self, ref_secs=8.0, cur_secs=3.0, tick=0.5, sustain=3.0, disappear=0.35,
+                 harm=0.6, harm_grid=0.3, phase_tol=0.15, grid_min=0.3, leak=2.0):
+        import numpy as np
+        self.leak = leak
+        self.np = np
+        self.ref_secs, self.cur_secs, self.tick, self.sustain = ref_secs, cur_secs, tick, sustain
+        self.disappear, self.harm, self.harm_grid = disappear, harm, harm_grid
+        self.phase_tol, self.grid_min = phase_tol, grid_min
+        self.fps = KEY_SR / self.FHOP
+        freqs = np.fft.rfftfreq(self.N_FFT, 1.0 / KEY_SR)
+        self.flux_bins = freqs <= 8000
+        self.spec_bins = (freqs >= 80) & (freqs <= 4000)
+        f = freqs[self.spec_bins]
+        self.tonal = (f >= 110) & (f <= 3500)                       # chroma range
+        self.pc = (np.round(12 * np.log2(f[self.tonal] / 440.0)).astype(int) + 9) % 12   # C = 0
+        self.win = np.hanning(self.N_FFT).astype(np.float32)
+        self.bpms = np.arange(self.BPM_LO, self.BPM_HI + 1e-9, self.BPM_STEP)
+        self._f = self.bpms / 60.0 / self.fps                  # cycles per frame
+        self._base = None
+        self.reset()
+
+    def reset(self):
+        np = self.np
+        self.tail = np.zeros(0, np.float32)
+        self.spec = []           # per frame: dB spectrum, 80 Hz - 4 kHz
+        self.flux = []           # per frame: onset strength
+        self.frame_i = 0         # frames since reset (absolute time for the beat phase)
+        self.prev = None
+        self.since_tick = 0.0
+        self.held = 0.0
+        self.frozen = None       # the reference while a boundary is being confirmed
+        self.last = None         # the last tick's scores
+
+    def _frames(self, x):
+        np = self.np
+        buf = np.concatenate([self.tail, x])
+        n = 0 if len(buf) < self.N_FFT else 1 + (len(buf) - self.N_FFT) // self.FHOP
+        if n == 0:
+            self.tail = buf
+            return
+        idx = np.arange(self.N_FFT)[None, :] + self.FHOP * np.arange(n)[:, None]
+        mag = np.abs(np.fft.rfft(buf[idx] * self.win, axis=1))
+        self.tail = buf[n * self.FHOP:]
+        self.spec.extend(20 * np.log10(mag[:, self.spec_bins] + 1e-5))
+        logm = np.log1p(100.0 * mag[:, self.flux_bins])
+        prev = self.prev if self.prev is not None else logm[0]
+        d = np.diff(np.vstack([prev[None, :], logm]), axis=0)
+        self.flux.extend(np.maximum(d, 0).sum(axis=1))
+        self.prev = logm[-1]
+        self.frame_i += n
+        keep = int((self.ref_secs + self.cur_secs) * self.fps) + 2
+        del self.spec[:-keep]
+        del self.flux[:-keep]
+
+    def _phasors(self, o, t0):
+        """Coherence (0..1) and complex phasor, per tempo, of the onset envelope o whose first frame
+        is frame t0 since the reset (absolute time, so phases of different windows compare)."""
+        np = self.np
+        if self._base is None or self._base.shape[1] < len(o):
+            n = max(int((self.ref_secs + self.cur_secs) * self.fps) + 4, len(o))
+            self._base = np.exp(-2j * np.pi * self._f[:, None] * np.arange(n)[None, :])
+        z = np.exp(-2j * np.pi * self._f * t0) * (self._base[:, :len(o)] @ (o - o.mean()))
+        return np.abs(z) / max(o.sum(), 1e-9), z
+
+    def _chroma(self, m):
+        np = self.np
+        amp = np.sqrt((10 ** (m[:, self.tonal] / 10)).mean(axis=0))
+        return np.bincount(self.pc, weights=amp, minlength=12)
+
+    def _ref_stats(self, P, o, t0):
+        """What the reference window holds: its sustained spectrum, chroma and pulse."""
+        np = self.np
+        ref = np.percentile(P, 30, axis=0)                   # what was there throughout
+        prom = ref - np.convolve(ref, np.ones(15) / 15, mode='same')
+        c, z = self._phasors(o, t0)
+        j = int(np.argmax(c))
+        return {"spec": ref, "weight": np.clip(prom - 6, 0, 12) * (ref > ref.max() - 50),
+                "chroma": self._chroma(P), "grid": float(c[j]), "j": j, "z": z[j]}
+
+    def scores(self):
+        """Scores for the windows buffered now, or None while there is too little history. While a
+        boundary is being confirmed the reference stays the one from before it began (frozen), so
+        the sustain checks that the old song's parts STAY gone."""
+        np = self.np
+        ncur = int(self.cur_secs * self.fps)
+        nref = int(self.ref_secs * self.fps)
+        if len(self.flux) < ncur + int(0.75 * nref):
+            return None
+        P = np.array(self.spec)
+        o = np.array(self.flux)
+        o = np.maximum(o - np.convolve(o, np.ones(15) / 15, mode='same'), 0)   # onsets above the local mean
+        r = self.frozen or self._ref_stats(P[:-ncur], o[:-ncur], self.frame_i - len(o))
+        cur = np.percentile(P[-ncur:], 50, axis=0)
+        prom = cur - np.convolve(cur, np.ones(15) / 15, mode='same')
+        gone = (prom < 2) & (cur < r["spec"] + 3)            # not a peak any more, and not masked
+        disappeared = float((r["weight"] * gone).sum() / max(r["weight"].sum(), 1e-9))
+        harmonic = float(1 - np.nan_to_num(np.corrcoef(r["chroma"], self._chroma(P[-ncur:]))[0, 1]))
+        c_cur, z_cur = self._phasors(o[-ncur:], self.frame_i - ncur)
+        j = r["j"]
+        dphase = float(np.angle(z_cur[j] * np.conj(r["z"])) / (2 * np.pi))
+        if r["grid"] < self.grid_min or c_cur.max() < self.grid_min:
+            grid = None
+        elif c_cur[j] < 0.5 * c_cur.max():
+            grid = "tempo"
+        elif abs(dphase) > self.phase_tol:
+            grid = "phase"
+        else:
+            grid = "same"
+        return {"disappeared": round(disappeared, 3), "grid": grid, "harmonic": round(harmonic, 3),
+                "bpm_ref": float(self.bpms[j]), "dphase": round(dphase, 3),
+                "grid_ref": round(r["grid"], 3), "grid_cur": round(float(c_cur.max()), 3), "_ref": r}
+
+    def candidate(self, s):
+        if s is None or s["disappeared"] < self.disappear:
+            return False
+        if s["grid"] in ("phase", "tempo"):
+            return s["harmonic"] >= self.harm_grid
+        return s["grid"] is None and s["harmonic"] >= self.harm
+
+    def push(self, x):
+        """Feed mono float32 at 44.1 kHz (non-silent audio only). Returns the scores of a boundary
+        when one is declared, else None."""
+        self._frames(x)
+        self.since_tick += len(x) / KEY_SR
+        found = None
+        while self.since_tick >= self.tick:
+            self.since_tick -= self.tick
+            s = self.scores()
+            if self.candidate(s):
+                self.frozen = self.frozen or s["_ref"]
+                self.held += self.tick
+            else:                                   # leaky: one odd tick doesn't wipe the evidence
+                self.held = max(0.0, self.held - self.leak * self.tick)
+                if self.held == 0.0:
+                    self.frozen = None
+            if s is not None:
+                s.pop("_ref")
+            self.last = s
+            if self.held >= self.sustain and found is None:
+                found = s
+        return found
+
+
 class LiveAnalyzer:
     """Key + BPM of a live signal (Beat Key's Listen). Mono float32 audio arrives in chunks
     (`push`); nothing is written anywhere. Keeps the last `window` s for TempoCNN and the last
     `key_window` s of HPCP frames for the key, so a reading costs one 12 s TempoCNN pass, never a
     re-read of everything heard. A silence of `gap` s or more is a new song: everything is dropped
-    and a "reset" event says so ("start over after a gap").
+    and a "reset" event says so ("start over after a gap"). A new song with NO pause is found by
+    BoundaryDetector (or announced by the app, `new_song`, when the player's title changes): the
+    same flush, said with a "boundary" event; the key window stays 30 s and rebuilds from scratch.
     Events are dicts, printed as one JSON line each:
       {"event": "reading", "bpm": "128.0" | null, "bpm_exact": 128.02 | null,
        "keys": [["Ebm", 82], ...], "secs": <s of audio behind it>}
-      {"event": "reset"}"""
+      {"event": "reset"}
+      {"event": "boundary", "reason": "audio" | "title", "scores": {...} (audio only)}"""
 
     def __init__(self, rate=None, window=STREAM_TEMPO_SECS, hop=2.0, gap=3.0, key_window=30.0,
-                 silence_db=-50.0):
+                 silence_db=-50.0, boundaries=True, keep_after=2.0):
         import numpy as np
         self.np = np
+        self.detector = BoundaryDetector() if boundaries else None
+        self.keep_after = keep_after             # s of the new song kept after an audio boundary
         self.rate = rate or KEY_SR
         self.window, self.hop, self.gap = max(window, STREAM_TEMPO_SECS), hop, gap
         self.key_window, self.silence_db = key_window, silence_db
@@ -403,6 +581,8 @@ class LiveAnalyzer:
         self.heard = 0.0                         # s of non-silent audio since the last reset
         self.silent_run = 0.0
         self.since_reading = 0.0
+        if self.detector is not None:
+            self.detector.reset()
 
     @staticmethod
     def level_db(x):
@@ -432,6 +612,25 @@ class LiveAnalyzer:
                 events.append({"event": "reset"})
             return events
         self.silent_run = 0.0
+        found = self.detector.push(x) if self.detector is not None else None
+        if found is not None:
+            # a new song with no pause: drop the old one, rebuild from the new one's first seconds
+            tail = np.concatenate([self.audio, x])[-int(self.keep_after * KEY_SR):]
+            self.clear()
+            events.append({"event": "boundary", "reason": "audio", "scores": found})
+            return events + self._feed(tail)
+        return events + self._feed(x)
+
+    def new_song(self, reason="title"):
+        """Start over now (the app saw the player's title change): everything heard is dropped."""
+        self.clear()
+        return [{"event": "boundary", "reason": reason}]
+
+    def _feed(self, x):
+        """Non-silent 44.1 kHz audio into the tempo / key buffers; a reading every `hop` s."""
+        np = self.np
+        secs = len(x) / KEY_SR
+        events = []
         self.heard += secs
         self.since_reading += secs
         keep = int(self.window * KEY_SR)
@@ -475,6 +674,20 @@ class LiveAnalyzer:
             r = self.reading()
             return [r] if r else []
         return []
+
+
+import threading as _threading
+_NEW_SONG = _threading.Event()   # set by SIGUSR1 (the app: "new song, start over")
+
+
+def _listen_for_new_song():
+    """SIGUSR1 = new song. Installed first thing in --stream mode (before the slow imports), so a
+    signal sent early never hits Python's default action (exit). Main thread only."""
+    import signal
+    try:
+        signal.signal(signal.SIGUSR1, lambda *_: _NEW_SONG.set())
+    except (ValueError, AttributeError):        # not the main thread / no SIGUSR1
+        pass
 
 
 def stream_main(argv, inp=None, out=None):
@@ -524,6 +737,13 @@ def stream_main(argv, inp=None, out=None):
                 q.put(np.frombuffer(data[:n], dtype="<f4"))
         q.put(None)
 
+    def push(c):
+        if _NEW_SONG.is_set():                     # SIGUSR1: the app saw the player change track
+            _NEW_SONG.clear()
+            return live.new_song("title") + live.push(c)
+        return live.push(c)
+
+    _listen_for_new_song()
     threading.Thread(target=reader, daemon=True).start()
     emit({"event": "ready"})
     done = False
@@ -531,13 +751,13 @@ def stream_main(argv, inp=None, out=None):
         chunk = q.get()
         if chunk is None:
             break
-        evs = live.push(chunk)
+        evs = push(chunk)
         while not q.empty():                       # behind: drop all but the newest reading
             nxt = q.get()
             if nxt is None:
                 done = True
                 break
-            more = live.push(nxt)
+            more = push(nxt)
             if any(e["event"] == "reading" for e in more) and not any(e["event"] == "reset" for e in more):
                 evs = [e for e in evs if e["event"] != "reading"]
             evs += more
@@ -598,6 +818,8 @@ def analyze(filepath):
 
 
 def main():
+    if len(sys.argv) > 1 and sys.argv[1] == "--stream":
+        _listen_for_new_song()
     if not check_deps():
         sys.exit(1)
 

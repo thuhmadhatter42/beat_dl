@@ -106,6 +106,11 @@ codesign --verify --deep --strict --verbose=2 "$OUTAPP"
 # Listen needs the microphone entitlement on the app (hardened runtime)
 codesign -d --entitlements - "$OUTAPP" 2>/dev/null | grep -q com.apple.security.device.audio-input \
   || { echo "Beat Key has no audio-input entitlement (Listen would be refused)"; exit 1; }
+# and the Apple Events one (new-song titles from Spotify / YouTube tabs)
+codesign -d --entitlements - "$OUTAPP" 2>/dev/null | grep -q com.apple.security.automation.apple-events \
+  || { echo "Beat Key has no apple-events entitlement (song titles would be refused)"; exit 1; }
+/usr/libexec/PlistBuddy -c "Print :NSAppleEventsUsageDescription" "$OUTAPP/Contents/Info.plist" >/dev/null \
+  || { echo "Info.plist lacks NSAppleEventsUsageDescription"; exit 1; }
 # the yt-dlp entitlements survived (the app sign must not have re-signed nested code)
 for a in arm64 x86_64; do
   ents="$(codesign -d --entitlements - "$OUTAPP/Contents/Resources/runtime/$a/bin/yt-dlp" 2>/dev/null)"

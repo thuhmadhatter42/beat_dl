@@ -11,6 +11,8 @@ enum LiveEvent: Equatable {
     case reading(Result)
     /// A silence longer than the gap: a new song starts over.
     case reset
+    /// A new song with no pause (SongBoundary.swift): the analyzer has flushed, start over.
+    case boundary(LiveBoundary)
     case error(String)
 
     static func parse(line: String) -> LiveEvent? {
@@ -20,6 +22,7 @@ enum LiveEvent: Equatable {
         switch kind {
         case "ready": return .ready
         case "reset": return .reset
+        case "boundary": return .boundary(LiveBoundary(json: obj))
         case "error": return .error((obj["message"] as? String) ?? "The analyzer stopped.")
         case "reading":
             guard let keys = Event.keyList(obj["keys"]) else { return nil }
@@ -122,7 +125,7 @@ struct LiveSession {
         switch e {
         case .ready:
             break
-        case .reset:
+        case .reset, .boundary:
             begin()
         case .error(let m):
             fail(m)
@@ -250,7 +253,7 @@ typealias LiveLauncher = (_ gap: Double, _ onLine: @escaping (String) -> Void,
 /// `python bpm.py --stream` with the bundle's runtime, float32 PCM written to its stdin.
 final class LiveProcess: LivePipe {
     static let sampleRate = 44100
-    private let process = Process()
+    let process = Process()   // SongBoundary.swift signals it (newSong)
     private let stdin = Pipe()
     private let writes = DispatchQueue(label: "com.jshriver.orion.live-pipe")
     private var closed = false   // writes queue only
@@ -357,6 +360,8 @@ final class LiveController: ObservableObject {
     /// popover's meter. 0 when Listen is off.
     @Published private(set) var level: Float = 0
     let settings: LiveSettings
+    /// New-song boundaries and one Recent Readings entry per song (SongBoundary.swift).
+    let songs: SongTracker
     private var session = LiveSession()
     private let launch: LiveLauncher
     private let makeCapture: (LiveSource) -> AudioCapture?
@@ -372,8 +377,9 @@ final class LiveController: ObservableObject {
 
     init(settings: LiveSettings, launch: @escaping LiveLauncher,
          makeCapture: @escaping (LiveSource) -> AudioCapture? = LiveController.realCapture,
-         now: @escaping () -> Date = Date.init) {
+         now: @escaping () -> Date = Date.init, songs: SongTracker? = nil) {
         self.settings = settings
+        self.songs = songs ?? SongTracker(now: now)
         self.launch = launch
         self.makeCapture = makeCapture
         self.now = now
@@ -424,6 +430,7 @@ final class LiveController: ObservableObject {
         capture = cap
         session.begin()
         publish()
+        songs.begin(signal: p as? SongSignal)
         fillLock.lock(); filler = SilenceFiller(now: now()); fillLock.unlock()
         cap.start(onSamples: { [weak self, weak p] samples in
             guard let self = self else { return }
@@ -479,6 +486,7 @@ final class LiveController: ObservableObject {
     var canHold: Bool { session.canHold }
 
     private func teardown() {
+        songs.end()
         fillTimer?.invalidate()
         fillTimer = nil
         levelTimer?.invalidate()
@@ -501,6 +509,7 @@ final class LiveController: ObservableObject {
     func handle(_ e: LiveEvent, gen: Int? = nil) {
         if let g = gen, g != generation { return }
         if case .error(let m) = e { fail(m, gen: generation); return }
+        songs.observe(e)
         session.feed(e, now: now())
         publish()
     }
