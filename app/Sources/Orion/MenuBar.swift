@@ -132,7 +132,7 @@ final class StatusItemController: NSObject, NSMenuDelegate {
         let host = NSHostingController(rootView: root)
         popover.contentViewController = host
         popover.behavior = .transient
-        popover.animates = true
+        popover.animates = false
         popover.appearance = NSAppearance(named: .darkAqua)
         popover.contentSize = host.view.fittingSize
     }
@@ -144,32 +144,30 @@ final class StatusItemController: NSObject, NSMenuDelegate {
         // is one fixed width, so nothing in the menu bar shifts as readings change.
         button.image = MenuBarImage.make(r.lamp)
         button.imagePosition = .imageTrailing
-        button.alignment = .right
+        button.alignment = .center
         let quiet = r.dim || r.text == nil
         let font = NSFont.monospacedDigitSystemFont(ofSize: NSFont.systemFontSize, weight: .medium)
         button.attributedTitle = NSAttributedString(string: r.text.map { $0 + " " } ?? "", attributes: [
             .font: font,
             .foregroundColor: quiet ? NSColor.secondaryLabelColor : NSColor.labelColor,
         ])
-        // A reading = one fixed width (no jitter as numbers change); nothing yet = just the key.
-        item?.length = r.text == nil || r.text == "…" ? NSStatusItem.variableLength
-            : StatusItemController.fixedWidth(font: font, held: r.text?.hasPrefix("⏸") == true)
+        // ONE width in every state (idle, "…", analyzing, a reading): the item never changes size,
+        // so the popover hanging under it never slides.
+        let w = StatusItemController.fixedWidth(font: font)
+        if item?.length != w { item?.length = w }
         button.setAccessibilityLabel(r.accessibilityLabel)
         button.toolTip = r.detail
-        // The item's width changes ("…" vs a reading); its RIGHT edge never moves. Keep the popover
-        // hung from the key at that edge, so it stays put while Beat Key listens and analyzes.
-        if popover.isShown { popover.positioningRect = StatusItemController.anchor(button) }
+        if let f = button.window?.frame, f != lastItemFrame {
+            AppLog.log("menu-bar item frame \(NSStringFromRect(f)) showing \(r.text ?? "-")")
+            lastItemFrame = f
+        }
     }
 
-    /// The key glyph at the item's right edge: the popover's fixed anchor.
-    static func anchor(_ button: NSStatusBarButton) -> NSRect {
-        let w = min(button.bounds.width, 24)
-        return NSRect(x: button.bounds.maxX - w, y: button.bounds.minY, width: w, height: button.bounds.height)
-    }
+    private var lastItemFrame: NSRect = .zero
 
     /// Wide enough for the longest reading ("G#m 188.8" + the key), so the item never resizes.
-    static func fixedWidth(font: NSFont, held: Bool = false) -> CGFloat {
-        let text = ((held ? "⏸ G#m 888.8 " : "G#m 888.8 ") as NSString).size(withAttributes: [.font: font]).width
+    static func fixedWidth(font: NSFont) -> CGFloat {
+        let text = ("⏸ G#m 888.8 " as NSString).size(withAttributes: [.font: font]).width
         return (text + MenuBarImage.key().size.width + 6).rounded(.up)
     }
 
@@ -192,7 +190,7 @@ final class StatusItemController: NSObject, NSMenuDelegate {
         guard let button = item?.button else { return }
         if popover.isShown { popover.performClose(nil); return }
         extras.refresh(live: live)
-        popover.show(relativeTo: StatusItemController.anchor(button), of: button, preferredEdge: .minY)
+        popover.show(relativeTo: button.bounds, of: button, preferredEdge: .minY)
         NSApp.activate(ignoringOtherApps: true)
         popover.contentViewController?.view.window?.makeKey()
     }
