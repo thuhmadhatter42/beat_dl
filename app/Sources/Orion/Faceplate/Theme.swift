@@ -6,8 +6,20 @@ import SwiftUI
 enum Theme {
     static let amberRGB = (255.0, 176.0, 32.0)
     static let amber = rgb(255, 176, 32)
-    static func amber(_ a: Double) -> Color { rgb(255, 176, 32, a) }
-    static let amberGlow = amber(0.6)
+    static func amber(_ a: Double) -> Color { rgb(255, 176, 32, contrast(a)) }
+
+    /// View › High Contrast Readout (DisplaySettings sets it; the faceplate redraws when it
+    /// changes). Dimmed amber text goes full strength, the faint placeholders brighten, glows go.
+    static var highContrast = false
+
+    /// An amber alpha under High Contrast: text (0.4 and up) full, faint (under 0.2) to 0.3.
+    static func contrast(_ a: Double) -> Double {
+        guard highContrast else { return a }
+        if a >= 0.4 { return 1 }
+        if a < 0.2 { return 0.3 }
+        return a
+    }
+    static let amberGlow = rgb(255, 176, 32, 0.6)      // a glow, not text: High Contrast leaves it
     static let green = rgb(61, 220, 122)
     static let greenGlow = rgb(61, 220, 122, 0.7)
     static let greenText = rgb(89, 225, 141)           // #59e18d
@@ -110,7 +122,9 @@ extension View {
 
     /// The amber glow: `0 0 6px amber-glow, 0 0 16px rgba(amber,.4)`.
     func amberGlow() -> some View {
-        shadow(color: Theme.amberGlow, radius: 3).shadow(color: Theme.amber(0.4), radius: 8)
+        // High Contrast: crisp edges, no halo
+        shadow(color: Theme.highContrast ? .clear : Theme.amberGlow, radius: 3)
+            .shadow(color: Theme.highContrast ? .clear : Theme.amber(0.4), radius: 8)
     }
 }
 
@@ -118,6 +132,6 @@ extension Text {
     /// A caption in the LCD's 8 pt, .3em amber style.
     static func cap(_ s: String) -> some View {
         Text(s).font(Theme.face(8)).tracking(2.4).foregroundColor(Theme.amber(0.7))
-            .shadow(color: Theme.amber(0.35), radius: 2)
+            .shadow(color: Theme.highContrast ? .clear : Theme.amber(0.35), radius: 2)
     }
 }

@@ -9,6 +9,7 @@ struct FaceplateView: View {
     @ObservedObject var login: YouTubeSession
     @ObservedObject var tuning: TuningSettings
     @ObservedObject var live: LiveController
+    @ObservedObject var display: DisplaySettings
     @State private var keyMonitor: Any?
 
     var body: some View {
@@ -64,6 +65,7 @@ struct FaceplateView: View {
             LCD(readout: readout, highlighted: showDrop) { step in
                 if step < 0 { model.pager.previous() } else { model.pager.next() }
             }
+            .id(display.highContrast)   // Theme.highContrast is read while drawing: redraw the readout
             HStack(spacing: 12) {
                 LinkField(text: $model.url, focused: $model.fieldFocused, onSubmit: download)
                 if loginPrompt != nil, let cap = Faceplate.loginCap(busy: engine.state.isBusy) {

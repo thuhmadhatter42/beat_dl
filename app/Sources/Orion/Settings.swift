@@ -6,10 +6,17 @@ struct SettingsView: View {
     @ObservedObject var shortcuts: ShortcutStore
     @ObservedObject var loginItem: LoginItemSettings
     @ObservedObject var live: LiveSettings
+    @ObservedObject var display: DisplaySettings
     @State private var devices: [InputDevice] = []
 
     var body: some View {
         Form {
+            Section(header: Text("Display").font(.headline)) {
+                Toggle("High Contrast Readout", isOn: $display.highContrast)
+                Text("Brighter LCD text on pure black, no glow. The lamps always carry a shape too: octagon = locked, triangle = unsure, circle = listening.")
+                    .font(.caption).foregroundColor(.secondary).fixedSize(horizontal: false, vertical: true)
+            }
+            Divider().padding(.vertical, 6)
             Section(header: Text("Listen").font(.headline)) {
                 Picker("Listen to", selection: deviceBinding) {
                     if LiveSource.systemAvailable { Text("System Audio (everything the Mac plays)").tag("system") }
@@ -142,6 +149,26 @@ struct ShortcutRecorder: View {
         if let m = monitor { NSEvent.removeMonitor(m) }
         monitor = nil
         if recording { recording = false; HotkeyCenter.shared.apply(store) }
+    }
+}
+
+/// High Contrast Readout (Settings and the View menu), remembered between launches. Theme reads
+/// it through `Theme.highContrast`; views that observe this object redraw when it flips.
+final class DisplaySettings: ObservableObject {
+    static let key = "highContrast"
+    private let defaults: UserDefaults
+
+    @Published var highContrast: Bool {
+        didSet {
+            Theme.highContrast = highContrast
+            defaults.set(highContrast, forKey: DisplaySettings.key)
+        }
+    }
+
+    init(defaults: UserDefaults = .standard) {
+        self.defaults = defaults
+        highContrast = defaults.bool(forKey: DisplaySettings.key)
+        Theme.highContrast = highContrast
     }
 }
 

@@ -12,6 +12,7 @@ struct OrionApp: App {
     @StateObject private var recents: RecentStore
     @StateObject private var shortcuts = ShortcutStore()
     @StateObject private var loginItem = LoginItemSettings()
+    @StateObject private var display = DisplaySettings()
     @StateObject private var live = LiveController(settings: LiveSettings(),
                                                    launch: LiveProcess.launcher(runtime: .appDefault()))
 
@@ -31,7 +32,7 @@ struct OrionApp: App {
 
     var body: some Scene {
         WindowGroup {
-            FaceplateView(engine: engine, model: model, login: login, tuning: tuning, live: live)
+            FaceplateView(engine: engine, model: model, login: login, tuning: tuning, live: live, display: display)
                 .background(WindowConfigurator())
                 .onAppear(perform: launch)
         }
@@ -68,6 +69,10 @@ struct OrionApp: App {
                 }
                 Button("Half / Double Tempo") { model.tempoFactor = model.tempoFactor.next }
             }
+            // View menu: the readout's accessibility switch (plan 5.1)
+            CommandGroup(before: .toolbar) {
+                Toggle("High Contrast Readout", isOn: $display.highContrast)
+            }
             // The app menu says Beat Key whatever the process is called (swift run = "Orion").
             CommandGroup(replacing: .appInfo) {
                 Button(Brand.about) {
@@ -92,7 +97,7 @@ struct OrionApp: App {
             }
         }
         Settings {
-            SettingsView(shortcuts: shortcuts, loginItem: loginItem, live: live.settings)
+            SettingsView(shortcuts: shortcuts, loginItem: loginItem, live: live.settings, display: display)
         }
     }
 

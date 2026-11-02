@@ -161,17 +161,20 @@ final class StatusItemController: NSObject, NSMenuDelegate {
 
 /// The small picture left of the menu-bar text: the key glyph with no reading, else the lamp.
 enum MenuBarImage {
-    static let side: CGFloat = 10
+    static let side: CGFloat = 11
 
-    static func make(_ lamp: Lamp?) -> NSImage? {
+    static func make(_ lamp: Lamp?, side: CGFloat = MenuBarImage.side) -> NSImage? {
         guard let lamp = lamp else {
             let img = NSImage(systemSymbolName: "key.fill", accessibilityDescription: Brand.name)
             img?.isTemplate = true
             return img
         }
-        let img = NSImage(size: NSSize(width: side, height: side), flipped: false) { rect in
-            lamp.nsColor.setFill()
-            NSBezierPath(ovalIn: rect.insetBy(dx: 1, dy: 1)).fill()
+        // flipped, like SwiftUI, so the triangle points up; same shape as the LCD's lamp
+        let img = NSImage(size: NSSize(width: side, height: side), flipped: true) { rect in
+            guard let ctx = NSGraphicsContext.current?.cgContext else { return false }
+            ctx.addPath(LampShape(lamp: lamp).path(in: rect.insetBy(dx: 0.5, dy: 0.5)).cgPath)
+            ctx.setFillColor(lamp.nsColor.cgColor)
+            ctx.fillPath()
             return true
         }
         img.isTemplate = false

@@ -43,11 +43,12 @@ struct LCD: View {
                 .padding(.horizontal, 20)
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
             // the glass
-            Theme.vertical([(Color.white.opacity(0.07), 0), (Color.white.opacity(0), 0.45)])
+            Theme.vertical([(Color.white.opacity(Theme.highContrast ? 0 : 0.07), 0), (Color.white.opacity(0), 0.45)])
                 .allowsHitTesting(false)
         }
         .frame(height: 170)
-        .background(Theme.vertical([(Theme.hex(0x0a0c09), 0), (Theme.hex(0x050604), 1)]))
+        .background(Theme.highContrast ? Theme.vertical([(Theme.black, 0), (Theme.black, 1)])
+                                       : Theme.vertical([(Theme.hex(0x0a0c09), 0), (Theme.hex(0x050604), 1)]))
         .clipShape(shape)
         .innerShadow(shape, Color.black.opacity(0.95), blur: 6, y: 2)
         .innerShadow(shape, Color.white.opacity(0.03), blur: 0, y: -1)
@@ -398,7 +399,9 @@ struct StateLamp: View {
     let text: String
     var body: some View {
         HStack(spacing: 6) {
-            Circle().fill(lamp.color).frame(width: 6, height: 6).shadow(color: lamp.color.opacity(0.8), radius: 3)
+            // the shape says the state without the colour (octagon / triangle / circle)
+            LampShape(lamp: lamp).fill(lamp.color).frame(width: 8, height: 8)
+                .shadow(color: Theme.highContrast ? .clear : lamp.color.opacity(0.8), radius: 3)
             Text(text).font(Theme.face(9)).tracking(1.4).foregroundColor(lamp.textColor).lineLimit(1)
         }
     }
