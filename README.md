@@ -22,8 +22,8 @@ If macOS asks whether Beat Key may access your Downloads folder, click **Allow**
 
 Everything is under the menus or in Settings (Beat Key > Settings, ⌘,). The global shortcuts work in any app and can be changed or turned off in Settings.
 
-- **Live listening.** Reading > Start Listening (⌃⌥⌘K) reads the BPM and key of whatever is playing, as it plays, and keeps refining. It listens to everything the Mac plays (macOS 13 or newer), the default input, or a microphone or interface you pick, one channel or all. It starts over after 2, 3, 5 or 10 seconds of silence (your choice). Nothing is recorded or saved.
-- **Menu-bar readout.** The reading (for example `Ebm 128`) and its lamp sit in the menu bar. Click it to start or stop listening, analyze a file, or open Settings.
+- **Live listening.** Reading > Start Listening (⌃⌥⌘K) reads the BPM and key of whatever is playing, as it plays, and keeps refining. It listens to the Mac's sound (macOS 13 or newer; when a player app such as Spotify, Music or a browser is open it hears only the players, so a DAW or microphone bleed does not skew the key), the default input, or a microphone or interface you pick, one channel or all. It starts over after 2, 3, 5 or 10 seconds of silence (your choice). Nothing is recorded or saved.
+- **Menu-bar readout.** The coloured key and BPM (for example `Ebm 128`) sit in the menu bar; no key is shown until the reading has locked. Click it to start or stop listening, analyze a file, or open Settings.
 - **Confidence lights and shapes.** Green octagon = locked, amber triangle = unsure, red circle = listening or analyzing. The shape means colour is never the only signal. View > High Contrast Readout (also in Settings) makes the display brighter.
 - **Decimal BPM, half and double.** The BPM shows with two decimals (`140.82`). Reading > Half / Double Tempo, or clicking the BPM on the display, cycles between the reading, double and half.
 - **Tuning.** The display shows how many cents sharp or flat the track sits against a reference pitch. Reading > Reference Pitch: A = 432, 436, 438, 440, 442, 444, 450, or Custom (400 to 480 Hz).
@@ -36,9 +36,11 @@ Everything is under the menus or in Settings (Beat Key > Settings, ⌘,). The gl
   - Pro Tools, Logic Pro, Studio One: tempo and key, typed into the DAW's own tempo and key controls through Accessibility. If that fails, Beat Key hands you a MIDI file with tempo and key to import instead.
   - FL Studio, Reason, Cubase: a MIDI file with tempo and key to import (they can't be told a tempo from outside).
 - **Analyze Selection.** Reading > Analyze Selection (⌃⌥⌘L) reads the clip you have selected in Pro Tools, Ableton Live or REAPER. Other DAWs: export the clip and drop it on Beat Key.
-- **Send Key to Auto-Tune.** Reading > Send Key to Auto-Tune (⌃⌥⌘A) hands the top key and your reference pitch to Auto-Tune Pro, in any open instance with Auto Key Detection on. Antares doesn't document this, so tell us if a version doesn't pick it up.
+- **Choose the key.** The top 3 keys are clickable: click key 2 or 3 and that becomes THE key for every send (New Song clears it).
+- **Send to Auto-Tune.** One button (Reading > Send to Auto-Tune, ⌃⌥⌘A) hands the chosen key and your reference pitch to Auto-Tune Pro, in any open instance with Auto Key Detection on, and also writes a Waves Tune preset. Waves Tune does not change by itself: load the "Beat Key" preset in the plug-in (as of 0.1.31). Antares doesn't document the hand-off, so tell us if a version doesn't pick it up.
 - **Export MIDI Tempo/Key file.** File > Export MIDI Tempo/Key File… (⌃⌥⌘E) saves a small `.mid` with the tempo and key, for any DAW.
 - **Open at login.** Settings > General > Open at Login.
+- **Log.** `~/Library/Logs/Beat Key/beatkey.log` records launches, quits and crashes (analyzer output in `analyzer.log`); send it with a bug report.
 
 Permissions macOS may ask for, each only when you use the feature:
 
