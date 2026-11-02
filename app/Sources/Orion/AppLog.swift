@@ -28,7 +28,12 @@ enum AppLog {
     }()
 
     /// Unit tests never write to the user's log.
-    private static let testing = NSClassFromString("XCTestCase") != nil
+    private static let testing: Bool = {
+        let p = ProcessInfo.processInfo
+        return NSClassFromString("XCTestCase") != nil || p.environment["XCTestConfigurationFilePath"] != nil
+            || p.environment["XCTestBundlePath"] != nil || p.processName.lowercased().contains("xctest")
+            || p.processName.hasSuffix("PackageTests")
+    }()
 
     static func log(_ line: String, file: String = #fileID) {
         guard !testing else { return }
