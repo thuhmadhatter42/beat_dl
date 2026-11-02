@@ -59,7 +59,9 @@ final class RealLauncher: ProcessLauncher {
 }
 
 final class Engine: ObservableObject {
-    @Published var state: ViewState = .idle
+    @Published var state: ViewState = .idle {
+        didSet { AppLog.log("engine: " + String(String(describing: state).prefix(400))) }
+    }
     /// Caption under a partial analysis ("2 FILES COULDN'T BE READ · ..."); nil otherwise.
     @Published var note: String?
     private let runtime: Runtime

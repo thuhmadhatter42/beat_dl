@@ -212,6 +212,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private let services = ServiceProvider()
 
     func applicationDidFinishLaunching(_ n: Notification) {
+        AppLog.launched()
         // Finder › Services › Analyze with Beat Key. Registered under the NSPortName in Info.plist,
         // and as the default provider, so the name does not have to match the process name.
         NSRegisterServicesProvider(services, Brand.name)
@@ -225,6 +226,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     /// Open With / `open -a "Beat Key" file`.
     func application(_ app: NSApplication, open urls: [URL]) { Intake.receive(urls) }
     func applicationShouldTerminateAfterLastWindowClosed(_ app: NSApplication) -> Bool { true }
+    func applicationWillTerminate(_ n: Notification) { AppLog.quitting("app quit") }
 }
 
 /// The window tweaks SwiftUI on macOS 11 cannot express: fixed size, dragged by its plate,
