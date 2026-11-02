@@ -238,12 +238,8 @@ final class StatusItemController: NSObject, NSMenuDelegate {
             DAWSendController.send(r, toAll: false)
         }
         a.sendAutoTune = {
-            guard let key = shown()?.keys.first?.0, AutoTuneSend.write(key: key, referencePitch: tuning.reference)
+            guard let key = shown()?.keys.first?.0, AutoTuneSend.sendAll(key: key, referencePitch: tuning.reference)
             else { NSSound.beep(); return false }
-            return true
-        }
-        a.sendWavesTune = {
-            guard let key = shown()?.keys.first?.0, WavesTuneSend.write(key: key) else { NSSound.beep(); return false }
             return true
         }
         a.exportMidi = { [weak self] in

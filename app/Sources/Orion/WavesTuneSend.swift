@@ -81,13 +81,3 @@ enum WavesTuneSend {
     }
 }
 
-struct SendToWavesTuneMenuItem: View {
-    @ObservedObject var engine: Engine
-    var body: some View {
-        let key = MidiExport.current(engine.state)?.keys.first?.0
-        Button("Send Key to Waves Tune (preset “Beat Key”)") {
-            if let key, !WavesTuneSend.write(key: key) { NSSound.beep() }
-        }
-        .disabled(key.flatMap(AutoTuneSend.keyClass) == nil)
-    }
-}

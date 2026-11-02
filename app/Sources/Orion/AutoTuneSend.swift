@@ -60,13 +60,25 @@ enum AutoTuneSend {
     }
 }
 
+extension AutoTuneSend {
+    /// "Send to Auto-Tune" = every pitch corrector at once: Antares Auto-Tune (Auto-Key hand-off)
+    /// and Waves Tune Real-Time (the "Beat Key" preset), when installed. True = at least one took it.
+    @discardableResult
+    static func sendAll(key: String, referencePitch: Double) -> Bool {
+        let antares = write(key: key, referencePitch: referencePitch)
+        let waves = WavesTuneSend.installed ? WavesTuneSend.write(key: key) : false
+        AppLog.log("send to auto-tune \(key): antares \(antares), waves tune \(waves)")
+        return antares || waves
+    }
+}
+
 struct SendToAutoTuneMenuItem: View {
     @ObservedObject var engine: Engine
     @ObservedObject var tuning: TuningSettings
     var body: some View {
         let key = MidiExport.current(engine.state)?.keys.first?.0
         Button("Send Key to Auto-Tune") {
-            if let key, !AutoTuneSend.write(key: key, referencePitch: tuning.reference) { NSSound.beep() }
+            if let key, !AutoTuneSend.sendAll(key: key, referencePitch: tuning.reference) { NSSound.beep() }
         }
         .keyboardShortcut("a", modifiers: [.control, .option, .command])
         .disabled(key.flatMap(AutoTuneSend.keyClass) == nil)

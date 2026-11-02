@@ -77,7 +77,6 @@ struct OrionApp: App {
                     Button("Custom…") { if let hz = ReferencePrompt.ask(current: tuning.reference) { tuning.reference = hz } }
                 }
                 SendToAutoTuneMenuItem(engine: engine, tuning: tuning)
-                SendToWavesTuneMenuItem(engine: engine)
                 Button("Half / Double Tempo") { model.tempoFactor = model.tempoFactor.next }
                 DAWSendMenuItems(engine: engine)
             }
