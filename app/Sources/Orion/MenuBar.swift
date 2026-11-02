@@ -15,7 +15,9 @@ struct MenuBarReadout: Equatable {
     static let idle = MenuBarReadout(text: nil, lamp: nil, detail: "No reading yet")
 
     /// The reading `r` as the menu bar shows it: top key, then the BPM to one decimal at `factor`.
-    static func of(_ r: Result, factor: TempoFactor = .one, lamp: Lamp? = nil, status: String? = nil) -> MenuBarReadout {
+    static func of(_ r0: Result, factor: TempoFactor = .one, lamp: Lamp? = nil, status: String? = nil,
+                   held: Bool = false, spelling: KeySpelling? = nil) -> MenuBarReadout {
+        let r = r0.respelled(spelling)
         let bpm = Tempo.text(r, factor: factor).flatMap(Double.init).map { String(format: "%.1f", $0) }
         let key = r.keys.first?.0
         let parts = [key, bpm].compactMap { $0 }
@@ -23,17 +25,18 @@ struct MenuBarReadout: Equatable {
         let lampNow = lamp ?? Lamp.of(r.keys)
         var detail = [key.map { "Key \($0)" }, Tempo.text(r, factor: factor).map { "\($0) BPM" }].compactMap { $0 }
         if let s = status ?? Faceplate.confidenceLine(r.keys) { detail.append(s.capitalized) }
-        return MenuBarReadout(text: parts.joined(separator: " "), lamp: lampNow,
-                              detail: detail.joined(separator: " · "))
+        let line = parts.joined(separator: " ")
+        return MenuBarReadout(text: held ? "⏸ " + line : line, lamp: lampNow,
+                              detail: (held ? "Held · " : "") + detail.joined(separator: " · "))
     }
 
     /// The engine's reading: the finished download, or the file paged to on the LCD.
-    static func of(_ state: ViewState, page: Int, factor: TempoFactor) -> MenuBarReadout {
+    static func of(_ state: ViewState, page: Int, factor: TempoFactor, spelling: KeySpelling? = nil) -> MenuBarReadout {
         switch state {
         case .done(let r):
-            return of(r, factor: factor)
+            return of(r, factor: factor, spelling: spelling)
         case .analyzed(let rs) where !rs.isEmpty:
-            return of(rs[min(max(page, 0), rs.count - 1)], factor: factor)
+            return of(rs[min(max(page, 0), rs.count - 1)], factor: factor, spelling: spelling)
         case .working(let s):
             return MenuBarReadout(text: "…", lamp: .listening, detail: Faceplate.stageText(s).capitalized)
         default:
@@ -42,7 +45,8 @@ struct MenuBarReadout: Equatable {
     }
 
     /// Listen's reading; nil when Listen is off (the engine's reading shows).
-    static func of(live: LiveState, source: String, factor: TempoFactor) -> MenuBarReadout? {
+    static func of(live: LiveState, source: String, factor: TempoFactor, held: Bool = false,
+                   spelling: KeySpelling? = nil) -> MenuBarReadout? {
         switch live {
         case .off:
             return nil
@@ -51,15 +55,16 @@ struct MenuBarReadout: Equatable {
         case .listening:
             return MenuBarReadout(text: "…", lamp: .listening, detail: "Listening · \(source)")
         case .reading(let r), .locked(let r):
-            let m = of(r, factor: factor, lamp: live.lamp, status: live.status(source: source))
+            let m = of(r, factor: factor, lamp: live.lamp, status: live.status(source: source), held: held,
+                       spelling: spelling)
             return m.text == nil ? MenuBarReadout(text: "…", lamp: .listening, detail: "Listening · \(source)") : m
         }
     }
 
     /// The status item with nothing on the readout: the last reading, dimmed; else a dash.
-    static func idle(last: Reading?) -> MenuBarReadout {
+    static func idle(last: Reading?, spelling: KeySpelling? = nil) -> MenuBarReadout {
         guard let r = last else { return .idle }
-        var m = of(r.result)
+        var m = of(r.result, spelling: spelling)
         guard m.text != nil else { return .idle }
         m.lamp = nil
         m.dim = true
@@ -92,11 +97,13 @@ final class StatusItemController: NSObject, NSMenuDelegate {
     private weak var live: LiveController?
     private var toggleListening: (() -> Void)?
     private var newSong: (() -> Void)?
+    private var toggleHold: (() -> Void)?
 
     /// Called once the window is up (OrionApp.launch).
     func install(engine: Engine, model: FaceplateModel, live: LiveController, tuning: TuningSettings,
                  recents: RecentStore, display: DisplaySettings, shortcuts: ShortcutStore,
-                 toggleListening: @escaping () -> Void, newSong: @escaping () -> Void, showAgain: @escaping (Reading) -> Void) {
+                 toggleListening: @escaping () -> Void, newSong: @escaping () -> Void,
+                 toggleHold: @escaping () -> Void = {}, showAgain: @escaping (Reading) -> Void) {
         guard item == nil else { return }
         let it = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
         item = it
@@ -111,16 +118,18 @@ final class StatusItemController: NSObject, NSMenuDelegate {
         self.live = live
         self.toggleListening = toggleListening
         self.newSong = newSong
+        self.toggleHold = toggleHold
         Publishers.CombineLatest(
             Publishers.CombineLatest4(engine.$state, model.$pager, model.$tempoFactor,
                                       live.$state.combineLatest(live.$sourceName)),
-            recents.$readings)
+            recents.$readings.combineLatest(live.$isHeld, SpellingSettings.shared.$preference))
             .receive(on: DispatchQueue.main)
-            .sink { [weak self] a, readings in
+            .sink { [weak self] a, b in
                 let (state, pager, factor, l) = a
-                let r = MenuBarReadout.of(live: l.0, source: l.1, factor: factor)
-                    ?? MenuBarReadout.of(state, page: pager.index, factor: factor)
-                self?.show(r == .idle ? .idle(last: readings.first) : r)
+                let (readings, held, spelling) = b
+                let r = MenuBarReadout.of(live: l.0, source: l.1, factor: factor, held: held, spelling: spelling)
+                    ?? MenuBarReadout.of(state, page: pager.index, factor: factor, spelling: spelling)
+                self?.show(r == .idle ? .idle(last: readings.first, spelling: spelling) : r)
             }
             .store(in: &bag)
 
@@ -199,6 +208,10 @@ final class StatusItemController: NSObject, NSMenuDelegate {
         a.openLogin = { [weak self] in self?.closePopover(); StatusItemController.bringWindowForward() }
         a.toggleListen = { [weak self] in self?.toggleListening?() }
         a.newSong = { [weak self] in self?.newSong?() }
+        a.toggleHold = { [weak self] in self?.toggleHold?() }
+        a.respellKey = {
+            if let k = shown()?.keys.first?.0 { SpellingSettings.shared.click(on: k) }
+        }
         a.pickSource = { [weak self] in self?.popSourceMenu(live: live) }
         a.analyzeFile = { [weak self] in
             self?.closePopover()
@@ -278,6 +291,11 @@ final class StatusItemController: NSObject, NSMenuDelegate {
         reset.target = self
         reset.isEnabled = active
         menu.addItem(reset)
+        let hold = NSMenuItem(title: "Hold Reading", action: #selector(holdChosen), keyEquivalent: "")
+        hold.target = self
+        hold.state = (live?.isHeld ?? false) ? .on : .off
+        hold.isEnabled = (live?.isHeld ?? false) || (active && live?.state.result != nil)
+        menu.addItem(hold)
         let analyze = NSMenuItem(title: "Analyze a File…", action: #selector(analyzeFile), keyEquivalent: "")
         analyze.target = self
         analyze.isEnabled = !(engine?.state.isBusy ?? false)
@@ -304,6 +322,7 @@ final class StatusItemController: NSObject, NSMenuDelegate {
     @objc private func openSettings() { SettingsOpener.open() }
     @objc private func listenToggled() { toggleListening?() }
     @objc private func newSongChosen() { newSong?() }
+    @objc private func holdChosen() { toggleHold?() }
 
     /// The faceplate window to the front (it may be minimised or behind other apps).
     static func bringWindowForward() {
@@ -376,6 +395,7 @@ struct PocketContainer: View {
     @ObservedObject var display: DisplaySettings
     @ObservedObject var shortcuts: ShortcutStore
     @ObservedObject var extras: PocketExtras
+    @ObservedObject private var spelling = SpellingSettings.shared
     @ObservedObject private var watcher = DAWWatcher.shared
     let actions: PocketActions
     let onSize: (CGSize) -> Void
@@ -392,7 +412,8 @@ struct PocketContainer: View {
         s.readout = Faceplate.readout(engine.state, live: live.state, liveSource: live.sourceName, page: model.pager,
                                       factor: model.tempoFactor, lastAction: model.lastAction, note: engine.note,
                                       reference: tuning.reference,
-                                      onCycleTempo: { [model] in model.tempoFactor = model.tempoFactor.next })
+                                      onCycleTempo: { [model] in model.tempoFactor = model.tempoFactor.next },
+                                      held: live.isHeld, spelling: spelling.preference)
         s.listening = live.state.isActive
         s.source = live.state.isActive ? live.sourceName : extras.sourceName
         s.level = live.level
@@ -404,6 +425,8 @@ struct PocketContainer: View {
         s.recents = recents.readings
         s.highContrast = display.highContrast
         s.newSongKeys = shortcuts.shortcut(.newSong)?.display
+        s.held = live.isHeld
+        s.holdKeys = shortcuts.shortcut(.hold)?.display
         return s
     }
 }

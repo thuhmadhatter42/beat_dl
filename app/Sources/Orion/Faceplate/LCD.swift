@@ -25,6 +25,8 @@ struct ResultOptions {
     /// Live listening: the lamp and caption it chose (instead of the key's own confidence), and
     /// the source in place of the file line (no Show in Finder: there is no file).
     var live: (lamp: Lamp, status: String, source: String)? = nil
+    /// A click on the key switches its spelling (Ebm <-> D#m); nil = no click.
+    var onToggleSpelling: (() -> Void)? = nil
 }
 
 /// The amber LCD: Artemis's `.lcd-hero` grown into the whole face.
@@ -282,11 +284,7 @@ struct ResultReadout: View {
 
                     VStack(alignment: .leading, spacing: 0) {
                         Text.cap("KEY")
-                        Text(result.keys.first?.0 ?? "--").font(Theme.face(34)).tracking(34 * 0.05)
-                            .foregroundColor(result.keys.isEmpty ? Theme.amber(0.12) : Theme.amber)
-                            .modifier(GlowIf(on: !result.keys.isEmpty))
-                            .lineBox(34, 1)
-                            .padding(.top, 6)
+                        keyText.padding(.top, 6)
                         HStack(spacing: 14) {
                             ForEach(Array(result.keys.dropFirst().prefix(2).enumerated()), id: \.offset) { _, k in
                                 Text("\(k.0) \(k.1)%").font(Theme.face(12).monospacedDigit()).tracking(12 * 0.08)
@@ -348,6 +346,21 @@ struct ResultReadout: View {
                     .accessibility(label: Text("Show in Finder"))
     }
 
+    /// The big key. A click on a black-key tonic switches sharp / flat spelling.
+    @ViewBuilder private var keyText: some View {
+        let text = Text(result.keys.first?.0 ?? "--").font(Theme.face(34)).tracking(34 * 0.05)
+            .foregroundColor(result.keys.isEmpty ? Theme.amber(0.12) : Theme.amber)
+            .modifier(GlowIf(on: !result.keys.isEmpty))
+            .lineBox(34, 1)
+        if let first = result.keys.first?.0, KeySpelling.isBlack(first), let toggle = options.onToggleSpelling {
+            Button(action: toggle) { text.contentShape(Rectangle()) }
+                .buttonStyle(PlainButtonStyle())
+                .pointingHand()
+        } else {
+            text
+        }
+    }
+
     /// The big BPM. A click cycles x1 / x2 / x0.5 when there is a BPM to cycle.
     @ViewBuilder private var bpmNumber: some View {
         let text = Text(bpmShown ?? "---.-").font(Theme.face(68).monospacedDigit()).tracking(68 * 0.02)
@@ -389,7 +402,8 @@ struct ResultReadout: View {
     private var keyLabel: String {
         guard let first = result.keys.first else { return "Key not found" }
         let alts = result.keys.dropFirst().prefix(2).map { "\($0.0) \($0.1) percent" }
-        return alts.isEmpty ? "Key \(first.0)" : "Key \(first.0), also \(alts.joined(separator: ", "))"
+        let base = alts.isEmpty ? "Key \(first.0)" : "Key \(first.0), also \(alts.joined(separator: ", "))"
+        return base + (KeySpelling.isBlack(first.0) && options.onToggleSpelling != nil ? ". Click to switch between sharp and flat spelling" : "")
     }
 }
 

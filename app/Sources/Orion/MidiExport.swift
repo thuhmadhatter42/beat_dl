@@ -17,8 +17,12 @@ enum MidiExport {
                                     "F": -1, "Bb": -2, "Eb": -3, "Ab": -4, "Db": -5, "Gb": -6, "Cb": -7]
         let minors: [String: Int] = ["A": 0, "E": 1, "B": 2, "F#": 3, "C#": 4, "G#": 5, "D#": 6, "A#": 7,
                                      "D": -1, "G": -2, "C": -3, "F": -4, "Bb": -5, "Eb": -6, "Ab": -7]
-        guard let n = (minor ? minors : major)[s] else { return nil }
-        return (n, minor)
+        if let n = (minor ? minors : major)[s] { return (n, minor) }
+        // a spelling with no standard signature (G# major = 8 sharps): the key it equals (Ab)
+        guard let k = AutoTuneSend.keyClass(name) else { return nil }
+        let byPitchClass = minor ? [-3, 4, -1, -6, 1, -4, 3, -2, 5, 0, -5, 2]   // Cm ... Bm
+                                 : [0, -5, 2, -3, 4, -1, -6, 1, -4, 3, -2, 5]   // C ... B
+        return (byPitchClass[k.pitchClass], minor)
     }
 
     /// The file's bytes. `bpm` outside 1...1000 or nil writes no tempo event; an unknown key
@@ -65,10 +69,10 @@ enum MidiExport {
     }
 
     /// The reading the window is showing: a finished download, or the first analysed file.
-    static func current(_ state: ViewState) -> Result? {
+    static func current(_ state: ViewState, spelling: KeySpelling? = SpellingSettings.shared.preference) -> Result? {
         switch state {
-        case .done(let r): return r
-        case .analyzed(let rs): return rs.first
+        case .done(let r): return r.respelled(spelling)
+        case .analyzed(let rs): return rs.first?.respelled(spelling)
         default: return nil
         }
     }
