@@ -29,6 +29,7 @@ struct OrionApp: App {
         .windowStyle(HiddenTitleBarWindowStyle())
         .commands {
             CommandGroup(replacing: .newItem) {}   // one window: no File > New
+            CommandGroup(after: .newItem) { ExportMidiMenuItem(engine: engine) }
             // The app menu says Beat Key whatever the process is called (swift run = "Orion").
             CommandGroup(replacing: .appInfo) {
                 Button(Brand.about) {
