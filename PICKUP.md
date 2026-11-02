@@ -1,6 +1,27 @@
 # PICKUP — beat_dl
 
-## CURRENT STATE — 2026-10-29 06:15
+## CURRENT STATE — 2026-11-01 22:42
+
+**Beat Key 0.1.20 is building (started 22:29) with the SESSION Key feature set; not published. 0.1.18 is still the released version.** J's order (20:14): build ALL SESSION Key features, any order, no "next section?" check-ins; only real blockers go to J. Plan: docs/plans/session-key-parity.md + -TOC.md (§1-§5 ticked; §6 docs done, release owed).
+- Source of the list: SESSION Key (session.am/session-key, $49, Tommy Rush / M.W.A, Mac menu-bar). Mike Dean's own software is a synth (Smoke Mono 1), not this. Same features, Beat Key's own look, never a visual rip-off (J 21:37).
+- Built + merged on main (git log 6de17b5..72ec8e8): top-3-keys pitch in README + friends page source; decimal BPM, x0.5/x2, tuning cents + reference pitch, more formats + MIDI in, recent readings, Analyze a File + Finder service, confidence lamps; menu-bar POPOVER (pocket faceplate: dial, top-3, keyboard, Download field, Listen + source + meter, NEW SONG · RESET ⌃⌥⌘R, HOLD ⌃⌥⌘H manual only, Analyze/Send to DAW/Send to Auto-Tune/Export MIDI); global shortcuts; open at login; live listening (mic/inputs; Mac audio via ScreenCaptureKit 13+); colour-blind shapes + high contrast; Export MIDI tempo/key; Send to DAW (Ableton 12 tempo+key via remote script, Reaper/Bitwig tempo via scripts, Pro Tools/Logic/Studio One tempo+key via Accessibility with MIDI-file fallback; PTSL has NO tempo/key setter); Analyze Selection (PT/Ableton/Reaper); Send Key to Auto-Tune (writes ~/Music/Audio Music Apps/Temp/Auto-Key.handoff, KeyClass 0=C..11=B, KeyType 0 major / 1 minor = a GUESS until J's test); click key to respell (Ebm↔D#m); auto-hold REMOVED (J 22:10: "nobody wants held").
+- Tests on main: swift 217 (1 skipped) pass; python 95 OK on main (worktrees fail without bin/ + tests/fixtures/click120.wav).
+- build.sh fix 2026-11-01: rpath check captured before grep (SIGPIPE under pipefail broke 0.1.19's first build).
+- Builds: app/build/Beat-Key-0.1.19.dmg (notarized; on J's Desktop too; installed then superseded). 0.1.20 build running in background → installs itself into /Applications and opens (log: scratchpad build-0.1.20.log). VERSION=0.1.20.
+- Running agent: new-song detection (worktree agent-a52991578c624e9d2, WIP commit f3b8924): bpm.py --stream boundary detector (needs "something disappeared" AND "beat grid jumps"; key window stays 30 s per J; silence detection dropped — measured Spotify gap only -46 dBFS peak), title watcher (Spotify + Brave/Chrome/Safari tab titles via AppleScript, works hidden), one Recent entry per song; eval on ~12 real chained beats in scratchpad/chains. Goes in 0.1.21 if not ready.
+- Stale worktree: .claude/worktrees/agent-a282dde3df59844ee (merged, locked by its agent pid) — remove with `git worktree remove -f -f` + `git branch -D worktree-agent-a282dde3df59844ee`.
+- Owed:
+  1. When 0.1.20 installs: tell J (clock time); he clicks through the popover, HOLD, key respell.
+  2. Test list CLOSED 22:42 at J's order ("get it out of my face"): re-post ONLY after 0.1.20 is installed and he can answer it, items: Auto-Tune shows sent key; minor stays minor (KeyType guess); Artemis Auto-Tune gets it; Pro Tools tempo+key; Logic tempo+key; live Mac audio; Finder right-click service. Fix failures (flip KeyType in AutoTuneSend.swift + tests if minor shows major).
+  3. Merge new-song detection when its eval numbers are good; report eval table to J; build next version.
+  4. Release per app/RELEASING.md after J's tests pass: gh release with DMG + appcast.xml; Sofia site copy + beat-key-latest.json; `scp friends-page/index.html js-mac-pro:beatkey/`; GO note to FLR site (handoff/TO-FLR-SITE-2026-11-01-beat-key-0.1.19.md + -top-3-keys.md already written; rename/refresh for the shipped version). Push main (many commits ahead of origin).
+  5. FLR site session: new icon + "Source code and licences" link + "updates itself" line (handoff/TO-FLR-SITE-2026-10-28-beat-key-0.1.18.md); await handoff/FROM-FLR-SITE-*.md reply.
+  6. Optional: add beatkey (8171) to ~/.claude/skills/jshriver-subdomain/references/players.md port table.
+  7. Question for J (asked 2026-10-29 06:14, unanswered): put both signing keys in the Passwords app (iCloud, leaves the house)? Plan: write a Passwords CSV import file in the scratchpad (Artemis key = `security find-generic-password -s artemis-license-signing -w`, may raise an Allow box; Beat Key = ~/.config/beat-key/sparkle_ed25519_private), J clicks File > Import once, then delete the CSV.
+- Facts: Sofia has NO Pro Tools and NO Auto-Tune licence → DAW/Auto-Tune live tests on J's MBP. Give J clock times, never "about ten minutes" (J 22:40).
+- Standing: Sofia never restarted; ssh via ~/.claude/scripts/ssh-rc; trash not rm; no song names in code/logs.
+
+## STATE — 2026-10-29 06:15 (superseded by the block above)
 
 **Beat Key (internal Orion, bundle com.jshriver.orion) 0.1.18 is RELEASED and live.** Free item on fourletterrecords.com behind an FLR account (page https://fourletterrecords.com/beat-key, download /account/download/beat-key; owned by the FLR site session). Repo is AGPL-3.0 since 2026-10-28 (commit f9e0031; ≤0.1.16 were also MIT).
 - Git: main = origin/main = c3ff709; orion-v1 pushed. Tag Beat-Key-0.1.18, GitHub release https://github.com/thuhmadhatter42/beat_dl/releases/tag/Beat-Key-0.1.18 (DMG + appcast.xml). DMG sha256 bc1af29832add5847842ef75e3594e03479857cdd7d70e0db8c890c7a4d69c15. Installed MBP /Applications (spctl OK). Sofia runs 0.1.17 (left there after the Sparkle test).
