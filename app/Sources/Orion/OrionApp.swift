@@ -46,6 +46,7 @@ struct OrionApp: App {
                     Button("Clear Menu") { recents.clear() }
                 }
                 .disabled(recents.readings.isEmpty)
+                ExportMidiMenuItem(engine: engine)
             }
             CommandMenu("Reading") {
                 Menu("Reference Pitch") {
