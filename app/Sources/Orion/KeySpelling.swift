@@ -1,3 +1,4 @@
+import Combine
 import Foundation
 
 /// Enharmonic spelling of key names: Ebm <-> D#m, Gb <-> F#, ... A click on the big key flips
@@ -31,11 +32,28 @@ enum KeySpelling: String {
     }
 }
 
+/// One of the top 3 keys the user clicked to make it THE key (shown big, sent to Auto-Tune, the
+/// DAW and the MIDI file) for one reading. Matched by the reading's file + name, so the next file
+/// or song shows the analyzer's own order again.
+struct KeyChoice: Equatable {
+    let file: URL
+    let name: String
+    let pitchClass: Int
+    let minor: Bool
+}
+
 extension Result {
-    /// The same reading with every key name in `spelling` (nil = untouched).
-    func respelled(_ spelling: KeySpelling?) -> Result {
-        guard let spelling = spelling else { return self }
-        return Result(file: file, name: name, bpm: bpm, keys: keys.map { (KeySpelling.respell($0.0, to: spelling), $0.1) },
+    /// The reading as shown: the chosen key (if any, and still in the list) moved to the front,
+    /// then every key name in `spelling` (nil = untouched).
+    func respelled(_ spelling: KeySpelling?, choice: KeyChoice? = SpellingSettings.shared.chosen) -> Result {
+        var ks = keys
+        if let c = choice, c.file == file, c.name == name,
+           let i = ks.firstIndex(where: { AutoTuneSend.keyClass($0.0).map { $0.pitchClass == c.pitchClass && $0.minor == c.minor } ?? false }),
+           i > 0 {
+            ks.insert(ks.remove(at: i), at: 0)
+        }
+        if let spelling = spelling { ks = ks.map { (KeySpelling.respell($0.0, to: spelling), $0.1) } }
+        return Result(file: file, name: name, bpm: bpm, keys: ks,
                       readError: readError, bpmExact: bpmExact, tuningCents: tuningCents)
     }
 }
@@ -51,6 +69,20 @@ final class SpellingSettings: ObservableObject {
             if let p = preference { defaults.set(p.rawValue, forKey: SpellingSettings.key) }
             else { defaults.removeObject(forKey: SpellingSettings.key) }
         }
+    }
+
+    /// The key clicked in the top 3 for the reading on show; nil = the analyzer's order.
+    @Published var chosen: KeyChoice?
+
+    /// Fires on a spelling change or a key choice (both change what every readout shows).
+    var changes: AnyPublisher<KeySpelling?, Never> {
+        $preference.combineLatest($chosen).map { $0.0 }.eraseToAnyPublisher()
+    }
+
+    /// A click on one of the top 3 (`key` as shown) of `result`: it becomes the key.
+    func choose(_ key: String, of result: Result) {
+        guard let k = AutoTuneSend.keyClass(key) else { return }
+        chosen = KeyChoice(file: result.file, name: result.name, pitchClass: k.pitchClass, minor: k.minor)
     }
 
     init(defaults: UserDefaults = .standard) {

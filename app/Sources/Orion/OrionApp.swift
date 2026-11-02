@@ -133,6 +133,7 @@ struct OrionApp: App {
         return {
             guard l.state.isActive else { NSSound.beep(); return }
             m.tempoFactor = .one
+            SpellingSettings.shared.chosen = nil
             l.reset()
         }
     }

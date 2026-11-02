@@ -14,6 +14,11 @@ final class SystemAudioCapture: NSObject, AudioCapture, SCStreamOutput, SCStream
     private var onSamples: (([Float]) -> Void)?
     private var onError: ((String) -> Void)?
     private var stopped = false
+    /// SCK only delivers 8/16/24/48 kHz (asking for 44.1 kHz silently gets 48 kHz), so each
+    /// buffer's real rate is read and resampled to the analyzer's 44.1 kHz. Unresampled 48 kHz
+    /// audio read as 44.1 kHz puts every key ~1.5 semitones flat and every tempo 8 % slow.
+    private var resampler: Resampler?
+    private var resamplerRate: Double = 0
 
     /// macOS 15 renamed the privacy pane.
     static var permissionText: String {
@@ -39,7 +44,7 @@ final class SystemAudioCapture: NSObject, AudioCapture, SCStreamOutput, SCStream
             let cfg = SCStreamConfiguration()
             cfg.capturesAudio = true
             cfg.excludesCurrentProcessAudio = true
-            cfg.sampleRate = LiveProcess.sampleRate
+            cfg.sampleRate = SystemAudioCapture.captureRate
             cfg.channelCount = 2
             cfg.width = 2
             cfg.height = 2
@@ -68,14 +73,22 @@ final class SystemAudioCapture: NSObject, AudioCapture, SCStreamOutput, SCStream
 
     func stream(_ stream: SCStream, didOutputSampleBuffer sb: CMSampleBuffer, of type: SCStreamOutputType) {
         guard type == .audio, sb.isValid, let emit = onSamples else { return }
+        guard let fd = CMSampleBufferGetFormatDescription(sb),
+              let rate = CMAudioFormatDescriptionGetStreamBasicDescription(fd)?.pointee.mSampleRate, rate > 0
+        else { return }
+        if rate != resamplerRate { resampler = Resampler(from: rate); resamplerRate = rate }
+        guard let r = resampler else { return }
         let mono: [Float]? = try? sb.withAudioBufferList { list, _ in SystemAudioCapture.mono(list) }
-        if let m = mono, !m.isEmpty { emit(m) }
+        if let m = mono, !m.isEmpty { emit(r.process(m)) }
     }
 
     func stream(_ stream: SCStream, didStopWithError error: Error) {
         guard !stopped else { return }
         onError?(SystemAudioCapture.text(error))
     }
+
+    /// A rate SCK actually supports (8000, 16000, 24000, 48000).
+    static let captureRate = 48000
 
     /// Float32 buffers (one per channel, or one interleaved) averaged to mono.
     static func mono(_ list: UnsafeMutableAudioBufferListPointer) -> [Float] {

@@ -122,7 +122,7 @@ final class StatusItemController: NSObject, NSMenuDelegate {
         Publishers.CombineLatest(
             Publishers.CombineLatest4(engine.$state, model.$pager, model.$tempoFactor,
                                       live.$state.combineLatest(live.$sourceName)),
-            recents.$readings.combineLatest(live.$isHeld, SpellingSettings.shared.$preference))
+            recents.$readings.combineLatest(live.$isHeld, SpellingSettings.shared.changes))
             .receive(on: DispatchQueue.main)
             .sink { [weak self] a, b in
                 let (state, pager, factor, l) = a

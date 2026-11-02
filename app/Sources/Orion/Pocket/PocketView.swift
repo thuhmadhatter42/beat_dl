@@ -352,7 +352,9 @@ private struct PocketLCD: View {
             }
             .frame(height: 118)
             hairline.padding(.top, 12)
-            TopKeys(keys: state.result?.keys ?? []).padding(.top, 11)
+            TopKeys(keys: state.result?.keys ?? [],
+                    onChoose: state.result.map { r in { SpellingSettings.shared.choose($0, of: r) } })
+                .padding(.top, 11)
             NoteKeyboard(scale: state.scale).frame(height: 44).padding(.top, 13)
             scaleLine.padding(.top, 7)
         }
@@ -639,13 +641,23 @@ private struct FactorChip: View {
     }
 }
 
-/// Beat Key's headline: the three likeliest keys with their percentages and a bar each.
+/// Beat Key's headline: the three likeliest keys with their percentages and a bar each. A click
+/// on key 2 or 3 makes it THE key: it moves to the front, the dial and the sends use it.
 private struct TopKeys: View {
     let keys: [(String, Int)]
+    var onChoose: ((String) -> Void)? = nil
     var body: some View {
         HStack(alignment: .top, spacing: 12) {
             ForEach(0..<3, id: \.self) { i in
-                cell(i, i < keys.count ? keys[i] : nil)
+                if i > 0, i < keys.count, let choose = onChoose {
+                    let name = keys[i].0
+                    Button(action: { choose(name) }) { cell(i, keys[i]).contentShape(Rectangle()) }
+                        .buttonStyle(PlainButtonStyle())
+                        .pointingHand()
+                        .help("Use \(name) as the key")
+                } else {
+                    cell(i, i < keys.count ? keys[i] : nil)
+                }
             }
         }
         .accessibilityElement(children: .ignore)

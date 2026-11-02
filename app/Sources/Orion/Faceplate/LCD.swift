@@ -287,8 +287,14 @@ struct ResultReadout: View {
                         keyText.padding(.top, 6)
                         HStack(spacing: 14) {
                             ForEach(Array(result.keys.dropFirst().prefix(2).enumerated()), id: \.offset) { _, k in
-                                Text("\(k.0) \(k.1)%").font(Theme.face(12).monospacedDigit()).tracking(12 * 0.08)
-                                    .foregroundColor(Theme.amber(0.55))
+                                let r = result
+                                Button(action: { SpellingSettings.shared.choose(k.0, of: r) }) {
+                                    Text("\(k.0) \(k.1)%").font(Theme.face(12).monospacedDigit()).tracking(12 * 0.08)
+                                        .foregroundColor(Theme.amber(0.55))
+                                }
+                                .buttonStyle(PlainButtonStyle())
+                                .pointingHand()
+                                .help("Use \(k.0) as the key")
                             }
                         }
                         .padding(.top, 9)
