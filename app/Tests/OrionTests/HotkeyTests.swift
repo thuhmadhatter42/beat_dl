@@ -16,6 +16,8 @@ final class HotkeyTests: XCTestCase {
     func testDefaults() {
         XCTAssertEqual(HotkeyAction.listen.defaultShortcut.display, "⌃⌥⌘K")
         XCTAssertEqual(HotkeyAction.analyzeFile.defaultShortcut.display, "⌃⌥⌘F")
+        XCTAssertEqual(HotkeyAction.newSong.defaultShortcut.display, "⌃⌥⌘R")
+        XCTAssertEqual(HotkeyAction.newSong.hotKeyID, 3)   // appended: the older IDs stay put
         XCTAssertEqual(HotkeyAction.listen.defaultShortcut.keyCode, UInt32(kVK_ANSI_K))
         let s = ShortcutStore(defaults: defaults())
         XCTAssertEqual(s.shortcut(.listen), HotkeyAction.listen.defaultShortcut)

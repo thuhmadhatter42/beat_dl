@@ -322,6 +322,9 @@ protocol AudioCapture: AnyObject {
 final class LiveController: ObservableObject {
     @Published private(set) var state: LiveState = .off
     @Published private(set) var sourceName = ""
+    /// The input's level while listening, 0...1 (peak, dB-scaled, falling back slowly), for the
+    /// popover's meter. 0 when Listen is off.
+    @Published private(set) var level: Float = 0
     let settings: LiveSettings
     private var session = LiveSession()
     private let launch: LiveLauncher
@@ -331,6 +334,8 @@ final class LiveController: ObservableObject {
     private var capture: AudioCapture?
     private var filler: SilenceFiller?
     private var fillTimer: Timer?
+    private var levelTimer: Timer?
+    private var peak: Float = 0
     private let fillLock = NSLock()
     private var generation = 0
 
@@ -354,6 +359,14 @@ final class LiveController: ObservableObject {
     }
 
     func toggle() { state.isActive ? stop() : start() }
+
+    /// New Song: drop everything heard and any lock, now, and keep listening to the same source.
+    /// The analyzer's stdin carries only samples (no control channel), so the stream is started
+    /// over: a fresh analyzer and capture, the lamp back to red LISTENING. Off = nothing to do.
+    func reset() {
+        guard state.isActive else { return }
+        start()
+    }
 
     func start() {
         stop()
@@ -383,7 +396,8 @@ final class LiveController: ObservableObject {
         fillLock.lock(); filler = SilenceFiller(now: now()); fillLock.unlock()
         cap.start(onSamples: { [weak self, weak p] samples in
             guard let self = self else { return }
-            self.fillLock.lock(); self.filler?.heard(at: self.now()); self.fillLock.unlock()
+            let pk = samples.reduce(Float(0)) { max($0, abs($1)) }
+            self.fillLock.lock(); self.filler?.heard(at: self.now()); self.peak = max(self.peak, pk); self.fillLock.unlock()
             p?.write(samples)
         }, onError: { [weak self] message in
             DispatchQueue.main.async { self?.fail(message, gen: gen) }
@@ -391,6 +405,16 @@ final class LiveController: ObservableObject {
         let t = Timer(timeInterval: 0.25, repeats: true) { [weak self] _ in self?.fillSilence() }
         RunLoop.main.add(t, forMode: .common)
         fillTimer = t
+        let lt = Timer(timeInterval: 1.0 / 20, repeats: true) { [weak self] _ in self?.updateLevel() }
+        RunLoop.main.add(lt, forMode: .common)
+        levelTimer = lt
+    }
+
+    /// The meter: the loudest sample since the last tick, falling back at most 20 % per tick.
+    private func updateLevel() {
+        fillLock.lock(); let pk = peak; peak = 0; fillLock.unlock()
+        let next = max(LevelMeter.scale(pk), level * 0.8)
+        if abs(next - level) > 0.004 { level = next < 0.01 ? 0 : next }
     }
 
     func fillSilence() {
@@ -409,6 +433,9 @@ final class LiveController: ObservableObject {
     private func teardown() {
         fillTimer?.invalidate()
         fillTimer = nil
+        levelTimer?.invalidate()
+        levelTimer = nil
+        if level != 0 { level = 0 }
         capture?.stop()
         capture = nil
         pipe?.close()

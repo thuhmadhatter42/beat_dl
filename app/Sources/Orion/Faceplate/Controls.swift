@@ -180,6 +180,9 @@ final class AmberCaretField: NSTextField {
 /// The pale SSL-style key cap. Lit = amber; dim = 45% when there is nothing to do.
 struct SSLCapStyle: ButtonStyle {
     let lit: Bool
+    /// A pale cap that can be pressed now (full strength, not lit): the popover's action caps.
+    var ready = false
+    var height: CGFloat = 36
 
     /// The cap's legend: 9 pt bold, .16em (Text-only tracking is the macOS 11 way).
     static func label(_ s: String, size: CGFloat = 9) -> Text { Text(s).font(Theme.face(size)).tracking(size * 0.16) }
@@ -191,7 +194,7 @@ struct SSLCapStyle: ButtonStyle {
             .foregroundColor(lit ? Theme.hex(0x3a2a06) : Theme.hex(0x4a463c))
             .shadow(color: Color.white.opacity(lit ? 0.35 : 0.5), radius: 0, y: 1)
             .padding(.horizontal, 18)
-            .frame(height: 36)
+            .frame(height: height)
             .background(
                 ZStack(alignment: .top) {
                     lit
@@ -221,6 +224,6 @@ struct SSLCapStyle: ButtonStyle {
                 }
             })
             .compositingGroup()   // CSS opacity fades the cap as one layer
-            .opacity(lit ? 1 : 0.45)
+            .opacity(lit || ready ? 1 : 0.45)
     }
 }

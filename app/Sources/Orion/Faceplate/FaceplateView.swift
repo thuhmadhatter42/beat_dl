@@ -120,32 +120,10 @@ struct FaceplateView: View {
 
     private var readout: Readout {
         if showDrop { return .drop }
-        if let l = Faceplate.liveReadout(live.state, source: live.sourceName, factor: model.tempoFactor,
-                                         onCycleTempo: { model.tempoFactor = model.tempoFactor.next }) {
-            return l
-        }
-        let dl = model.lastAction == .download
-        switch engine.state {
-        case .idle: return .idle
-        case .working(let s): return .working(stage: s, download: dl)
-        case .doctor(let r): return .doctor(r)
-        case .done(let r): return .result(r, page: nil, download: true, options: options(for: r))
-        case .analyzed(let rs):
-            guard !rs.isEmpty else { return .idle }
-            let i = min(model.pager.index, rs.count - 1)
-            return .result(rs[i], page: model.pager.caption, download: false, note: engine.note, options: options(for: rs[i]))
-        case .failed(let m): return .error(m, download: dl)
-        case .needsLogin(let p):
-            let (a, b) = Faceplate.loginLines(p)
-            return .login(a, b, caption: nil)
-        }
-    }
-
-    /// The tempo factor, the tuning line against the reference pitch, and the BPM click.
-    private func options(for r: Result) -> ResultOptions {
-        ResultOptions(factor: model.tempoFactor,
-                      tuning: Tuning.line(r.tuningCents, reference: tuning.reference),
-                      onCycleTempo: { model.tempoFactor = model.tempoFactor.next })
+        return Faceplate.readout(engine.state, live: live.state, liveSource: live.sourceName, page: model.pager,
+                                 factor: model.tempoFactor, lastAction: model.lastAction, note: engine.note,
+                                 reference: tuning.reference,
+                                 onCycleTempo: { model.tempoFactor = model.tempoFactor.next })
     }
 
     private var dropBinding: Binding<Bool> {
@@ -238,6 +216,35 @@ struct FaceplateView: View {
             if let tv = e.window?.firstResponder as? NSTextView, !tv.string.isEmpty { return e }
             if e.keyCode == 123 { model.pager.previous() } else { model.pager.next() }
             return nil
+        }
+    }
+}
+
+extension Faceplate {
+    /// What the readout shows for the engine and Listen: one derivation for the window's LCD and
+    /// the menu-bar popover. Listen's reading wins while it is on; else the engine's state.
+    static func readout(_ state: ViewState, live: LiveState, liveSource: String, page: Pager,
+                        factor: TempoFactor, lastAction: LastAction, note: String?, reference: Double,
+                        onCycleTempo: (() -> Void)?) -> Readout {
+        if let l = liveReadout(live, source: liveSource, factor: factor, onCycleTempo: onCycleTempo) { return l }
+        let dl = lastAction == .download
+        func options(_ r: Result) -> ResultOptions {
+            ResultOptions(factor: factor, tuning: Tuning.line(r.tuningCents, reference: reference),
+                          onCycleTempo: onCycleTempo)
+        }
+        switch state {
+        case .idle: return .idle
+        case .working(let s): return .working(stage: s, download: dl)
+        case .doctor(let r): return .doctor(r)
+        case .done(let r): return .result(r, page: nil, download: true, options: options(r))
+        case .analyzed(let rs):
+            guard !rs.isEmpty else { return .idle }
+            let i = min(page.index, rs.count - 1)
+            return .result(rs[i], page: page.caption, download: false, note: note, options: options(rs[i]))
+        case .failed(let m): return .error(m, download: dl)
+        case .needsLogin(let p):
+            let (a, b) = loginLines(p)
+            return .login(a, b, caption: nil)
         }
     }
 }

@@ -65,13 +65,15 @@ struct Shortcut: Codable, Equatable {
 
 /// What a global shortcut does. Send to DAW joins this list with plan §4.
 enum HotkeyAction: String, CaseIterable, Identifiable {
-    case listen, analyzeFile
+    // new actions go at the end: hotKeyID is the position in this list
+    case listen, analyzeFile, newSong
     var id: String { rawValue }
 
     var title: String {
         switch self {
         case .listen: return "Start / Stop Listening"
         case .analyzeFile: return "Analyze a File…"
+        case .newSong: return "New Song (Reset Listening)"
         }
     }
 
@@ -80,6 +82,7 @@ enum HotkeyAction: String, CaseIterable, Identifiable {
         switch self {
         case .listen: return Shortcut(keyCode: UInt32(kVK_ANSI_K), modifiers: ctrlOptCmd, key: "K")
         case .analyzeFile: return Shortcut(keyCode: UInt32(kVK_ANSI_F), modifiers: ctrlOptCmd, key: "F")
+        case .newSong: return Shortcut(keyCode: UInt32(kVK_ANSI_R), modifiers: ctrlOptCmd, key: "R")
         }
     }
 

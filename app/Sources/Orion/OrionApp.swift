@@ -57,6 +57,9 @@ struct OrionApp: App {
                 Button(live.state.isActive ? "Stop Listening" : "Start Listening") { toggleListening() }   // the computed closure, run now
                     .optionalShortcut(shortcuts.shortcut(.listen)?.menuShortcut)
                     .disabled(engine.state.isBusy && !live.state.isActive)
+                Button("New Song (Reset Listening)") { newSong() }
+                    .optionalShortcut(shortcuts.shortcut(.newSong)?.menuShortcut)
+                    .disabled(!live.state.isActive)
                 Divider()
                 Menu("Reference Pitch") {
                     ForEach(Tuning.presets, id: \.self) { hz in
@@ -118,13 +121,28 @@ struct OrionApp: App {
         return { OrionApp.toggleListening(live: l, engine: e, model: m) }
     }
 
+    /// Reading › New Song, its global shortcut, the menu-bar menu and the popover: Listen drops
+    /// what it heard and its lock, and starts over on the same source (tempo back to x1).
+    private var newSong: () -> Void {
+        let (l, m) = (live, model)
+        return {
+            guard l.state.isActive else { NSSound.beep(); return }
+            m.tempoFactor = .one
+            l.reset()
+        }
+    }
+
     /// A checkmark row that sets the reference pitch to `hz`.
     private func referenceBinding(_ hz: Double) -> Binding<Bool> {
         Binding(get: { tuning.reference == hz }, set: { _ in tuning.reference = hz })
     }
 
     /// File › Recent Readings: put an earlier reading back on the LCD.
-    private func showAgain(_ r: Reading) {
+    private func showAgain(_ r: Reading) { OrionApp.showAgain(r, engine: engine, model: model) }
+
+    /// One path for File › Recent Readings and the popover's RECENT list.
+    static func showAgain(_ r: Reading, engine: Engine, model: FaceplateModel) {
+        guard !engine.state.isBusy else { NSSound.beep(); return }
         model.lastAction = .analyze
         engine.show(r.result)
     }
@@ -155,10 +173,14 @@ struct OrionApp: App {
             }
         }
         // The menu-bar readout ("Ebm 128" + lamp) follows the LCD from here on.
-        StatusItemController.shared.install(engine: engine, model: model, live: live,
-                                            toggleListening: toggleListening)
+        let (e, m) = (engine, model)
+        StatusItemController.shared.install(engine: engine, model: model, live: live, tuning: tuning,
+                                            recents: recents, display: display, shortcuts: shortcuts,
+                                            toggleListening: toggleListening, newSong: newSong,
+                                            showAgain: { OrionApp.showAgain($0, engine: e, model: m) })
         // Global shortcuts (Settings › Global shortcuts), live in every app.
         HotkeyCenter.shared.actions[.listen] = toggleListening
+        HotkeyCenter.shared.actions[.newSong] = newSong
         HotkeyCenter.shared.actions[.analyzeFile] = {
             StatusItemController.bringWindowForward()
             Intake.analyzeAFile()

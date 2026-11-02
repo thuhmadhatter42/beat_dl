@@ -1,19 +1,22 @@
 import AppKit
 import Combine
+import SwiftUI
 
-/// What the menu-bar item says: "Ebm 128" and the confidence lamp, for the reading on the LCD.
-/// nil text = no reading (the key glyph alone).
+/// What the menu-bar item says: "Ebm 128.0" and the confidence lamp, for the reading on the LCD.
+/// nil text = no reading (the key glyph and a dash).
 struct MenuBarReadout: Equatable {
     var text: String?
     var lamp: Lamp?
+    /// The last reading shown while nothing is on the readout: drawn dimmed.
+    var dim = false
     /// The full line for the menu's first row and VoiceOver.
     var detail: String
 
     static let idle = MenuBarReadout(text: nil, lamp: nil, detail: "No reading yet")
 
-    /// The reading `r` as the menu bar shows it: top key, then the whole-number BPM at `factor`.
+    /// The reading `r` as the menu bar shows it: top key, then the BPM to one decimal at `factor`.
     static func of(_ r: Result, factor: TempoFactor = .one, lamp: Lamp? = nil, status: String? = nil) -> MenuBarReadout {
-        let bpm = Tempo.text(r, factor: factor).flatMap(Double.init).map { String(Int($0.rounded())) }
+        let bpm = Tempo.text(r, factor: factor).flatMap(Double.init).map { String(format: "%.1f", $0) }
         let key = r.keys.first?.0
         let parts = [key, bpm].compactMap { $0 }
         guard !parts.isEmpty else { return MenuBarReadout(text: nil, lamp: nil, detail: "Nothing read") }
@@ -53,6 +56,17 @@ struct MenuBarReadout: Equatable {
         }
     }
 
+    /// The status item with nothing on the readout: the last reading, dimmed; else a dash.
+    static func idle(last: Reading?) -> MenuBarReadout {
+        guard let r = last else { return .idle }
+        var m = of(r.result)
+        guard m.text != nil else { return .idle }
+        m.lamp = nil
+        m.dim = true
+        m.detail = "Last: " + m.detail
+        return m
+    }
+
     /// Spoken by VoiceOver for the status item.
     var accessibilityLabel: String {
         "\(Brand.name): \(detail)" + (lamp.map { ", \($0.spoken)" } ?? "")
@@ -60,8 +74,9 @@ struct MenuBarReadout: Equatable {
 }
 
 /// The menu-bar item (NSStatusItem: one mechanism on macOS 12 and later; MenuBarExtra is 13+ and
-/// would need a second, fallback path for 12). The title follows the LCD's reading; the menu
-/// starts / stops listening, analyzes a file, and brings the window back.
+/// would need a second, fallback path for 12). The title follows the LCD's reading. A click opens
+/// the pocket faceplate (an NSPopover holding PocketView); a right-click or Control-click opens
+/// the short menu (listen, analyze, window, settings, quit).
 final class StatusItemController: NSObject, NSMenuDelegate {
     static let shared = StatusItemController()
 
@@ -70,44 +85,181 @@ final class StatusItemController: NSObject, NSMenuDelegate {
     private(set) var readout = MenuBarReadout.idle
     private let menu = NSMenu()
     private let detailRow = NSMenuItem(title: "", action: nil, keyEquivalent: "")
+    private let popover = NSPopover()
+    private let extras = PocketExtras()
+
+    private weak var engine: Engine?
+    private weak var live: LiveController?
+    private var toggleListening: (() -> Void)?
+    private var newSong: (() -> Void)?
 
     /// Called once the window is up (OrionApp.launch).
-    func install(engine: Engine, model: FaceplateModel, live: LiveController, toggleListening: @escaping () -> Void) {
+    func install(engine: Engine, model: FaceplateModel, live: LiveController, tuning: TuningSettings,
+                 recents: RecentStore, display: DisplaySettings, shortcuts: ShortcutStore,
+                 toggleListening: @escaping () -> Void, newSong: @escaping () -> Void, showAgain: @escaping (Reading) -> Void) {
         guard item == nil else { return }
         let it = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
         item = it
         menu.delegate = self
         menu.autoenablesItems = false
-        it.menu = menu
-        Publishers.CombineLatest4(engine.$state, model.$pager, model.$tempoFactor,
-                                  live.$state.combineLatest(live.$sourceName))
-            .receive(on: DispatchQueue.main)
-            .sink { [weak self] state, pager, factor, l in
-                self?.show(MenuBarReadout.of(live: l.0, source: l.1, factor: factor)
-                           ?? MenuBarReadout.of(state, page: pager.index, factor: factor))
-            }
-            .store(in: &bag)
+        if let b = it.button {
+            b.target = self
+            b.action = #selector(clicked(_:))
+            b.sendAction(on: [.leftMouseUp, .rightMouseUp])
+        }
         self.engine = engine
         self.live = live
         self.toggleListening = toggleListening
-    }
+        self.newSong = newSong
+        Publishers.CombineLatest(
+            Publishers.CombineLatest4(engine.$state, model.$pager, model.$tempoFactor,
+                                      live.$state.combineLatest(live.$sourceName)),
+            recents.$readings)
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] a, readings in
+                let (state, pager, factor, l) = a
+                let r = MenuBarReadout.of(live: l.0, source: l.1, factor: factor)
+                    ?? MenuBarReadout.of(state, page: pager.index, factor: factor)
+                self?.show(r == .idle ? .idle(last: readings.first) : r)
+            }
+            .store(in: &bag)
 
-    private weak var engine: Engine?
-    private weak var live: LiveController?
-    private var toggleListening: (() -> Void)?
+        let actions = makeActions(engine: engine, model: model, live: live, tuning: tuning, recents: recents,
+                                  showAgain: showAgain)
+        let root = PocketContainer(engine: engine, model: model, live: live, tuning: tuning, recents: recents,
+                                   display: display, shortcuts: shortcuts, extras: extras, actions: actions) { [weak self] size in
+            guard let self = self, size.width > 0, size.height > 0 else { return }
+            if self.popover.contentSize != size { self.popover.contentSize = size }
+        }
+        let host = NSHostingController(rootView: root)
+        popover.contentViewController = host
+        popover.behavior = .transient
+        popover.animates = true
+        popover.appearance = NSAppearance(named: .darkAqua)
+        popover.contentSize = host.view.fittingSize
+    }
 
     func show(_ r: MenuBarReadout) {
         readout = r
         guard let button = item?.button else { return }
         button.image = MenuBarImage.make(r.lamp)
-        button.imagePosition = r.text == nil ? .imageOnly : .imageLeading
-        button.title = r.text.map { " \($0)" } ?? ""
-        button.font = NSFont.monospacedDigitSystemFont(ofSize: NSFont.systemFontSize, weight: .medium)
+        button.imagePosition = .imageLeading
+        let quiet = r.dim || r.text == nil
+        button.attributedTitle = NSAttributedString(string: " " + (r.text ?? "—"), attributes: [
+            .font: NSFont.monospacedDigitSystemFont(ofSize: NSFont.systemFontSize, weight: .medium),
+            .foregroundColor: quiet ? NSColor.secondaryLabelColor : NSColor.labelColor,
+        ])
         button.setAccessibilityLabel(r.accessibilityLabel)
         button.toolTip = r.detail
     }
 
-    // MARK: menu
+    // MARK: click = popover, right-click = menu
+
+    @objc private func clicked(_ sender: NSStatusBarButton) {
+        let e = NSApp.currentEvent
+        if e?.type == .rightMouseUp || e?.modifierFlags.contains(.control) == true { showMenu() } else { togglePopover() }
+    }
+
+    private func showMenu() {
+        popover.performClose(nil)
+        guard let it = item else { return }
+        it.menu = menu
+        it.button?.performClick(nil)
+        it.menu = nil
+    }
+
+    func togglePopover() {
+        guard let button = item?.button else { return }
+        if popover.isShown { popover.performClose(nil); return }
+        extras.refresh(live: live)
+        popover.show(relativeTo: button.bounds, of: button, preferredEdge: .minY)
+        NSApp.activate(ignoringOtherApps: true)
+        popover.contentViewController?.view.window?.makeKey()
+    }
+
+    private func closePopover() { popover.performClose(nil) }
+
+    /// The popover's controls, wired to the same calls the window and the menus make.
+    private func makeActions(engine: Engine, model: FaceplateModel, live: LiveController, tuning: TuningSettings,
+                             recents: RecentStore, showAgain: @escaping (Reading) -> Void) -> PocketActions {
+        var a = PocketActions()
+        let shown = { PocketState.shown(engine.state, live: live.state, page: model.pager) }
+        a.setFactor = { model.tempoFactor = $0 }
+        a.page = { step in if step < 0 { model.pager.previous() } else { model.pager.next() } }
+        let download = {
+            guard Faceplate.isLit(model.url, busy: engine.state.isBusy),
+                  Faceplate.loginPrompt(engine.state, url: model.url) == nil else { NSSound.beep(); return }
+            model.lastAction = .download
+            engine.download(model.url.trimmingCharacters(in: .whitespacesAndNewlines))
+            NSApp.keyWindow?.makeFirstResponder(nil)
+        }
+        a.download = download
+        a.pasteAndDownload = { link in model.url = link; download() }
+        // the window's LOG IN TO YOUTUBE cap runs the login (one login path)
+        a.openLogin = { [weak self] in self?.closePopover(); StatusItemController.bringWindowForward() }
+        a.toggleListen = { [weak self] in self?.toggleListening?() }
+        a.newSong = { [weak self] in self?.newSong?() }
+        a.pickSource = { [weak self] in self?.popSourceMenu(live: live) }
+        a.analyzeFile = { [weak self] in
+            self?.closePopover()
+            StatusItemController.bringWindowForward()
+            Intake.analyzeAFile()
+        }
+        a.sendDAW = { [weak self] in
+            guard let r = shown() else { NSSound.beep(); return }
+            self?.closePopover()
+            DAWSendController.send(r, toAll: false)
+        }
+        a.sendAutoTune = {
+            guard let key = shown()?.keys.first?.0, AutoTuneSend.write(key: key, referencePitch: tuning.reference)
+            else { NSSound.beep(); return false }
+            return true
+        }
+        a.exportMidi = { [weak self] in
+            guard let r = shown() else { NSSound.beep(); return }
+            self?.closePopover()
+            NSApp.activate(ignoringOtherApps: true)
+            MidiExport.runPanel(for: r)
+        }
+        a.showRecents = {
+            PopupMenu.show(recents.readings.map { r in PopupMenu.Item(title: r.title) { showAgain(r) } }
+                           + [.separator, PopupMenu.Item(title: "Clear Menu") { recents.clear() }])
+        }
+        a.openWindow = { [weak self] in self?.closePopover(); StatusItemController.bringWindowForward() }
+        a.settings = { [weak self] in self?.closePopover(); SettingsOpener.open() }
+        a.quit = { NSApp.terminate(nil) }
+        return a
+    }
+
+    /// Listen to: System Audio (13+), the default input, or a device; a change while listening
+    /// starts over on the new source.
+    private func popSourceMenu(live: LiveController) {
+        let s = live.settings
+        let extras = self.extras
+        func pick(_ src: LiveSource) {
+            s.source = src
+            extras.refresh(live: live)
+            if live.state.isActive { live.start() }
+        }
+        var items: [PopupMenu.Item] = []
+        if LiveSource.systemAvailable {
+            items.append(PopupMenu.Item(title: "System Audio", checked: s.source == .system) { pick(.system) })
+        }
+        items.append(PopupMenu.Item(title: "Default Input", checked: s.source == .input(uid: nil, channel: 0)) {
+            pick(.input(uid: nil, channel: 0))
+        })
+        for d in InputDevice.all() {
+            var on = false
+            if case .input(let uid, _) = s.source, uid == d.uid { on = true }
+            items.append(PopupMenu.Item(title: d.name, checked: on) { pick(.input(uid: d.uid, channel: 0)) })
+        }
+        items += [.separator, PopupMenu.Item(title: "Channels and More…") { [weak self] in
+            self?.closePopover(); SettingsOpener.open()
+        }]
+        PopupMenu.show(items)
+    }
+
+    // MARK: menu (right-click)
 
     func menuNeedsUpdate(_ menu: NSMenu) {
         menu.removeAllItems()
@@ -122,6 +274,10 @@ final class StatusItemController: NSObject, NSMenuDelegate {
         listen.target = self
         listen.isEnabled = active || !(engine?.state.isBusy ?? false)
         menu.addItem(listen)
+        let reset = NSMenuItem(title: "New Song (Reset Listening)", action: #selector(newSongChosen), keyEquivalent: "")
+        reset.target = self
+        reset.isEnabled = active
+        menu.addItem(reset)
         let analyze = NSMenuItem(title: "Analyze a File…", action: #selector(analyzeFile), keyEquivalent: "")
         analyze.target = self
         analyze.isEnabled = !(engine?.state.isBusy ?? false)
@@ -147,6 +303,7 @@ final class StatusItemController: NSObject, NSMenuDelegate {
     @objc private func quit() { NSApp.terminate(nil) }
     @objc private func openSettings() { SettingsOpener.open() }
     @objc private func listenToggled() { toggleListening?() }
+    @objc private func newSongChosen() { newSong?() }
 
     /// The faceplate window to the front (it may be minimised or behind other apps).
     static func bringWindowForward() {
@@ -159,16 +316,12 @@ final class StatusItemController: NSObject, NSMenuDelegate {
     }
 }
 
-/// The small picture left of the menu-bar text: the key glyph with no reading, else the lamp.
+/// The small picture left of the menu-bar text: Beat Key's golden key with no reading, else the lamp.
 enum MenuBarImage {
     static let side: CGFloat = 11
 
     static func make(_ lamp: Lamp?, side: CGFloat = MenuBarImage.side) -> NSImage? {
-        guard let lamp = lamp else {
-            let img = NSImage(systemSymbolName: "key.fill", accessibilityDescription: Brand.name)
-            img?.isTemplate = true
-            return img
-        }
+        guard let lamp = lamp else { return key() }
         // flipped, like SwiftUI, so the triangle points up; same shape as the LCD's lamp
         let img = NSImage(size: NSSize(width: side, height: side), flipped: true) { rect in
             guard let ctx = NSGraphicsContext.current?.cgContext else { return false }
@@ -179,5 +332,118 @@ enum MenuBarImage {
         }
         img.isTemplate = false
         return img
+    }
+
+    /// Beat Key's golden key (KeyGlyphShape: the app icon's dial head and toothed shaft): amber on
+    /// a dark menu bar, a deeper gold on a light one, so it is findable either way.
+    static func key(height: CGFloat = 12) -> NSImage {
+        let size = NSSize(width: (height * 1.75).rounded(), height: height)
+        let img = NSImage(size: size, flipped: true) { rect in
+            guard let ctx = NSGraphicsContext.current?.cgContext else { return false }
+            let dark = NSAppearance.currentDrawing().bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
+            let gold = dark ? NSColor(srgbRed: 1, green: 176 / 255, blue: 32 / 255, alpha: 1)
+                            : NSColor(srgbRed: 168 / 255, green: 104 / 255, blue: 0, alpha: 1)
+            ctx.addPath(KeyGlyphShape().path(in: rect.insetBy(dx: 0.25, dy: 0.25)).cgPath)
+            ctx.setFillColor(gold.cgColor)
+            ctx.fillPath(using: .evenOdd)
+            return true
+        }
+        img.isTemplate = false
+        img.accessibilityDescription = Brand.name
+        return img
+    }
+}
+
+/// The popover's own live values: the clipboard link and the source name (Core Audio is asked
+/// when the popover opens, not on every redraw).
+final class PocketExtras: ObservableObject {
+    @Published var clipboardLink: String?
+    @Published var sourceName = ""
+
+    func refresh(live: LiveController?) {
+        clipboardLink = Clipboard.currentLink()
+        if let l = live { sourceName = l.state.isActive ? l.sourceName : l.settings.sourceName(devices: InputDevice.all()) }
+    }
+}
+
+/// The popover's root: observes the app's objects and hands PocketView plain values.
+struct PocketContainer: View {
+    @ObservedObject var engine: Engine
+    @ObservedObject var model: FaceplateModel
+    @ObservedObject var live: LiveController
+    @ObservedObject var tuning: TuningSettings
+    @ObservedObject var recents: RecentStore
+    @ObservedObject var display: DisplaySettings
+    @ObservedObject var shortcuts: ShortcutStore
+    @ObservedObject var extras: PocketExtras
+    @ObservedObject private var watcher = DAWWatcher.shared
+    let actions: PocketActions
+    let onSize: (CGSize) -> Void
+
+    var body: some View {
+        PocketView(state: state, url: $model.url, actions: actions)
+            .fixedSize()
+            .background(GeometryReader { g in Color.clear.preference(key: PocketSizeKey.self, value: g.size) })
+            .onPreferenceChange(PocketSizeKey.self, perform: onSize)
+    }
+
+    private var state: PocketState {
+        var s = PocketState()
+        s.readout = Faceplate.readout(engine.state, live: live.state, liveSource: live.sourceName, page: model.pager,
+                                      factor: model.tempoFactor, lastAction: model.lastAction, note: engine.note,
+                                      reference: tuning.reference,
+                                      onCycleTempo: { [model] in model.tempoFactor = model.tempoFactor.next })
+        s.listening = live.state.isActive
+        s.source = live.state.isActive ? live.sourceName : extras.sourceName
+        s.level = live.level
+        s.url = model.url
+        s.busy = engine.state.isBusy
+        s.needsLogin = Faceplate.loginPrompt(engine.state, url: model.url) != nil
+        s.clipboardLink = extras.clipboardLink
+        s.daw = watcher.target?.name
+        s.recents = recents.readings
+        s.highContrast = display.highContrast
+        s.newSongKeys = shortcuts.shortcut(.newSong)?.display
+        return s
+    }
+}
+
+private struct PocketSizeKey: PreferenceKey {
+    static var defaultValue: CGSize = .zero
+    static func reduce(value: inout CGSize, nextValue: () -> CGSize) { value = nextValue() }
+}
+
+/// A small NSMenu popped up at the mouse, for pickers inside the popover (a SwiftUI Menu on
+/// macOS 12 flattens its label to plain text).
+enum PopupMenu {
+    struct Item {
+        var title: String
+        var checked = false
+        var action: (() -> Void)?
+        static let separator = Item(title: "", action: nil)
+        init(title: String, checked: Bool = false, action: (() -> Void)?) {
+            self.title = title; self.checked = checked; self.action = action
+        }
+    }
+
+    private final class Target: NSObject {
+        let run: () -> Void
+        init(_ run: @escaping () -> Void) { self.run = run }
+        @objc func fire() { run() }
+    }
+
+    static func show(_ items: [Item]) {
+        let m = NSMenu()
+        m.autoenablesItems = false
+        for it in items {
+            guard let act = it.action else { m.addItem(.separator()); continue }
+            let mi = NSMenuItem(title: it.title, action: #selector(Target.fire), keyEquivalent: "")
+            let t = Target(act)
+            mi.target = t
+            mi.representedObject = t   // the item keeps its target alive
+            mi.state = it.checked ? .on : .off
+            m.addItem(mi)
+        }
+        m.popUp(positioning: nil, at: NSEvent.mouseLocation, in: nil)
     }
 }

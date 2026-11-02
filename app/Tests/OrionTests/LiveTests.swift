@@ -129,7 +129,7 @@ final class LiveTests: XCTestCase {
         XCTAssertNil(MenuBarReadout.of(live: .off, source: "x", factor: .one))
         XCTAssertEqual(MenuBarReadout.of(live: .listening, source: "Mic", factor: .one)?.lamp, .listening)
         let m = MenuBarReadout.of(live: .locked(reading()), source: "Mic", factor: .one)
-        XCTAssertEqual(m?.text, "Ebm 128")
+        XCTAssertEqual(m?.text, "Ebm 128.0")
         XCTAssertEqual(m?.lamp, .locked)
         XCTAssertEqual(MenuBarReadout.of(live: .reading(reading("Cm", 41)), source: "Mic", factor: .one)?.lamp, .unsure)
     }
@@ -295,6 +295,30 @@ final class LiveTests: XCTestCase {
         XCTAssertEqual(c.state, .off)
         XCTAssertTrue(pipe.closed)
         XCTAssertTrue(cap.stopped)
+    }
+
+    /// New Song: a locked reading is dropped at once, a fresh analyzer and capture start, the lamp
+    /// goes back to red LISTENING. With Listen off it does nothing.
+    func testNewSongResetsALock() {
+        var pipes: [FakePipe] = [], caps: [FakeCapture] = []
+        let c = LiveController(settings: LiveSettings(defaults: defaults(), systemAvailable: false),
+                               launch: { _, _, _ in let p = FakePipe(); pipes.append(p); return p },
+                               makeCapture: { _ in let k = FakeCapture(); caps.append(k); return k })
+        c.reset()
+        XCTAssertEqual(c.state, .off)
+        XCTAssertTrue(pipes.isEmpty)
+        c.start()
+        c.handle(.reading(reading()), gen: nil)
+        c.handle(.reading(reading()), gen: nil)
+        XCTAssertEqual(c.state, .reading(reading()))
+        c.reset()
+        XCTAssertEqual(c.state, .listening)
+        XCTAssertEqual(c.state.lamp, .listening)
+        XCTAssertEqual(pipes.count, 2)
+        XCTAssertTrue(pipes[0].closed)
+        XCTAssertTrue(caps[0].stopped)
+        XCTAssertFalse(pipes[1].closed)
+        c.stop()
     }
 
     func testControllerFailures() {
