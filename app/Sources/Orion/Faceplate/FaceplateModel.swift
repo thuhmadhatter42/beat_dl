@@ -170,6 +170,8 @@ final class FaceplateModel: ObservableObject {
     @Published var dropTargeted = false
     @Published var pager = Pager()
     @Published var lastAction: LastAction = .download
+    /// The BPM click's x1 / x2 / x0.5; back to x1 whenever another reading comes up.
+    @Published var tempoFactor: TempoFactor = .one
     /// ORION_FAKE_STATE=drop pins the drag highlight for screenshots.
     @Published var pinnedDrop = false
 }

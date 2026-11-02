@@ -6,11 +6,19 @@ enum Readout {
     case idle
     case drop
     case working(stage: String, download: Bool)
-    case result(Result, page: String?, download: Bool, note: String? = nil)
+    case result(Result, page: String?, download: Bool, note: String? = nil, options: ResultOptions = ResultOptions())
     case error(String, download: Bool)
     case doctor(DoctorReport)
     /// Amber next step, not a failure: (first line, second line).
     case login(String, String, caption: String?)
+}
+
+/// How a result is dressed beyond the analyzer's numbers: the tempo factor the BPM click chose,
+/// the tuning line (nil = none to show), and what a click on the BPM does.
+struct ResultOptions {
+    var factor: TempoFactor = .one
+    var tuning: String? = nil
+    var onCycleTempo: (() -> Void)? = nil
 }
 
 /// The amber LCD: Artemis's `.lcd-hero` grown into the whole face.
@@ -55,7 +63,7 @@ struct LCD: View {
         case .idle: IdleReadout()
         case .drop: DropReadout()
         case let .working(stage, download): WorkingReadout(stage: stage, download: download)
-        case let .result(r, page, _, note): ResultReadout(result: r, page: page, note: note, onPage: onPage)
+        case let .result(r, page, _, note, o): ResultReadout(result: r, page: page, note: note, options: o, onPage: onPage)
         case let .error(m, download): ErrorReadout(message: m, download: download)
         case let .doctor(r): DoctorReadout(report: r)
         case let .login(a, b, c): LoginReadout(first: a, second: b, caption: c)
@@ -125,6 +133,10 @@ struct WorkingReadout: View {
             HStack(spacing: 20) {
                 ForEach(stepLights, id: \.0) { name, step in
                     StepLabel(name: name, step: step)
+                }
+                if stage == "analyzing" {
+                    Spacer(minLength: 0)
+                    StateLamp(color: Theme.red, text: "ANALYZING", textColor: Theme.redText)
                 }
             }
             .accessibility(hidden: true)
@@ -219,22 +231,27 @@ struct ResultReadout: View {
 
     let page: String?
     var note: String? = nil
+    var options = ResultOptions()
     var onPage: ((Int) -> Void)?
+
+    private var bpmShown: String? { Tempo.text(result, factor: options.factor) }
 
     var body: some View {
         ZStack(alignment: .topTrailing) {
             VStack(alignment: .leading, spacing: 0) {
                 HStack(alignment: .bottom, spacing: 30) {
                     VStack(alignment: .leading, spacing: 0) {
-                        Text.cap("BPM")
-                        Text(result.bpm ?? "---.-").font(Theme.face(68).monospacedDigit()).tracking(68 * 0.02)
-                            .foregroundColor(result.bpm == nil ? Theme.amber(0.12) : Theme.amber)
-                            .modifier(GlowIf(on: result.bpm != nil))
-                            .lineBox(68, 0.9)
-                            .padding(.top, 6)
+                        HStack(spacing: 8) {
+                            Text.cap("BPM")
+                            if let f = options.factor.label { Text.cap(f) }
+                            if let r = Tempo.rounded(result, factor: options.factor) {
+                                Text(r).font(Theme.face(8)).tracking(1.6).foregroundColor(Theme.amber(0.45))
+                            }
+                        }
+                        bpmNumber.padding(.top, 6)
                     }
                     .accessibilityElement(children: .ignore)
-                    .accessibility(label: Text(result.bpm.map { "BPM \($0)" } ?? "BPM not found"))
+                    .accessibility(label: Text(bpmLabel))
 
                     VStack(alignment: .leading, spacing: 0) {
                         Text.cap("KEY")
@@ -261,6 +278,7 @@ struct ResultReadout: View {
                         .lineLimit(1).truncationMode(.tail)
                         .padding(.bottom, 6)
                 }
+                statusLine.padding(.bottom, 6)
                 HStack(spacing: 14) {
                     Text(Faceplate.fileLine(result)).font(Theme.face(10)).tracking(1.2)
                         .foregroundColor(Theme.amber(0.6))
@@ -289,7 +307,7 @@ struct ResultReadout: View {
                     }
                     .padding(.trailing, 10)
                 }
-                if let period = Faceplate.tempoPeriod(result.bpm) {
+                if let period = Faceplate.tempoPeriod(bpmShown) {
                     Text.cap("TEMPO")
                     TempoLight(period: period)
                 }
@@ -298,10 +316,63 @@ struct ResultReadout: View {
         }
     }
 
+    /// The big BPM. A click cycles x1 / x2 / x0.5 when there is a BPM to cycle.
+    @ViewBuilder private var bpmNumber: some View {
+        let text = Text(bpmShown ?? "---.-").font(Theme.face(68).monospacedDigit()).tracking(68 * 0.02)
+            .foregroundColor(bpmShown == nil ? Theme.amber(0.12) : Theme.amber)
+            .modifier(GlowIf(on: bpmShown != nil))
+            .lineBox(68, 0.9)
+        if bpmShown != nil, let cycle = options.onCycleTempo {
+            Button(action: cycle) { text.contentShape(Rectangle()) }
+                .buttonStyle(PlainButtonStyle())
+                .pointingHand()
+        } else {
+            text
+        }
+    }
+
+    /// Confidence lamp (locked / unsure) and the tuning, one line above the file line.
+    @ViewBuilder private var statusLine: some View {
+        let conf = Faceplate.confidenceLine(result.keys)
+        if conf != nil || options.tuning != nil {
+            let locked = KeyConfidence.of(result.keys) == .locked
+            HStack(spacing: 16) {
+                if let c = conf {
+                    StateLamp(color: locked ? Theme.green : Theme.amber, text: c,
+                              textColor: locked ? Theme.greenText : Theme.amber(0.8))
+                }
+                if let t = options.tuning {
+                    Text(t).font(Theme.face(9)).tracking(1.4).foregroundColor(Theme.amber(0.7)).lineLimit(1)
+                }
+            }
+            .accessibilityElement(children: .ignore)
+            .accessibility(label: Text([conf, options.tuning].compactMap { $0 }.joined(separator: ". ").lowercased()))
+        }
+    }
+
+    private var bpmLabel: String {
+        guard let b = bpmShown else { return "BPM not found" }
+        let time = options.factor == .double ? ", double time" : (options.factor == .half ? ", half time" : "")
+        return "BPM \(b)\(time)" + (options.onCycleTempo == nil ? "" : ". Click to switch between normal, double and half time")
+    }
+
     private var keyLabel: String {
         guard let first = result.keys.first else { return "Key not found" }
         let alts = result.keys.dropFirst().prefix(2).map { "\($0.0) \($0.1) percent" }
         return alts.isEmpty ? "Key \(first.0)" : "Key \(first.0), also \(alts.joined(separator: ", "))"
+    }
+}
+
+/// A small lit lamp and a caption: green LOCKED, amber UNSURE, red ANALYZING.
+struct StateLamp: View {
+    let color: Color
+    let text: String
+    var textColor: Color? = nil
+    var body: some View {
+        HStack(spacing: 6) {
+            Circle().fill(color).frame(width: 6, height: 6).shadow(color: color.opacity(0.8), radius: 3)
+            Text(text).font(Theme.face(9)).tracking(1.4).foregroundColor(textColor ?? color).lineLimit(1)
+        }
     }
 }
 

@@ -82,6 +82,8 @@ final class Engine: ObservableObject {
     private let dropLogin: () -> Void
     /// The running download uses the saved login.
     private var usedLogin = false
+    /// Every reading that comes out is remembered here (Recent Readings). nil = not kept (tests).
+    private let recents: RecentStore?
 
     /// The app's probe: create and remove a hidden file in ~/Downloads. None when ORION_DOWNLOADS
     /// is set (a test/debug run that never touches the real folder).
@@ -97,7 +99,9 @@ final class Engine: ObservableObject {
          downloadsProbe: (() -> Bool)? = nil,
          savedLogin: @escaping () -> URL? = { nil },
          dropLogin: @escaping () -> Void = {},
-         afterDoctor: @escaping () -> Void = {}) {
+         afterDoctor: @escaping () -> Void = {},
+         recents: RecentStore? = nil) {
+        self.recents = recents
         self.afterDoctor = afterDoctor
         self.downloadsProbe = downloadsProbe
         self.savedLogin = savedLogin
@@ -158,6 +162,16 @@ final class Engine: ObservableObject {
     /// Drops the login prompt (the link changed). Anything else is left alone.
     func clearLogin() {
         runOnMain { if case .needsLogin = self.state { self.state = .idle } }
+    }
+
+    /// Recent Readings: put an earlier reading back on the LCD. Ignored while busy.
+    func show(_ r: Result) {
+        runOnMain {
+            guard !self.state.isBusy else { return }
+            self.generation += 1
+            self.note = nil
+            self.state = .analyzed([r])
+        }
     }
 
     func analyze(_ files: [URL]) {
@@ -239,7 +253,7 @@ final class Engine: ObservableObject {
     func handle(_ e: Event) {
         switch e {
         case .stage(let s): if !sawTerminal { state = .working(stage: s) }
-        case .done(let r): sawTerminal = true; state = .done(r)
+        case .done(let r): sawTerminal = true; state = .done(r); recents?.record(r)
         case .analyzed(let r): results.append(r)
         case .error(let m): sawTerminal = true; state = .failed(m)
         case .needsLogin(let reason, _, let stale):
@@ -271,6 +285,7 @@ final class Engine: ObservableObject {
                 note = Faceplate.partialNote(max(expected - results.count, 1))
             }
             state = .analyzed(results)
+            results.forEach { recents?.record($0) }
         } else if state.isBusy {
             state = .failed("The helper stopped unexpectedly (exit \(code)).")
         }
