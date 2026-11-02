@@ -10,6 +10,7 @@ struct OrionApp: App {
     @StateObject private var updater: AppUpdater
     @StateObject private var tuning = TuningSettings()
     @StateObject private var recents: RecentStore
+    @StateObject private var shortcuts = ShortcutStore()
 
     init() {
         let session = YouTubeSession()
@@ -36,7 +37,7 @@ struct OrionApp: App {
             // one window: no File > New; the File menu is for reading files instead
             CommandGroup(replacing: .newItem) {
                 Button("Analyze a File…") { Intake.analyzeAFile() }
-                    .keyboardShortcut("f", modifiers: [.control, .option, .command])
+                    .optionalShortcut(shortcuts.shortcut(.analyzeFile)?.menuShortcut)
                     .disabled(engine.state.isBusy)
                 Menu("Recent Readings") {
                     ForEach(Array(recents.readings.enumerated()), id: \.offset) { _, r in
@@ -83,6 +84,9 @@ struct OrionApp: App {
                 Button(Brand.quit) { NSApp.terminate(nil) }.keyboardShortcut("q")
             }
         }
+        Settings {
+            SettingsView(shortcuts: shortcuts)
+        }
     }
 
     /// A checkmark row that sets the reference pitch to `hz`.
@@ -123,6 +127,12 @@ struct OrionApp: App {
         }
         // The menu-bar readout ("Ebm 128" + lamp) follows the LCD from here on.
         StatusItemController.shared.install(engine: engine, model: model)
+        // Global shortcuts (Settings › Global shortcuts), live in every app.
+        HotkeyCenter.shared.actions[.analyzeFile] = {
+            StatusItemController.bringWindowForward()
+            Intake.analyzeAFile()
+        }
+        HotkeyCenter.shared.apply(shortcuts)
         // Seed yt-dlp into Application Support, then the weekly self-update, on the shared
         // maintenance queue. The Engine stays idle; downloads and Run Doctor wait their turn.
         Runtime.appDefault().launchMaintenance()

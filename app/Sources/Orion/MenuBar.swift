@@ -102,6 +102,9 @@ final class StatusItemController: NSObject, NSMenuDelegate {
         let show = NSMenuItem(title: "Show \(Brand.name)", action: #selector(showWindow), keyEquivalent: "")
         show.target = self
         menu.addItem(show)
+        let settings = NSMenuItem(title: "Settings…", action: #selector(openSettings), keyEquivalent: "")
+        settings.target = self
+        menu.addItem(settings)
         let quit = NSMenuItem(title: Brand.quit, action: #selector(quit), keyEquivalent: "")
         quit.target = self
         menu.addItem(quit)
@@ -114,6 +117,7 @@ final class StatusItemController: NSObject, NSMenuDelegate {
 
     @objc private func showWindow() { StatusItemController.bringWindowForward() }
     @objc private func quit() { NSApp.terminate(nil) }
+    @objc private func openSettings() { SettingsOpener.open() }
 
     /// The faceplate window to the front (it may be minimised or behind other apps).
     static func bringWindowForward() {
