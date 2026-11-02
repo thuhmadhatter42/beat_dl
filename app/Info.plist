@@ -26,6 +26,10 @@
          NSAudioCaptureUsageDescription is the macOS 14.2+ system-audio string (Core Audio taps),
          here so a later move to taps or a future SCK prompt has the sentence ready. -->
     <key>NSMicrophoneUsageDescription</key><string>Beat Key listens to the input you choose to find the key and BPM of what is playing. Nothing is recorded or saved.</string>
+    <!-- Live listening's new-song detection (Live/SongBoundary.swift) reads, never controls, Spotify's
+         current track and the titles of YouTube tabs in Brave / Chrome / Safari. Needs the
+         apple-events entitlement too (entitlements-app.plist). -->
+    <key>NSAppleEventsUsageDescription</key><string>While Beat Key is listening, it reads the title of the song playing in Spotify or a YouTube tab, so each new song gets a fresh reading under its own name. It never controls the app.</string>
     <key>NSAudioCaptureUsageDescription</key><string>Beat Key listens to what your Mac is playing to find its key and BPM. Nothing is recorded or saved.</string>
     <!-- Finder › Services › Analyze with Beat Key (ServiceProvider.analyzeWithBeatKey in Intake.swift).
          NSPortName is the name OrionApp registers the provider under. -->

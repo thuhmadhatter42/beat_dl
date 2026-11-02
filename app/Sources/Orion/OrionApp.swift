@@ -161,6 +161,7 @@ struct OrionApp: App {
     }
 
     private func launch() {
+        live.songs.recents = recents   // each live song its own Recent Readings entry
         let env = ProcessInfo.processInfo.environment
         if let fake = env["ORION_FAKE_STATE"], !fake.isEmpty {
             FakeState.apply(fake, engine: engine, model: model)
