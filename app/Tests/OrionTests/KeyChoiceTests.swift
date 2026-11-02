@@ -33,3 +33,18 @@ final class KeyChoiceTests: XCTestCase {
         XCTAssertEqual(s.chosen, KeyChoice(file: r.file, name: r.name, pitchClass: 8, minor: false))
     }
 }
+
+@available(macOS 13.0, *)
+final class PlayerFilterTests: XCTestCase {
+    func testPlayersAreRecognised() {
+        for id in ["com.spotify.client", "com.brave.Browser", "com.brave.Browser.helper", "com.google.Chrome.helper.renderer",
+                   "com.apple.Music", "com.apple.Safari"] {
+            XCTAssertTrue(SystemAudioCapture.isPlayer(id), id)
+        }
+    }
+    func testMicAndDAWAppsAreNot() {
+        for id in ["com.shriver.artemis", "com.avid.ProTools", "com.apple.logic10", "com.ableton.live", "com.spotify.clientx"] {
+            XCTAssertFalse(SystemAudioCapture.isPlayer(id), id)
+        }
+    }
+}

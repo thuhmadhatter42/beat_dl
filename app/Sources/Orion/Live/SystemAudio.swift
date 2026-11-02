@@ -35,12 +35,17 @@ final class SystemAudioCapture: NSObject, AudioCapture, SCStreamOutput, SCStream
         guard CGPreflightScreenCaptureAccess() || CGRequestScreenCaptureAccess() else {
             onError(SystemAudioCapture.permissionText); return
         }
-        SCShareableContent.getExcludingDesktopWindows(false, onScreenWindowsOnly: true) { [weak self] content, error in
+        SCShareableContent.getExcludingDesktopWindows(false, onScreenWindowsOnly: false) { [weak self] content, error in
             guard let self = self, !self.stopped else { return }
             guard let display = content?.displays.first else {
                 onError(error.map(SystemAudioCapture.text) ?? "NO DISPLAY TO CAPTURE AUDIO FROM"); return
             }
-            let filter = SCContentFilter(display: display, excludingApplications: [], exceptingWindows: [])
+            // A music player open (Spotify, a browser, Music...) = hear only the players, so a mic
+            // monitored through Artemis or a DAW never mixes into the key. None open = everything.
+            let players = (content?.applications ?? []).filter { SystemAudioCapture.isPlayer($0.bundleIdentifier) }
+            let filter = players.isEmpty
+                ? SCContentFilter(display: display, excludingApplications: [], exceptingWindows: [])
+                : SCContentFilter(display: display, including: players, exceptingWindows: [])
             let cfg = SCStreamConfiguration()
             cfg.capturesAudio = true
             cfg.excludesCurrentProcessAudio = true
@@ -85,6 +90,18 @@ final class SystemAudioCapture: NSObject, AudioCapture, SCStreamOutput, SCStream
     func stream(_ stream: SCStream, didStopWithError error: Error) {
         guard !stopped else { return }
         onError?(SystemAudioCapture.text(error))
+    }
+
+    /// Apps that play songs (bundle id prefixes, so a browser's helper processes count too).
+    static let playerIDs = ["com.spotify.client", "com.apple.Music", "com.apple.Safari", "com.apple.WebKit",
+                            "com.brave.Browser", "com.google.Chrome", "company.thebrowser", "org.mozilla.firefox",
+                            "com.microsoft.edgemac", "com.operasoftware", "com.vivaldi", "com.apple.TV",
+                            "com.apple.QuickTimePlayerX", "org.videolan.vlc", "com.colliderli.iina",
+                            "com.tidal.desktop", "com.amazon.music", "com.soundcloud", "com.deezer",
+                            "com.google.android.youtube", "com.apple.podcasts"]
+
+    static func isPlayer(_ bundleID: String) -> Bool {
+        playerIDs.contains { bundleID == $0 || bundleID.hasPrefix($0 + ".") }
     }
 
     /// A rate SCK actually supports (8000, 16000, 24000, 48000).
