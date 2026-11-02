@@ -25,7 +25,7 @@ Everything is under the menus or in Settings (Beat Key > Settings, ⌘,). The gl
 - **Live listening.** Reading > Start Listening (⌃⌥⌘K) reads the BPM and key of whatever is playing, as it plays, and keeps refining. It listens to everything the Mac plays (macOS 13 or newer), the default input, or a microphone or interface you pick, one channel or all. It starts over after 2, 3, 5 or 10 seconds of silence (your choice). Nothing is recorded or saved.
 - **Menu-bar readout.** The reading (for example `Ebm 128`) and its lamp sit in the menu bar. Click it to start or stop listening, analyze a file, or open Settings.
 - **Confidence lights and shapes.** Green octagon = locked, amber triangle = unsure, red circle = listening or analyzing. The shape means colour is never the only signal. View > High Contrast Readout (also in Settings) makes the display brighter.
-- **Decimal BPM, half and double.** The BPM shows with decimals (`140.8`). Reading > Half / Double Tempo, or clicking the BPM on the display, cycles between the reading, double and half.
+- **Decimal BPM, half and double.** The BPM shows with two decimals (`140.82`). Reading > Half / Double Tempo, or clicking the BPM on the display, cycles between the reading, double and half.
 - **Tuning.** The display shows how many cents sharp or flat the track sits against a reference pitch. Reading > Reference Pitch: A = 432, 436, 438, 440, 442, 444, 450, or Custom (400 to 480 Hz).
 - **Files.** MP3, WAV, AIFF, FLAC, M4A, AAC, OGG, CAF, MP4, M4V, MOV and MIDI (.mid). For video the audio track is read. The file isn't changed.
 - **Analyze a File.** File > Analyze a File… (⌃⌥⌘F, global), drop files on the window or the Dock icon, Open With, or in Finder right-click > Services > Analyze with Beat Key.
