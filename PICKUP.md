@@ -13,7 +13,7 @@
 - Owed:
   1. When 0.1.20 installs: tell J (clock time); he clicks through the popover, HOLD, key respell.
   2. Test list CLOSED 22:42 at J's order ("get it out of my face"): re-post ONLY after 0.1.20 is installed and he can answer it, items: Auto-Tune shows sent key; minor stays minor (KeyType guess); Artemis Auto-Tune gets it; Pro Tools tempo+key; Logic tempo+key; live Mac audio; Finder right-click service. Fix failures (flip KeyType in AutoTuneSend.swift + tests if minor shows major).
-  3. Merge new-song detection when its eval numbers are good; report eval table to J; build next version.
+  3. New-song detection DONE on branch worktree-agent-a52991578c624e9d2 commit 4e2e08e (rebased on c34ff2d, NOT merged; re-run swift test after merge). Eval: audio detector caught 9/12 tuning, 6/12 held-out, 0-1 false, intro->drop never split, latency ~4 s; title watcher (Spotify/Brave/Chrome/Safari) is the reliable path, needs signed build + Automation prompt to verify. Merge, test, build 0.1.21, tell J the numbers.
   4. Release per app/RELEASING.md after J's tests pass: gh release with DMG + appcast.xml; Sofia site copy + beat-key-latest.json; `scp friends-page/index.html js-mac-pro:beatkey/`; GO note to FLR site (handoff/TO-FLR-SITE-2026-11-01-beat-key-0.1.19.md + -top-3-keys.md already written; rename/refresh for the shipped version). Push main (many commits ahead of origin).
   5. FLR site session: new icon + "Source code and licences" link + "updates itself" line (handoff/TO-FLR-SITE-2026-10-28-beat-key-0.1.18.md); await handoff/FROM-FLR-SITE-*.md reply.
   6. Optional: add beatkey (8171) to ~/.claude/skills/jshriver-subdomain/references/players.md port table.
