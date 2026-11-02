@@ -156,6 +156,15 @@ final class StatusItemController: NSObject, NSMenuDelegate {
             : StatusItemController.fixedWidth(font: font, held: r.text?.hasPrefix("⏸") == true)
         button.setAccessibilityLabel(r.accessibilityLabel)
         button.toolTip = r.detail
+        // The item's width changes ("…" vs a reading); its RIGHT edge never moves. Keep the popover
+        // hung from the key at that edge, so it stays put while Beat Key listens and analyzes.
+        if popover.isShown { popover.positioningRect = StatusItemController.anchor(button) }
+    }
+
+    /// The key glyph at the item's right edge: the popover's fixed anchor.
+    static func anchor(_ button: NSStatusBarButton) -> NSRect {
+        let w = min(button.bounds.width, 24)
+        return NSRect(x: button.bounds.maxX - w, y: button.bounds.minY, width: w, height: button.bounds.height)
     }
 
     /// Wide enough for the longest reading ("G#m 188.8" + the key), so the item never resizes.
@@ -183,7 +192,7 @@ final class StatusItemController: NSObject, NSMenuDelegate {
         guard let button = item?.button else { return }
         if popover.isShown { popover.performClose(nil); return }
         extras.refresh(live: live)
-        popover.show(relativeTo: button.bounds, of: button, preferredEdge: .minY)
+        popover.show(relativeTo: StatusItemController.anchor(button), of: button, preferredEdge: .minY)
         NSApp.activate(ignoringOtherApps: true)
         popover.contentViewController?.view.window?.makeKey()
     }
