@@ -124,7 +124,6 @@ struct PocketState {
     /// The lamp's word: LOCKED / UNSURE / LISTENING.
     var lampWord: String? {
         guard let l = lamp else { return nil }
-        if options?.live != nil, case .locked = l { return "LOCKED · HELD" }
         return l.spoken.uppercased()
     }
 }

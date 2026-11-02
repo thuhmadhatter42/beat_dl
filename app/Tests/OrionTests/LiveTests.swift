@@ -45,9 +45,9 @@ final class LiveTests: XCTestCase {
         guard case .reading = s.state else { return XCTFail() }
         s.feed(.reading(reading()), now: t0 + 6)
         XCTAssertEqual(s.state, .locked(reading()))
-        // held: later readings don't move it
+        // never held: a new key replaces it at once (J, 2026-11-01)
         s.feed(.reading(reading("Am", 90)), now: t0 + 8)
-        XCTAssertEqual(s.state, .locked(reading()))
+        XCTAssertEqual(s.state, .reading(reading("Am", 90)))
     }
 
     func testUnsureOrChangedKeyRestartsTheClock() {
@@ -102,7 +102,7 @@ final class LiveTests: XCTestCase {
         XCTAssertEqual(LiveState.listening.status(source: "System Audio"), "LISTENING · SYSTEM AUDIO")
         XCTAssertEqual(LiveState.reading(reading("Cm", 41)).lamp, .unsure)
         XCTAssertEqual(LiveState.reading(reading()).status(source: "x"), "LOCKED 85%")
-        XCTAssertEqual(LiveState.locked(reading()).status(source: "x"), "LOCKED 85% · HELD")
+        XCTAssertEqual(LiveState.locked(reading()).status(source: "x"), "LOCKED 85%")
         XCTAssertNil(LiveState.off.lamp)
         XCTAssertFalse(LiveState.failed("x").isActive)
     }
@@ -117,7 +117,7 @@ final class LiveTests: XCTestCase {
         XCTAssertEqual(r, reading())
         XCTAssertEqual(o.factor, .double)
         XCTAssertEqual(o.live?.lamp, .locked)
-        XCTAssertEqual(o.live?.status, "LOCKED 85% · HELD")
+        XCTAssertEqual(o.live?.status, "LOCKED 85%")
         XCTAssertEqual(o.live?.source, "Mic")
         guard case .error(let m, false, let hint)? = Faceplate.liveReadout(.failed("NO"), source: "Mic", factor: .one)
         else { return XCTFail() }

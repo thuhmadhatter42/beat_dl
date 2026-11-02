@@ -36,7 +36,8 @@ enum LiveState: Equatable {
     case listening
     /// A reading that may still change: amber when unsure, green when the key is confident.
     case reading(Result)
-    /// Green for `LiveSession.lockAfter` seconds with the same key and a BPM: held until a gap.
+    /// Green for `LiveSession.lockAfter` seconds with the same key and a BPM. Never frozen: the
+    /// next reading still replaces it (J, 2026-11-01: songs change every two minutes, no hold).
     case locked(Result)
     case failed(String)
 
@@ -69,14 +70,14 @@ enum LiveState: Equatable {
         switch self {
         case .listening: return "LISTENING · \(source.uppercased())"
         case .reading(let r): return Faceplate.confidenceLine(r.keys) ?? "LISTENING · \(source.uppercased())"
-        case .locked(let r): return (Faceplate.confidenceLine(r.keys) ?? "LOCKED") + " · HELD"
+        case .locked(let r): return Faceplate.confidenceLine(r.keys) ?? "LOCKED"
         case .off, .failed: return nil
         }
     }
 }
 
-/// The readings as they come in: auto-lock after `lockAfter` s of the same confident key (with a
-/// BPM), and start over after a gap. Pure logic; the clock is passed in.
+/// The readings as they come in: green-and-steady after `lockAfter` s of the same confident key
+/// (with a BPM), always following the audio, and start over after a gap. Pure logic; the clock is passed in.
 struct LiveSession {
     static let placeholderFile = URL(fileURLWithPath: "/")
     static let lockAfter: TimeInterval = 6
@@ -100,7 +101,6 @@ struct LiveSession {
         case .error(let m):
             fail(m)
         case .reading(let r):
-            if case .locked = state { return }          // held until a gap
             if Lamp.of(r.keys) == .locked, r.bpm != nil, let key = r.keys.first?.0 {
                 if key != greenKey || greenSince == nil { greenKey = key; greenSince = now }
                 if let since = greenSince, now.timeIntervalSince(since) >= lockAfter {
