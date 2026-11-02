@@ -9,6 +9,8 @@ Defaults taken (decide list D-26b87e65f1, closed when J said "let's go"; J can f
 - Quick wins first, then live listening, then DAW / Auto-Tune send.
 - Licence feature skipped: Beat Key is free.
 
+Standing order (J, 2026-11-01 20:14): build ALL of it, any order, any batching, until done, even overnight. Never stop to ask "next section?". Only real blockers (a password, a purchase, a hands-on step) go to J, batched in one message.
+
 ## 1. Quick wins (analysis)
 1.1 Decimal BPM (e.g. 140.82) for files, alongside the rounded value.
 1.2 Half / double tempo: click the BPM to cycle x0.5 / x1 / x2.
