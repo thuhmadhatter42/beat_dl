@@ -38,7 +38,7 @@ struct MenuBarReadout: Equatable {
         case .analyzed(let rs) where !rs.isEmpty:
             return of(rs[min(max(page, 0), rs.count - 1)], factor: factor, spelling: spelling)
         case .working(let s):
-            return MenuBarReadout(text: "…", lamp: .listening, detail: Faceplate.stageText(s).capitalized)
+            return MenuBarReadout(text: nil, lamp: .listening, detail: Faceplate.stageText(s).capitalized)
         default:
             return .idle
         }
@@ -53,11 +53,16 @@ struct MenuBarReadout: Equatable {
         case .failed:
             return MenuBarReadout(text: nil, lamp: nil, detail: "Listening stopped")
         case .listening:
-            return MenuBarReadout(text: "…", lamp: .listening, detail: "Listening · \(source)")
+            return MenuBarReadout(text: nil, lamp: .listening, detail: "Listening · \(source)")
         case .reading(let r), .locked(let r):
             let m = of(r, factor: factor, lamp: live.lamp, status: live.status(source: source), held: held,
                        spelling: spelling)
-            return m.text == nil ? MenuBarReadout(text: "…", lamp: .listening, detail: "Listening · \(source)") : m
+            // No key in the menu bar until Beat Key is sure (green): an unsure guess is not a key.
+            // The coloured key says how far along it is; the popover still shows the top 3.
+            guard m.text != nil, live.lamp == .locked || held else {
+                return MenuBarReadout(text: nil, lamp: live.lamp ?? .listening, detail: m.detail)
+            }
+            return m
         }
     }
 
