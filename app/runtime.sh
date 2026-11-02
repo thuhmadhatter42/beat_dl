@@ -5,7 +5,7 @@
 #            deno = the JavaScript runtime yt-dlp needs for YouTube's JS challenges (EJS). Official
 #            denoland release zips, vendor/macos-<arch>/deno.zip, sha256-pinned below. Both are
 #            built for macOS 12.0 (LC_BUILD_VERSION minos), so bin-legacy/ (macOS 11) gets none.
-#   scripts/ downloader.py bpm.py tempocnn_np.py app_run.py models/
+#   scripts/ downloader.py bpm.py midi_analyze.py tempocnn_np.py app_run.py models/
 # Usage: app/runtime.sh build | scripts | sign | all
 #   scripts = refresh only scripts/ (+ their .pyc) in an already built runtime: fast; build.sh runs it every time
 set -euo pipefail
@@ -58,7 +58,7 @@ build_arch() {
 build_scripts() {
   local s="$OUT/scripts" f
   rm -rf "$s"; mkdir -p "$s/models"
-  for f in downloader.py bpm.py tempocnn_np.py; do cp -f "$ROOT/$f" "$s/"; done
+  for f in downloader.py bpm.py midi_analyze.py tempocnn_np.py; do cp -f "$ROOT/$f" "$s/"; done
   if [ -f "$ROOT/app_run.py" ]; then cp -f "$ROOT/app_run.py" "$s/"; else echo "  (app_run.py not present yet: Task 2)"; fi
   cp -f "$ROOT/models/deeptemp-k16-3.npz" "$s/models/"
 }
