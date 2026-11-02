@@ -18,6 +18,34 @@ Beat Key is the same tool as a normal Mac app. No Terminal, nothing to install f
 
 If macOS asks whether Beat Key may access your Downloads folder, click **Allow**. Needs macOS 12 or newer, on Apple Silicon or Intel. yt-dlp updates itself weekly, and Beat Key updates itself too (Beat Key > Check for Updates, plus a daily check; Sparkle); there is nothing to maintain. Beat Key is the free product on fourletterrecords.com (download behind a Four Letter Records account). Age-restricted videos ask you to log in to YouTube once, inside Beat Key's own window; it never reads your browser or asks for Full Disk Access. Licences for every bundled part are under Beat Key › Licenses and in `THIRD-PARTY-LICENSES.md`.
 
+### What else Beat Key does
+
+Everything is under the menus or in Settings (Beat Key > Settings, ⌘,). The global shortcuts work in any app and can be changed or turned off in Settings.
+
+- **Live listening.** Reading > Start Listening (⌃⌥⌘K) reads the BPM and key of whatever is playing, as it plays, and keeps refining. It listens to everything the Mac plays (macOS 13 or newer), the default input, or a microphone or interface you pick, one channel or all. It starts over after 2, 3, 5 or 10 seconds of silence (your choice). Nothing is recorded or saved.
+- **Menu-bar readout.** The reading (for example `Ebm 128`) and its lamp sit in the menu bar. Click it to start or stop listening, analyze a file, or open Settings.
+- **Confidence lights and shapes.** Green octagon = locked, amber triangle = unsure, red circle = listening or analyzing. The shape means colour is never the only signal. View > High Contrast Readout (also in Settings) makes the display brighter.
+- **Decimal BPM, half and double.** The BPM shows with decimals (`140.8`). Reading > Half / Double Tempo, or clicking the BPM on the display, cycles between the reading, double and half.
+- **Tuning.** The display shows how many cents sharp or flat the track sits against a reference pitch. Reading > Reference Pitch: A = 432, 436, 438, 440, 442, 444, 450, or Custom (400 to 480 Hz).
+- **Files.** MP3, WAV, AIFF, FLAC, M4A, AAC, OGG, CAF, MP4, M4V, MOV and MIDI (.mid). For video the audio track is read. The file isn't changed.
+- **Analyze a File.** File > Analyze a File… (⌃⌥⌘F, global), drop files on the window or the Dock icon, Open With, or in Finder right-click > Services > Analyze with Beat Key.
+- **Recent readings.** File > Recent Readings puts an earlier reading back on the display. Clear Menu empties it.
+- **Send to DAW.** Reading > Send to DAW (⌃⌥⌘S) sends the decimal BPM and top key to the DAW you used last; Send to All DAWs (⌃⌥⌘D) sends to every open one. What each gets:
+  - Ableton Live 12: tempo and key. Live 11: tempo only. Through a small Remote Script Beat Key offers to install (then pick BeatKey as a Control Surface once, in Live > Settings > Link, Tempo & MIDI).
+  - REAPER: tempo (REAPER has no project key). Bitwig Studio: tempo (no project key). Each through a script Beat Key offers to install (REAPER: a ReaScript you start once; Bitwig: a controller you add once).
+  - Pro Tools, Logic Pro, Studio One: tempo and key, typed into the DAW's own tempo and key controls through Accessibility. If that fails, Beat Key hands you a MIDI file with tempo and key to import instead.
+  - FL Studio, Reason, Cubase: a MIDI file with tempo and key to import (they can't be told a tempo from outside).
+- **Analyze Selection.** Reading > Analyze Selection (⌃⌥⌘L) reads the clip you have selected in Pro Tools, Ableton Live or REAPER. Other DAWs: export the clip and drop it on Beat Key.
+- **Send Key to Auto-Tune.** Reading > Send Key to Auto-Tune (⌃⌥⌘A) hands the top key and your reference pitch to Auto-Tune Pro, in any open instance with Auto Key Detection on. Antares doesn't document this, so tell us if a version doesn't pick it up.
+- **Export MIDI Tempo/Key file.** File > Export MIDI Tempo/Key File… (⌃⌥⌘E) saves a small `.mid` with the tempo and key, for any DAW.
+- **Open at login.** Settings > General > Open at Login.
+
+Permissions macOS may ask for, each only when you use the feature:
+
+- **Microphone**: listening to a microphone or audio interface.
+- **Screen & System Audio Recording**: listening to everything the Mac plays. Beat Key takes only the sound; it doesn't capture or keep your screen.
+- **Accessibility**: Send to DAW for Pro Tools, Logic Pro and Studio One (Beat Key fills in their tempo and key controls). Without it you get the MIDI file instead.
+
 The sections below are for the command-line version.
 
 ## Setup
