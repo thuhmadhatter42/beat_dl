@@ -68,6 +68,18 @@ final class FaceplateTests: XCTestCase {
         XCTAssertEqual(Faceplate.audioFiles([folder, dir.appendingPathComponent("b.pdf")]), [])
     }
 
+    func testDropAcceptsEveryContainerBeatKeyReads() throws {
+        let fm = FileManager.default
+        let dir = fm.temporaryDirectory.appendingPathComponent("orion-formats-\(UUID().uuidString)")
+        try fm.createDirectory(at: dir, withIntermediateDirectories: true)
+        defer { try? fm.removeItem(at: dir) }
+        let names = ["a.flac", "b.OGG", "c.caf", "d.m4a", "e.aac", "f.mp4", "g.m4v", "h.MOV", "i.mid", "j.midi",
+                     "k.mp3", "l.wav", "m.aif", "n.aiff", "o.mkv", "p.zip", "q.png"]
+        for n in names { fm.createFile(atPath: dir.appendingPathComponent(n).path, contents: Data([0])) }
+        let kept = Faceplate.audioFiles(names.map { dir.appendingPathComponent($0) }).map { $0.lastPathComponent }
+        XCTAssertEqual(kept, Array(names.prefix(14)))
+    }
+
     func testTextureBundleCandidatesNeverNeedBundleModule() {
         let c = Textures.bundleCandidates()
         XCTAssertFalse(c.isEmpty)
