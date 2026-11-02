@@ -59,6 +59,7 @@ struct OrionApp: App {
                     }
                     Button("Custom…") { if let hz = ReferencePrompt.ask(current: tuning.reference) { tuning.reference = hz } }
                 }
+                SendToAutoTuneMenuItem(engine: engine, tuning: tuning)
                 Button("Half / Double Tempo") { model.tempoFactor = model.tempoFactor.next }
             }
             // The app menu says Beat Key whatever the process is called (swift run = "Orion").
