@@ -43,6 +43,7 @@ final class SystemAudioCapture: NSObject, AudioCapture, SCStreamOutput, SCStream
             // A music player open (Spotify, a browser, Music...) = hear only the players, so a mic
             // monitored through Artemis or a DAW never mixes into the key. None open = everything.
             let players = (content?.applications ?? []).filter { SystemAudioCapture.isPlayer($0.bundleIdentifier) }
+            LiveProcess.log("system audio: " + (players.isEmpty ? "all apps" : "players only: " + players.map { $0.bundleIdentifier }.joined(separator: ", ")))
             let filter = players.isEmpty
                 ? SCContentFilter(display: display, excludingApplications: [], exceptingWindows: [])
                 : SCContentFilter(display: display, including: players, exceptingWindows: [])
@@ -89,6 +90,7 @@ final class SystemAudioCapture: NSObject, AudioCapture, SCStreamOutput, SCStream
 
     func stream(_ stream: SCStream, didStopWithError error: Error) {
         guard !stopped else { return }
+        LiveProcess.log("system audio stopped: \(error)")
         onError?(SystemAudioCapture.text(error))
     }
 

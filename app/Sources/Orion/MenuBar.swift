@@ -61,17 +61,6 @@ struct MenuBarReadout: Equatable {
         }
     }
 
-    /// The status item with nothing on the readout: the last reading, dimmed; else a dash.
-    static func idle(last: Reading?, spelling: KeySpelling? = nil) -> MenuBarReadout {
-        guard let r = last else { return .idle }
-        var m = of(r.result, spelling: spelling)
-        guard m.text != nil else { return .idle }
-        m.lamp = nil
-        m.dim = true
-        m.detail = "Last: " + m.detail
-        return m
-    }
-
     /// Spoken by VoiceOver for the status item.
     var accessibilityLabel: String {
         "\(Brand.name): \(detail)" + (lamp.map { ", \($0.spoken)" } ?? "")
@@ -129,7 +118,7 @@ final class StatusItemController: NSObject, NSMenuDelegate {
                 let (readings, held, spelling) = b
                 let r = MenuBarReadout.of(live: l.0, source: l.1, factor: factor, held: held, spelling: spelling)
                     ?? MenuBarReadout.of(state, page: pager.index, factor: factor, spelling: spelling)
-                self?.show(r == .idle ? .idle(last: readings.first, spelling: spelling) : r)
+                _ = readings; self?.show(r)
             }
             .store(in: &bag)
 
@@ -151,15 +140,26 @@ final class StatusItemController: NSObject, NSMenuDelegate {
     func show(_ r: MenuBarReadout) {
         readout = r
         guard let button = item?.button else { return }
+        // The key (gold = no reading, else the lamp's colour) sits AFTER the reading, and the item
+        // is one fixed width, so nothing in the menu bar shifts as readings change.
         button.image = MenuBarImage.make(r.lamp)
-        button.imagePosition = .imageLeading
+        button.imagePosition = .imageTrailing
+        button.alignment = .right
         let quiet = r.dim || r.text == nil
-        button.attributedTitle = NSAttributedString(string: " " + (r.text ?? "—"), attributes: [
-            .font: NSFont.monospacedDigitSystemFont(ofSize: NSFont.systemFontSize, weight: .medium),
+        let font = NSFont.monospacedDigitSystemFont(ofSize: NSFont.systemFontSize, weight: .medium)
+        button.attributedTitle = NSAttributedString(string: (r.text ?? "—") + " ", attributes: [
+            .font: font,
             .foregroundColor: quiet ? NSColor.secondaryLabelColor : NSColor.labelColor,
         ])
+        item?.length = StatusItemController.fixedWidth(font: font)
         button.setAccessibilityLabel(r.accessibilityLabel)
         button.toolTip = r.detail
+    }
+
+    /// Wide enough for the longest reading ("⏸ G#m 188.88" + the key), so the item never resizes.
+    static func fixedWidth(font: NSFont) -> CGFloat {
+        let text = ("⏸ G#m 888.8 " as NSString).size(withAttributes: [.font: font]).width
+        return (text + MenuBarImage.key().size.width + 10).rounded(.up)
     }
 
     // MARK: click = popover, right-click = menu
@@ -339,29 +339,22 @@ final class StatusItemController: NSObject, NSMenuDelegate {
 enum MenuBarImage {
     static let side: CGFloat = 11
 
-    static func make(_ lamp: Lamp?, side: CGFloat = MenuBarImage.side) -> NSImage? {
-        guard let lamp = lamp else { return key() }
-        // flipped, like SwiftUI, so the triangle points up; same shape as the LCD's lamp
-        let img = NSImage(size: NSSize(width: side, height: side), flipped: true) { rect in
-            guard let ctx = NSGraphicsContext.current?.cgContext else { return false }
-            ctx.addPath(LampShape(lamp: lamp).path(in: rect.insetBy(dx: 0.5, dy: 0.5)).cgPath)
-            ctx.setFillColor(lamp.nsColor.cgColor)
-            ctx.fillPath()
-            return true
-        }
-        img.isTemplate = false
-        return img
+    /// The menu-bar key: gold with no reading, else the confidence lamp's colour (green locked,
+    /// amber unsure, ...). `side` is kept for callers sizing it; the key is 12 pt tall by default.
+    static func make(_ lamp: Lamp?, side: CGFloat = 12) -> NSImage? {
+        guard let lamp = lamp else { return key(height: side) }
+        return key(height: side, color: lamp.nsColor)
     }
 
     /// Beat Key's golden key (KeyGlyphShape: the app icon's dial head and toothed shaft): amber on
     /// a dark menu bar, a deeper gold on a light one, so it is findable either way.
-    static func key(height: CGFloat = 12) -> NSImage {
+    static func key(height: CGFloat = 12, color: NSColor? = nil) -> NSImage {
         let size = NSSize(width: (height * 1.75).rounded(), height: height)
         let img = NSImage(size: size, flipped: true) { rect in
             guard let ctx = NSGraphicsContext.current?.cgContext else { return false }
             let dark = NSAppearance.currentDrawing().bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
-            let gold = dark ? NSColor(srgbRed: 1, green: 176 / 255, blue: 32 / 255, alpha: 1)
-                            : NSColor(srgbRed: 168 / 255, green: 104 / 255, blue: 0, alpha: 1)
+            let gold = color ?? (dark ? NSColor(srgbRed: 1, green: 176 / 255, blue: 32 / 255, alpha: 1)
+                            : NSColor(srgbRed: 168 / 255, green: 104 / 255, blue: 0, alpha: 1))
             ctx.addPath(KeyGlyphShape().path(in: rect.insetBy(dx: 0.25, dy: 0.25)).cgPath)
             ctx.setFillColor(gold.cgColor)
             ctx.fillPath(using: .evenOdd)

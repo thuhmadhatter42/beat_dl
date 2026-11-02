@@ -276,8 +276,9 @@ final class LiveProcess: LivePipe {
         let out = Pipe()
         process.standardInput = stdin
         process.standardOutput = out
-        process.standardError = FileHandle.nullDevice
-        do { try process.run() } catch { return nil }
+        process.standardError = LiveProcess.logHandle() ?? FileHandle.nullDevice
+        LiveProcess.log("analyzer start: \(arguments.dropFirst().joined(separator: " "))")
+        do { try process.run() } catch { LiveProcess.log("analyzer failed to start: \(error)"); return nil }
         DispatchQueue.global(qos: .userInitiated).async {
             var buf = Data()
             let h = out.fileHandleForReading
@@ -292,8 +293,33 @@ final class LiveProcess: LivePipe {
             }
             // exit only after every line is out
             self.process.waitUntilExit()
+            LiveProcess.log("analyzer exited: status \(self.process.terminationStatus) reason \(self.process.terminationReason.rawValue)")
             onExit(self.process.terminationStatus)
         }
+    }
+
+    /// ~/Library/Logs/Beat Key/live.log: the analyzer's stderr (Python tracebacks) and every exit,
+    /// so a stopped Listen leaves a trace.
+    static let logURL = FileManager.default.homeDirectoryForCurrentUser
+        .appendingPathComponent("Library/Logs/Beat Key/live.log")
+
+    static func logHandle() -> FileHandle? {
+        let fm = FileManager.default
+        try? fm.createDirectory(at: logURL.deletingLastPathComponent(), withIntermediateDirectories: true)
+        if let a = try? fm.attributesOfItem(atPath: logURL.path), (a[.size] as? Int ?? 0) > 2_000_000 {
+            try? fm.removeItem(at: logURL)   // our own log, capped at 2 MB
+        }
+        if !fm.fileExists(atPath: logURL.path) { fm.createFile(atPath: logURL.path, contents: nil) }
+        guard let h = try? FileHandle(forWritingTo: logURL) else { return nil }
+        h.seekToEndOfFile()
+        return h
+    }
+
+    static func log(_ line: String) {
+        guard let h = logHandle() else { return }
+        let stamp = ISO8601DateFormatter.string(from: Date(), timeZone: .current, formatOptions: [.withInternetDateTime])
+        h.write(Data("\(stamp) \(line)\n".utf8))
+        try? h.close()
     }
 
     func write(_ samples: [Float]) {

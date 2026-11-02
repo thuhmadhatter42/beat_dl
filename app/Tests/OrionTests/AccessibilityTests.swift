@@ -60,25 +60,25 @@ final class AccessibilityTests: XCTestCase {
         return rep.colorAt(x: x, y: y)?.alphaComponent ?? 0
     }
 
-    func testMenuBarTriangleIsDrawnPointUp() {
-        let img = MenuBarImage.make(.unsure, side: 40)!
-        // bottom corners filled, top corners empty
-        XCTAssertGreaterThan(alpha(img, 6, 31), 0.5)
-        XCTAssertLessThan(alpha(img, 3, 3), 0.1)
-        XCTAssertLessThan(alpha(img, 36, 3), 0.1)
-        XCTAssertGreaterThan(alpha(img, 20, 6), 0.5)         // the apex, top centre
-    }
-
-    func testMenuBarShapesDiffer() {
-        // the octagon is inscribed in the circle: just inside the circle on the 45° line, past
-        // the octagon's diagonal edge, only the circle is filled
-        let circle = MenuBarImage.make(.listening, side: 40)!
-        let oct = MenuBarImage.make(.locked, side: 40)!
-        XCTAssertLessThan(alpha(circle, 1, 1), 0.1)
-        XCTAssertGreaterThan(alpha(circle, 33, 6), 0.5)
-        XCTAssertLessThan(alpha(oct, 33, 6), 0.3)
-        XCTAssertGreaterThan(alpha(oct, 20, 4), 0.5)        // both filled near the top centre
-        XCTAssertGreaterThan(alpha(circle, 20, 4), 0.5)
+    /// The menu-bar status is the key glyph in the lamp's colour (gold with no reading).
+    func testMenuBarKeyTakesTheLampColour() {
+        for lamp in [Lamp.locked, .unsure, .listening] {
+            let img = MenuBarImage.make(lamp, side: 40)!
+            let rep = NSBitmapImageRep(bitmapDataPlanes: nil, pixelsWide: Int(img.size.width), pixelsHigh: Int(img.size.height),
+                                       bitsPerSample: 8, samplesPerPixel: 4, hasAlpha: true, isPlanar: false,
+                                       colorSpaceName: .deviceRGB, bytesPerRow: 0, bitsPerPixel: 0)!
+            NSGraphicsContext.saveGraphicsState()
+            NSGraphicsContext.current = NSGraphicsContext(bitmapImageRep: rep)
+            img.draw(in: NSRect(origin: .zero, size: img.size))
+            NSGraphicsContext.restoreGraphicsState()
+            var hit: NSColor?
+            outer: for y in 0..<rep.pixelsHigh { for x in 0..<rep.pixelsWide {
+                if let c = rep.colorAt(x: x, y: y), c.alphaComponent > 0.95 { hit = c; break outer }
+            } }
+            let want = lamp.nsColor.usingColorSpace(.deviceRGB)!, got = hit!.usingColorSpace(.deviceRGB)!
+            XCTAssertEqual(got.redComponent, want.redComponent, accuracy: 0.08, "\(lamp)")
+            XCTAssertEqual(got.greenComponent, want.greenComponent, accuracy: 0.08, "\(lamp)")
+        }
     }
 
     // MARK: 5.1 high contrast

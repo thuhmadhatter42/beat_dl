@@ -100,13 +100,10 @@ final class PocketTests: XCTestCase {
         XCTAssertNil(PocketState.shown(.idle, live: .listening, page: p))
     }
 
-    func testIdleStatusItemShowsLastReadingDimmed() {
-        XCTAssertEqual(MenuBarReadout.idle(last: nil), .idle)
-        let m = MenuBarReadout.idle(last: Reading(result()))
-        XCTAssertEqual(m.text, "Ebm 128.0")
-        XCTAssertTrue(m.dim)
-        XCTAssertNil(m.lamp)
-        XCTAssertTrue(m.detail.hasPrefix("Last: "))
+    func testIdleStatusItemShowsNoOldReading() {
+        let m = MenuBarReadout.of(.idle, page: 0, factor: .one)
+        XCTAssertEqual(m, .idle)
+        XCTAssertNil(m.text)
     }
 
     func testSharedReadoutMatchesWindow() {
