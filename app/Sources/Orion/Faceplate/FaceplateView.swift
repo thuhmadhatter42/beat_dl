@@ -7,6 +7,7 @@ struct FaceplateView: View {
     @ObservedObject var engine: Engine
     @ObservedObject var model: FaceplateModel
     @ObservedObject var login: YouTubeSession
+    @ObservedObject var tuning: TuningSettings
     @State private var keyMonitor: Any?
 
     var body: some View {
@@ -27,8 +28,8 @@ struct FaceplateView: View {
         .onDrop(of: ["public.file-url"], isTargeted: dropBinding, perform: drop)
         .onReceive(engine.$state) { s in
             switch s {
-            case .done: model.url = ""
-            case .analyzed(let rs): model.pager.reset(count: rs.count); model.picked = []
+            case .done: model.url = ""; model.tempoFactor = .one
+            case .analyzed(let rs): model.pager.reset(count: rs.count); model.picked = []; model.tempoFactor = .one
             default: break
             }
             login.refresh()   // a stale login was just dropped, or a new one saved
@@ -38,8 +39,10 @@ struct FaceplateView: View {
             let t = u.trimmingCharacters(in: .whitespacesAndNewlines)
             if case .needsLogin(let p) = engine.state, t != p.url { engine.clearLogin() }
         }
+        .onReceive(model.$pager) { _ in model.tempoFactor = .one }   // each file reads at x1
         .onAppear(perform: installKeys)
-        .onDisappear { if let m = keyMonitor { NSEvent.removeMonitor(m) } }
+        .onAppear(perform: installIntake)
+        .onDisappear { if let m = keyMonitor { NSEvent.removeMonitor(m) }; Intake.handler = nil }
     }
 
     /// The content below the title bar; the window is 552 x 438 with the bar.
@@ -117,16 +120,23 @@ struct FaceplateView: View {
         case .idle: return .idle
         case .working(let s): return .working(stage: s, download: dl)
         case .doctor(let r): return .doctor(r)
-        case .done(let r): return .result(r, page: nil, download: true)
+        case .done(let r): return .result(r, page: nil, download: true, options: options(for: r))
         case .analyzed(let rs):
             guard !rs.isEmpty else { return .idle }
             let i = min(model.pager.index, rs.count - 1)
-            return .result(rs[i], page: model.pager.caption, download: false, note: engine.note)
+            return .result(rs[i], page: model.pager.caption, download: false, note: engine.note, options: options(for: rs[i]))
         case .failed(let m): return .error(m, download: dl)
         case .needsLogin(let p):
             let (a, b) = Faceplate.loginLines(p)
             return .login(a, b, caption: nil)
         }
+    }
+
+    /// The tempo factor, the tuning line against the reference pitch, and the BPM click.
+    private func options(for r: Result) -> ResultOptions {
+        ResultOptions(factor: model.tempoFactor,
+                      tuning: Tuning.line(r.tuningCents, reference: tuning.reference),
+                      onCycleTempo: { model.tempoFactor = model.tempoFactor.next })
     }
 
     private var dropBinding: Binding<Bool> {
@@ -159,13 +169,7 @@ struct FaceplateView: View {
     /// The audio-only open panel (the drop filter's allowlist), several files allowed.
     private func openAudio() {
         guard !engine.state.isBusy else { return }
-        let panel = NSOpenPanel()
-        panel.allowsMultipleSelection = true
-        panel.canChooseDirectories = false
-        panel.canChooseFiles = true
-        panel.allowedContentTypes = Faceplate.audioExtensions.sorted().compactMap { UTType(filenameExtension: $0) }
-        panel.prompt = "Choose"
-        panel.message = "Choose a beat to find its BPM and key"
+        let panel = Intake.makePanel()
         let pick = { (resp: NSApplication.ModalResponse) in
             guard resp == .OK else { return }
             let files = Faceplate.audioFiles(panel.urls)
@@ -173,6 +177,16 @@ struct FaceplateView: View {
         }
         if let w = NSApp.keyWindow ?? NSApp.windows.first { panel.beginSheetModal(for: w, completionHandler: pick) }
         else { pick(panel.runModal()) }
+    }
+
+    /// Analyze a File…, the Finder service and Open With all arrive here and read at once.
+    private func installIntake() {
+        Intake.handler = { [engine, model] files in
+            guard !engine.state.isBusy else { return false }
+            model.lastAction = .analyze
+            engine.analyze(files)
+            return true
+        }
     }
 
     private func find() {

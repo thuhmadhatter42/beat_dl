@@ -20,6 +20,22 @@
     <key>NSDownloadsFolderUsageDescription</key><string>Beat Key saves your MP3s to the Downloads folder.</string>
     <key>NSDesktopFolderUsageDescription</key><string>Beat Key reads the audio files you choose to find their BPM and key.</string>
     <key>NSDocumentsFolderUsageDescription</key><string>Beat Key reads the audio files you choose to find their BPM and key.</string>
+    <!-- Finder › Services › Analyze with Beat Key (ServiceProvider.analyzeWithBeatKey in Intake.swift).
+         NSPortName is the name OrionApp registers the provider under. -->
+    <key>NSServices</key>
+    <array>
+        <dict>
+            <key>NSMenuItem</key><dict><key>default</key><string>Analyze with Beat Key</string></dict>
+            <key>NSMessage</key><string>analyzeWithBeatKey</string>
+            <key>NSPortName</key><string>Beat Key</string>
+            <key>NSSendFileTypes</key>
+            <array>
+                <string>public.audio</string>
+                <string>public.movie</string>
+                <string>public.midi-audio</string>
+            </array>
+        </dict>
+    </array>
     <key>NSHighResolutionCapable</key><true/>
     <key>NSSupportsAutomaticGraphicsSwitching</key><true/>
     <!-- Sparkle updates (app/RELEASING.md). The feed is the appcast.xml attached to the newest

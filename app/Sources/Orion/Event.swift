@@ -7,9 +7,14 @@ struct Result: Equatable {
     let keys: [(String, Int)]
     /// "permission" when macOS refused to let the helper read the file.
     var readError: String? = nil
+    /// The BPM to 0.01 (bpm is the whole-number-ish value the file name carries); nil = not measured.
+    var bpmExact: Double? = nil
+    /// Tuning in cents against A = 440 Hz (+ = sharp); nil = not confident enough to say.
+    var tuningCents: Double? = nil
 
     static func == (a: Result, b: Result) -> Bool {
         a.file == b.file && a.name == b.name && a.bpm == b.bpm && a.readError == b.readError
+            && a.bpmExact == b.bpmExact && a.tuningCents == b.tuningCents
             && a.keys.count == b.keys.count
             && zip(a.keys, b.keys).allSatisfy { $0.0 == $1.0 && $0.1 == $1.1 }
     }
@@ -45,7 +50,9 @@ enum Event: Equatable {
             }
             let r = Result(file: URL(fileURLWithPath: file), name: name,
                            bpm: obj["bpm"] as? String, keys: keys,
-                           readError: obj["error"] as? String)
+                           readError: obj["error"] as? String,
+                           bpmExact: (obj["bpm_exact"] as? NSNumber)?.doubleValue,
+                           tuningCents: (obj["tuning_cents"] as? NSNumber)?.doubleValue)
             return kind == "done" ? .done(r) : .analyzed(r)
         case "error":
             return .error((obj["message"] as? String) ?? "Unknown error.")

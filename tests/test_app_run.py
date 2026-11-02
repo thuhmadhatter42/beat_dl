@@ -464,6 +464,7 @@ class TestAnalyze(Base):
         self.assertEqual(ev[-1]["bpm"], "120.0")
         self.assertEqual(len(ev[-1]["keys"]), 3)
         self.assertIsInstance(ev[-1]["keys"][0][1], int)
+        self.assertAlmostEqual(ev[-1]["bpm_exact"], 120.0, delta=0.1)   # decimal BPM rides along
 
     def test_analysis_timeout(self):
         self.assertEqual(app_run.analyze_file(WAV, timeout=0.01), (None, []))

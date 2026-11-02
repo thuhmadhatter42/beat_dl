@@ -119,7 +119,10 @@ enum Faceplate {
         return m.uppercased()
     }
 
-    static let audioExtensions: Set<String> = ["mp3", "wav", "aif", "aiff", "flac", "m4a", "aac", "ogg"]
+    /// Audio, the audio track of a video (ffmpeg decodes it; a .mov or .mp4 is not UTType .audio,
+    /// so it is listed here), and MIDI files (bpm.py reads those without ffmpeg).
+    static let audioExtensions: Set<String> = ["mp3", "wav", "aif", "aiff", "flac", "m4a", "aac", "ogg", "caf",
+                                               "mp4", "m4v", "mov", "mid", "midi"]
 
     /// The dropped items worth analyzing: regular audio files. Folders, PDFs and the rest are
     /// left out, so they never show up as empty rows or inflate "N OF M".
@@ -167,6 +170,8 @@ final class FaceplateModel: ObservableObject {
     @Published var dropTargeted = false
     @Published var pager = Pager()
     @Published var lastAction: LastAction = .download
+    /// The BPM click's x1 / x2 / x0.5; back to x1 whenever another reading comes up.
+    @Published var tempoFactor: TempoFactor = .one
     /// ORION_FAKE_STATE=drop pins the drag highlight for screenshots.
     @Published var pinnedDrop = false
 }

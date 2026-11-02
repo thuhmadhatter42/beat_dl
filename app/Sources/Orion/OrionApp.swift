@@ -8,27 +8,58 @@ struct OrionApp: App {
     @StateObject private var engine: Engine
     @StateObject private var model = FaceplateModel()
     @StateObject private var updater: AppUpdater
+    @StateObject private var tuning = TuningSettings()
+    @StateObject private var recents: RecentStore
 
     init() {
         let session = YouTubeSession()
         let updater = AppUpdater()
+        let recents = RecentStore()
         _login = StateObject(wrappedValue: session)
         _updater = StateObject(wrappedValue: updater)
+        _recents = StateObject(wrappedValue: recents)
         _engine = StateObject(wrappedValue: Engine(downloadsProbe: Engine.defaultProbe(),
                                                    savedLogin: { session.savedLogin },
                                                    dropLogin: { session.file.delete() },
-                                                   afterDoctor: { updater.checkForUpdates() }))
+                                                   afterDoctor: { updater.checkForUpdates() },
+                                                   recents: recents))
     }
 
     var body: some Scene {
         WindowGroup {
-            FaceplateView(engine: engine, model: model, login: login)
+            FaceplateView(engine: engine, model: model, login: login, tuning: tuning)
                 .background(WindowConfigurator())
                 .onAppear(perform: launch)
         }
         .windowStyle(HiddenTitleBarWindowStyle())
         .commands {
-            CommandGroup(replacing: .newItem) {}   // one window: no File > New
+            // one window: no File > New; the File menu is for reading files instead
+            CommandGroup(replacing: .newItem) {
+                Button("Analyze a File…") { Intake.analyzeAFile() }
+                    .keyboardShortcut("f", modifiers: [.control, .option, .command])
+                    .disabled(engine.state.isBusy)
+                Menu("Recent Readings") {
+                    ForEach(Array(recents.readings.enumerated()), id: \.offset) { _, r in
+                        Button(r.title) { showAgain(r) }.disabled(engine.state.isBusy)
+                    }
+                    Divider()
+                    Button("Clear Menu") { recents.clear() }
+                }
+                .disabled(recents.readings.isEmpty)
+            }
+            CommandMenu("Reading") {
+                Menu("Reference Pitch") {
+                    ForEach(Tuning.presets, id: \.self) { hz in
+                        Toggle("A = \(Tuning.refText(hz)) Hz", isOn: referenceBinding(hz))
+                    }
+                    Divider()
+                    if !Tuning.presets.contains(tuning.reference) {
+                        Toggle("Custom: A = \(Tuning.refText(tuning.reference)) Hz", isOn: referenceBinding(tuning.reference))
+                    }
+                    Button("Custom…") { if let hz = ReferencePrompt.ask(current: tuning.reference) { tuning.reference = hz } }
+                }
+                Button("Half / Double Tempo") { model.tempoFactor = model.tempoFactor.next }
+            }
             // The app menu says Beat Key whatever the process is called (swift run = "Orion").
             CommandGroup(replacing: .appInfo) {
                 Button(Brand.about) {
@@ -52,6 +83,17 @@ struct OrionApp: App {
                 Button(Brand.quit) { NSApp.terminate(nil) }.keyboardShortcut("q")
             }
         }
+    }
+
+    /// A checkmark row that sets the reference pitch to `hz`.
+    private func referenceBinding(_ hz: Double) -> Binding<Bool> {
+        Binding(get: { tuning.reference == hz }, set: { _ in tuning.reference = hz })
+    }
+
+    /// File › Recent Readings: put an earlier reading back on the LCD.
+    private func showAgain(_ r: Reading) {
+        model.lastAction = .analyze
+        engine.show(r.result)
     }
 
     private func launch() {
@@ -86,12 +128,21 @@ struct OrionApp: App {
 }
 
 final class AppDelegate: NSObject, NSApplicationDelegate {
+    private let services = ServiceProvider()
+
     func applicationDidFinishLaunching(_ n: Notification) {
+        // Finder › Services › Analyze with Beat Key. Registered under the NSPortName in Info.plist,
+        // and as the default provider, so the name does not have to match the process name.
+        NSRegisterServicesProvider(services, Brand.name)
+        NSApp.servicesProvider = services
+        NSUpdateDynamicServices()
         // `swift run` has no bundle: make it a regular, frontmost app all the same.
         NSApp.setActivationPolicy(.regular)
         NSApp.activate(ignoringOtherApps: true)
         NSWindow.allowsAutomaticWindowTabbing = false
     }
+    /// Open With / `open -a "Beat Key" file`.
+    func application(_ app: NSApplication, open urls: [URL]) { Intake.receive(urls) }
     func applicationShouldTerminateAfterLastWindowClosed(_ app: NSApplication) -> Bool { true }
 }
 
@@ -136,5 +187,25 @@ enum Licenses {
         } else {
             ws.open(url)
         }
+    }
+}
+
+/// Reading › Reference Pitch › Custom…: a number from 400 to 480 Hz.
+enum ReferencePrompt {
+    static func ask(current: Double) -> Double? {
+        let alert = NSAlert()
+        alert.messageText = "Reference pitch"
+        alert.informativeText = "The A that tuning is measured against, \(Int(Tuning.range.lowerBound)) to \(Int(Tuning.range.upperBound)) Hz."
+        let field = NSTextField(frame: NSRect(x: 0, y: 0, width: 120, height: 24))
+        field.stringValue = Tuning.refText(current)
+        alert.accessoryView = field
+        alert.addButton(withTitle: "Set")
+        alert.addButton(withTitle: "Cancel")
+        alert.window.initialFirstResponder = field
+        while alert.runModal() == .alertFirstButtonReturn {
+            if let hz = Tuning.parse(field.stringValue) { return hz }
+            alert.informativeText = "Enter a number from \(Int(Tuning.range.lowerBound)) to \(Int(Tuning.range.upperBound)), for example 432."
+        }
+        return nil
     }
 }

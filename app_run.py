@@ -58,8 +58,9 @@ def log_line(url, name):
     return f"Input URL: {url}\nDownloaded: {name}\n\n"
 
 
-def analyze_file(path, timeout=120):
-    """Run bpm.py on a file. Returns (bpm_string | None, [(key, percent_int), ...])."""
+def analyze_file(path, timeout=120, extras=None):
+    """Run bpm.py on a file. Returns (bpm_string | None, [(key, percent_int), ...]).
+    extras (a dict) receives bpm.py's "name: value" lines after the keys: bpm_exact, tuning_cents."""
     try:
         p = subprocess.run([sys.executable, str(HERE / "bpm.py"), str(path)],
                            capture_output=True, text=True, timeout=timeout)
@@ -80,6 +81,14 @@ def analyze_file(path, timeout=120):
         m = _KEY_RE.match(line.strip())
         if m:
             keys.append((m.group(1), int(round(float(m.group(2))))))
+    if extras is not None:
+        for line in lines[1:]:
+            name, sep, value = line.partition(": ")
+            if sep and name in ("bpm_exact", "tuning_cents"):
+                try:
+                    extras[name] = float(value)
+                except ValueError:
+                    pass
     return bpm, keys
 
 
@@ -230,8 +239,9 @@ def _cmd_download(url, cookies_file, outcome):
     outcome[0] = "downloaded"
 
     emit(stage="analyzing")
+    extras = {}
     try:
-        bpm, keys = analyze_file(path)
+        bpm, keys = analyze_file(path, extras=extras)
     except Exception:
         bpm, keys = None, []
     final = path
@@ -258,7 +268,7 @@ def _cmd_download(url, cookies_file, outcome):
         pass  # a log failure must not lose the done event
     outcome[0] = "done"
     emit(stage="done", file=str(final), name=final.name, bpm=bpm or None,
-         keys=[[k, p] for k, p in keys])
+         keys=[[k, p] for k, p in keys], **(extras if bpm else {}))
 
 
 def read_error(path):
@@ -277,15 +287,16 @@ def cmd_analyze(files):
     for raw in files:
         path = Path(raw).expanduser()
         emit(stage="analyzing")
+        extras = {}
         try:
-            bpm, keys = analyze_file(path)
+            bpm, keys = analyze_file(path, extras=extras)
         except Exception:
             bpm, keys = None, []
         try:
             full = str(path.resolve())
         except Exception:
             full = str(path)
-        extra = {}
+        extra = dict(extras) if bpm else {}
         if not bpm and read_error(path):
             extra["error"] = "permission"
         emit(stage="analyzed", file=full, name=path.name,

@@ -11,6 +11,8 @@ Key: Essentia HPCP (36 bins, spectral whitening, detuning correction) on the who
      confidence from segment agreement + margin (docs/research/key-detection-research.md).
 Fallback without essentia-tensorflow: librosa (tempo on the loudest 60 s; HPSS + CENS
 chroma + edma profiles for key). Warnings go to stderr only; stdout is the 4-line contract.
+Also reads MIDI files (midi_analyze.py). After the 4 lines it prints "bpm_exact: <0.01 BPM>" and,
+when the key is confident, "tuning_cents: <cents vs A=440>".
 Usage: python3 bpm.py <filepath>
        python3 bpm.py          (prompts for a path)
 """
@@ -201,9 +203,10 @@ def detect_bpm_essentia(audio_11k):
     return round(float(global_bpm), 1)
 
 
-def hpcp_frames(audio_44k):
+def hpcp_frames(audio_44k, peaks_out=None):
     """essentia KeyExtractor front end, frame by frame: hann -> spectrum -> peaks -> spectral
-    whitening -> 36-bin HPCP (bass kept: minFrequency 25 Hz). Returns (n_frames, 36)."""
+    whitening -> 36-bin HPCP (bass kept: minFrequency 25 Hz). Returns (n_frames, 36).
+    peaks_out (a list) receives each frame's (frequencies, magnitudes) for the tuning estimate."""
     import numpy as np
     import essentia.standard as es
     win = es.Windowing(type='hann', size=FRAME)
@@ -218,6 +221,8 @@ def hpcp_frames(audio_44k):
     for fr in es.FrameGenerator(audio_44k, frameSize=FRAME, hopSize=HOP, startFromZero=True):
         s = spec(win(fr))
         f, m = peaks(s)
+        if peaks_out is not None:
+            peaks_out.append((f, m))
         m = white(s, f, m)
         out.append(hpcp(f, m))
     return np.array(out)
@@ -237,9 +242,9 @@ def hpcp_to_pcp12(avg):
     return np.roll(p12, 9)
 
 
-def detect_keys_essentia(audio_44k):
+def detect_keys_essentia(audio_44k, peaks_out=None):
     import numpy as np
-    H = hpcp_frames(audio_44k)
+    H = hpcp_frames(audio_44k, peaks_out)
     if len(H) == 0 or H.max() == 0:
         return [('C', 0.0), ('Am', 0.0), ('G', 0.0)]
     scores = key_scores(hpcp_to_pcp12(H.mean(axis=0)), BGATE)
@@ -255,6 +260,60 @@ def detect_keys_essentia(audio_44k):
         wins.append(max(s, key=s.get) == winner)
     agree = float(np.mean(wins)) if wins else 1.0
     return top3_with_confidence(scores, agree)
+
+
+# ---------------------------------------------------------------- decimal BPM and tuning
+
+def refine_bpm(audio_11k, bpm, span=1.5, step=0.01, sr=TEMPOCNN_SR):
+    """TempoCNN answers in whole BPM. Look for the tempo within +-span of it that the onset
+    envelope's periodicity (first four harmonics) fits best, to 0.01 BPM. Falls back to the whole
+    number when the best fit sits on the edge of the search (no clear peak) or there is no audio."""
+    import numpy as np
+    bpm = float(bpm)
+    hop, n_fft = 128, 1024
+    if bpm <= 0 or len(audio_11k) < n_fft + 8 * hop:
+        return bpm
+    x = np.asarray(audio_11k, dtype=np.float32)
+    n = 1 + (len(x) - n_fft) // hop
+    win = np.hanning(n_fft).astype(np.float32)
+    idx = np.arange(n_fft)[None, :] + hop * np.arange(n)[:, None]
+    mag = np.abs(np.fft.rfft(x[idx] * win, axis=1))
+    logm = np.log1p(100.0 * mag)
+    flux = np.maximum(np.diff(logm, axis=0), 0).sum(axis=1)
+    env = flux - flux.mean()
+    if not np.any(env):
+        return bpm
+    t = np.arange(len(env)) / (sr / hop)
+    cands = bpm + np.arange(-span, span + step / 2, step)
+    score = np.zeros(len(cands))
+    for c0 in range(0, len(cands), 64):                      # chunked: memory stays small
+        f = cands[c0:c0 + 64, None] / 60.0
+        for h in (1, 2, 3, 4):
+            score[c0:c0 + 64] += np.abs(np.exp(-2j * np.pi * h * f * t[None, :]) @ env)
+    best = int(np.argmax(score))
+    if best in (0, len(cands) - 1):
+        return bpm
+    return round(float(cands[best]), 2)
+
+
+TUNING_MIN_CONF = 50   # key confidence (%) below which a tuning estimate is not offered
+
+
+def detect_tuning(peaks, conf):
+    """Tuning of the track in cents against A = 440 Hz (+ = sharp), folded to the nearest semitone
+    grid (-50..+50), from essentia's TuningFrequency over every frame's spectral peaks. None when
+    the key readout is not confident (atonal / drum-only audio has no tuning to speak of)."""
+    import numpy as np
+    import essentia.standard as es
+    if conf < TUNING_MIN_CONF or not peaks:
+        return None
+    f = np.concatenate([p[0] for p in peaks]).astype(np.float32)
+    m = np.concatenate([p[1] for p in peaks]).astype(np.float32)
+    if len(f) == 0:
+        return None
+    _hz, cents = es.TuningFrequency()(f, m)       # essentia reports -35..+65
+    cents = float(cents)
+    return round(cents - 100 if cents > 50 else cents, 1)
 
 
 # ---------------------------------------------------------------- librosa fallback
@@ -303,22 +362,46 @@ def _tempocnn_model_present():
     return (TEMPOCNN_MODEL if hasattr(es, 'TempoCNN') else TEMPOCNN_WEIGHTS).is_file()
 
 
-def analyze(filepath):
+MIDI_EXTENSIONS = {".mid", ".midi"}
+
+
+def analyze_full(filepath):
+    """-> (bpm rounded to 0.1, top-3 keys, extras). extras: 'bpm_exact' (0.01 BPM) and, for audio
+    with a confident key, 'tuning_cents' (against A = 440, -50..+50). The first two are what the
+    command line and the file names use; extras are for the app's readout."""
+    if Path(filepath).suffix.lower() in MIDI_EXTENSIONS:
+        import midi_analyze
+        return midi_analyze.analyze_midi(filepath)
+    extras = {}
     if _have_essentia():
         a_key, a_bpm = load_audio_essentia(filepath)
-        keys = detect_keys_essentia(a_key)
+        peaks = []
+        keys = detect_keys_essentia(a_key, peaks)
+        tuning = detect_tuning(peaks, keys[0][1])
+        if tuning is not None:
+            extras["tuning_cents"] = tuning
         if _tempocnn_model_present():
-            return detect_bpm_essentia(a_bpm), keys
+            bpm = detect_bpm_essentia(a_bpm)
+            try:
+                extras["bpm_exact"] = refine_bpm(a_bpm, bpm)
+            except Exception as exc:               # the whole number stands
+                _warn(f"decimal BPM skipped: {exc}")
+            return bpm, keys, extras
         _warn("TempoCNN model missing in models/; BPM via librosa fallback")
         import librosa
         y, sr = librosa.load(str(filepath), mono=True)
-        return detect_bpm_librosa(get_loud_section(y, sr), sr), keys
+        return detect_bpm_librosa(get_loud_section(y, sr), sr), keys, extras
     _warn("essentia-tensorflow not installed; BPM + key via librosa fallback (less accurate) — "
           "pip3 install essentia-tensorflow --break-system-packages --prefer-binary")
     import librosa
     y, sr = librosa.load(str(filepath), mono=True)
     bpm = detect_bpm_librosa(get_loud_section(y, sr), sr)
-    return bpm, detect_keys_librosa(y, sr)
+    return bpm, detect_keys_librosa(y, sr), extras
+
+
+def analyze(filepath):
+    bpm, keys, _extras = analyze_full(filepath)
+    return bpm, keys
 
 
 def main():
@@ -339,12 +422,15 @@ def main():
         print(f"File not found: {path}", file=sys.stderr)
         sys.exit(1)
 
-    bpm, keys = analyze(path)
+    bpm, keys, extras = analyze_full(path)
 
-    # Output for bash parsing: BPM on line 1, then each key on its own line
+    # Output for bash parsing: BPM on line 1, then each key on its own line; the app's extras
+    # ("bpm_exact: 140.82", "tuning_cents: -12.0") follow, so lines 1-4 stay the contract
     print(bpm)
     for key, confidence in keys:
         print(f"{key} ({confidence}%)")
+    for name, value in extras.items():
+        print(f"{name}: {value}")
 
 
 if __name__ == "__main__":
