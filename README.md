@@ -2,6 +2,8 @@
 
 Download YouTube beats as MP3s, auto-tagged with BPM and key.
 
+**Three keys, not one.** Key finders disagree: run a beat through Key Finder, Mixed In Key and Auto-Key and you can get three different answers, then try all three by ear. Beat Key gives you its top 3 keys up front, each with a confidence percentage, and puts all three in the filename (`Some Beat (140.0 BPM Cm Eb Gm).mp3`). The right key is in those three on 92% of the GiantSteps+ benchmark.
+
 Tested and working on both Apple Silicon and Intel Macs.
 
 ## Beat Key app
