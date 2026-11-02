@@ -147,19 +147,21 @@ final class StatusItemController: NSObject, NSMenuDelegate {
         button.alignment = .right
         let quiet = r.dim || r.text == nil
         let font = NSFont.monospacedDigitSystemFont(ofSize: NSFont.systemFontSize, weight: .medium)
-        button.attributedTitle = NSAttributedString(string: (r.text ?? "—") + " ", attributes: [
+        button.attributedTitle = NSAttributedString(string: r.text.map { $0 + " " } ?? "", attributes: [
             .font: font,
             .foregroundColor: quiet ? NSColor.secondaryLabelColor : NSColor.labelColor,
         ])
-        item?.length = StatusItemController.fixedWidth(font: font)
+        // A reading = one fixed width (no jitter as numbers change); nothing yet = just the key.
+        item?.length = r.text == nil || r.text == "…" ? NSStatusItem.variableLength
+            : StatusItemController.fixedWidth(font: font, held: r.text?.hasPrefix("⏸") == true)
         button.setAccessibilityLabel(r.accessibilityLabel)
         button.toolTip = r.detail
     }
 
-    /// Wide enough for the longest reading ("⏸ G#m 188.88" + the key), so the item never resizes.
-    static func fixedWidth(font: NSFont) -> CGFloat {
-        let text = ("⏸ G#m 888.8 " as NSString).size(withAttributes: [.font: font]).width
-        return (text + MenuBarImage.key().size.width + 10).rounded(.up)
+    /// Wide enough for the longest reading ("G#m 188.8" + the key), so the item never resizes.
+    static func fixedWidth(font: NSFont, held: Bool = false) -> CGFloat {
+        let text = ((held ? "⏸ G#m 888.8 " : "G#m 888.8 ") as NSString).size(withAttributes: [.font: font]).width
+        return (text + MenuBarImage.key().size.width + 6).rounded(.up)
     }
 
     // MARK: click = popover, right-click = menu
