@@ -11,27 +11,46 @@ struct Scale: Equatable {
     let minor: Bool
     let notes: Set<Int>
     let sharps: Bool
+    /// The tonic as the key is written ("E♭", "D♯"); the scale line spells from it.
+    let tonicName: String
 
     static let major = [0, 2, 4, 5, 7, 9, 11]
     static let naturalMinor = [0, 2, 3, 5, 7, 8, 10]
     static let sharpNames = ["C", "C♯", "D", "D♯", "E", "F", "F♯", "G", "G♯", "A", "A♯", "B"]
     static let flatNames = ["C", "D♭", "D", "E♭", "E", "F", "G♭", "G", "A♭", "A", "B♭", "B"]
+    private static let letters = Array("CDEFGAB")
+    private static let letterPC = [0, 2, 4, 5, 7, 9, 11]
 
     /// "Ebm", "F#", "Bb" → its scale; nil = not a key name.
     static func of(_ key: String) -> Scale? {
         guard let k = AutoTuneSend.keyClass(key) else { return nil }
         let steps = k.minor ? naturalMinor : major
-        let sharps = (MidiExport.keySignature(key)?.sharps ?? 0) > 0
+        let t = key.trimmingCharacters(in: .whitespaces)
+            .replacingOccurrences(of: "♯", with: "#").replacingOccurrences(of: "♭", with: "b")
+        let root = t.hasSuffix("m") ? String(t.dropLast()) : t
+        let sharps = root.contains("#") ? true : root.contains("b") ? false : (MidiExport.keySignature(key)?.sharps ?? 0) > 0
         return Scale(tonic: k.pitchClass, minor: k.minor,
-                     notes: Set(steps.map { ($0 + k.pitchClass) % 12 }), sharps: sharps)
+                     notes: Set(steps.map { ($0 + k.pitchClass) % 12 }), sharps: sharps,
+                     tonicName: root.replacingOccurrences(of: "#", with: "♯").replacingOccurrences(of: "b", with: "♭"))
     }
 
-    /// The name of pitch class `pc` as this key spells it.
+    /// The name of pitch class `pc` as this key spells it (for the keyboard's black keys).
     func name(_ pc: Int) -> String { (sharps ? Scale.sharpNames : Scale.flatNames)[((pc % 12) + 12) % 12] }
 
-    /// The scale's notes from the tonic up, by pitch-class name ("E♭ F G♭ A♭ B♭ B D♭" for E♭ minor).
+    /// The scale's notes from the tonic up, one letter per degree, so the spelling is the written
+    /// one: E♭ minor is E♭ F G♭ A♭ B♭ C♭ D♭, D♯ minor is D♯ E♯ F♯ G♯ A♯ B C♯ (double accidentals
+    /// where the key needs them, as in G♯ major's F♯♯).
     var spelled: [String] {
-        (minor ? Scale.naturalMinor : Scale.major).map { name(($0 + tonic) % 12) }
+        let steps = minor ? Scale.naturalMinor : Scale.major
+        let first = tonicName.first.flatMap { Scale.letters.firstIndex(of: $0) } ?? 0
+        return steps.enumerated().map { i, step in
+            let li = (first + i) % 7
+            let pc = (tonic + step) % 12
+            var diff = (pc - Scale.letterPC[li] + 12) % 12
+            if diff > 6 { diff -= 12 }
+            let acc = diff > 0 ? String(repeating: "♯", count: diff) : String(repeating: "♭", count: -diff)
+            return String(Scale.letters[li]) + acc
+        }
     }
 }
 
@@ -85,6 +104,12 @@ struct PocketState {
     var highContrast = false
     /// New Song's global shortcut as printed ("⌃⌥⌘R"); nil = none set.
     var newSongKeys: String? = nil
+    /// Hold is on: the reading is frozen (a button, never automatic).
+    var held = false
+    /// Hold's global shortcut as printed; nil = none set.
+    var holdKeys: String? = nil
+    /// A click on the key's name switches sharp / flat; nil = no action wired.
+    var canRespell: Bool { result?.keys.first.map { KeySpelling.isBlack($0.0) } ?? false }
 
     /// The reading on the readout, if there is one.
     var result: Result? {
@@ -103,6 +128,8 @@ struct PocketState {
         !busy && !needsLogin && clipboardLink != nil && url.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
     }
     /// A reading with a tempo or a key: the send / export caps light.
+    /// Hold has a reading to freeze (or is on and can be released).
+    var canHold: Bool { listening && (held || result != nil) }
     var canSend: Bool { result.map { $0.bpm != nil || !$0.keys.isEmpty } ?? false }
     var canAutoTune: Bool { result?.keys.first.flatMap { AutoTuneSend.keyClass($0.0) } != nil }
 
@@ -124,18 +151,19 @@ struct PocketState {
     /// The lamp's word: LOCKED / UNSURE / LISTENING.
     var lampWord: String? {
         guard let l = lamp else { return nil }
-        return l.spoken.uppercased()
+        return (held ? "HELD · " : "") + l.spoken.uppercased()
     }
 }
 
 extension PocketState {
     /// The reading the popover acts on (send, export, Auto-Tune): Listen's while it is on, else
     /// the finished download or the file paged to (what the readout shows).
-    static func shown(_ state: ViewState, live: LiveState, page: Pager) -> Result? {
-        if live.isActive, let r = live.result { return r }
+    static func shown(_ state: ViewState, live: LiveState, page: Pager,
+                      spelling: KeySpelling? = SpellingSettings.shared.preference) -> Result? {
+        if live.isActive, let r = live.result { return r.respelled(spelling) }
         switch state {
-        case .done(let r): return r
-        case .analyzed(let rs) where !rs.isEmpty: return rs[min(max(page.index, 0), rs.count - 1)]
+        case .done(let r): return r.respelled(spelling)
+        case .analyzed(let rs) where !rs.isEmpty: return rs[min(max(page.index, 0), rs.count - 1)].respelled(spelling)
         default: return nil
         }
     }

@@ -18,7 +18,7 @@ final class PocketTests: XCTestCase {
         XCTAssertTrue(ebm.minor)
         XCTAssertEqual(ebm.notes, [3, 5, 6, 8, 10, 11, 1])
         XCTAssertFalse(ebm.sharps)
-        XCTAssertEqual(ebm.spelled, ["E♭", "F", "G♭", "A♭", "B♭", "B", "D♭"])
+        XCTAssertEqual(ebm.spelled, ["E♭", "F", "G♭", "A♭", "B♭", "C♭", "D♭"])
         let d = Scale.of("D")!
         XCTAssertEqual(d.notes, [2, 4, 6, 7, 9, 11, 1])
         XCTAssertTrue(d.sharps)
@@ -180,9 +180,26 @@ final class PocketTests: XCTestCase {
         failed.readout = .error("That video is private or was removed.", download: true)
         failed.url = "https://youtu.be/xxxxxxxxxxx"
 
+        // live, locked and HELD (the caption and the lit HOLD key)
+        var held = listening
+        let h = Result(file: LiveSession.placeholderFile, name: "LIVE", bpm: "128.0",
+                       keys: [("Ebm", 86), ("Gb", 9), ("Bbm", 5)], bpmExact: 128.04)
+        held.readout = .result(h, page: nil, download: false, options: ResultOptions(
+            factor: .one, tuning: nil, onCycleTempo: {}, live: (.locked, "HELD · LOCKED 86%", "System Audio")))
+        held.held = true
+        held.holdKeys = "⌃⌥⌘H"
+        held.level = 0.7
+
+        // the same reading after a click on the key: D#m, F#, A#m, and the scale in sharps
+        var sharps = held
+        sharps.held = false
+        let hs = h.respelled(.sharps)
+        sharps.readout = .result(hs, page: nil, download: false, options: ResultOptions(
+            factor: .one, tuning: nil, onCycleTempo: {}, live: (.locked, "LOCKED 86%", "System Audio")))
+
         let states: [(String, PocketState)] = [("idle", idle), ("downloading", working), ("listening", listening),
                                                ("unsure", unsure), ("locked", locked), ("high-contrast", hc),
-                                               ("error", failed)]
+                                               ("error", failed), ("held", held), ("sharps", sharps)]
         for (name, s) in states {
             Theme.highContrast = s.highContrast
             let view = PocketView(state: s, url: .constant(s.url))

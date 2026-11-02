@@ -13,6 +13,7 @@ struct OrionApp: App {
     @StateObject private var shortcuts = ShortcutStore()
     @StateObject private var loginItem = LoginItemSettings()
     @StateObject private var display = DisplaySettings()
+    @StateObject private var spelling = SpellingSettings.shared
     @StateObject private var live = LiveController(settings: LiveSettings(),
                                                    launch: LiveProcess.launcher(runtime: .appDefault()))
 
@@ -60,7 +61,11 @@ struct OrionApp: App {
                 Button("New Song (Reset Listening)") { newSong() }
                     .optionalShortcut(shortcuts.shortcut(.newSong)?.menuShortcut)
                     .disabled(!live.state.isActive)
+                Toggle("Hold Reading", isOn: Binding(get: { live.isHeld }, set: { _ in toggleHold() }))
+                    .optionalShortcut(shortcuts.shortcut(.hold)?.menuShortcut)
+                    .disabled(!live.isHeld && !(live.state.isActive && live.state.result != nil))
                 Divider()
+                Toggle("Spell Keys with Sharps", isOn: Binding(get: { spelling.sharps }, set: { spelling.sharps = $0 }))
                 Menu("Reference Pitch") {
                     ForEach(Tuning.presets, id: \.self) { hz in
                         Toggle("A = \(Tuning.refText(hz)) Hz", isOn: referenceBinding(hz))
@@ -132,6 +137,14 @@ struct OrionApp: App {
         }
     }
 
+    /// Reading › Hold Reading, its global shortcut, the menu-bar menu and the popover's HOLD key: a
+    /// button, never automatic. Holds the reading on show (listening carries on); again to follow
+    /// the music. Nothing to hold yet = a beep.
+    private var toggleHold: () -> Void {
+        let l = live
+        return { if !l.toggleHold() { NSSound.beep() } }
+    }
+
     /// A checkmark row that sets the reference pitch to `hz`.
     private func referenceBinding(_ hz: Double) -> Binding<Bool> {
         Binding(get: { tuning.reference == hz }, set: { _ in tuning.reference = hz })
@@ -176,11 +189,12 @@ struct OrionApp: App {
         let (e, m) = (engine, model)
         StatusItemController.shared.install(engine: engine, model: model, live: live, tuning: tuning,
                                             recents: recents, display: display, shortcuts: shortcuts,
-                                            toggleListening: toggleListening, newSong: newSong,
+                                            toggleListening: toggleListening, newSong: newSong, toggleHold: toggleHold,
                                             showAgain: { OrionApp.showAgain($0, engine: e, model: m) })
         // Global shortcuts (Settings › Global shortcuts), live in every app.
         HotkeyCenter.shared.actions[.listen] = toggleListening
         HotkeyCenter.shared.actions[.newSong] = newSong
+        HotkeyCenter.shared.actions[.hold] = toggleHold
         HotkeyCenter.shared.actions[.analyzeFile] = {
             StatusItemController.bringWindowForward()
             Intake.analyzeAFile()

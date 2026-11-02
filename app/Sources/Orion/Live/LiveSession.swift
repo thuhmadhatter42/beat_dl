@@ -66,13 +66,16 @@ enum LiveState: Equatable {
     }
 
     /// The lamp's caption.
-    func status(source: String) -> String? {
+    func status(source: String, held: Bool = false) -> String? {
+        let base: String?
         switch self {
-        case .listening: return "LISTENING · \(source.uppercased())"
-        case .reading(let r): return Faceplate.confidenceLine(r.keys) ?? "LISTENING · \(source.uppercased())"
-        case .locked(let r): return Faceplate.confidenceLine(r.keys) ?? "LOCKED"
-        case .off, .failed: return nil
+        case .listening: base = "LISTENING · \(source.uppercased())"
+        case .reading(let r): base = Faceplate.confidenceLine(r.keys) ?? "LISTENING · \(source.uppercased())"
+        case .locked(let r): base = Faceplate.confidenceLine(r.keys) ?? "LOCKED"
+        case .off, .failed: base = nil
         }
+        guard held, let b = base, result != nil else { return base }
+        return "HELD · " + b
     }
 }
 
@@ -82,17 +85,40 @@ struct LiveSession {
     static let placeholderFile = URL(fileURLWithPath: "/")
     static let lockAfter: TimeInterval = 6
 
-    private(set) var state: LiveState = .off
+    /// What the audio says right now (it keeps following while Hold is on).
+    private(set) var current: LiveState = .off
+    /// Hold (J, 2026-11-01): a button, never automatic. While on, `state` is the reading that was
+    /// shown when it went on; listening carries on underneath.
+    private var frozen: LiveState?
     private var greenKey: String?
     private var greenSince: Date?
     var lockAfter = LiveSession.lockAfter
 
-    mutating func begin() { state = .listening; greenKey = nil; greenSince = nil }
-    mutating func end() { state = .off; greenKey = nil; greenSince = nil }
-    mutating func fail(_ message: String) { state = .failed(message); greenKey = nil; greenSince = nil }
+    /// What is shown: the frozen reading while held, else the current one.
+    var state: LiveState { frozen ?? current }
+    var isHeld: Bool { frozen != nil }
+    /// Hold can go on only with a reading to hold.
+    var canHold: Bool { frozen != nil || current.result != nil }
+
+    mutating func begin() { current = .listening; frozen = nil; greenKey = nil; greenSince = nil }
+    mutating func end() { current = .off; frozen = nil; greenKey = nil; greenSince = nil }
+    mutating func fail(_ message: String) { current = .failed(message); frozen = nil; greenKey = nil; greenSince = nil }
+
+    /// Hold on: freeze the reading on show. Hold off: jump to the current reading. False = nothing
+    /// to hold (no reading yet, or not listening).
+    @discardableResult
+    mutating func setHold(_ on: Bool) -> Bool {
+        if !on { frozen = nil; return true }
+        guard current.isActive, current.result != nil else { return false }
+        if frozen == nil { frozen = current }
+        return true
+    }
+
+    @discardableResult
+    mutating func toggleHold() -> Bool { setHold(!isHeld) }
 
     mutating func feed(_ e: LiveEvent, now: Date = Date()) {
-        guard state.isActive else { return }
+        guard current.isActive else { return }
         switch e {
         case .ready:
             break
@@ -104,14 +130,14 @@ struct LiveSession {
             if Lamp.of(r.keys) == .locked, r.bpm != nil, let key = r.keys.first?.0 {
                 if key != greenKey || greenSince == nil { greenKey = key; greenSince = now }
                 if let since = greenSince, now.timeIntervalSince(since) >= lockAfter {
-                    state = .locked(r)
+                    current = .locked(r)
                     return
                 }
             } else {
                 greenKey = nil
                 greenSince = nil
             }
-            state = .reading(r)
+            current = .reading(r)
         }
     }
 }
@@ -122,7 +148,8 @@ extension Faceplate {
     /// What the LCD shows while Listen is on (or just failed); nil = Listen is off, the engine's
     /// readout stands.
     static func liveReadout(_ s: LiveState, source: String, factor: TempoFactor,
-                            onCycleTempo: (() -> Void)? = nil) -> Readout? {
+                            onCycleTempo: (() -> Void)? = nil, held: Bool = false,
+                            spelling: KeySpelling? = nil, onToggleSpelling: (() -> Void)? = nil) -> Readout? {
         switch s {
         case .off:
             return nil
@@ -132,8 +159,9 @@ extension Faceplate {
             return .listening(status: s.status(source: source) ?? "LISTENING")
         case .reading(let r), .locked(let r):
             let opts = ResultOptions(factor: factor, tuning: nil, onCycleTempo: onCycleTempo,
-                                     live: (s.lamp ?? .listening, s.status(source: source) ?? "", source))
-            return .result(r, page: nil, download: false, options: opts)
+                                     live: (s.lamp ?? .listening, s.status(source: source, held: held) ?? "", source),
+                                     onToggleSpelling: onToggleSpelling)
+            return .result(r.respelled(spelling), page: nil, download: false, options: opts)
         }
     }
 }
@@ -320,7 +348,10 @@ protocol AudioCapture: AnyObject {
 }
 
 final class LiveController: ObservableObject {
+    /// What is shown: the frozen reading while Hold is on.
     @Published private(set) var state: LiveState = .off
+    /// Hold is on (a button, never automatic).
+    @Published private(set) var isHeld = false
     @Published private(set) var sourceName = ""
     /// The input's level while listening, 0...1 (peak, dB-scaled, falling back slowly), for the
     /// popover's meter. 0 when Listen is off.
@@ -392,7 +423,7 @@ final class LiveController: ObservableObject {
         pipe = p
         capture = cap
         session.begin()
-        state = session.state
+        publish()
         fillLock.lock(); filler = SilenceFiller(now: now()); fillLock.unlock()
         cap.start(onSamples: { [weak self, weak p] samples in
             guard let self = self else { return }
@@ -427,8 +458,25 @@ final class LiveController: ObservableObject {
     func stop() {
         teardown()
         session.end()
-        state = session.state
+        publish()
     }
+
+    private func publish() {
+        state = session.state
+        if isHeld != session.isHeld { isHeld = session.isHeld }
+    }
+
+    /// Hold / Release. False = nothing to hold yet.
+    @discardableResult
+    func setHold(_ on: Bool) -> Bool {
+        let ok = session.setHold(on)
+        publish()
+        return ok
+    }
+
+    @discardableResult
+    func toggleHold() -> Bool { setHold(!session.isHeld) }
+    var canHold: Bool { session.canHold }
 
     private func teardown() {
         fillTimer?.invalidate()
@@ -447,13 +495,13 @@ final class LiveController: ObservableObject {
         guard gen == generation else { return }
         teardown()
         session.fail(message)
-        state = session.state
+        publish()
     }
 
     func handle(_ e: LiveEvent, gen: Int? = nil) {
         if let g = gen, g != generation { return }
         if case .error(let m) = e { fail(m, gen: generation); return }
         session.feed(e, now: now())
-        state = session.state
+        publish()
     }
 }

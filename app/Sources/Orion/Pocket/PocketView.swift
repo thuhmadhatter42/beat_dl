@@ -12,6 +12,10 @@ struct PocketActions {
     var toggleListen: () -> Void = {}
     /// New Song: Listen drops what it heard and its lock, and starts over.
     var newSong: () -> Void = {}
+    /// Hold / Release: freeze the reading on show (never automatic).
+    var toggleHold: () -> Void = {}
+    /// A click on the key: sharp <-> flat.
+    var respellKey: () -> Void = {}
     var pickSource: () -> Void = {}
     var analyzeFile: () -> Void = {}
     var sendDAW: () -> Void = {}
@@ -85,19 +89,31 @@ struct PocketView: View {
             }
             .padding(.top, 10)
             if state.listening {
-                Button(action: actions.newSong) {
-                    HStack(spacing: 7) {
-                        Text("↺").font(Theme.face(12))
-                        SSLCapStyle.label("NEW SONG · RESET")
-                        Spacer(minLength: 0)
-                        Text(state.newSongKeys ?? "").font(Theme.face(9)).opacity(0.7)
+                HStack(spacing: 10) {
+                    Button(action: actions.newSong) {
+                        HStack(spacing: 7) {
+                            Text("↺").font(Theme.face(12))
+                            SSLCapStyle.label("NEW SONG · RESET").lineLimit(1).minimumScaleFactor(0.7)
+                            Spacer(minLength: 0)
+                        }
+                        .frame(maxWidth: .infinity)
                     }
-                    .frame(maxWidth: .infinity)
+                    .buttonStyle(SSLCapStyle(lit: true, height: 32))
+                    .accessibility(label: Text("New song: reset listening"))
+                    .accessibility(hint: Text("Drops what was heard and the lock, and listens again"))
+                    Button(action: actions.toggleHold) {
+                        HStack(spacing: 6) {
+                            Text("❚❚").font(Theme.face(9))
+                            SSLCapStyle.label("HOLD").lineLimit(1)
+                        }
+                        .frame(width: 66)
+                    }
+                    .buttonStyle(SSLCapStyle(lit: state.held, ready: state.canHold && !state.held, height: 32))
+                    .accessibility(label: Text(state.held ? "Release hold" : "Hold reading"))
+                    .accessibility(hint: Text("Freezes the reading on show while listening carries on. Press again to follow the music"))
+                    .accessibility(addTraits: state.held ? .isSelected : [])
                 }
-                .buttonStyle(SSLCapStyle(lit: true, height: 32))
                 .padding(.top, 10)
-                .accessibility(label: Text("New song: reset listening"))
-                .accessibility(hint: Text("Drops what was heard and the lock, and listens again"))
             }
             Rectangle().fill(Color.black.opacity(0.7)).frame(height: 1)
                 .overlay(Rectangle().fill(Color.white.opacity(0.05)).frame(height: 1).offset(y: 1))
@@ -331,7 +347,7 @@ private struct PocketLCD: View {
         let shape = RoundedRectangle(cornerRadius: 6, style: .continuous)
         VStack(alignment: .leading, spacing: 0) {
             HStack(alignment: .center, spacing: 16) {
-                Dial(state: state).frame(width: 112, height: 112)
+                Dial(state: state, actions: actions).frame(width: 112, height: 112)
                 right.frame(maxWidth: .infinity, alignment: .leading)
             }
             .frame(height: 118)
@@ -433,7 +449,7 @@ private struct PocketLCD: View {
     private var scaleLine: some View {
         HStack(spacing: 8) {
             if let s = state.scale {
-                Text("\(s.name(s.tonic)) \(s.minor ? "MINOR" : "MAJOR")").font(Theme.face(8.5)).tracking(1.4)
+                Text("\(s.tonicName) \(s.minor ? "MINOR" : "MAJOR")").font(Theme.face(8.5)).tracking(1.4)
                     .foregroundColor(Theme.amber(0.85))
                 Text(s.spelled.joined(separator: "  ")).font(.custom("HelveticaNeue", size: 9)).tracking(0.4)
                     .foregroundColor(Theme.amber(0.55)).lineLimit(1)
@@ -456,6 +472,7 @@ private struct PocketLCD: View {
 /// shape and the percentage under it, so the state reads without colour.
 private struct Dial: View {
     let state: PocketState
+    var actions = PocketActions()
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var spin = false
 
@@ -489,11 +506,7 @@ private struct Dial: View {
                     .onAppear { if !reduceMotion && !Pocket.snapshot { DispatchQueue.main.async { spin = true } } }
             }
             VStack(spacing: 3) {
-                Text(key ?? "--").font(Theme.face(key.map { $0.count > 3 ? 24 : 30 } ?? 30))
-                    .tracking(0.6)
-                    .foregroundColor(key == nil ? Theme.amber(0.14) : Theme.amber)
-                    .lineLimit(1).minimumScaleFactor(0.6)
-                    .modifier(PocketGlow(on: key != nil))
+                keyButton(key)
                 if let l = lamp, let c = state.confidence {
                     HStack(spacing: 4) {
                         LampShape(lamp: l).fill(l.color).frame(width: 7, height: 7)
@@ -515,10 +528,28 @@ private struct Dial: View {
         return false
     }
 
+    /// The big key; a click on a black-key tonic switches sharp / flat.
+    @ViewBuilder private func keyButton(_ key: String?) -> some View {
+        let text = Text(key ?? "--").font(Theme.face(key.map { $0.count > 3 ? 24 : 30 } ?? 30))
+            .tracking(0.6)
+            .foregroundColor(key == nil ? Theme.amber(0.14) : Theme.amber)
+            .lineLimit(1).minimumScaleFactor(0.6)
+            .modifier(PocketGlow(on: key != nil))
+        if state.canRespell {
+            Button(action: actions.respellKey) { text.contentShape(Rectangle()) }
+                .buttonStyle(PlainButtonStyle())
+                .pointingHand()
+        } else {
+            text
+        }
+    }
+
 
     private var dialLabel: String {
         guard let k = state.result?.keys.first else { return state.lamp == .listening ? "Listening" : "No key yet" }
         return "Key \(k.0), \(k.1) percent" + (state.lamp.map { ", \($0.spoken)" } ?? "")
+            + (state.held ? ", held" : "")
+            + (state.canRespell ? ". Click to switch between sharp and flat spelling" : "")
     }
 }
 
