@@ -4,9 +4,23 @@ import SwiftUI
 /// Beat Key › Settings… (⌘,): global shortcuts, Open at Login, listening, display.
 struct SettingsView: View {
     @ObservedObject var shortcuts: ShortcutStore
+    @ObservedObject var loginItem: LoginItemSettings
 
     var body: some View {
         Form {
+            Section(header: Text("General").font(.headline)) {
+                Toggle("Open at Login", isOn: Binding(get: { loginItem.enabled }, set: { loginItem.set($0) }))
+                if let m = loginItem.message {
+                    HStack {
+                        Text(m).font(.caption).foregroundColor(.secondary).fixedSize(horizontal: false, vertical: true)
+                        if loginItem.canOpenSystemSettings {
+                            Button("Open System Settings") { loginItem.openSystemSettings() }
+                        }
+                    }
+                }
+            }
+            .onAppear { loginItem.refresh() }
+            Divider().padding(.vertical, 6)
             Section(header: Text("Global shortcuts").font(.headline)) {
                 ForEach(HotkeyAction.allCases) { a in
                     HStack {

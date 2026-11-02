@@ -11,6 +11,7 @@ struct OrionApp: App {
     @StateObject private var tuning = TuningSettings()
     @StateObject private var recents: RecentStore
     @StateObject private var shortcuts = ShortcutStore()
+    @StateObject private var loginItem = LoginItemSettings()
 
     init() {
         let session = YouTubeSession()
@@ -85,7 +86,7 @@ struct OrionApp: App {
             }
         }
         Settings {
-            SettingsView(shortcuts: shortcuts)
+            SettingsView(shortcuts: shortcuts, loginItem: loginItem)
         }
     }
 
