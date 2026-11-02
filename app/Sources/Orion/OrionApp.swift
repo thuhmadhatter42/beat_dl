@@ -60,6 +60,7 @@ struct OrionApp: App {
                     Button("Custom…") { if let hz = ReferencePrompt.ask(current: tuning.reference) { tuning.reference = hz } }
                 }
                 Button("Half / Double Tempo") { model.tempoFactor = model.tempoFactor.next }
+                DAWSendMenuItems(engine: engine)
             }
             // The app menu says Beat Key whatever the process is called (swift run = "Orion").
             CommandGroup(replacing: .appInfo) {
