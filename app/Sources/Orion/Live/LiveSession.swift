@@ -246,7 +246,6 @@ final class LiveProcess: LivePipe {
         process.standardInput = stdin
         process.standardOutput = out
         process.standardError = FileHandle.nullDevice
-        process.terminationHandler = { p in onExit(p.terminationStatus) }
         do { try process.run() } catch { return nil }
         DispatchQueue.global(qos: .userInitiated).async {
             var buf = Data()
@@ -260,6 +259,9 @@ final class LiveProcess: LivePipe {
                     buf.removeSubrange(buf.startIndex...nl)
                 }
             }
+            // exit only after every line is out
+            self.process.waitUntilExit()
+            onExit(self.process.terminationStatus)
         }
     }
 
@@ -272,15 +274,18 @@ final class LiveProcess: LivePipe {
         }
     }
 
-    /// EOF on stdin ends the analyzer; it is stopped outright if it lingers.
-    func close() {
+    /// EOF on stdin ends the analyzer; it is stopped outright if it lingers past `grace` s
+    /// (Stop Listening wants it gone, not its last reading).
+    func close() { close(grace: 2) }
+
+    func close(grace: TimeInterval) {
         writes.async { [self] in
             guard !closed else { return }
             closed = true
             try? stdin.fileHandleForWriting.close()
         }
         let p = process
-        DispatchQueue.global().asyncAfter(deadline: .now() + 2) { if p.isRunning { p.terminate() } }
+        DispatchQueue.global().asyncAfter(deadline: .now() + grace) { if p.isRunning { p.terminate() } }
     }
 }
 
@@ -341,6 +346,7 @@ final class LiveController: ObservableObject {
     static func realCapture(_ s: LiveSource) -> AudioCapture? {
         switch s {
         case .system:
+            if #available(macOS 13.0, *) { return SystemAudioCapture() }
             return nil
         case .input(let uid, let ch):
             return InputCapture(deviceUID: uid, channel: ch)

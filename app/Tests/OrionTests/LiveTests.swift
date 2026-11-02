@@ -1,4 +1,5 @@
 import AVFoundation
+import ScreenCaptureKit
 import XCTest
 @testable import Orion
 
@@ -199,6 +200,36 @@ final class LiveTests: XCTestCase {
         XCTAssertEqual(Double(total), 44100, accuracy: 600)                      // 1 s in, ~1 s out
     }
 
+    @available(macOS 13.0, *)
+    func testSystemAudioBuffersToMono() {
+        let list = AudioBufferList.allocate(maximumBuffers: 2)
+        defer { free(list.unsafeMutablePointer) }
+        var l: [Float] = [1, 1, 1, 1], r: [Float] = [0, 0, 1, 1]
+        l.withUnsafeMutableBytes { lp in
+            r.withUnsafeMutableBytes { rp in
+                list[0] = AudioBuffer(mNumberChannels: 1, mDataByteSize: 16, mData: lp.baseAddress)
+                list[1] = AudioBuffer(mNumberChannels: 1, mDataByteSize: 16, mData: rp.baseAddress)
+                XCTAssertEqual(SystemAudioCapture.mono(list), [0.5, 0.5, 1, 1])
+            }
+        }
+        let one = AudioBufferList.allocate(maximumBuffers: 1)
+        defer { free(one.unsafeMutablePointer) }
+        var inter: [Float] = [1, 0, 1, 0, 1, 1]          // L R interleaved, 3 frames
+        inter.withUnsafeMutableBytes { p in
+            one[0] = AudioBuffer(mNumberChannels: 2, mDataByteSize: 24, mData: p.baseAddress)
+            XCTAssertEqual(SystemAudioCapture.mono(one), [0.5, 0.5, 1])
+        }
+    }
+
+    @available(macOS 13.0, *)
+    func testSystemAudioPermissionErrorSaysWhereToAllow() {
+        let declined = NSError(domain: SCStreamErrorDomain, code: SCStreamError.userDeclined.rawValue)
+        XCTAssertEqual(SystemAudioCapture.text(declined), SystemAudioCapture.permissionText)
+        XCTAssertTrue(SystemAudioCapture.permissionText.hasPrefix("ALLOW BEAT KEY IN SYSTEM SETTINGS"))
+        XCTAssertTrue(LiveController.realCapture(.system) is SystemAudioCapture)
+        XCTAssertTrue(LiveController.realCapture(.input(uid: nil, channel: 0)) is InputCapture)
+    }
+
     func testSilenceFiller() {
         var f = SilenceFiller(rate: 44100, tick: 0.5, now: t0)
         XCTAssertEqual(f.zeros(at: t0 + 0.4), 0)
@@ -315,7 +346,7 @@ final class LiveTests: XCTestCase {
             }
             p.write(samples)
         }
-        p.close()
+        p.close(grace: 100)   // let it finish the backlog (the app's Stop gives it 2 s)
         wait(for: [exited], timeout: 120)
         lock.lock(); let got = lines; lock.unlock()
         let events = got.compactMap(LiveEvent.parse)

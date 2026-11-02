@@ -14,9 +14,12 @@ let package = Package(
                           dependencies: [.product(name: "Sparkle", package: "Sparkle")],
                           path: "Sources/Orion",
                           resources: [.process("Resources")],
-                          // build.sh puts Sparkle.framework in Contents/Frameworks
+                          // build.sh puts Sparkle.framework in Contents/Frameworks.
+                          // ScreenCaptureKit (system audio, macOS 13+) is weak: macOS 12.0-12.2 has none.
                           linkerSettings: [.unsafeFlags(["-Xlinker", "-rpath",
-                                                         "-Xlinker", "@executable_path/../Frameworks"])]),
+                                                         "-Xlinker", "@executable_path/../Frameworks",
+                                                         "-Xlinker", "-weak_framework",
+                                                         "-Xlinker", "ScreenCaptureKit"])]),
         .testTarget(name: "OrionTests", dependencies: ["Orion"], path: "Tests/OrionTests"),
     ]
 )
