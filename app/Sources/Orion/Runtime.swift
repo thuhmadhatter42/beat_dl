@@ -30,6 +30,8 @@ struct Runtime {
     }
     var python: URL { root.appendingPathComponent(arch).appendingPathComponent("python/bin/python3") }
     var script: URL { root.appendingPathComponent("scripts/app_run.py") }
+    /// Live listening runs the analyzer itself (`bpm.py --stream`), not app_run.py.
+    var analyzer: URL { root.appendingPathComponent("scripts/bpm.py") }
     var supportBin: URL { support.appendingPathComponent("bin") }
     var ytdlp: URL { supportBin.appendingPathComponent("yt-dlp") }
     var bundledYtDlp: URL { root.appendingPathComponent(arch).appendingPathComponent("bin/yt-dlp") }

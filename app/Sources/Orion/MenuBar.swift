@@ -38,6 +38,21 @@ struct MenuBarReadout: Equatable {
         }
     }
 
+    /// Listen's reading; nil when Listen is off (the engine's reading shows).
+    static func of(live: LiveState, source: String, factor: TempoFactor) -> MenuBarReadout? {
+        switch live {
+        case .off:
+            return nil
+        case .failed:
+            return MenuBarReadout(text: nil, lamp: nil, detail: "Listening stopped")
+        case .listening:
+            return MenuBarReadout(text: "…", lamp: .listening, detail: "Listening · \(source)")
+        case .reading(let r), .locked(let r):
+            let m = of(r, factor: factor, lamp: live.lamp, status: live.status(source: source))
+            return m.text == nil ? MenuBarReadout(text: "…", lamp: .listening, detail: "Listening · \(source)") : m
+        }
+    }
+
     /// Spoken by VoiceOver for the status item.
     var accessibilityLabel: String {
         "\(Brand.name): \(detail)" + (lamp.map { ", \($0.spoken)" } ?? "")
@@ -57,23 +72,29 @@ final class StatusItemController: NSObject, NSMenuDelegate {
     private let detailRow = NSMenuItem(title: "", action: nil, keyEquivalent: "")
 
     /// Called once the window is up (OrionApp.launch).
-    func install(engine: Engine, model: FaceplateModel) {
+    func install(engine: Engine, model: FaceplateModel, live: LiveController, toggleListening: @escaping () -> Void) {
         guard item == nil else { return }
         let it = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
         item = it
         menu.delegate = self
         menu.autoenablesItems = false
         it.menu = menu
-        Publishers.CombineLatest3(engine.$state, model.$pager, model.$tempoFactor)
+        Publishers.CombineLatest4(engine.$state, model.$pager, model.$tempoFactor,
+                                  live.$state.combineLatest(live.$sourceName))
             .receive(on: DispatchQueue.main)
-            .sink { [weak self] state, pager, factor in
-                self?.show(MenuBarReadout.of(state, page: pager.index, factor: factor))
+            .sink { [weak self] state, pager, factor, l in
+                self?.show(MenuBarReadout.of(live: l.0, source: l.1, factor: factor)
+                           ?? MenuBarReadout.of(state, page: pager.index, factor: factor))
             }
             .store(in: &bag)
         self.engine = engine
+        self.live = live
+        self.toggleListening = toggleListening
     }
 
     private weak var engine: Engine?
+    private weak var live: LiveController?
+    private var toggleListening: (() -> Void)?
 
     func show(_ r: MenuBarReadout) {
         readout = r
@@ -94,6 +115,13 @@ final class StatusItemController: NSObject, NSMenuDelegate {
         detailRow.isEnabled = false
         menu.addItem(detailRow)
         menu.addItem(.separator())
+        let active = live?.state.isActive ?? false
+        let source = live?.settings.sourceName(devices: InputDevice.all()) ?? ""
+        let listen = NSMenuItem(title: active ? "Stop Listening" : "Start Listening · \(source)",
+                                action: #selector(listenToggled), keyEquivalent: "")
+        listen.target = self
+        listen.isEnabled = active || !(engine?.state.isBusy ?? false)
+        menu.addItem(listen)
         let analyze = NSMenuItem(title: "Analyze a File…", action: #selector(analyzeFile), keyEquivalent: "")
         analyze.target = self
         analyze.isEnabled = !(engine?.state.isBusy ?? false)
@@ -118,6 +146,7 @@ final class StatusItemController: NSObject, NSMenuDelegate {
     @objc private func showWindow() { StatusItemController.bringWindowForward() }
     @objc private func quit() { NSApp.terminate(nil) }
     @objc private func openSettings() { SettingsOpener.open() }
+    @objc private func listenToggled() { toggleListening?() }
 
     /// The faceplate window to the front (it may be minimised or behind other apps).
     static func bringWindowForward() {

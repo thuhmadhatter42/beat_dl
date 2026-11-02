@@ -32,6 +32,19 @@ enum Event: Equatable {
     /// One JSON line from app_run.py. app_run.py puts the event kind in "stage"
     /// ("downloading"... are progress, "done"/"analyzed"/"error" are terminal).
     /// A line with "event" as the kind key is accepted too. Garbage or unknown -> nil.
+    /// `[["Cm", 80], ["Eb", 9], ...]` (app_run.py and bpm.py --stream). Missing = none; a
+    /// malformed entry = nil (the whole line is ignored).
+    static func keyList(_ any: Any?) -> [(String, Int)]? {
+        var keys: [(String, Int)] = []
+        for item in (any as? [Any]) ?? [] {
+            guard let pair = item as? [Any], pair.count == 2,
+                  let k = pair[0] as? String, let p = (pair[1] as? NSNumber)?.intValue
+            else { return nil }
+            keys.append((k, p))
+        }
+        return keys
+    }
+
     static func parse(line: String) -> Event? {
         guard let data = line.data(using: .utf8),
               let obj = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any]
@@ -40,14 +53,8 @@ enum Event: Equatable {
         guard let kind else { return nil }
         switch kind {
         case "done", "analyzed":
-            guard let file = obj["file"] as? String, let name = obj["name"] as? String else { return nil }
-            var keys: [(String, Int)] = []
-            for item in (obj["keys"] as? [Any]) ?? [] {
-                guard let pair = item as? [Any], pair.count == 2,
-                      let k = pair[0] as? String, let p = (pair[1] as? NSNumber)?.intValue
-                else { return nil }
-                keys.append((k, p))
-            }
+            guard let file = obj["file"] as? String, let name = obj["name"] as? String,
+                  let keys = keyList(obj["keys"]) else { return nil }
             let r = Result(file: URL(fileURLWithPath: file), name: name,
                            bpm: obj["bpm"] as? String, keys: keys,
                            readError: obj["error"] as? String,

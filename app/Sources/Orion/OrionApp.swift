@@ -12,6 +12,8 @@ struct OrionApp: App {
     @StateObject private var recents: RecentStore
     @StateObject private var shortcuts = ShortcutStore()
     @StateObject private var loginItem = LoginItemSettings()
+    @StateObject private var live = LiveController(settings: LiveSettings(),
+                                                   launch: LiveProcess.launcher(runtime: .appDefault()))
 
     init() {
         let session = YouTubeSession()
@@ -29,7 +31,7 @@ struct OrionApp: App {
 
     var body: some Scene {
         WindowGroup {
-            FaceplateView(engine: engine, model: model, login: login, tuning: tuning)
+            FaceplateView(engine: engine, model: model, login: login, tuning: tuning, live: live)
                 .background(WindowConfigurator())
                 .onAppear(perform: launch)
         }
@@ -50,6 +52,10 @@ struct OrionApp: App {
                 .disabled(recents.readings.isEmpty)
             }
             CommandMenu("Reading") {
+                Button(live.state.isActive ? "Stop Listening" : "Start Listening") { toggleListening() }   // the computed closure, run now
+                    .optionalShortcut(shortcuts.shortcut(.listen)?.menuShortcut)
+                    .disabled(engine.state.isBusy && !live.state.isActive)
+                Divider()
                 Menu("Reference Pitch") {
                     ForEach(Tuning.presets, id: \.self) { hz in
                         Toggle("A = \(Tuning.refText(hz)) Hz", isOn: referenceBinding(hz))
@@ -86,8 +92,22 @@ struct OrionApp: App {
             }
         }
         Settings {
-            SettingsView(shortcuts: shortcuts, loginItem: loginItem)
+            SettingsView(shortcuts: shortcuts, loginItem: loginItem, live: live.settings)
         }
+    }
+
+    /// Reading › Start / Stop Listening, the global shortcut and the menu-bar item. Not while a
+    /// download or an analysis is running (the LCD belongs to it).
+    private static func toggleListening(live: LiveController, engine: Engine, model: FaceplateModel) {
+        if !live.state.isActive && engine.state.isBusy { NSSound.beep(); return }
+        model.tempoFactor = .one
+        live.toggle()
+    }
+
+    /// The objects themselves, captured (not the App struct's wrappers), for callers outside a view update.
+    private var toggleListening: () -> Void {
+        let (l, e, m) = (live, engine, model)
+        return { OrionApp.toggleListening(live: l, engine: e, model: m) }
     }
 
     /// A checkmark row that sets the reference pitch to `hz`.
@@ -127,8 +147,10 @@ struct OrionApp: App {
             }
         }
         // The menu-bar readout ("Ebm 128" + lamp) follows the LCD from here on.
-        StatusItemController.shared.install(engine: engine, model: model)
+        StatusItemController.shared.install(engine: engine, model: model, live: live,
+                                            toggleListening: toggleListening)
         // Global shortcuts (Settings › Global shortcuts), live in every app.
+        HotkeyCenter.shared.actions[.listen] = toggleListening
         HotkeyCenter.shared.actions[.analyzeFile] = {
             StatusItemController.bringWindowForward()
             Intake.analyzeAFile()

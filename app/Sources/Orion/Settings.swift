@@ -5,9 +5,36 @@ import SwiftUI
 struct SettingsView: View {
     @ObservedObject var shortcuts: ShortcutStore
     @ObservedObject var loginItem: LoginItemSettings
+    @ObservedObject var live: LiveSettings
+    @State private var devices: [InputDevice] = []
 
     var body: some View {
         Form {
+            Section(header: Text("Listen").font(.headline)) {
+                Picker("Listen to", selection: deviceBinding) {
+                    if LiveSource.systemAvailable { Text("System Audio (everything the Mac plays)").tag("system") }
+                    Text("Default Input").tag("default")
+                    ForEach(devices) { d in Text(d.name).tag("uid:\(d.uid)") }
+                }
+                if case .input(let uid, _) = live.source {
+                    let count = uid.flatMap { u in devices.first { $0.uid == u }?.channels } ?? 2
+                    if count > 1 {
+                        Picker("Channel", selection: channelBinding) {
+                            Text("All channels").tag(0)
+                            ForEach(1...count, id: \.self) { Text("Channel \($0)").tag($0) }
+                        }
+                    }
+                }
+                Picker("Start over after", selection: $live.gap) {
+                    ForEach(LiveSettings.gaps, id: \.self) { Text("\(Int($0)) s of silence").tag($0) }
+                }
+                Text(LiveSource.systemAvailable
+                     ? "Nothing is recorded or saved. System Audio needs Screen & System Audio Recording permission; inputs need Microphone permission."
+                     : "Nothing is recorded or saved. Inputs need Microphone permission. System Audio needs macOS 13 or newer.")
+                    .font(.caption).foregroundColor(.secondary).fixedSize(horizontal: false, vertical: true)
+            }
+            .onAppear { devices = InputDevice.all() }
+            Divider().padding(.vertical, 6)
             Section(header: Text("General").font(.headline)) {
                 Toggle("Open at Login", isOn: Binding(get: { loginItem.enabled }, set: { loginItem.set($0) }))
                 if let m = loginItem.message {
@@ -34,6 +61,30 @@ struct SettingsView: View {
         }
         .padding(20)
         .frame(width: 460)
+    }
+
+    /// "system" | "default" | "uid:<device uid>"; a new device starts on all channels.
+    private var deviceBinding: Binding<String> {
+        Binding(get: {
+            switch live.source {
+            case .system: return "system"
+            case .input(nil, _): return "default"
+            case .input(let uid?, _): return "uid:\(uid)"
+            }
+        }, set: { tag in
+            if tag == "system" { live.source = .system }
+            else if tag == "default" { live.source = .input(uid: nil, channel: 0) }
+            else { live.source = .input(uid: String(tag.dropFirst(4)), channel: 0) }
+        })
+    }
+
+    private var channelBinding: Binding<Int> {
+        Binding(get: {
+            if case .input(_, let ch) = live.source { return ch }
+            return 0
+        }, set: { ch in
+            if case .input(let uid, _) = live.source { live.source = .input(uid: uid, channel: ch) }
+        })
     }
 }
 
