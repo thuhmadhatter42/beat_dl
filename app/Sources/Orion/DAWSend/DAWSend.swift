@@ -59,11 +59,12 @@ enum DAW: String, CaseIterable {
     /// What Send gives this DAW, said plainly in the menu's tooltip and the result.
     var gets: String {
         switch self {
-        case .proTools: return "a MIDI file with tempo and key to import (Pro Tools has no scripting command for tempo or key)"
+        case .proTools: return "tempo and key, typed into its Tempo Change and Key Change dialogs through Accessibility (PTSL has no tempo or key command); the MIDI file if that fails"
+        case .logic, .studioOne: return "tempo and key, set in its transport through Accessibility; the MIDI file if that fails"
         case .ableton: return "tempo and key (Live 12; Live 11 tempo only), through Beat Key's Remote Script"
         case .reaper: return "tempo, through Beat Key's ReaScript (REAPER has no project key)"
         case .bitwig: return "tempo, through Beat Key's controller script (Bitwig has no project key)"
-        case .logic, .studioOne, .flStudio, .reason, .cubase: return "a MIDI file with tempo and key to import (no outside control of tempo)"
+        case .flStudio, .reason, .cubase: return "a MIDI file with tempo and key to import (no outside control of tempo)"
         }
     }
 
@@ -160,7 +161,8 @@ enum DAWDrivers {
         case .ableton: return AbletonDriver()
         case .reaper: return ReaperDriver()
         case .bitwig: return BitwigDriver()
-        case .logic, .studioOne, .flStudio, .reason, .cubase: return MidiFileDriver(daw: d)
+        case .logic, .studioOne: return AXDAWDriver(daw: d)   // Accessibility, MIDI fallback (AXRoutes.swift)
+        case .flStudio, .reason, .cubase: return MidiFileDriver(daw: d)
         }
     }
 }

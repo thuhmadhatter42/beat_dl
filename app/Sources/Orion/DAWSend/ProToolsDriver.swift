@@ -2,8 +2,8 @@ import Foundation
 
 /// Pro Tools over PTSL (gRPC, 127.0.0.1:31416).
 /// Send: PTSL 2026.4 has no command that sets the tempo or key rulers (every CommandId in the
-/// SDK's PTSL.proto was checked), so Pro Tools gets the MIDI file to import, plus the tempo the
-/// session is at now, read through PTSL so the person can see whether it needs changing.
+/// SDK's PTSL.proto was checked), so tempo and key go in through Accessibility (the Tempo Change
+/// and Key Change dialogs), the tempo is read back over PTSL, and the MIDI file covers a miss.
 /// Analyze Selection: CId_ExportClipsAsFiles writes the selected clip(s) to a temp folder as WAV,
 /// and those files are analysed like any other.
 struct ProToolsDriver: DAWDriver {
@@ -11,9 +11,8 @@ struct ProToolsDriver: DAWDriver {
     var port: UInt16 = PTSLClient.port
 
     func send(_ p: SendPayload) throws -> String {
-        let midi = try MidiFileDriver(daw: .proTools).send(p)
-        guard let now = try? sessionTempo() else { return midi }
-        return "The session is at \(String(format: "%.2f", now)) BPM now. " + midi
+        // Accessibility (Tempo Change / Key Change dialogs, AXRoutes.swift), tempo read back over PTSL.
+        try AXDAWDriver.sendWithFallback(.proTools, p, midi: MidiFileDriver(daw: .proTools), readBack: { try? sessionTempo() })
     }
 
     func selectionAudio() throws -> [URL] {
