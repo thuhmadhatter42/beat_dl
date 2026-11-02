@@ -70,6 +70,7 @@ struct OrionApp: App {
                 }
                 SendToAutoTuneMenuItem(engine: engine, tuning: tuning)
                 Button("Half / Double Tempo") { model.tempoFactor = model.tempoFactor.next }
+                DAWSendMenuItems(engine: engine)
             }
             // View menu: the readout's accessibility switch (plan 5.1)
             CommandGroup(before: .toolbar) {
