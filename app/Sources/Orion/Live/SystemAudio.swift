@@ -1,3 +1,4 @@
+import AppKit
 import AVFoundation
 import CoreGraphics
 import CoreMedia
@@ -19,6 +20,13 @@ final class SystemAudioCapture: NSObject, AudioCapture, SCStreamOutput, SCStream
     /// audio read as 44.1 kHz puts every key ~1.5 semitones flat and every tempo 8 % slow.
     private var resampler: Resampler?
     private var resamplerRate: Double = 0
+    /// SCK drops the stream when the display goes away (display sleep, lock, lid, monitor
+    /// unplugged: error -3815 "Failed to find any displays or windows to capture"). That is not
+    /// the user's problem, so Beat Key quietly reopens it: right away on screen wake, else after
+    /// 2, 5, 10, then every 30 s. Only a permission refusal reaches the screen.
+    private var retries = 0
+    private var retryWork: DispatchWorkItem?
+    private var wakeObserver: NSObjectProtocol?
 
     /// macOS 15 renamed the privacy pane.
     static var permissionText: String {
@@ -30,6 +38,15 @@ final class SystemAudioCapture: NSObject, AudioCapture, SCStreamOutput, SCStream
     func start(onSamples: @escaping ([Float]) -> Void, onError: @escaping (String) -> Void) {
         self.onSamples = onSamples
         self.onError = onError
+        wakeObserver = NSWorkspace.shared.notificationCenter.addObserver(
+            forName: NSWorkspace.screensDidWakeNotification, object: nil, queue: nil) { [weak self] _ in
+            self?.queue.async { self?.reopen(now: true, why: "screen woke") }
+        }
+        begin()
+    }
+
+    private func begin() {
+        guard !stopped, let onError = onError else { return }
         // First time: macOS shows its own prompt and says no for now; the user allows it in
         // System Settings and starts again.
         guard CGPreflightScreenCaptureAccess() || CGRequestScreenCaptureAccess() else {
@@ -38,7 +55,9 @@ final class SystemAudioCapture: NSObject, AudioCapture, SCStreamOutput, SCStream
         SCShareableContent.getExcludingDesktopWindows(false, onScreenWindowsOnly: false) { [weak self] content, error in
             guard let self = self, !self.stopped else { return }
             guard let display = content?.displays.first else {
-                onError(error.map(SystemAudioCapture.text) ?? "NO DISPLAY TO CAPTURE AUDIO FROM"); return
+                AppLog.log("system audio: no display yet (\(error.map { "\($0)" } ?? "none")), retrying")
+                self.queue.async { self.reopen(now: false, why: "no display") }
+                return
             }
             // A music player open (Spotify, a browser, Music...) = hear only the players, so a mic
             // monitored through Artemis or a DAW never mixes into the key. None open = everything.
@@ -64,8 +83,11 @@ final class SystemAudioCapture: NSObject, AudioCapture, SCStreamOutput, SCStream
             } catch {
                 onError(SystemAudioCapture.text(error)); return
             }
-            s.startCapture { err in
-                if let err = err { onError(SystemAudioCapture.text(err)) }
+            s.startCapture { [weak self] err in
+                guard let err = err else { return }
+                if SystemAudioCapture.isPermission(err) { onError(SystemAudioCapture.text(err)); return }
+                AppLog.log("system audio: start failed (\(err)), retrying")
+                self?.queue.async { self?.reopen(now: false, why: "start failed") }
             }
             self.stream = s
         }
@@ -73,12 +95,15 @@ final class SystemAudioCapture: NSObject, AudioCapture, SCStreamOutput, SCStream
 
     func stop() {
         stopped = true
+        retryWork?.cancel()
+        if let w = wakeObserver { NSWorkspace.shared.notificationCenter.removeObserver(w); wakeObserver = nil }
         stream?.stopCapture { _ in }
         stream = nil
     }
 
     func stream(_ stream: SCStream, didOutputSampleBuffer sb: CMSampleBuffer, of type: SCStreamOutputType) {
         guard type == .audio, sb.isValid, let emit = onSamples else { return }
+        if retries > 0 { AppLog.log("system audio: back after \(retries) retr\(retries == 1 ? "y" : "ies")"); retries = 0 }
         guard let fd = CMSampleBufferGetFormatDescription(sb),
               let rate = CMAudioFormatDescriptionGetStreamBasicDescription(fd)?.pointee.mSampleRate, rate > 0
         else { return }
@@ -91,7 +116,28 @@ final class SystemAudioCapture: NSObject, AudioCapture, SCStreamOutput, SCStream
     func stream(_ stream: SCStream, didStopWithError error: Error) {
         guard !stopped else { return }
         AppLog.log("system audio stopped: \(error)")
-        onError?(SystemAudioCapture.text(error))
+        if SystemAudioCapture.isPermission(error) { onError?(SystemAudioCapture.text(error)); return }
+        queue.async { self.reopen(now: false, why: "stream stopped") }
+    }
+
+    /// Runs on `queue`. Drops the dead stream and opens a new one, now or after a backoff.
+    private func reopen(now: Bool, why: String) {
+        guard !stopped else { return }
+        retryWork?.cancel()
+        stream?.stopCapture { _ in }
+        stream = nil
+        let delays: [Double] = [2, 5, 10]
+        let wait = now ? 0.5 : (retries < delays.count ? delays[retries] : 30)
+        retries += 1
+        AppLog.log("system audio: reopening in \(wait) s (\(why), try \(retries))")
+        let w = DispatchWorkItem { [weak self] in self?.begin() }
+        retryWork = w
+        queue.asyncAfter(deadline: .now() + wait, execute: w)
+    }
+
+    static func isPermission(_ error: Error) -> Bool {
+        let e = error as NSError
+        return e.domain == SCStreamErrorDomain && e.code == SCStreamError.userDeclined.rawValue
     }
 
     /// Apps that play songs (bundle id prefixes, so a browser's helper processes count too).
