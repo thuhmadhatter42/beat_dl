@@ -72,7 +72,8 @@ struct Screw: View {
 struct Rail: View {
     let status: Status
 
-    enum Status { case ready, working, failed }
+    /// live = listening, with the source's name (the popover header's LIVE · SOURCE).
+    enum Status: Equatable { case ready, working, failed, live(String) }
 
     var body: some View {
         let shape = RoundedRectangle(cornerRadius: 7, style: .continuous)
@@ -119,6 +120,7 @@ struct StatusLegend: View {
             case .ready: return ("READY", Theme.greenText, Theme.green, Theme.greenGlow)
             case .working: return ("WORKING", Theme.amber, Theme.amber, Theme.amberGlow)
             case .failed: return ("FAILED", Theme.redText, Theme.red, Theme.red.opacity(0.7))
+            case .live(let source): return ("LIVE · \(source)", Theme.redText, Theme.red, Theme.red.opacity(0.7))
             }
         }()
         return HStack(spacing: 9) {
@@ -127,7 +129,9 @@ struct StatusLegend: View {
                 .frame(width: 8, height: 8)
                 .shadow(color: glow, radius: 4)
             Text(word).font(Theme.face(11)).tracking(2.2).foregroundColor(text)
-                .shadow(color: (status == .failed ? Theme.red : status == .working ? Theme.amber : Theme.green)
+                .lineLimit(1).truncationMode(.middle).frame(maxWidth: 250, alignment: .trailing)
+                .fixedSize(horizontal: true, vertical: false)
+                .shadow(color: (status == .ready ? Theme.green : status == .working ? Theme.amber : Theme.red)
                     .opacity(0.45), radius: 2.5)
         }
         .accessibilityElement(children: .ignore)

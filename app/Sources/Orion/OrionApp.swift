@@ -14,6 +14,8 @@ struct OrionApp: App {
     @StateObject private var loginItem = LoginItemSettings()
     @StateObject private var display = DisplaySettings()
     @StateObject private var spelling = SpellingSettings.shared
+    /// The clipboard link and the source name, shared by the window and the popover.
+    @StateObject private var extras = PocketExtras()
     @StateObject private var live = LiveController(settings: LiveSettings(),
                                                    launch: LiveProcess.launcher(runtime: .appDefault()))
 
@@ -33,7 +35,8 @@ struct OrionApp: App {
 
     var body: some Scene {
         WindowGroup {
-            FaceplateView(engine: engine, model: model, login: login, tuning: tuning, live: live, display: display)
+            FaceplateView(engine: engine, model: model, login: login, tuning: tuning, live: live, display: display,
+                          recents: recents, shortcuts: shortcuts, extras: extras, actions: windowActions)
                 .background(WindowConfigurator())
                 .onAppear(perform: launch)
         }
@@ -146,6 +149,15 @@ struct OrionApp: App {
         return { if !l.toggleHold() { NSSound.beep() } }
     }
 
+    /// The window's controls: the popover's own wiring (PocketActions.wired), one mechanism for both.
+    private var windowActions: PocketActions {
+        let (e, m) = (engine, model)
+        return PocketActions.wired(surface: "window", engine: engine, model: model, live: live, tuning: tuning,
+                                   recents: recents, extras: extras, toggleListening: toggleListening,
+                                   newSong: newSong, toggleHold: toggleHold,
+                                   showAgain: { OrionApp.showAgain($0, engine: e, model: m) })
+    }
+
     /// A checkmark row that sets the reference pitch to `hz`.
     private func referenceBinding(_ hz: Double) -> Binding<Bool> {
         Binding(get: { tuning.reference == hz }, set: { _ in tuning.reference = hz })
@@ -191,7 +203,7 @@ struct OrionApp: App {
         let (e, m) = (engine, model)
         StatusItemController.shared.install(engine: engine, model: model, live: live, tuning: tuning,
                                             recents: recents, display: display, shortcuts: shortcuts,
-                                            toggleListening: toggleListening, newSong: newSong, toggleHold: toggleHold,
+                                            extras: extras, toggleListening: toggleListening, newSong: newSong, toggleHold: toggleHold,
                                             showAgain: { OrionApp.showAgain($0, engine: e, model: m) })
         // Global shortcuts (Settings › Global shortcuts), live in every app.
         HotkeyCenter.shared.actions[.listen] = toggleListening

@@ -1,8 +1,10 @@
 import AppKit
+import Combine
 import SwiftUI
 import UniformTypeIdentifiers
 
-/// The whole window: the plate on the desk, with the rail, the LCD and the link row.
+/// The whole window: observes the app's objects and hands FaceplateFace plain values (the
+/// popover's PocketState and PocketActions: one state source, one wiring for both surfaces).
 struct FaceplateView: View {
     @ObservedObject var engine: Engine
     @ObservedObject var model: FaceplateModel
@@ -10,24 +12,21 @@ struct FaceplateView: View {
     @ObservedObject var tuning: TuningSettings
     @ObservedObject var live: LiveController
     @ObservedObject var display: DisplaySettings
+    @ObservedObject var recents: RecentStore
+    @ObservedObject var shortcuts: ShortcutStore
+    @ObservedObject var extras: PocketExtras
+    /// PocketActions.wired: the popover's controls, wired the same way.
+    let actions: PocketActions
     @ObservedObject private var spelling = SpellingSettings.shared
+    @ObservedObject private var watcher = DAWWatcher.shared
     @State private var keyMonitor: Any?
+    @State private var pasteboardCount = NSPasteboard.general.changeCount
+    private let clipboardTick = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
 
     var body: some View {
-        VStack(spacing: 0) {
-            Plate {
-                VStack(spacing: 0) {
-                    Rail(status: railStatus)
-                    module.padding(.top, 10)
-                }
-            }
-            .padding(.top, 6)          // + the 28 pt title bar above = the mockup's traffic-light gap
-            .padding(.horizontal, 16)
-            .padding(.bottom, 16)
-        }
-        .frame(width: FaceplateView.size.width, height: FaceplateView.size.height)
-        // the desk runs up under the hidden title bar; SwiftUI adds the bar's 28 pt to the window
-        .background(Theme.desk.edgesIgnoringSafeArea(.all))
+        FaceplateFace(state: state, picked: model.picked, url: $model.url, fieldFocused: $model.fieldFocused,
+                      pickFocused: $model.pickFocused, actions: windowActions,
+                      files: FaceplateFace.FileActions(openAudio: openAudio, find: find))
         .onDrop(of: ["public.file-url"], isTargeted: dropBinding, perform: drop)
         .onReceive(engine.$state) { s in
             // a download, an analysis, Run Doctor or a recent reading takes the LCD back from Listen
@@ -45,94 +44,50 @@ struct FaceplateView: View {
             if case .needsLogin(let p) = engine.state, t != p.url { engine.clearLogin() }
         }
         .onReceive(model.$pager) { _ in model.tempoFactor = .one }   // each file reads at x1
+        // the clipboard line and the source name: on show, on coming to the front, on a new copy
+        .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
+            extras.refresh(live: live)
+        }
+        .onReceive(clipboardTick) { _ in
+            let n = NSPasteboard.general.changeCount
+            if n != pasteboardCount { pasteboardCount = n; extras.refresh(live: live) }
+        }
+        .onAppear { extras.refresh(live: live) }
         .onAppear(perform: installKeys)
         .onAppear(perform: installIntake)
         .onDisappear { if let m = keyMonitor { NSEvent.removeMonitor(m) }; Intake.handler = nil }
     }
 
-    /// The content below the title bar; the window is 552 x 438 with the bar.
-    /// (One 36 pt row + its 10 pt gap more than the mockup's 552 x 392.)
-    static let size = CGSize(width: 552, height: 410)
-    /// Both caps share one width so the two fields line up.
+    /// The content below the title bar (the window adds the 28 pt bar): the plate with the
+    /// rail, the readout (dial, BPM, top keys, keyboard), the link / audio / listen rows, the
+    /// send caps and the footer links.
+    static let size = CGSize(width: 552, height: 732)
+    /// Every cap on the right of a field shares one width so the fields line up.
     static let capLegendWidth: CGFloat = 92
     /// The login cap's longer legend (8 pt) needs a wider cap.
     static let loginLegendWidth: CGFloat = 170
 
-    // MARK: module: LCD + row
-
-    private var module: some View {
-        let shape = RoundedRectangle(cornerRadius: 7, style: .continuous)
-        return VStack(spacing: 0) {
-            LCD(readout: readout, highlighted: showDrop) { step in
-                if step < 0 { model.pager.previous() } else { model.pager.next() }
-            }
-            .id(display.highContrast)   // Theme.highContrast is read while drawing: redraw the readout
-            HStack(spacing: 12) {
-                LinkField(text: $model.url, focused: $model.fieldFocused, onSubmit: download)
-                if loginPrompt != nil, let cap = Faceplate.loginCap(busy: engine.state.isBusy) {
-                    Button(action: openLogin) {
-                        SSLCapStyle.label(cap.label, size: 8).lineLimit(1).fixedSize().frame(width: FaceplateView.loginLegendWidth)
-                    }
-                    .buttonStyle(SSLCapStyle(lit: cap.lit))
-                    .accessibility(label: Text(cap.label.capitalized))
-                } else {
-                    Button(action: download) { SSLCapStyle.label("DOWNLOAD").frame(width: FaceplateView.capLegendWidth) }
-                        // not .disabled(): AppKit would grey the legend; download() ignores an unlit cap
-                        .buttonStyle(SSLCapStyle(lit: lit))
-                        .accessibility(label: Text("Download"))
-                        .accessibility(hint: Text(lit ? "Downloads the link as an MP3 into Downloads" : "Paste a YouTube link first"))
-                }
-            }
-            .padding(.top, 14)
-            HStack(spacing: 12) {
-                AudioPickField(label: Faceplate.pickLabel(model.picked), focused: $model.pickFocused,
-                               onOpen: openAudio, onSubmit: { findLit ? find() : openAudio() })
-                Button(action: find) { SSLCapStyle.label("FIND KEY/BPM").frame(width: FaceplateView.capLegendWidth) }
-                    .buttonStyle(SSLCapStyle(lit: findLit))
-                    .accessibility(label: Text("Find key and BPM"))
-                    .accessibility(hint: Text(findLit ? "Finds the BPM and key of the chosen audio" : "Open an audio file first"))
-            }
-            .padding(.top, 10)
-        }
-        .padding(EdgeInsets(top: 14, leading: 16, bottom: 16, trailing: 16))
-        .background(Theme.vertical([(Theme.hex(0x1d1d20), 0), (Theme.hex(0x151517), 1)]).clipShape(shape))
-        .innerShadow(shape, Color.white.opacity(0.06), blur: 0, y: 1)
-        .ring(radius: 7, spread: 1, Theme.black)
-        .dropShadow(radius: 7, Color.black.opacity(0.7), blur: 3, y: 1)
-    }
-
     // MARK: derived state
 
-    private var loginPrompt: LoginPrompt? { Faceplate.loginPrompt(engine.state, url: model.url) }
+    /// The popover's state (PocketState.make), with the window's drag-hover readout.
+    private var state: PocketState {
+        var s = PocketState.make(engine: engine, model: model, live: live, tuning: tuning, recents: recents,
+                                 display: display, shortcuts: shortcuts, extras: extras, spelling: spelling,
+                                 daw: watcher.target?.name)
+        if showDrop { s.readout = .drop }
+        return s
+    }
 
-    /// Unlit while the link is one that needs a login (the fallback readout): a re-try would only fail again.
-    private var lit: Bool { Faceplate.isLit(model.url, busy: engine.state.isBusy) && loginPrompt == nil }
+    /// The shared wiring; the window runs the YouTube login itself (the popover sends it here).
+    private var windowActions: PocketActions {
+        var a = actions
+        a.openLogin = openLogin
+        return a
+    }
+
+    private var loginPrompt: LoginPrompt? { Faceplate.loginPrompt(engine.state, url: model.url) }
     private var findLit: Bool { Faceplate.isFindLit(model.picked, busy: engine.state.isBusy) }
     private var showDrop: Bool { model.pinnedDrop || (model.dropTargeted && !engine.state.isBusy) }
-
-    private var railStatus: Rail.Status {
-        switch engine.state {
-        case .working: return .working
-        case .failed: return .failed
-        case .doctor(let r): return r.outcome == .failed ? .failed : .ready
-        default: return .ready
-        }
-    }
-
-    private var readout: Readout {
-        if showDrop { return .drop }
-        return Faceplate.readout(engine.state, live: live.state, liveSource: live.sourceName, page: model.pager,
-                                 factor: model.tempoFactor, lastAction: model.lastAction, note: engine.note,
-                                 reference: tuning.reference,
-                                 onCycleTempo: { model.tempoFactor = model.tempoFactor.next },
-                                 held: live.isHeld, spelling: spelling.preference,
-                                 onToggleSpelling: toggleSpelling)
-    }
-
-    /// A click on the key: switch it between sharp and flat (the reading as shown decides which way).
-    private func toggleSpelling() {
-        if case .result(let r, _, _, _, _) = readout, let k = r.keys.first?.0 { spelling.click(on: k) }
-    }
 
     private var dropBinding: Binding<Bool> {
         Binding(get: { model.dropTargeted }, set: { model.dropTargeted = $0 })
@@ -144,6 +99,7 @@ struct FaceplateView: View {
     /// again with it (if that link is still the one waiting).
     private func openLogin() {
         guard let p = loginPrompt, !engine.state.isBusy, YouTubeLogin.inApp else { return }
+        AppLog.log("window: log in to YouTube")
         LoginWindow.open(saving: login.file) { [engine, model, login] in
             login.refresh()
             guard Faceplate.loginPrompt(engine.state, url: model.url)?.url == p.url else { return }
@@ -153,17 +109,10 @@ struct FaceplateView: View {
         NSApp.keyWindow?.makeFirstResponder(nil)
     }
 
-    private func download() {
-        if loginPrompt != nil { if YouTubeLogin.inApp { openLogin() }; return }
-        guard lit else { return }
-        model.lastAction = .download
-        engine.download(model.url.trimmingCharacters(in: .whitespacesAndNewlines))
-        NSApp.keyWindow?.makeFirstResponder(nil)
-    }
-
     /// The audio-only open panel (the drop filter's allowlist), several files allowed.
     private func openAudio() {
         guard !engine.state.isBusy else { return }
+        AppLog.log("window: open audio")
         let panel = Intake.makePanel()
         let pick = { (resp: NSApplication.ModalResponse) in
             guard resp == .OK else { return }
@@ -186,6 +135,7 @@ struct FaceplateView: View {
 
     private func find() {
         guard findLit else { return }
+        AppLog.log("window: find key/bpm (\(model.picked.count) files)")
         model.lastAction = .analyze
         engine.analyze(model.picked)
     }
@@ -225,6 +175,148 @@ struct FaceplateView: View {
             if e.keyCode == 123 { model.pager.previous() } else { model.pager.next() }
             return nil
         }
+    }
+}
+
+/// The window as plain values (so it can be rendered offscreen and tested, like PocketView):
+/// the desk, the plate, the rail, the module and the footer. Every control that the popover has
+/// is the popover's own view, fed the same PocketState and PocketActions.
+struct FaceplateFace: View {
+    let state: PocketState
+    /// Audio chosen with the Open Audio... field, waiting for FIND KEY/BPM.
+    let picked: [URL]
+    @Binding var url: String
+    @Binding var fieldFocused: Bool
+    @Binding var pickFocused: Bool
+    var actions = PocketActions()
+    var files = FileActions()
+
+    /// The window's own second row: pick audio into the field, then read it.
+    struct FileActions {
+        var openAudio: () -> Void = {}
+        var find: () -> Void = {}
+    }
+
+    var body: some View {
+        VStack(spacing: 0) {
+            Plate {
+                VStack(spacing: 0) {
+                    Rail(status: FaceplateFace.railStatus(state))
+                    module.padding(.top, 10)
+                    footer.padding(.top, 10)
+                }
+            }
+            .padding(.top, 6)          // + the 28 pt title bar above = the mockup's traffic-light gap
+            .padding(.horizontal, 16)
+            .padding(.bottom, 16)
+        }
+        .frame(width: FaceplateView.size.width, height: FaceplateView.size.height)
+        // the desk runs up under the hidden title bar; SwiftUI adds the bar's 28 pt to the window
+        .background(Theme.desk.edgesIgnoringSafeArea(.all))
+    }
+
+    /// The rail's legend: LIVE · <source> while listening, else the readout's state.
+    static func railStatus(_ s: PocketState) -> Rail.Status {
+        if s.listening { return .live(s.source.uppercased()) }
+        switch s.readout {
+        case .working: return .working
+        case .error: return .failed
+        case .doctor(let r): return r.outcome == .failed ? .failed : .ready
+        default: return .ready
+        }
+    }
+
+    private var highlighted: Bool {
+        if case .drop = state.readout { return true }
+        return false
+    }
+
+    private var findLit: Bool { Faceplate.isFindLit(picked, busy: state.busy) }
+    private var capWidth: CGFloat { FaceplateView.capLegendWidth + 36 }   // the legend + the cap's padding
+
+    // MARK: module: readout + rows
+
+    private var module: some View {
+        VStack(spacing: 0) {
+            LCD(state: state, highlighted: highlighted, actions: actions)
+                .id(state.highContrast)   // Theme.highContrast is read while drawing: redraw the readout
+            HStack(spacing: 12) {
+                LinkField(text: $url, focused: $fieldFocused, onSubmit: { actions.downloadPressed(state) })
+                if state.needsLogin, let cap = Faceplate.loginCap(busy: state.busy) {
+                    Button(action: actions.openLogin) {
+                        SSLCapStyle.label(cap.label, size: 8).lineLimit(1).fixedSize().frame(width: FaceplateView.loginLegendWidth)
+                    }
+                    .buttonStyle(SSLCapStyle(lit: cap.lit))
+                    .accessibility(label: Text(cap.label.capitalized))
+                } else {
+                    let lit = state.downloadLit || state.clipboardReady
+                    Button(action: { actions.downloadPressed(state) }) {
+                        SSLCapStyle.label("DOWNLOAD").frame(width: FaceplateView.capLegendWidth)
+                    }
+                    // not .disabled(): AppKit would grey the legend; an unlit cap only beeps
+                    .buttonStyle(SSLCapStyle(lit: lit))
+                    .accessibility(label: Text("Download"))
+                    .accessibility(hint: Text(lit ? "Downloads the link as an MP3 into Downloads" : "Paste a YouTube link first"))
+                }
+            }
+            .padding(.top, 14)
+            clipboardSlot.frame(height: 30)
+            HStack(spacing: 12) {
+                AudioPickField(label: Faceplate.pickLabel(picked), focused: $pickFocused,
+                               onOpen: files.openAudio, onSubmit: { findLit ? files.find() : files.openAudio() })
+                Button(action: files.find) { SSLCapStyle.label("FIND KEY/BPM").frame(width: FaceplateView.capLegendWidth) }
+                    .buttonStyle(SSLCapStyle(lit: findLit))
+                    .accessibility(label: Text("Find key and BPM"))
+                    .accessibility(hint: Text(findLit ? "Finds the BPM and key of the chosen audio" : "Open an audio file first"))
+            }
+            HStack(spacing: 12) {
+                SourceField(source: state.source, level: state.level, listening: state.listening,
+                            action: actions.pickSource)
+                ListenCap(state: state, action: actions.toggleListen).frame(width: capWidth)
+            }
+            .padding(.top, 10)
+            // the window keeps its size: NEW SONG and HOLD stay put, dim until Listen is on
+            HStack(spacing: 12) {
+                NewSongCap(lit: state.listening, action: actions.newSong)
+                HoldCap(state: state, action: actions.toggleHold).frame(width: capWidth)
+            }
+            .padding(.top, 10)
+            ModuleRule().padding(.vertical, 14)
+            HStack(spacing: 12) {
+                SendDAWCap(state: state, action: actions.sendDAW)
+                AutoTuneCap(state: state, send: actions.sendAutoTune)
+                ExportMidiCap(state: state, action: actions.exportMidi)
+            }
+        }
+        .padding(EdgeInsets(top: 14, leading: 16, bottom: 16, trailing: 16))
+        .modulePanel()
+    }
+
+    /// The popover's clipboard line; a quiet placeholder in its place so the rows never move.
+    @ViewBuilder private var clipboardSlot: some View {
+        if ClipboardLine.shows(state, url: url) {
+            ClipboardLine(state: state, actions: actions).padding(.horizontal, 2)
+        } else {
+            HStack(spacing: 8) {
+                ClipboardLine.tag.opacity(0.6)
+                Text("—").font(Theme.face(9)).foregroundColor(Theme.textFaint)
+                Spacer(minLength: 0)
+            }
+            .padding(.horizontal, 2)
+            .accessibility(hidden: true)
+        }
+    }
+
+    // MARK: footer
+
+    private var footer: some View {
+        HStack(spacing: 16) {
+            RecentLink(state: state, action: actions.showRecents)
+            FooterLink(title: "SETTINGS", label: "Settings", action: actions.settings)
+            Spacer()
+        }
+        .padding(.horizontal, 16)
+        .frame(height: 16)
     }
 }
 

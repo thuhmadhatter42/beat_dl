@@ -41,7 +41,6 @@ struct PocketView: View {
     @Binding var url: String
     var actions = PocketActions()
     @State private var fieldFocused = false
-    @State private var flash: String?
 
     var body: some View {
         VStack(spacing: 10) {
@@ -59,138 +58,193 @@ struct PocketView: View {
     // MARK: module: download, listen, send
 
     private var module: some View {
-        let shape = RoundedRectangle(cornerRadius: 7, style: .continuous)
-        return VStack(alignment: .leading, spacing: 0) {
+        VStack(alignment: .leading, spacing: 0) {
             HStack(spacing: 10) {
-                linkField
-                Button(action: downloadPressed) {
+                LinkField(text: $url, focused: $fieldFocused, onSubmit: actions.download)
+                Button(action: { actions.downloadPressed(state) }) {
                     SSLCapStyle.label(state.needsLogin ? "LOG IN…" : "DOWNLOAD").frame(width: 84)
                 }
                 .buttonStyle(SSLCapStyle(lit: state.downloadLit || state.clipboardReady || (state.needsLogin && !state.busy)))
                 .accessibility(label: Text(state.needsLogin ? "Log in to YouTube" : "Download"))
                 .accessibility(hint: Text("Downloads the link as an MP3 into Downloads and reads its BPM and key"))
             }
-            clipboardLine
+            if ClipboardLine.shows(state, url: url) {
+                ClipboardLine(state: state, actions: actions).padding(.top, 9)
+            }
             HStack(spacing: 10) {
-                Button(action: actions.toggleListen) {
-                    HStack(spacing: 6) {
-                        if state.listening {
-                            LampShape(lamp: .listening).fill(Lamp.listening.color).frame(width: 7, height: 7)
-                                .shadow(color: Theme.highContrast ? .clear : Theme.red.opacity(0.9), radius: 3)
-                        }
-                        SSLCapStyle.label(state.listening ? "STOP" : "LISTEN")
-                    }
-                    .frame(width: 62)
-                }
-                .buttonStyle(SSLCapStyle(lit: !state.listening && !state.busy, ready: state.listening))
-                .accessibility(label: Text(state.listening ? "Stop listening" : "Start listening to \(state.source)"))
+                ListenCap(state: state, action: actions.toggleListen).frame(width: 62 + 36)
                 SourceField(source: state.source, level: state.level, listening: state.listening,
                             action: actions.pickSource)
             }
             .padding(.top, 10)
             if state.listening {
                 HStack(spacing: 10) {
-                    Button(action: actions.newSong) {
-                        HStack(spacing: 7) {
-                            Text("↺").font(Theme.face(12))
-                            SSLCapStyle.label("NEW SONG · RESET").lineLimit(1).minimumScaleFactor(0.7)
-                            Spacer(minLength: 0)
-                        }
-                        .frame(maxWidth: .infinity)
-                    }
-                    .buttonStyle(SSLCapStyle(lit: true, height: 32))
-                    .accessibility(label: Text("New song: reset listening"))
-                    .accessibility(hint: Text("Drops what was heard and the lock, and listens again"))
-                    Button(action: actions.toggleHold) {
-                        HStack(spacing: 6) {
-                            Text("❚❚").font(Theme.face(9))
-                            SSLCapStyle.label("HOLD").lineLimit(1)
-                        }
-                        .frame(width: 66)
-                    }
-                    .buttonStyle(SSLCapStyle(lit: state.held, ready: state.canHold && !state.held, height: 32))
-                    .accessibility(label: Text(state.held ? "Release hold" : "Hold reading"))
-                    .accessibility(hint: Text("Freezes the reading on show while listening carries on. Press again to follow the music"))
-                    .accessibility(addTraits: state.held ? .isSelected : [])
+                    NewSongCap(lit: true, action: actions.newSong)
+                    HoldCap(state: state, action: actions.toggleHold).frame(width: 66 + 36)
                 }
                 .padding(.top, 10)
             }
-            Rectangle().fill(Color.black.opacity(0.7)).frame(height: 1)
-                .overlay(Rectangle().fill(Color.white.opacity(0.05)).frame(height: 1).offset(y: 1))
-                .padding(.vertical, 12)
-            let daw = state.daw.map { "SEND TO \($0.uppercased())" } ?? "SEND TO DAW"
+            ModuleRule().padding(.vertical, 12)
             VStack(spacing: 10) {
                 HStack(spacing: 10) {
-                    actionCap("ANALYZE FILE", ready: !state.busy, label: "Analyze a file", action: actions.analyzeFile)
-                    actionCap(daw, ready: state.canSend, label: daw.capitalized, action: actions.sendDAW)
+                    ActionCap(title: "ANALYZE FILE", ready: !state.busy, label: "Analyze a file", action: actions.analyzeFile)
+                    SendDAWCap(state: state, action: actions.sendDAW)
                 }
                 HStack(spacing: 10) {
-                    actionCap(flash ?? "SEND TO AUTO-TUNE", ready: state.canAutoTune, label: "Send key to Auto-Tune") {
-                        let ok = actions.sendAutoTune()
-                        flash = ok ? "SENT TO AUTO-TUNE ✓" : "AUTO-TUNE: NO KEY"
-                        DispatchQueue.main.asyncAfter(deadline: .now() + 1.6) { flash = nil }
-                    }
-                    actionCap("EXPORT MIDI", ready: state.canSend, label: "Export MIDI tempo and key file",
-                              action: actions.exportMidi)
+                    AutoTuneCap(state: state, send: actions.sendAutoTune)
+                    ExportMidiCap(state: state, action: actions.exportMidi)
                 }
             }
         }
         .padding(EdgeInsets(top: 12, leading: 12, bottom: 12, trailing: 12))
-        .background(Theme.vertical([(Theme.hex(0x1d1d20), 0), (Theme.hex(0x151517), 1)]).clipShape(shape))
-        .innerShadow(shape, Color.white.opacity(0.06), blur: 0, y: 1)
-        .ring(radius: 7, spread: 1, Theme.black)
-        .dropShadow(radius: 7, Color.black.opacity(0.7), blur: 3, y: 1)
+        .modulePanel()
     }
 
-    /// DOWNLOAD: the link in the field; with the field empty, the link on the clipboard (one click).
-    private func downloadPressed() {
-        if state.needsLogin { actions.openLogin(); return }
-        if !state.downloadLit, state.clipboardReady, let link = state.clipboardLink { actions.pasteAndDownload(link); return }
-        actions.download()
-    }
+    // MARK: footer
 
-    @ViewBuilder private var linkField: some View {
-        if Pocket.snapshot {
-            // ImageRenderer cannot draw the NSTextField: the same recess with the text drawn here
-            let shape = RoundedRectangle(cornerRadius: 4, style: .continuous)
-            Text(url.isEmpty ? "Enter YouTube link here" : url)
-                .font(.custom("HelveticaNeue", size: 12)).tracking(url.isEmpty ? 0.24 : 0)
-                .foregroundColor(url.isEmpty ? Theme.textFaint : Theme.textHi)
-                .lineLimit(1).truncationMode(.middle)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(.horizontal, 12).frame(height: 36)
-                .background(Theme.panelDeep.clipShape(shape))
-                .innerShadow(shape, Color.black.opacity(0.9), blur: 5, y: 2)
-                .ring(radius: 4, spread: 1, Theme.black)
-                .background(shape.fill(Color.white.opacity(0.05)).offset(y: 1).padding(-1))
-        } else {
-            LinkField(text: $url, focused: $fieldFocused, onSubmit: actions.download)
+    private var footer: some View {
+        HStack(spacing: 16) {
+            RecentLink(state: state, action: actions.showRecents)
+            FooterLink(title: "WINDOW", label: "Show the Beat Key window", action: actions.openWindow)
+            FooterLink(title: "SETTINGS", label: "Settings", action: actions.settings)
+            Spacer()
+            FooterLink(title: "QUIT", label: Brand.quit, action: actions.quit)
         }
+        .padding(.horizontal, 4)
     }
+}
 
-    /// One click: the link on the clipboard goes into the field and downloads.
-    @ViewBuilder private var clipboardLine: some View {
-        if let link = state.clipboardLink, link != url.trimmingCharacters(in: .whitespacesAndNewlines), !state.busy {
-            Button(action: { actions.pasteAndDownload(link) }) {
-                HStack(spacing: 8) {
-                    Text("CLIPBOARD").font(Theme.face(7.5)).tracking(1.4).foregroundColor(Theme.textLo).fixedSize()
-                    Text(PocketText.shortLink(link)).font(.custom("HelveticaNeue", size: 10))
-                        .foregroundColor(Theme.textHi).lineLimit(1).truncationMode(.middle)
-                    Spacer(minLength: 4)
-                    Text("PASTE + DOWNLOAD ›").font(Theme.face(9)).tracking(1.4)
-                        .foregroundColor(Theme.amber).shadow(color: Theme.highContrast ? .clear : Theme.amberGlow, radius: 2.5)
-                        .fixedSize()
+extension PocketActions {
+    /// DOWNLOAD (both surfaces): a login waiting = the login; the link in the field; with the
+    /// field empty, the link on the clipboard (one click).
+    func downloadPressed(_ state: PocketState) {
+        if state.needsLogin { openLogin(); return }
+        if !state.downloadLit, state.clipboardReady, let link = state.clipboardLink { pasteAndDownload(link); return }
+        download()
+    }
+}
+
+// MARK: shared module parts (the pocket and the window draw these same views)
+
+extension View {
+    /// The module's recessed panel (the window's and the pocket's).
+    func modulePanel() -> some View {
+        let shape = RoundedRectangle(cornerRadius: 7, style: .continuous)
+        return background(Theme.vertical([(Theme.hex(0x1d1d20), 0), (Theme.hex(0x151517), 1)]).clipShape(shape))
+            .innerShadow(shape, Color.white.opacity(0.06), blur: 0, y: 1)
+            .ring(radius: 7, spread: 1, Theme.black)
+            .dropShadow(radius: 7, Color.black.opacity(0.7), blur: 3, y: 1)
+    }
+}
+
+/// The engraved line between the inputs and the send caps.
+struct ModuleRule: View {
+    var body: some View {
+        Rectangle().fill(Color.black.opacity(0.7)).frame(height: 1)
+            .overlay(Rectangle().fill(Color.white.opacity(0.05)).frame(height: 1).offset(y: 1))
+    }
+}
+
+/// LISTEN / STOP: the red lamp while on.
+struct ListenCap: View {
+    let state: PocketState
+    let action: () -> Void
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: 6) {
+                if state.listening {
+                    LampShape(lamp: .listening).fill(Lamp.listening.color).frame(width: 7, height: 7)
+                        .shadow(color: Theme.highContrast ? .clear : Theme.red.opacity(0.9), radius: 3)
                 }
-                .contentShape(Rectangle())
+                SSLCapStyle.label(state.listening ? "STOP" : "LISTEN")
             }
-            .buttonStyle(PlainButtonStyle())
-            .pointingHand()
-            .padding(.top, 9)
-            .accessibility(label: Text("Paste the link on the clipboard and download it"))
+            .frame(maxWidth: .infinity)
         }
+        .buttonStyle(SSLCapStyle(lit: !state.listening && !state.busy, ready: state.listening))
+        .accessibility(label: Text(state.listening ? "Stop listening" : "Start listening to \(state.source)"))
+    }
+}
+
+/// NEW SONG · RESET: Listen drops what it heard and its lock, and starts over.
+struct NewSongCap: View {
+    let lit: Bool
+    let action: () -> Void
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: 7) {
+                Text("↺").font(Theme.face(12))
+                SSLCapStyle.label("NEW SONG · RESET").lineLimit(1).minimumScaleFactor(0.7)
+                Spacer(minLength: 0)
+            }
+            .frame(maxWidth: .infinity)
+        }
+        .buttonStyle(SSLCapStyle(lit: lit, height: 32))
+        .accessibility(label: Text("New song: reset listening"))
+        .accessibility(hint: Text("Drops what was heard and the lock, and listens again"))
+    }
+}
+
+/// HOLD: freeze the reading on show (a button, never automatic).
+struct HoldCap: View {
+    let state: PocketState
+    let action: () -> Void
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: 6) {
+                Text("❚❚").font(Theme.face(9))
+                SSLCapStyle.label("HOLD").lineLimit(1)
+            }
+            .frame(maxWidth: .infinity)
+        }
+        .buttonStyle(SSLCapStyle(lit: state.held, ready: state.canHold && !state.held, height: 32))
+        .accessibility(label: Text(state.held ? "Release hold" : "Hold reading"))
+        .accessibility(hint: Text("Freezes the reading on show while listening carries on. Press again to follow the music"))
+        .accessibility(addTraits: state.held ? .isSelected : [])
+    }
+}
+
+/// One click: the link on the clipboard goes into the field and downloads.
+struct ClipboardLine: View {
+    let state: PocketState
+    let actions: PocketActions
+
+    /// A link on the clipboard that is not the one in the field, and nothing running.
+    static func shows(_ state: PocketState, url: String) -> Bool {
+        guard let link = state.clipboardLink, !state.busy else { return false }
+        return link != url.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
-    private func actionCap(_ title: String, ready: Bool, label: String, action: @escaping () -> Void) -> some View {
+    var body: some View {
+        let link = state.clipboardLink ?? ""
+        Button(action: { actions.pasteAndDownload(link) }) {
+            HStack(spacing: 8) {
+                ClipboardLine.tag
+                Text(PocketText.shortLink(link)).font(.custom("HelveticaNeue", size: 10))
+                    .foregroundColor(Theme.textHi).lineLimit(1).truncationMode(.middle)
+                Spacer(minLength: 4)
+                Text("PASTE + DOWNLOAD ›").font(Theme.face(9)).tracking(1.4)
+                    .foregroundColor(Theme.amber).shadow(color: Theme.highContrast ? .clear : Theme.amberGlow, radius: 2.5)
+                    .fixedSize()
+            }
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(PlainButtonStyle())
+        .pointingHand()
+        .accessibility(label: Text("Paste the link on the clipboard and download it"))
+    }
+
+    static var tag: some View {
+        Text("CLIPBOARD").font(Theme.face(7.5)).tracking(1.4).foregroundColor(Theme.textLo).fixedSize()
+    }
+}
+
+/// A pale send cap: full strength when it can act now, dim when there is nothing to send.
+struct ActionCap: View {
+    let title: String
+    let ready: Bool
+    let label: String
+    let action: () -> Void
+    var body: some View {
         Button(action: { if ready { action() } }) {
             SSLCapStyle.label(title, size: 8.5).lineLimit(1).minimumScaleFactor(0.7)
                 .frame(maxWidth: .infinity)
@@ -198,18 +252,46 @@ struct PocketView: View {
         .buttonStyle(SSLCapStyle(lit: false, ready: ready, height: 30))
         .accessibility(label: Text(label))
     }
+}
 
-    // MARK: footer
+/// SEND TO <the DAW that is open>.
+struct SendDAWCap: View {
+    let state: PocketState
+    let action: () -> Void
+    var body: some View {
+        let daw = state.daw.map { "SEND TO \($0.uppercased())" } ?? "SEND TO DAW"
+        ActionCap(title: daw, ready: state.canSend, label: daw.capitalized, action: action)
+    }
+}
 
-    private var footer: some View {
-        HStack(spacing: 16) {
-            FooterLink(title: "RECENT ▾", label: "Recent readings", enabled: !state.recents.isEmpty, action: actions.showRecents)
-            FooterLink(title: "WINDOW", label: "Show the Beat Key window", action: actions.openWindow)
-            FooterLink(title: "SETTINGS", label: "Settings", action: actions.settings)
-            Spacer()
-            FooterLink(title: "QUIT", label: Brand.quit, action: actions.quit)
+/// SEND TO AUTO-TUNE: flashes SENT ✓ (or NO KEY) for a moment after the press.
+struct AutoTuneCap: View {
+    let state: PocketState
+    let send: () -> Bool
+    @State private var flash: String?
+    var body: some View {
+        ActionCap(title: flash ?? "SEND TO AUTO-TUNE", ready: state.canAutoTune, label: "Send key to Auto-Tune") {
+            let ok = send()
+            flash = ok ? "SENT TO AUTO-TUNE ✓" : "AUTO-TUNE: NO KEY"
+            DispatchQueue.main.asyncAfter(deadline: .now() + 1.6) { flash = nil }
         }
-        .padding(.horizontal, 4)
+    }
+}
+
+struct ExportMidiCap: View {
+    let state: PocketState
+    let action: () -> Void
+    var body: some View {
+        ActionCap(title: "EXPORT MIDI", ready: state.canSend, label: "Export MIDI tempo and key file", action: action)
+    }
+}
+
+/// RECENT ▾: the recent readings as a menu (File › Recent Readings' list).
+struct RecentLink: View {
+    let state: PocketState
+    let action: () -> Void
+    var body: some View {
+        FooterLink(title: "RECENT ▾", label: "Recent readings", enabled: !state.recents.isEmpty, action: action)
     }
 }
 
@@ -222,7 +304,7 @@ enum PocketText {
     }
 }
 
-private struct FooterLink: View {
+struct FooterLink: View {
     let title: String
     let label: String
     var enabled = true
@@ -351,12 +433,7 @@ private struct PocketLCD: View {
                 right.frame(maxWidth: .infinity, alignment: .leading)
             }
             .frame(height: 118)
-            hairline.padding(.top, 12)
-            TopKeys(keys: state.result?.keys ?? [],
-                    onChoose: state.result.map { r in { SpellingSettings.shared.choose($0, of: r) } })
-                .padding(.top, 11)
-            NoteKeyboard(scale: state.scale).frame(height: 44).padding(.top, 13)
-            scaleLine.padding(.top, 7)
+            KeyStrip(state: state).padding(.top, 12)
         }
         .padding(EdgeInsets(top: 14, leading: 14, bottom: 12, trailing: 14))
         .background(Theme.highContrast ? Theme.vertical([(Theme.black, 0), (Theme.black, 1)])
@@ -368,8 +445,6 @@ private struct PocketLCD: View {
         .ring(radius: 6, spread: 1, Theme.black)
         .background(shape.fill(Color.white.opacity(0.05)).offset(y: 1).padding(-1))
     }
-
-    private var hairline: some View { Rectangle().fill(Theme.amber(0.12)).frame(height: 1) }
 
     // MARK: right of the dial
 
@@ -446,6 +521,26 @@ private struct PocketLCD: View {
         if Faceplate.isDoctorStage(stage) { return Faceplate.doctorSteps(stage) }
         return download ? Faceplate.steps(stage) : [("ANALYZE", .on)]
     }
+}
+
+/// The lower half of both readouts: a hairline, TOP KEYS (a click picks the key), the scale on
+/// a one-octave keyboard, and the scale line with the tuning.
+struct KeyStrip: View {
+    let state: PocketState
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            Rectangle().fill(Theme.amber(0.12)).frame(height: 1)
+            TopKeys(keys: state.result?.keys ?? [],
+                    onChoose: state.result.map { r in { k in
+                        AppLog.log("key chosen from top keys")
+                        SpellingSettings.shared.choose(k, of: r)
+                    } })
+                .padding(.top, 11)
+            NoteKeyboard(scale: state.scale).frame(height: 44).padding(.top, 13)
+            scaleLine.padding(.top, 7)
+        }
+    }
 
     /// "E♭ MINOR · E♭ F G♭ A♭ B♭ B D♭" left, the tuning right.
     private var scaleLine: some View {
@@ -472,7 +567,7 @@ private struct PocketLCD: View {
 /// The confidence dial around the key: twelve ticks (the icon's dial), a track, and an arc in
 /// the lamp's colour as long as the top key's confidence. The key sits in the middle, the lamp's
 /// shape and the percentage under it, so the state reads without colour.
-private struct Dial: View {
+struct Dial: View {
     let state: PocketState
     var actions = PocketActions()
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
@@ -619,7 +714,7 @@ private struct ResultSide: View {
     }
 }
 
-private struct FactorChip: View {
+struct FactorChip: View {
     let factor: TempoFactor
     let on: Bool
     let enabled: Bool
@@ -643,7 +738,7 @@ private struct FactorChip: View {
 
 /// Beat Key's headline: the three likeliest keys with their percentages and a bar each. A click
 /// on key 2 or 3 makes it THE key: it moves to the front, the dial and the sends use it.
-private struct TopKeys: View {
+struct TopKeys: View {
     let keys: [(String, Int)]
     var onChoose: ((String) -> Void)? = nil
     var body: some View {
@@ -748,7 +843,7 @@ struct NoteKeyboard: View {
 }
 
 /// The source picker as a recessed field: the source's name, a ▾, and the input meter.
-private struct SourceField: View {
+struct SourceField: View {
     let source: String
     let level: Float
     let listening: Bool
@@ -798,7 +893,7 @@ private struct SourceField: View {
     }
 }
 
-private struct PocketGlow: ViewModifier {
+struct PocketGlow: ViewModifier {
     let on: Bool
     func body(content: Content) -> some View {
         if on { content.amberGlow() } else { content }

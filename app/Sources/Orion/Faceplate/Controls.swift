@@ -9,7 +9,7 @@ struct LinkField: View {
 
     var body: some View {
         let shape = RoundedRectangle(cornerRadius: 4, style: .continuous)
-        URLTextField(text: $text, focused: $focused, onSubmit: onSubmit)
+        field
             .padding(.horizontal, 12)
             .frame(height: 36)
             .background(Theme.panelDeep.clipShape(shape))
@@ -20,6 +20,19 @@ struct LinkField: View {
             // the focus ring while the field waits for a link
             .overlay(shape.stroke(Theme.amber(0.55), lineWidth: 2).padding(-2)
                 .opacity(focused && text.isEmpty ? 1 : 0))
+    }
+
+    @ViewBuilder private var field: some View {
+        if Pocket.snapshot {
+            // ImageRenderer cannot draw the NSTextField: the text drawn here, in the same recess
+            Text(text.isEmpty ? "Enter YouTube link here" : text)
+                .font(.custom("HelveticaNeue", size: 12)).tracking(text.isEmpty ? 0.24 : 0)
+                .foregroundColor(text.isEmpty ? Theme.textFaint : Theme.textHi)
+                .lineLimit(1).truncationMode(.middle)
+                .frame(maxWidth: .infinity, alignment: .leading)
+        } else {
+            URLTextField(text: $text, focused: $focused, onSubmit: onSubmit)
+        }
     }
 }
 
@@ -50,7 +63,7 @@ struct AudioPickField: View {
         .innerShadow(shape, Color.black.opacity(0.9), blur: 5, y: 2)
         .ring(radius: 4, spread: 1, Theme.black)
         .background(shape.fill(Color.white.opacity(0.05)).offset(y: 1).padding(-1))
-        .overlay(PickControl(focused: $focused, onOpen: onOpen, onSubmit: onSubmit))
+        .overlay(Pocket.snapshot ? nil : PickControl(focused: $focused, onOpen: onOpen, onSubmit: onSubmit))
         .overlay(shape.stroke(Theme.amber(0.55), lineWidth: 2).padding(-2).opacity(focused ? 1 : 0)
             .allowsHitTesting(false))
         .pointingHand()
