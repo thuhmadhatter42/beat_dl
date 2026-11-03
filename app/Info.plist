@@ -39,6 +39,9 @@
             <key>NSMenuItem</key><dict><key>default</key><string>Analyze with Beat Key</string></dict>
             <key>NSMessage</key><string>analyzeWithBeatKey</string>
             <key>NSPortName</key><string>Beat Key</string>
+            <!-- Apple (Services Properties): always include NSRequiredContext, an empty dict when no filtering is wanted;
+                 without it the system registers the service but does not present it in the Services menu. -->
+            <key>NSRequiredContext</key><dict/>
             <key>NSSendFileTypes</key>
             <array>
                 <string>public.audio</string>
