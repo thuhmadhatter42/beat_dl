@@ -239,7 +239,8 @@ def parse_comment(c: str) -> dict:
     out = {"key": None, "bpm": None}
     if not c:
         return out
-    s = c.strip()
+    # stray punctuation around a label ("156 C#m.", "C#m @156") is not part of it
+    s = c.replace("@", " ").strip().strip(".,;:!*").strip()
     KEY = NOTE + r"\s*(maj(?:or)?|min(?:or)?|m|M)?"
     BPM = r"(\d{2,3}(?:\.\d+)?)\s*(?:bpm)?"
     # the WHOLE comment must be key+bpm, bpm+key, key alone or bpm alone (strict: 'ECHOBOY' is no key)

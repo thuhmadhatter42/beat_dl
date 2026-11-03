@@ -216,7 +216,7 @@ def stage_beat_meta(c, tl, info):
     return {"solo": res["solo"], "method": res["method"], "beat_source": res["beat_source"],
             "confidence": res["confidence"], "legacy": res.get("legacy", False), "finder": res,
             "n_tracks": len(res["tracks"]), "n_active_audio": len(active_audio),
-            "comments": parsed, "producer_bpms": hlib.producer_bpms(clipnames), "max_end": max_end,
+            "comments": parsed, "raw_comments": [c_ for c_ in comments if c_], "producer_bpms": hlib.producer_bpms(clipnames), "max_end": max_end,
             "estimates": hlib.estimate_bpms(clipnames)}, res
 
 
@@ -647,6 +647,8 @@ def run_one(n, already_open=False, keep_open=False) -> dict:
             return rec
         rec["beat_source"] = meta["beat_source"]
         rec["beat_confidence"] = meta["confidence"]
+        # every Beat-track comment, parsed or not, so a better parser can re-read them later (Sofia only)
+        rec["beat_comments_raw"] = json.dumps(meta.get("raw_comments", []))
         cm = next((p for p in meta["comments"] if p["bpm"] or p["key"]), None)
         if cm:
             rec.update(beat_comment=cm["raw"], comment_bpm=cm["bpm"], comment_key=cm["key"])
@@ -868,7 +870,9 @@ def relaunch_pt():
     for _ in range(18):                 # PTSL answers only once the Dashboard is closed (dialog_clicker does it)
         try:
             hlib.session_open(hlib.client())
-            say("relaunch: PTSL answering"); return
+            say("relaunch: PTSL answering; exiting so the supervisor starts a fresh process (AX refs point at the dead Pro Tools)")
+            subprocess.run(["pkill", "-f", "dialog_clicker.py"])
+            sys.exit(5)
         except Exception:
             time.sleep(10)
     say("relaunch: PTSL still not answering after 3 min")
