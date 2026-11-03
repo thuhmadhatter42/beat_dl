@@ -228,6 +228,8 @@ final class ReadingTests: XCTestCase {
         XCTAssertEqual((svc["NSMenuItem"] as? [String: String])?["default"], "Analyze with Beat Key")
         XCTAssertEqual(svc["NSMessage"] as? String, "analyzeWithBeatKey")
         XCTAssertEqual(svc["NSPortName"] as? String, Brand.name)
+        // Without NSRequiredContext (even empty) macOS registers the service but never shows it in the menu.
+        XCTAssertNotNil(svc["NSRequiredContext"] as? [String: Any], "NSRequiredContext must be present")
         let types = try XCTUnwrap(svc["NSSendFileTypes"] as? [String])
         XCTAssertTrue(types.contains("public.audio") && types.contains("public.movie"))
         // the provider really answers to that message
