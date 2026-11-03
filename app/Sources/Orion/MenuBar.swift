@@ -85,7 +85,8 @@ final class StatusItemController: NSObject, NSMenuDelegate {
     private let menu = NSMenu()
     private let detailRow = NSMenuItem(title: "", action: nil, keyEquivalent: "")
     private let popover = NSPopover()
-    private let extras = PocketExtras()
+    /// The clipboard link and source name, shared with the window (OrionApp owns it).
+    private var extras = PocketExtras()
 
     private weak var engine: Engine?
     private weak var live: LiveController?
@@ -95,10 +96,11 @@ final class StatusItemController: NSObject, NSMenuDelegate {
 
     /// Called once the window is up (OrionApp.launch).
     func install(engine: Engine, model: FaceplateModel, live: LiveController, tuning: TuningSettings,
-                 recents: RecentStore, display: DisplaySettings, shortcuts: ShortcutStore,
+                 recents: RecentStore, display: DisplaySettings, shortcuts: ShortcutStore, extras: PocketExtras,
                  toggleListening: @escaping () -> Void, newSong: @escaping () -> Void,
                  toggleHold: @escaping () -> Void = {}, showAgain: @escaping (Reading) -> Void) {
         guard item == nil else { return }
+        self.extras = extras
         let it = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
         item = it
         menu.delegate = self
@@ -127,8 +129,10 @@ final class StatusItemController: NSObject, NSMenuDelegate {
             }
             .store(in: &bag)
 
-        let actions = makeActions(engine: engine, model: model, live: live, tuning: tuning, recents: recents,
-                                  showAgain: showAgain)
+        let actions = PocketActions.wired(surface: "pocket", engine: engine, model: model, live: live, tuning: tuning,
+                                          recents: recents, extras: extras, toggleListening: toggleListening,
+                                          newSong: newSong, toggleHold: toggleHold, showAgain: showAgain,
+                                          close: { [weak self] in self?.closePopover() })
         let root = PocketContainer(engine: engine, model: model, live: live, tuning: tuning, recents: recents,
                                    display: display, shortcuts: shortcuts, extras: extras, actions: actions) { [weak self] size in
             guard let self = self, size.width > 0, size.height > 0 else { return }
@@ -202,90 +206,6 @@ final class StatusItemController: NSObject, NSMenuDelegate {
 
     private func closePopover() { popover.performClose(nil) }
 
-    /// The popover's controls, wired to the same calls the window and the menus make.
-    private func makeActions(engine: Engine, model: FaceplateModel, live: LiveController, tuning: TuningSettings,
-                             recents: RecentStore, showAgain: @escaping (Reading) -> Void) -> PocketActions {
-        var a = PocketActions()
-        let shown = { PocketState.shown(engine.state, live: live.state, page: model.pager) }
-        a.setFactor = { model.tempoFactor = $0 }
-        a.page = { step in if step < 0 { model.pager.previous() } else { model.pager.next() } }
-        let download = {
-            guard Faceplate.isLit(model.url, busy: engine.state.isBusy),
-                  Faceplate.loginPrompt(engine.state, url: model.url) == nil else { NSSound.beep(); return }
-            model.lastAction = .download
-            engine.download(model.url.trimmingCharacters(in: .whitespacesAndNewlines))
-            NSApp.keyWindow?.makeFirstResponder(nil)
-        }
-        a.download = download
-        a.pasteAndDownload = { link in model.url = link; download() }
-        // the window's LOG IN TO YOUTUBE cap runs the login (one login path)
-        a.openLogin = { [weak self] in self?.closePopover(); StatusItemController.bringWindowForward() }
-        a.toggleListen = { [weak self] in self?.toggleListening?() }
-        a.newSong = { [weak self] in self?.newSong?() }
-        a.toggleHold = { [weak self] in self?.toggleHold?() }
-        a.respellKey = {
-            if let k = shown()?.keys.first?.0 { SpellingSettings.shared.click(on: k) }
-        }
-        a.pickSource = { [weak self] in self?.popSourceMenu(live: live) }
-        a.analyzeFile = { [weak self] in
-            self?.closePopover()
-            StatusItemController.bringWindowForward()
-            Intake.analyzeAFile()
-        }
-        a.sendDAW = { [weak self] in
-            guard let r = shown() else { NSSound.beep(); return }
-            self?.closePopover()
-            DAWSendController.send(r, toAll: false)
-        }
-        a.sendAutoTune = {
-            guard let key = shown()?.keys.first?.0, AutoTuneSend.sendAll(key: key, referencePitch: tuning.reference)
-            else { NSSound.beep(); return false }
-            return true
-        }
-        a.exportMidi = { [weak self] in
-            guard let r = shown() else { NSSound.beep(); return }
-            self?.closePopover()
-            NSApp.activate(ignoringOtherApps: true)
-            MidiExport.runPanel(for: r)
-        }
-        a.showRecents = {
-            PopupMenu.show(recents.readings.map { r in PopupMenu.Item(title: r.title) { showAgain(r) } }
-                           + [.separator, PopupMenu.Item(title: "Clear Menu") { recents.clear() }])
-        }
-        a.openWindow = { [weak self] in self?.closePopover(); StatusItemController.bringWindowForward() }
-        a.settings = { [weak self] in self?.closePopover(); SettingsOpener.open() }
-        a.quit = { NSApp.terminate(nil) }
-        return a
-    }
-
-    /// Listen to: System Audio (13+), the default input, or a device; a change while listening
-    /// starts over on the new source.
-    private func popSourceMenu(live: LiveController) {
-        let s = live.settings
-        let extras = self.extras
-        func pick(_ src: LiveSource) {
-            s.source = src
-            extras.refresh(live: live)
-            if live.state.isActive { live.start() }
-        }
-        var items: [PopupMenu.Item] = []
-        if LiveSource.systemAvailable {
-            items.append(PopupMenu.Item(title: "System Audio", checked: s.source == .system) { pick(.system) })
-        }
-        items.append(PopupMenu.Item(title: "Default Input", checked: s.source == .input(uid: nil, channel: 0)) {
-            pick(.input(uid: nil, channel: 0))
-        })
-        for d in InputDevice.all() {
-            var on = false
-            if case .input(let uid, _) = s.source, uid == d.uid { on = true }
-            items.append(PopupMenu.Item(title: d.name, checked: on) { pick(.input(uid: d.uid, channel: 0)) })
-        }
-        items += [.separator, PopupMenu.Item(title: "Channels and More…") { [weak self] in
-            self?.closePopover(); SettingsOpener.open()
-        }]
-        PopupMenu.show(items)
-    }
-
     // MARK: menu (right-click)
 
     func menuNeedsUpdate(_ menu: NSMenu) {
@@ -346,6 +266,108 @@ final class StatusItemController: NSObject, NSMenuDelegate {
             if w.isMiniaturized { w.deminiaturize(nil) }
             w.makeKeyAndOrderFront(nil)
         }
+    }
+}
+
+/// The controls of both surfaces (the popover and the window), wired once to the same calls the
+/// menus make. `close` hides the surface first where it is a popover (the window passes nothing).
+extension PocketActions {
+    static func wired(surface: String, engine: Engine, model: FaceplateModel, live: LiveController,
+                      tuning: TuningSettings, recents: RecentStore, extras: PocketExtras,
+                      toggleListening: @escaping () -> Void, newSong: @escaping () -> Void,
+                      toggleHold: @escaping () -> Void, showAgain: @escaping (Reading) -> Void,
+                      close: @escaping () -> Void = {}) -> PocketActions {
+        func log(_ s: String) { AppLog.log("\(surface): \(s)") }
+        var a = PocketActions()
+        let shown = { PocketState.shown(engine.state, live: live.state, page: model.pager) }
+        a.setFactor = { f in log("tempo factor \(f.label ?? "x1")"); model.tempoFactor = f }
+        a.page = { step in
+            log(step < 0 ? "previous file" : "next file")
+            if step < 0 { model.pager.previous() } else { model.pager.next() }
+        }
+        let download = {
+            guard Faceplate.isLit(model.url, busy: engine.state.isBusy),
+                  Faceplate.loginPrompt(engine.state, url: model.url) == nil else { NSSound.beep(); return }
+            log("download")
+            model.lastAction = .download
+            engine.download(model.url.trimmingCharacters(in: .whitespacesAndNewlines))
+            NSApp.keyWindow?.makeFirstResponder(nil)
+        }
+        a.download = download
+        a.pasteAndDownload = { link in log("paste + download from the clipboard"); model.url = link; download() }
+        // the window's LOG IN TO YOUTUBE cap runs the login (one login path); the window overrides this
+        a.openLogin = { log("log in: to the window"); close(); StatusItemController.bringWindowForward() }
+        a.toggleListen = { log(live.state.isActive ? "stop listening" : "start listening"); toggleListening() }
+        a.newSong = { log("new song (reset listening)"); newSong() }
+        a.toggleHold = { log(live.isHeld ? "release hold" : "hold reading"); toggleHold() }
+        a.respellKey = {
+            guard let k = shown()?.keys.first?.0 else { return }
+            log("respell key")
+            SpellingSettings.shared.click(on: k)
+        }
+        a.pickSource = { log("source menu"); SourceMenu.show(live: live, extras: extras, close: close) }
+        a.analyzeFile = {
+            log("analyze a file")
+            close()
+            StatusItemController.bringWindowForward()
+            Intake.analyzeAFile()
+        }
+        a.sendDAW = {
+            guard let r = shown() else { NSSound.beep(); return }
+            log("send to DAW")
+            close()
+            DAWSendController.send(r, toAll: false)
+        }
+        a.sendAutoTune = {
+            log("send to auto-tune")
+            guard let key = shown()?.keys.first?.0, AutoTuneSend.sendAll(key: key, referencePitch: tuning.reference)
+            else { NSSound.beep(); return false }
+            return true
+        }
+        a.exportMidi = {
+            guard let r = shown() else { NSSound.beep(); return }
+            log("export MIDI")
+            close()
+            NSApp.activate(ignoringOtherApps: true)
+            MidiExport.runPanel(for: r)
+        }
+        a.showRecents = {
+            log("recent readings menu")
+            PopupMenu.show(recents.readings.map { r in PopupMenu.Item(title: r.title) { showAgain(r) } }
+                           + [.separator, PopupMenu.Item(title: "Clear Menu") { recents.clear() }])
+        }
+        a.openWindow = { log("show window"); close(); StatusItemController.bringWindowForward() }
+        a.settings = { log("settings"); close(); SettingsOpener.open() }
+        a.quit = { log("quit"); NSApp.terminate(nil) }
+        return a
+    }
+}
+
+/// Listen to: System Audio (13+), the default input, or a device; a change while listening
+/// starts over on the new source. The popover's and the window's SOURCE field.
+enum SourceMenu {
+    static func show(live: LiveController, extras: PocketExtras, close: @escaping () -> Void = {}) {
+        let s = live.settings
+        func pick(_ src: LiveSource) {
+            AppLog.log("listen source picked")
+            s.source = src
+            extras.refresh(live: live)
+            if live.state.isActive { live.start() }
+        }
+        var items: [PopupMenu.Item] = []
+        if LiveSource.systemAvailable {
+            items.append(PopupMenu.Item(title: "System Audio", checked: s.source == .system) { pick(.system) })
+        }
+        items.append(PopupMenu.Item(title: "Default Input", checked: s.source == .input(uid: nil, channel: 0)) {
+            pick(.input(uid: nil, channel: 0))
+        })
+        for d in InputDevice.all() {
+            var on = false
+            if case .input(let uid, _) = s.source, uid == d.uid { on = true }
+            items.append(PopupMenu.Item(title: d.name, checked: on) { pick(.input(uid: d.uid, channel: 0)) })
+        }
+        items += [.separator, PopupMenu.Item(title: "Channels and More…") { close(); SettingsOpener.open() }]
+        PopupMenu.show(items)
     }
 }
 
@@ -415,6 +437,17 @@ struct PocketContainer: View {
     }
 
     private var state: PocketState {
+        PocketState.make(engine: engine, model: model, live: live, tuning: tuning, recents: recents, display: display,
+                         shortcuts: shortcuts, extras: extras, spelling: spelling, daw: watcher.target?.name)
+    }
+}
+
+extension PocketState {
+    /// Everything both surfaces draw, from the app's objects: one derivation for the popover and
+    /// the window (the window then puts its own readout in, for the drag-hover highlight).
+    static func make(engine: Engine, model: FaceplateModel, live: LiveController, tuning: TuningSettings,
+                     recents: RecentStore, display: DisplaySettings, shortcuts: ShortcutStore, extras: PocketExtras,
+                     spelling: SpellingSettings, daw: String?) -> PocketState {
         var s = PocketState()
         s.readout = Faceplate.readout(engine.state, live: live.state, liveSource: live.sourceName, page: model.pager,
                                       factor: model.tempoFactor, lastAction: model.lastAction, note: engine.note,
@@ -428,7 +461,7 @@ struct PocketContainer: View {
         s.busy = engine.state.isBusy
         s.needsLogin = Faceplate.loginPrompt(engine.state, url: model.url) != nil
         s.clipboardLink = extras.clipboardLink
-        s.daw = watcher.target?.name
+        s.daw = daw
         s.recents = recents.readings
         s.highContrast = display.highContrast
         s.newSongKeys = shortcuts.shortcut(.newSong)?.display

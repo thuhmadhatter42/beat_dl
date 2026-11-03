@@ -29,26 +29,31 @@ struct ResultOptions {
     var onToggleSpelling: (() -> Void)? = nil
 }
 
-/// The amber LCD: Artemis's `.lcd-hero` grown into the whole face.
+/// The amber LCD: Artemis's `.lcd-hero` grown into the whole face. The top shows the state
+/// (BPM and the key dial for a reading); under it the popover's own KeyStrip (TOP KEYS, the
+/// scale on a keyboard, the scale line), fed the same PocketState.
 struct LCD: View {
-    let readout: Readout
+    let state: PocketState
     let highlighted: Bool
-    var onPage: ((Int) -> Void)?
+    var actions = PocketActions()
 
+    /// The state area's height: the dial (112) beside the BPM, the file line under both.
+    static let topHeight: CGFloat = 130
     private let r: CGFloat = 5
 
     var body: some View {
         let shape = RoundedRectangle(cornerRadius: r, style: .continuous)
-        ZStack(alignment: .topLeading) {
+        VStack(alignment: .leading, spacing: 0) {
             content
-                .padding(.vertical, 16)
-                .padding(.horizontal, 20)
-                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-            // the glass
-            Theme.vertical([(Color.white.opacity(Theme.highContrast ? 0 : 0.07), 0), (Color.white.opacity(0), 0.45)])
-                .allowsHitTesting(false)
+                .frame(maxWidth: .infinity, alignment: .topLeading)
+                .frame(height: LCD.topHeight, alignment: .topLeading)
+            KeyStrip(state: state).padding(.top, 14)
         }
-        .frame(height: 170)
+        .padding(.vertical, 16)
+        .padding(.horizontal, 20)
+        // the glass
+        .overlay(Theme.vertical([(Color.white.opacity(Theme.highContrast ? 0 : 0.07), 0), (Color.white.opacity(0), 0.45)])
+            .allowsHitTesting(false))
         .background(Theme.highContrast ? Theme.vertical([(Theme.black, 0), (Theme.black, 1)])
                                        : Theme.vertical([(Theme.hex(0x0a0c09), 0), (Theme.hex(0x050604), 1)]))
         .clipShape(shape)
@@ -68,11 +73,12 @@ struct LCD: View {
     }
 
     @ViewBuilder private var content: some View {
-        switch readout {
+        switch state.readout {
         case .idle: IdleReadout()
         case .drop: DropReadout()
         case let .working(stage, download): WorkingReadout(stage: stage, download: download)
-        case let .result(r, page, _, note, o): ResultReadout(result: r, page: page, note: note, options: o, onPage: onPage)
+        case let .result(r, page, _, note, o):
+            ResultReadout(result: r, page: page, note: note, options: o, state: state, actions: actions)
         case let .error(m, download, hint): ErrorReadout(message: m, download: download, hint: hint)
         case let .doctor(r): DoctorReadout(report: r)
         case let .login(a, b, c): LoginReadout(first: a, second: b, caption: c)
@@ -261,110 +267,91 @@ struct ResultReadout: View {
     let page: String?
     var note: String? = nil
     var options = ResultOptions()
-    var onPage: ((Int) -> Void)?
+    /// The popover's state and controls: the dial (key, confidence, respell) and the factor chips.
+    var state = PocketState()
+    var actions = PocketActions()
 
     private var bpmShown: String? { Tempo.text(result, factor: options.factor) }
 
     var body: some View {
-        ZStack(alignment: .topTrailing) {
-            VStack(alignment: .leading, spacing: 0) {
-                HStack(alignment: .bottom, spacing: 30) {
-                    VStack(alignment: .leading, spacing: 0) {
-                        HStack(spacing: 8) {
-                            Text.cap("BPM")
-                            if let f = options.factor.label { Text.cap(f) }
-                            if let r = Tempo.rounded(result, factor: options.factor) {
-                                Text(r).font(Theme.face(8)).tracking(1.6).foregroundColor(Theme.amber(0.45))
-                            }
-                        }
-                        bpmNumber.padding(.top, 6)
-                    }
-                    .accessibilityElement(children: .ignore)
-                    .accessibility(label: Text(bpmLabel))
-
-                    VStack(alignment: .leading, spacing: 0) {
-                        Text.cap("KEY")
-                        keyText.padding(.top, 6)
-                        HStack(spacing: 14) {
-                            ForEach(Array(result.keys.dropFirst().prefix(2).enumerated()), id: \.offset) { _, k in
-                                let r = result
-                                Button(action: { SpellingSettings.shared.choose(k.0, of: r) }) {
-                                    Text("\(k.0) \(k.1)%").font(Theme.face(12).monospacedDigit()).tracking(12 * 0.08)
-                                        .foregroundColor(Theme.amber(0.55))
-                                }
-                                .buttonStyle(PlainButtonStyle())
-                                .pointingHand()
-                                .help("Use \(k.0) as the key")
-                            }
-                        }
-                        .padding(.top, 9)
-                    }
-                    .accessibilityElement(children: .ignore)
-                    .accessibility(label: Text(keyLabel))
-                }
-                Spacer(minLength: 0)
-                if let n = note {
-                    Text(n).font(Theme.face(10)).tracking(1.2)
-                        .foregroundColor(Theme.amber(0.8))
-                        .lineLimit(1).truncationMode(.tail)
-                        .padding(.bottom, 6)
-                }
-                statusLine.padding(.bottom, 6)
-                HStack(spacing: 14) {
-                    Text(options.live.map { "LIVE · \($0.source.uppercased())" } ?? Faceplate.fileLine(result))
-                        .font(Theme.face(10)).tracking(1.2)
-                        .foregroundColor(Theme.amber(0.6))
-                        .lineLimit(1).truncationMode(.tail)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .accessibility(label: Text(options.live.map { "Live, \($0.source)" } ?? result.name))
-                    if options.live == nil { finderButton }
-                }
+        VStack(alignment: .leading, spacing: 0) {
+            HStack(alignment: .top, spacing: 22) {
+                bpmColumn
+                Dial(state: state, actions: actions).frame(width: 112, height: 112)
             }
-            HStack(spacing: 7) {
-                if let p = page {
-                    HStack(spacing: 6) {
-                        PageArrow(glyph: "‹", label: "Previous file") { onPage?(-1) }
-                        Text.cap(p).accessibility(label: Text(p.lowercased()))
-                        PageArrow(glyph: "›", label: "Next file") { onPage?(1) }
-                    }
-                    .padding(.trailing, 10)
+            .frame(height: 112)
+            Spacer(minLength: 0)
+            fileRow
+        }
+    }
+
+    /// BPM, its rounded value, the beat light and the x0.5 / x1 / x2 chips; the confidence lamp.
+    private var bpmColumn: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            HStack(spacing: 8) {
+                Text.cap("BPM")
+                if let r = Tempo.rounded(result, factor: options.factor) {
+                    Text(r).font(Theme.face(8)).tracking(1.6).foregroundColor(Theme.amber(0.45))
                 }
                 if let period = Faceplate.tempoPeriod(bpmShown) {
-                    Text.cap("TEMPO")
-                    TempoLight(period: period)
+                    TempoLight(period: period).padding(.leading, 2)
+                }
+                Spacer(minLength: 4)
+                HStack(spacing: 4) {
+                    ForEach([TempoFactor.half, .one, .double], id: \.self) { f in
+                        FactorChip(factor: f, on: f == options.factor, enabled: bpmShown != nil) { actions.setFactor(f) }
+                    }
                 }
             }
-            .offset(x: 2, y: 0)
+            .frame(height: 15)
+            bpmNumber.padding(.top, 6)
+                .accessibilityElement(children: .ignore)
+                .accessibility(label: Text(bpmLabel))
+            Spacer(minLength: 0)
+            statusLine
         }
+    }
+
+    /// The file (or Listen's source, or the note), paging, Show in Finder: the readout's width.
+    private var fileRow: some View {
+        HStack(spacing: 10) {
+            Text(lineText)
+                .font(Theme.face(10)).tracking(1.2)
+                .foregroundColor(Theme.amber(note == nil ? 0.6 : 0.8))
+                .lineLimit(1).truncationMode(.tail)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .accessibility(label: Text(note ?? options.live.map { "Live, \($0.source)" } ?? result.name))
+            if let p = page {
+                HStack(spacing: 6) {
+                    PageArrow(glyph: "‹", label: "Previous file") { actions.page(-1) }
+                    Text.cap(p).accessibility(label: Text(p.lowercased()))
+                    PageArrow(glyph: "›", label: "Next file") { actions.page(1) }
+                }
+            }
+            if options.live == nil { finderButton }
+        }
+    }
+
+    /// The note (a partial analysis), Listen's source, or the file and its folder.
+    private var lineText: String {
+        if let n = note { return n }
+        if let l = options.live { return "LIVE · \(l.source.uppercased())" }
+        return Faceplate.fileLine(result)
     }
 
     private var finderButton: some View {
-                    Button(action: {
-                        NSWorkspace.shared.activateFileViewerSelecting([result.file])
-                    }) {
-                        Text("SHOW IN FINDER ›").font(Theme.face(9)).tracking(1.8)
-                            .foregroundColor(Theme.amber)
-                            .shadow(color: Theme.amberGlow, radius: 2.5)
-                            .fixedSize()
-                    }
-                    .buttonStyle(PlainButtonStyle())
-                    .pointingHand()
-                    .accessibility(label: Text("Show in Finder"))
-    }
-
-    /// The big key. A click on a black-key tonic switches sharp / flat spelling.
-    @ViewBuilder private var keyText: some View {
-        let text = Text(result.keys.first?.0 ?? "--").font(Theme.face(34)).tracking(34 * 0.05)
-            .foregroundColor(result.keys.isEmpty ? Theme.amber(0.12) : Theme.amber)
-            .modifier(GlowIf(on: !result.keys.isEmpty))
-            .lineBox(34, 1)
-        if let first = result.keys.first?.0, KeySpelling.isBlack(first), let toggle = options.onToggleSpelling {
-            Button(action: toggle) { text.contentShape(Rectangle()) }
-                .buttonStyle(PlainButtonStyle())
-                .pointingHand()
-        } else {
-            text
+        Button(action: {
+            AppLog.log("window: show in finder")
+            NSWorkspace.shared.activateFileViewerSelecting([result.file])
+        }) {
+            Text("SHOW IN FINDER ›").font(Theme.face(9)).tracking(1.8)
+                .foregroundColor(Theme.amber)
+                .shadow(color: Theme.amberGlow, radius: 2.5)
+                .fixedSize()
         }
+        .buttonStyle(PlainButtonStyle())
+        .pointingHand()
+        .accessibility(label: Text("Show in Finder"))
     }
 
     /// The big BPM. A click cycles x1 / x2 / x0.5 when there is a BPM to cycle.
@@ -382,20 +369,14 @@ struct ResultReadout: View {
         }
     }
 
-    /// Confidence lamp (locked / unsure) and the tuning, one line above the file line.
+    /// Confidence lamp (locked / unsure), one line above the file line. (The tuning is on the
+    /// scale line under the keyboard.)
     @ViewBuilder private var statusLine: some View {
-        let conf = options.live?.status ?? Faceplate.confidenceLine(result.keys)
-        if conf != nil || options.tuning != nil {
-            HStack(spacing: 16) {
-                if let c = conf, let lamp = options.live?.lamp ?? Lamp.of(result.keys) {
-                    StateLamp(lamp: lamp, text: c)
-                }
-                if let t = options.tuning {
-                    Text(t).font(Theme.face(9)).tracking(1.4).foregroundColor(Theme.amber(0.7)).lineLimit(1)
-                }
-            }
-            .accessibilityElement(children: .ignore)
-            .accessibility(label: Text([conf, options.tuning].compactMap { $0 }.joined(separator: ". ").lowercased()))
+        if let c = options.live?.status ?? Faceplate.confidenceLine(result.keys),
+           let lamp = options.live?.lamp ?? Lamp.of(result.keys) {
+            StateLamp(lamp: lamp, text: c)
+                .accessibilityElement(children: .ignore)
+                .accessibility(label: Text(c.lowercased()))
         }
     }
 
@@ -403,13 +384,6 @@ struct ResultReadout: View {
         guard let b = bpmShown else { return "BPM not found" }
         let time = options.factor == .double ? ", double time" : (options.factor == .half ? ", half time" : "")
         return "BPM \(b)\(time)" + (options.onCycleTempo == nil ? "" : ". Click to switch between normal, double and half time")
-    }
-
-    private var keyLabel: String {
-        guard let first = result.keys.first else { return "Key not found" }
-        let alts = result.keys.dropFirst().prefix(2).map { "\($0.0) \($0.1) percent" }
-        let base = alts.isEmpty ? "Key \(first.0)" : "Key \(first.0), also \(alts.joined(separator: ", "))"
-        return base + (KeySpelling.isBlack(first.0) && options.onToggleSpelling != nil ? ". Click to switch between sharp and flat spelling" : "")
     }
 }
 
