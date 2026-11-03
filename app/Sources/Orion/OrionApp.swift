@@ -236,7 +236,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         NSWindow.allowsAutomaticWindowTabbing = false
     }
     /// Open With / `open -a "Beat Key" file`.
-    func application(_ app: NSApplication, open urls: [URL]) { Intake.receive(urls) }
+    func application(_ app: NSApplication, open urls: [URL]) { Intake.receive(urls, via: "open with") }
     func applicationShouldTerminateAfterLastWindowClosed(_ app: NSApplication) -> Bool { true }
     func applicationWillTerminate(_ n: Notification) { AppLog.quitting("app quit") }
 }

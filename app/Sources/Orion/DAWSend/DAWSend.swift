@@ -232,7 +232,7 @@ enum DAWSendController {
             var files: [URL] = []
             let o = run(d) { files = try DAWDrivers.driver(d).selectionAudio(); return "" }
             DispatchQueue.main.async {
-                if o.ok, !files.isEmpty { Intake.receive(files) }
+                if o.ok, !files.isEmpty { Intake.receive(files, via: "daw selection") }
                 else { alert("Could not read the selection in \(d.name)", o.ok ? "Nothing came back." : o.message) }
             }
         }
