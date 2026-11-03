@@ -1,6 +1,27 @@
 # PICKUP — beat_dl
 
-## CURRENT STATE — 2026-11-02 07:31
+## CURRENT STATE — 2026-11-03 14:12
+
+**HARVEST OFF, WAITING FOR J'S GO (J 2026-11-03 ~01:00: "Don't go on harvest until I say go").** Only blocker = the iLok in Sofia. Verified 10:57: nothing running (no run_batch, no Pro Tools), STOP + BLOCKED files present, manifest 795, DB has column beat_comments_raw. Last harvest result (paused 2026-11-02 10:31): last id 194, usable 155 (confirmed 32, tempo-only 123, with key 72).
+- Resume on J's go: `~/.claude/scripts/ssh-rc js-mac-pro 'bash ~/pt-harvest/ptkill.sh; cd ~/pt-harvest && rm -f BLOCKED STOP && .venv/bin/python pt_launch.py 100 && (nohup ./run_batch.sh 1000 >> logs/batch.log 2>&1 < /dev/null &)'`, then clear Playback Engine (Next, OK) on Sofia's screen, then re-create the 5-min check: /loop 5m + the check prompt (tail logs/batch.log, harvest.py status, ls BLOCKED STOP, pgrep run_batch.sh, sofia-screen shot). Don't click on Sofia while J is using it.
+- Prep done 2026-11-02/03: manifest 343 → 795 (`tools/pt-harvest/manifest_mtime.py`, 343 came from the picker's "mix N|MASTER" filename regex, commit 2ca81cd); comment parser strips stray punctuation and "@" ("156 C#m." and "C#m @156" parse); every raw Beat comment saved in beat_comments_raw (Sofia + repo mirror c4135d1). The old "156 C#m gap" note was wrong: it parsed already; of 23 comments read, 22 gave a key, the miss was "180".
+- Sofia permissions: tailscaled has Full Disk Access (J ticked 2026-11-03 00:57, live binary tailscale 1.104.4; proof: protected TCC.db readable over ssh). `brew pin tailscale` so upgrades stop adding new tailscaled entries. Dead FDA rows 1.102.4 (unticked) and 1.104.1 are harmless; J may remove them. Accessibility for tailscaled ticked 2026-11-02 02:18.
+- Possibly a Finder window (revealing tailscaled) still open on Sofia; left alone because J was watching TV there.
+
+**Beat Key releases: 0.1.34 is public (J published 2026-11-03 ~00:58; GH release + appcast + Sofia version file verified), installed on the MBP, Services menu shows "Analyze with Beat Key", J did the Finder right-click test ("done the one thing").** 0.1.33 = window matches the menu-bar pocket (15a18ec) + screen-sleep stream reopen (be0a9ce, only permission errors reach the UI). 0.1.34 = Finder service NSRequiredContext. Next release: J runs `! bash ~/dev/beat_dl/tools/publish.sh` (reads VERSION; restarts nothing). Unreleased on main: c1223a9 (intake logs how files arrive, counts only).
+
+**Owed (Beat Key, J's standing order: build all of it, no check-ins):**
+1. Waves Tune MIDI Learn test (dashboard j183/j185/j238): can Waves Tune RT Root/Scale be MIDI-learned? Yes → Beat Key sends CCs over a virtual MIDI port. No → preset stays the manual fallback, say so plainly. Mouse clicking rejected by J.
+2. Play-to-find-the-key (j222-j226) + ⇧⌘A focused Send to Auto-Tune (j227): spec in the 02:08 block below, item 2c.
+3. "Wrong, it's X" teach button saving clip + label (j241).
+4. Auto-Tune key read in the harvest (j313), then key accuracy: bgate formula vs trained model on J's beats, ship the winner (j195).
+5. Find what dashboard items j81 "Reading per song", j96 "Test chained beats", j229 "Wave student broken", j103 "Minor key still guessed" meant (search old notes/transcripts, don't ask J), then close or do them.
+6. FLR site session (handoff/TO-FLR-SITE-2026-11-03-finder-item.md): restore "or right-click it in Finder", refresh the stale window screenshot on /beat-key. Their work, not this session's.
+7. Question for J (2026-10-29, unanswered): both signing keys into the Passwords app?
+8. Optional: beatkey (8171) in ~/.claude/skills/jshriver-subdomain/references/players.md.
+- Standing: Sofia never restarted; ssh via ~/.claude/scripts/ssh-rc; trash not rm; no song names in code/logs; never save a PT session opened for reading; never label J's mood from swearing.
+
+### Block 2026-11-02 07:31 (superseded by the block above)
 
 **HARVEST RUNNING ON SOFIA since 02:34 (J said go 02:30).** `~/pt-harvest/run_batch.sh 400` (supervisor pid file ~/pt-harvest/batch.pid; target 400 usable, manifest 343). At 07:30: last id 162, usable 129 (confirmed 24, tempo-only 105, with key 58), ~4.5 min/session → manifest ends ~20:00. Claude checks every 5 min via session cron job 65f9cd52 (dies with this session: after a restart re-create with /loop 5m + the check prompt). Check: `~/.claude/scripts/ssh-rc js-mac-pro 'cd ~/pt-harvest && tail -3 logs/batch.log; ls BLOCKED STOP; pgrep -f run_batch.sh'`. Stop: `touch ~/pt-harvest/STOP`. Keys come only from the Beat track comment + producer filename; the Auto-Tune key read is still NOT built (add after the run).
 - **10:31 HARVEST PAUSED: the iLok left Sofia ~10:08 (J went to work; PT shows 'missing PACE authorization').** Final: last id 194, usable 155 (confirmed 32, tempo-only 123, with key 72). Supervisor, harvester and clicker stopped, STOP file set, 5-min cron deleted. PT left open on the PACE dialog. Resume when the iLok is back: `~/.claude/scripts/ssh-rc js-mac-pro 'bash ~/pt-harvest/ptkill.sh; cd ~/pt-harvest && rm -f BLOCKED STOP && .venv/bin/python pt_launch.py 100 && (nohup ./run_batch.sh 1000 >> logs/batch.log 2>&1 < /dev/null &)'`, then clear the Playback Engine dialog (Next, OK) and re-create the 5-min /loop check.
