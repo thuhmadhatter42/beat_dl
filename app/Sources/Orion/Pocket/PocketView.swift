@@ -16,6 +16,8 @@ struct PocketActions {
     var toggleHold: () -> Void = {}
     /// A click on the key: sharp <-> flat.
     var respellKey: () -> Void = {}
+    /// "Wrong, it's X": the 24-key menu; the pick becomes THE key and is saved as a teach record.
+    var teachKey: () -> Void = {}
     var pickSource: () -> Void = {}
     var analyzeFile: () -> Void = {}
     var sendDAW: () -> Void = {}
@@ -433,7 +435,7 @@ private struct PocketLCD: View {
                 right.frame(maxWidth: .infinity, alignment: .leading)
             }
             .frame(height: 118)
-            KeyStrip(state: state).padding(.top, 12)
+            KeyStrip(state: state, onTeach: actions.teachKey).padding(.top, 12)
         }
         .padding(EdgeInsets(top: 14, leading: 14, bottom: 12, trailing: 14))
         .background(Theme.highContrast ? Theme.vertical([(Theme.black, 0), (Theme.black, 1)])
@@ -527,10 +529,15 @@ private struct PocketLCD: View {
 /// a one-octave keyboard, and the scale line with the tuning.
 struct KeyStrip: View {
     let state: PocketState
+    /// "Wrong, it's X" (nil = not shown).
+    var onTeach: (() -> Void)? = nil
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
+            // the button sits just above the hairline, at its right end, so the strip's height
+            // (and both faces' layout) is unchanged
             Rectangle().fill(Theme.amber(0.12)).frame(height: 1)
+                .overlay(teachButton.offset(y: -7), alignment: .trailing)
             TopKeys(keys: state.result?.keys ?? [],
                     onChoose: state.result.map { r in { k in
                         AppLog.log("key chosen from top keys")
@@ -539,6 +546,19 @@ struct KeyStrip: View {
                 .padding(.top, 11)
             NoteKeyboard(scale: state.scale).frame(height: 44).padding(.top, 13)
             scaleLine.padding(.top, 7)
+        }
+    }
+
+    @ViewBuilder private var teachButton: some View {
+        if state.result != nil, let teach = onTeach {
+            Button(action: teach) {
+                Text("WRONG? IT'S…").font(Theme.face(7)).tracking(1.1)
+                    .foregroundColor(Theme.amber(0.55)).fixedSize().padding(.vertical, 2).contentShape(Rectangle())
+            }
+            .buttonStyle(PlainButtonStyle())
+            .pointingHand()
+            .help("Pick the right key: it becomes the key, and the reading is saved to teach Beat Key")
+            .accessibility(label: Text("Wrong key? Pick the right one"))
         }
     }
 
