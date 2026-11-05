@@ -35,7 +35,7 @@ if [ ! -x "$VENV/bin/python" ]; then
   uv pip install -p "$VENV/bin/python" -r "$HERE/requirements.txt"
 fi
 LABELS="$GT/labels.csv"
-N=$(find "$ROOT/models" -maxdepth 1 -name 'deeptemp-k16-3-ft*.npz' | sed -E 's/.*-ft([0-9]+)\.npz$/\1/' | grep -E '^[0-9]+$' | sort -n | tail -1)
+N=$(find "$ROOT/models" -maxdepth 1 -name 'deeptemp-k16-3-ft*.npz' | sed -E 's/.*-ft([0-9]+)\.npz$/\1/' | grep -E '^[0-9]+$' | sort -n | tail -1 || true)
 RUN="ft$(( ${N:-0} + 1 ))"
 
 step "labels from DB";      python3 "$HERE/labels_from_db.py" --db "$DB" --audio-dir "$AUDIO" --out "$LABELS"
