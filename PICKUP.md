@@ -1,6 +1,13 @@
 # PICKUP — beat_dl
 
-## CURRENT STATE — 2026-11-05 03:43
+## CURRENT STATE — 2026-11-05 13:15
+
+**AFTERNOON PUSH, HARD STOP 17:00 (J 13:08: "you need to be stopped with saved state 5:00.00 PM").** Plan docs/plans/2026-11-05-afternoon-push.md + -TOC.md: §1 deep save, §2 tempo retrain on 243 usable rows (agent A), §3 key-accuracy baseline on the 91 keyed beats (agent A), §4 "Wrong, it's X" button (agent B), §5 play-to-find-the-key + ⇧⌘A (agent B), §6 agents wrap 16:15, save-state done by 16:55. iLok out of Sofia (J pulled it ~09:07, said that's fine; he had said run until 08:30, which I hadn't recorded: future harvests get a hard stop time and close out before it).
+- **SOFIA OFFLINE since ~12:10 2026-11-05** (Tailscale: offline, last seen 1h ago at 13:10; ssh times out). Not restarted by me. The new harvest rows (ids 102-333) live only on Sofia: the MBP copy docs/research/pt-ground-truth/ has 101 rows (30 keyed), so §2 tempo retrain waits for Sofia; §3 key baseline runs on the 30 local rows now and re-runs on 91 later. Loops projstate not saved (it forwards to Sofia: rc=255).
+- Agents running 13:12: key baseline (worktree), teach button + play-to-find-key (worktree), deep sweep (worktree). All report by 16:10.
+- Harvest owes: 462 of 795 songs (~30 h of Sofia time), Auto-Tune key read not built (needs the iLok to test).
+
+### Block 2026-11-05 03:43 (superseded by the block above)
 
 **HARVEST PAUSED 2026-11-05 09:08: the iLok left Sofia ~09:07 (PT "missing PACE authorization" → clicker wrote BLOCKED, supervisor stopped rc=3).** Ran 01:48-09:08: last id 333, usable 243 (confirmed 42, tempo-only 201, with key 91); song 328 failed to open twice and was skipped. STOP + BLOCKED set, clicker stopped, 5-min cron deleted; Pro Tools left on the PACE dialog (it force-closes). Resume when the iLok is back: same command as below (it clears BLOCKED/STOP), J unlocks the screen first if locked. New 01:54: clicker rule "UAD Powered Plug-Ins Info -> No" (commit fa09282).
 - Resume on J's go: `~/.claude/scripts/ssh-rc js-mac-pro 'bash ~/pt-harvest/ptkill.sh; cd ~/pt-harvest && rm -f BLOCKED STOP && .venv/bin/python pt_launch.py 100 && (nohup ./run_batch.sh 1000 >> logs/batch.log 2>&1 < /dev/null &)'`, then clear Playback Engine (Next, OK) on Sofia's screen, then re-create the 5-min check: /loop 5m + the check prompt (tail logs/batch.log, harvest.py status, ls BLOCKED STOP, pgrep run_batch.sh, sofia-screen shot). Don't click on Sofia while J is using it.
