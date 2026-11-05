@@ -214,6 +214,10 @@ struct OrionApp: App {
             Intake.analyzeAFile()
         }
         HotkeyCenter.shared.apply(shortcuts)
+        // Play to find the key (the computer keyboard as a piano) + ⇧⌘A, while Beat Key is in front.
+        let l = live
+        PlayToFind.shared.install(shown: { PocketState.shown(e.state, live: l.state, page: m.pager) },
+                                  sendAutoTune: windowActions.sendAutoTune)
         // Seed yt-dlp into Application Support, then the weekly self-update, on the shared
         // maintenance queue. The Engine stays idle; downloads and Run Doctor wait their turn.
         Runtime.appDefault().launchMaintenance()

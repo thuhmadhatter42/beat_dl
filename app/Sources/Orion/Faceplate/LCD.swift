@@ -47,7 +47,7 @@ struct LCD: View {
             content
                 .frame(maxWidth: .infinity, alignment: .topLeading)
                 .frame(height: LCD.topHeight, alignment: .topLeading)
-            KeyStrip(state: state).padding(.top, 14)
+            KeyStrip(state: state, onTeach: actions.teachKey).padding(.top, 14)
         }
         .padding(.vertical, 16)
         .padding(.horizontal, 20)

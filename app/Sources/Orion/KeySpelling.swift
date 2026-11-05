@@ -40,17 +40,30 @@ struct KeyChoice: Equatable {
     let name: String
     let pitchClass: Int
     let minor: Bool
+
+    /// A key as Auto-Tune's Key menu spells it: major C Db D Eb E F F# G Ab A Bb B, minor
+    /// C C# D Eb E F F# G G# A Bb B (+ "m"). The analyzer's own spelling.
+    static func keyName(_ pitchClass: Int, minor: Bool) -> String {
+        AXKeyNames.roots(pitchClass, minor: minor)[0] + (minor ? "m" : "")
+    }
+
+    /// All 24 keys in that spelling: the 12 majors from C, then the 12 minors from C.
+    static let allKeys: [String] = (0..<12).map { keyName($0, minor: false) } + (0..<12).map { keyName($0, minor: true) }
 }
 
 extension Result {
-    /// The reading as shown: the chosen key (if any, and still in the list) moved to the front,
-    /// then every key name in `spelling` (nil = untouched).
+    /// The reading as shown: the chosen key (if any) moved to the front, then every key name in
+    /// `spelling` (nil = untouched). A chosen key the analyzer did not list (taught with "Wrong,
+    /// it's X" or played on the keyboard) goes in front at 0 %, and the list keeps its length.
     func respelled(_ spelling: KeySpelling?, choice: KeyChoice? = SpellingSettings.shared.chosen) -> Result {
         var ks = keys
-        if let c = choice, c.file == file, c.name == name,
-           let i = ks.firstIndex(where: { AutoTuneSend.keyClass($0.0).map { $0.pitchClass == c.pitchClass && $0.minor == c.minor } ?? false }),
-           i > 0 {
-            ks.insert(ks.remove(at: i), at: 0)
+        if let c = choice, c.file == file, c.name == name {
+            if let i = ks.firstIndex(where: { AutoTuneSend.keyClass($0.0).map { $0.pitchClass == c.pitchClass && $0.minor == c.minor } ?? false }) {
+                if i > 0 { ks.insert(ks.remove(at: i), at: 0) }
+            } else {
+                ks.insert((KeyChoice.keyName(c.pitchClass, minor: c.minor), 0), at: 0)
+                ks = Array(ks.prefix(max(3, keys.count)))
+            }
         }
         if let spelling = spelling { ks = ks.map { (KeySpelling.respell($0.0, to: spelling), $0.1) } }
         return Result(file: file, name: name, bpm: bpm, keys: ks,
@@ -79,7 +92,8 @@ final class SpellingSettings: ObservableObject {
         $preference.combineLatest($chosen).map { $0.0 }.eraseToAnyPublisher()
     }
 
-    /// A click on one of the top 3 (`key` as shown) of `result`: it becomes the key.
+    /// `key` (any spelling) becomes THE key of `result`: a click on one of the top 3, a "Wrong,
+    /// it's X" pick, or a key played on the computer keyboard. The one override path.
     func choose(_ key: String, of result: Result) {
         guard let k = AutoTuneSend.keyClass(key) else { return }
         chosen = KeyChoice(file: result.file, name: result.name, pitchClass: k.pitchClass, minor: k.minor)
