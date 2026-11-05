@@ -1,5 +1,5 @@
 # Afternoon push TOC (hard stop 17:00)
-- [ ] 1. Save state deep → §1
+- [x] 1. Save state deep (af30f91 + sweep 10d40cd) → §1
 - [ ] 2. Tempo retrain 243 rows → §2
 - [ ] 3. Key accuracy baseline → §3
 - [ ] 4. Wrong-it's-X button → §4
