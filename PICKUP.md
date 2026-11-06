@@ -17,7 +17,7 @@
 4. (2026-10-29) Both signing keys into the Passwords app?
 
 **Owed:**
-1. Waves Tune MIDI Learn test (j183/j185): needs J at the MBP with Artemis open. Yes → CCs over a virtual MIDI port; No → preset stays the manual fallback.
+1. [BACK-BURNERED by J 2026-11-05 17:17] Waves Tune RT auto-send. Found 17:13: no MIDI Learn in the plug-in; Transmission (Send to All/Receive) is Waves instance-to-instance only; MIDI input = Reference Tone/Target Pitch, not key. Untested route if revived: host automation list (Auto button) showing Scale/Root. Preset stays the manual fallback.
 2. Minor KeyType to Auto-Tune confirmed live (j103).
 3. Hand test of 0.1.35 features, then release: J runs `! bash ~/dev/beat_dl/tools/publish.sh` (ships intake logging c1223a9 too).
 4. Auto-Tune key read in the harvest (j313): needs the iLok in Sofia to test.
