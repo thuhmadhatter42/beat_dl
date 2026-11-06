@@ -106,6 +106,43 @@ final class MusicalTypingTests: XCTestCase {
         XCTAssertNil(MusicalTyping.action(keyCode: 15, modifiers: []))      // R: not a note
     }
 
+    /// J 2026-11-05 17:41: the window and popover open with the empty link field focused, and
+    /// that used to refuse every key.
+    func testFocusDecision() {
+        typealias D = PlayToFind.Decision
+        XCTAssertEqual(PlayToFind.decide(action: .note(0), ourWindow: true, windowIsKey: true, editingText: ""), D.play,
+                       "empty link field with the caret: the keys play")
+        XCTAssertEqual(PlayToFind.decide(action: .note(0), ourWindow: true, windowIsKey: true, editingText: nil), D.play)
+        XCTAssertEqual(PlayToFind.decide(action: .note(0), ourWindow: true, windowIsKey: true, editingText: "https://you"), D.ignore("text field has text"))
+        XCTAssertEqual(PlayToFind.decide(action: .sendAutoTune, ourWindow: true, windowIsKey: true, editingText: "https://you"), D.play)
+        XCTAssertEqual(PlayToFind.decide(action: .note(0), ourWindow: false, windowIsKey: true, editingText: nil), D.ignore("not Beat Key's window or popover"))
+        XCTAssertEqual(PlayToFind.decide(action: .note(0), ourWindow: true, windowIsKey: false, editingText: nil), D.ignore("window not key"))
+        XCTAssertEqual(PlayToFind.noteName(60), "C4")
+        XCTAssertEqual(PlayToFind.noteName(61), KeyChoice.keyName(1, minor: false) + "4")
+    }
+
+    func testOurWindowIsTheMainWindowOrPopoverNeverAPanel() {
+        let w = NSWindow(contentRect: .zero, styleMask: [.titled], backing: .buffered, defer: true)
+        w.title = Brand.name
+        XCTAssertTrue(PlayToFind.isOurWindow(w))
+        w.title = "Settings"
+        XCTAssertFalse(PlayToFind.isOurWindow(w))
+        let panel = NSPanel(contentRect: .zero, styleMask: [.titled], backing: .buffered, defer: true)
+        panel.title = Brand.name
+        XCTAssertFalse(PlayToFind.isOurWindow(panel))
+        XCTAssertFalse(PlayToFind.isOurWindow(nil))
+    }
+
+    func testEditingTextReadsTheFocusedField() {
+        let w = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 200, height: 100), styleMask: [.titled], backing: .buffered, defer: true)
+        let f = NSTextField(frame: NSRect(x: 0, y: 0, width: 100, height: 22))
+        w.contentView?.addSubview(f)
+        XCTAssertNil(PlayToFind.editingText(w), "nothing has the caret")
+        f.stringValue = "abc"
+        w.makeFirstResponder(f)
+        XCTAssertEqual(PlayToFind.editingText(w), "abc")
+    }
+
     func testShortcutsAreNotNotes() {
         XCTAssertEqual(MusicalTyping.action(keyCode: 0, modifiers: [.command, .shift]), .sendAutoTune)
         XCTAssertNil(MusicalTyping.action(keyCode: 0, modifiers: [.command]))            // ⌘A

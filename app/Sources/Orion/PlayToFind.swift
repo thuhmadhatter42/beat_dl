@@ -182,18 +182,58 @@ final class PlayToFind {
         AppLog.log("play-to-find: keyboard installed")
     }
 
-    /// Beat Key's own window or its popover, with no text being edited.
-    static func isOurs(_ e: NSEvent) -> Bool {
-        guard let w = e.window else { return false }
-        let popover = String(describing: type(of: w)).contains("Popover")
-        guard popover || w.title == Brand.name else { return false }
-        if let r = w.firstResponder, r is NSText || r is NSTextField || r is NSTextView { return false }
-        return true
+    /// Whether a key press is the keyboard's. The window and the popover both open with the
+    /// (empty) link field holding the caret, and the old check refused every key whenever any
+    /// text field was first responder, so no note ever played (J, 2026-11-05 17:41). Now only a
+    /// field that already holds text keeps the keys; an empty one gives them to the keyboard
+    /// (a link is pasted with ⌘V, which is never a note). ⇧⌘A works whatever has the caret.
+    enum Decision: Equatable {
+        case play
+        case ignore(String)
     }
 
+    static func decide(action: MusicalTyping.Action, ourWindow: Bool, windowIsKey: Bool, editingText: String?) -> Decision {
+        guard ourWindow else { return .ignore("not Beat Key's window or popover") }
+        guard windowIsKey else { return .ignore("window not key") }
+        if action == .sendAutoTune { return .play }
+        if let t = editingText, !t.isEmpty { return .ignore("text field has text") }
+        return .play
+    }
+
+    /// Beat Key's own window (titled Brand.name) or its popover; never a panel, alert, Settings.
+    static func isOurWindow(_ w: NSWindow?) -> Bool {
+        guard let w else { return false }
+        if String(describing: type(of: w)).contains("Popover") { return true }
+        if w is NSPanel { return false }
+        return w.title == Brand.name
+    }
+
+    /// The text being edited in the window's focused field; nil = no field has the caret.
+    static func editingText(_ w: NSWindow?) -> String? {
+        switch w?.firstResponder {
+        case let t as NSTextView: return t.string           // a field editor or a text view
+        case let f as NSTextField: return f.stringValue
+        case let t as NSText: return t.string
+        default: return nil
+        }
+    }
+
+    static func noteName(_ midi: Int) -> String {
+        KeyChoice.keyName(((midi % 12) + 12) % 12, minor: false) + String(midi / 12 - 1)
+    }
+
+    private var lastIgnore: String?
+
     private func handle(_ e: NSEvent) -> NSEvent? {
-        guard PlayToFind.isOurs(e),
-              let act = MusicalTyping.action(keyCode: e.keyCode, modifiers: e.modifierFlags) else { return e }
+        guard let act = MusicalTyping.action(keyCode: e.keyCode, modifiers: e.modifierFlags) else { return e }
+        let d = PlayToFind.decide(action: act, ourWindow: PlayToFind.isOurWindow(e.window),
+                                  windowIsKey: e.window?.isKeyWindow ?? false, editingText: PlayToFind.editingText(e.window))
+        if case .ignore(let why) = d {
+            if why != lastIgnore { AppLog.log("play-to-find: key ignored: \(why)") }   // once per reason in a row
+            lastIgnore = why
+            return e
+        }
+        lastIgnore = nil
         let r = shown()
         // a new reading starts the keyboard's root over (the octave stays)
         if let r, lastReading.map({ $0.0 != r.file || $0.1 != r.name }) ?? true {
@@ -206,15 +246,18 @@ final class PlayToFind {
         case .octaveDown, .octaveUp:
             if e.isARepeat { return nil }
             state.octave(act == .octaveUp)
+            AppLog.log("play-to-find: octave \(act == .octaveUp ? "up" : "down"), C = \(PlayToFind.noteName(state.octaveC))")
         case .note(let n):
             if e.isARepeat { return nil }
             // the analyzer's own scores decide major / minor (the raw order: a choice moved to the
             // front at 0 % must not count)
             let keys = (r?.keys ?? []).filter { $0.1 > 0 }
-            synth.play(midi: state.press(n, keys: keys))
+            let midi = state.press(n, keys: keys)
+            AppLog.log("play-to-find: note \(PlayToFind.noteName(midi))")
+            synth.play(midi: midi)
             apply(r)
         case .toggleMode:
-            guard r != nil else { return e }   // nothing to set: let SPACE do what it did
+            guard r != nil else { AppLog.log("play-to-find: space ignored: no reading"); return e }   // let SPACE do what it did
             if e.isARepeat { return nil }
             guard state.toggle(shownKey: r?.keys.first?.0) else { NSSound.beep(); return nil }
             apply(r)
@@ -224,7 +267,7 @@ final class PlayToFind {
 
     private func apply(_ r: Result?) {
         guard let key = state.key else { return }
-        guard let r else { return }   // no reading: the notes sound, nothing to set
+        guard let r else { AppLog.log("play-to-find: no reading, key not set (\(key))"); return }   // the notes sound
         SpellingSettings.shared.choose(key, of: r)
         AppLog.log("play-to-find: key set to \(key)")
     }
