@@ -4,4 +4,4 @@
 - [x] 3. Key accuracy baseline (30 local rows: 80% exact, 93% top-3; rerun on 91 when Sofia is back) → §3
 - [x] 4. Wrong-it's-X button (35e4de1, untried by hand) → §4
 - [x] 5. Play-to-find-key + ⇧⌘A (35e4de1, untried by hand) → §5
-- [ ] 6. Stop and save by 16:55 → §6
+- [x] 6. Stop and save by 16:55 (a8ac698, 16:20) → §6
