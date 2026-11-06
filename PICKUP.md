@@ -1,6 +1,34 @@
 # PICKUP — beat_dl
 
-## CURRENT STATE — 2026-11-05 13:15
+## CURRENT STATE — 2026-11-05 16:20
+
+**AFTERNOON PUSH DONE, stopped before J's 17:00 hard stop.** Plan docs/plans/2026-11-05-afternoon-push-TOC.md: §1-§5 ticked, §6 = this save. Nothing running; no agents, no worktrees, no background jobs.
+- **Tempo retrain (candidate ftC, commit 0e6dfd6):** trained on 243 harvested rows. J's held-out beats+mixes (130) Acc1 66.2% → 86.2% (beats 61.5→83.1, mixes 70.8→89.2), Acc2 99.2 → 100; public bpm-bench (40) 87.5% → 82.5% (−2 clips). Ship rule says NOT shipped; shipped model models/deeptemp-k16-3.npz untouched. Candidate tools/train-tempocnn/candidates/ftC-243rows.npz + ftC-243rows-eval.md. To ship: copy it over models/deeptemp-k16-3.npz (old one to archive/), run tests, bump VERSION, release. One-command retrain: tools/train-tempocnn/retrain.sh (fixed dbaf4b0: no earlier ft model no longer kills it).
+- **Key accuracy baseline (shipping bgate detector), J's 91 keyed beats:** top-1 exact 56/91 = 62%, in top-3 76/91 = 84%, MIREX 0.711; misses: fifth 14, relative 5, parallel 1, other 15. By source: Auto-Tune 64% (n 70), comment 43% (n 14). Mixes ~same (60% / 84%). edma profile worse (54%). 80 of 91 truths are minor. Script tools/train-tempocnn/key_baseline.py (--db --audio-root --out); first 30-row run in runs/key-baseline-2026-11-05/eval.md (80% / 93%, the small set flattered it); full run output runs/key-baseline-2026-11-05-full/summary.md (runs/ is untracked).
+- **Data synced from Sofia 13:59** (tools/pt-harvest/sync_from_sofia.sh, read-only): MBP docs/research/pt-ground-truth/ now has 333 rows, 96 keyed, 483 audio11k files; old DB in its archive/.
+- **Beat Key 0.1.35 on main (unreleased, VERSION bumped, commit 0c05be6, merge 35e4de1):** "WRONG? IT'S…" button (24-key menu, sets KeyChoice, saves a teach record to ~/Library/Application Support/Beat Key/teach/<timestamp>/ label.json + audio copy <50 MB or path; Live keeps last 60 s and saves clip.wav) and play-to-find-the-key (A W S E D F T G Y H U J = C..B, K = C up, Z/X octave, last note = root, space toggles major/minor, ⇧⌘A = Send to Auto-Tune while focused). Swift 252 tests, 0 failures, 2 skipped; build.sh --no-notarize ok. NOT tried by hand; not installed.
+- **Dashboard items decoded:** j81 done (4e2e08e, in 0.1.31); j229 = Waves Tune (same as j183); j96 chained-beats test partial (11-02 07:14: boundaries 9/12 tuning, 6/12 held-out, 1 false), no hand test; j103 minor KeyType in AutoTuneSend.swift "not yet confirmed live" — still owed.
+- **Sofia:** dropped off Tailscale ~12:10-13:30, NOT restarted (uptime 4 days at 13:32); reachable at 16:15. Harvest still paused, BLOCKED + STOP set, no batch running, iLok out. Resume when J says the iLok is back: command in the 03:43 block below, plus a hard stop time from J (J 10:42: close out before he pulls the iLok).
+
+**Questions for J (asked 2026-11-05 14:45, unanswered):**
+1. Ship tempo candidate ftC anyway? (+20 pts on J's music, −2 of 40 public clips). My recommendation: yes.
+2. How does J set the Auto-Tune key in his sessions: by ear, or from Beat Key / another detector? If from a detector, the 64% "Auto-Tune" group grades the detector against itself (dashboard j928).
+3. Install 0.1.35 on the MBP so J can try the teach button and play-to-find-the-key?
+4. (2026-10-29) Both signing keys into the Passwords app?
+
+**Owed:**
+1. Waves Tune MIDI Learn test (j183/j185): needs J at the MBP with Artemis open. Yes → CCs over a virtual MIDI port; No → preset stays the manual fallback.
+2. Minor KeyType to Auto-Tune confirmed live (j103).
+3. Hand test of 0.1.35 features, then release: J runs `! bash ~/dev/beat_dl/tools/publish.sh` (ships intake logging c1223a9 too).
+4. Auto-Tune key read in the harvest (j313): needs the iLok in Sofia to test.
+5. Finish the harvest: 462 of 795 left (~30 h Sofia time), then rerun sync_from_sofia.sh, key_baseline.py, retrain.sh.
+6. Trained key model vs bgate (j195), using harvest keys + teach records; baseline to beat = 62% / 84%.
+7. Chained-beats boundary detection (j96) is weak (6/12 held-out).
+8. FLR site session: handoff/TO-FLR-SITE-2026-11-03-finder-item.md (their work).
+9. Optional: J removes dead tailscaled FDA rows on Sofia (j252); beatkey (8171) in players.md.
+- Standing: Sofia never restarted; ssh via ~/.claude/scripts/ssh-rc; trash not rm; no song names in code/logs; never save a PT session opened for reading; never label J's mood from swearing; harvests get J's hard stop time.
+
+### Block 2026-11-05 13:15 (superseded by the block above)
 
 **AFTERNOON PUSH, HARD STOP 17:00 (J 13:08: "you need to be stopped with saved state 5:00.00 PM").** Plan docs/plans/2026-11-05-afternoon-push.md + -TOC.md: §1 deep save, §2 tempo retrain on 243 usable rows (agent A), §3 key-accuracy baseline on the 91 keyed beats (agent A), §4 "Wrong, it's X" button (agent B), §5 play-to-find-the-key + ⇧⌘A (agent B), §6 agents wrap 16:15, save-state done by 16:55. iLok out of Sofia (J pulled it ~09:07, said that's fine; he had said run until 08:30, which I hadn't recorded: future harvests get a hard stop time and close out before it).
 - **SOFIA OFFLINE since ~12:10 2026-11-05** (Tailscale: offline, last seen 1h ago at 13:10; ssh times out). Not restarted by me. The new harvest rows (ids 102-333) live only on Sofia: the MBP copy docs/research/pt-ground-truth/ has 101 rows (30 keyed), so §2 tempo retrain waits for Sofia; §3 key baseline runs on the 30 local rows now and re-runs on 91 later. Loops projstate not saved (it forwards to Sofia: rc=255).
