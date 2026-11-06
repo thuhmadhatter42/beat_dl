@@ -81,7 +81,7 @@ struct OrionApp: App {
                 }
                 SendToAutoTuneMenuItem(engine: engine, tuning: tuning)
                 Button("Half / Double Tempo") { model.tempoFactor = model.tempoFactor.next }
-                DAWSendMenuItems(engine: engine)
+                DAWSendMenuItems(engine: engine, shortcuts: shortcuts)
             }
             // View menu: the readout's accessibility switch (plan 5.1)
             CommandGroup(before: .toolbar) {
@@ -213,6 +213,7 @@ struct OrionApp: App {
             StatusItemController.bringWindowForward()
             Intake.analyzeAFile()
         }
+        HotkeyCenter.shared.actions[.analyzeSelection] = { DAWSendController.analyzeSelection() }
         HotkeyCenter.shared.apply(shortcuts)
         // Play to find the key (the computer keyboard as a piano) + ⇧⌘A, while Beat Key is in front.
         let l = live

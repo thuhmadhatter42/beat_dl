@@ -1,7 +1,7 @@
 import AppKit
 import SwiftUI
 
-// Reading › Send to DAW (⌃⌥⌘S), Send to All DAWs (⌃⌥⌘D), Analyze Selection (⌃⌥⌘L). Plan §4.2, §4.3.
+// Reading › Send to DAW (⌃⌥⌘S), Send to All DAWs (⌃⌥⌘D), Analyze Selection (⌥⌘B, global). Plan §4.2, §4.3.
 // One driver per DAW; what each DAW can really take is in docs/research/send-to-daw.md.
 
 /// The DAWs Beat Key knows, in the order "Send to All" walks them.
@@ -308,6 +308,7 @@ enum DAWSendController {
 /// what is selected (analyze).
 struct DAWSendMenuItems: View {
     @ObservedObject var engine: Engine
+    @ObservedObject var shortcuts: ShortcutStore
     @ObservedObject private var watcher = DAWWatcher.shared
 
     var body: some View {
@@ -322,7 +323,7 @@ struct DAWSendMenuItems: View {
             .keyboardShortcut("d", modifiers: [.control, .option, .command])
             .disabled(!usable)
         Button(target.map { "Analyze Selection in \($0.name)" } ?? "Analyze Selection") { DAWSendController.analyzeSelection() }
-            .keyboardShortcut("l", modifiers: [.control, .option, .command])
+            .optionalShortcut(shortcuts.shortcut(.analyzeSelection)?.menuShortcut)
             .disabled(engine.state.isBusy || !(target?.canAnalyzeSelection ?? false))
     }
 }
