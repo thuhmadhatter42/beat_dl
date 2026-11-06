@@ -1,7 +1,7 @@
 import AppKit
 
-/// The MIDI-file hand-off for DAWs nothing outside can set tempo in (FL Studio, Reason, Cubase),
-/// and the fallback when Accessibility fails in Pro Tools, Logic and Studio One (AXRoutes.swift).
+/// The MIDI-file hand-off for DAWs nothing outside can set tempo in (FL Studio, Reason, Cubase);
+/// not used by the Accessibility DAWs (Pro Tools, Logic, Studio One).
 /// Writes "<track> (<bpm> BPM <key>).mid" with set-tempo + key-signature (MidiExport) to
 /// ~/Library/Application Support/Beat Key/DAW/MIDI, shows it in Finder, and says how this DAW
 /// imports tempo from it.

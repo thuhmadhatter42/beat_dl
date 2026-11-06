@@ -13,6 +13,9 @@ final class FakeAX: AXNode {
     var settable = false
     var selected = false
     var focused = false
+    var reportsFocus = true
+    /// What the field shows after a set (a DAW that mangles "1|1|000" into "11000").
+    var transform: ((String) -> String)?
     var frame: CGRect?
     weak var parentNode: FakeAX?
     var kids: [FakeAX] = []
@@ -36,7 +39,8 @@ final class FakeAX: AXNode {
     var windows: [AXNode] { wins }
     var focusedWindow: AXNode? { wins.last }
     var menuBar: AXNode? { bar }
-    func setValue(_ text: String) -> Bool { guard settable else { return false }; valueText = text; return true }
+    var isFocused: Bool? { reportsFocus ? focused : nil }
+    func setValue(_ text: String) -> Bool { guard settable else { return false }; valueText = transform?(text) ?? text; return true }
     func setBool(_ attribute: String, _ on: Bool) -> Bool {
         switch attribute {
         case kAXSelectedAttribute: selected = on; return role == "AXRow"
@@ -302,35 +306,152 @@ final class AXDriverTests: XCTestCase {
         XCTAssertEqual(field.valueText, "88")
     }
 
-    // MARK: report + fallback
+    // MARK: report
 
-    private func midi() -> (MidiFileDriver, URL) {
-        let dir = FileManager.default.temporaryDirectory.appendingPathComponent("bk-ax-\(UUID().uuidString)")
-        return (MidiFileDriver(daw: .proTools, folder: dir, reveal: { _ in }), dir)
-    }
-
-    func testReportAllSetWritesNoMidiFile() throws {
-        let (m, dir) = midi()
+    func testReportAllSet() throws {
         let p = SendPayload(bpm: 140.82, key: "Ebm")
-        let s = try AXDAWDriver.report(.proTools, p, AXResult(tempoSet: true, keySet: true), readBack: 140.82, midi: m)
-        XCTAssertEqual(s, "Set directly in Pro Tools: tempo 140.82 (read back), key Eb minor.")
-        XCTAssertFalse(FileManager.default.fileExists(atPath: dir.path))
+        let s = try AXDAWDriver.report(.proTools, p, AXResult(tempoSet: true, keySet: true), readBack: 140.82)
+        XCTAssertEqual(s, "Set in Pro Tools: tempo 140.82 (read back), key Eb minor.")
     }
 
-    func testReportPartialSaysWhichWentWhereAndWritesMidi() throws {
-        let (m, dir) = midi()
+    func testReportPartialSaysWhatMissedAndWritesNoMidi() throws {
         let p = SendPayload(bpm: 120, key: "C")
-        let s = try AXDAWDriver.report(.logic, p, AXResult(tempoSet: true, keySet: false, keyError: "no pop-up \"Key Signature\""), readBack: nil, midi: m)
-        XCTAssertTrue(s.hasPrefix("Set directly in Logic Pro: tempo 120.00."), s)
-        XCTAssertTrue(s.contains("Could not set key (no pop-up \"Key Signature\") through Accessibility."), s)
-        XCTAssertTrue(s.contains(".mid in Finder"), s)
-        XCTAssertEqual(try FileManager.default.contentsOfDirectory(atPath: dir.path).count, 1)
+        let s = try AXDAWDriver.report(.logic, p, AXResult(tempoSet: true, keySet: false, keyError: "no pop-up \"Key Signature\""), readBack: nil)
+        XCTAssertEqual(s, "Set in Logic Pro: tempo 120.00. Could not set key (no pop-up \"Key Signature\").")
+        XCTAssertFalse(s.contains(".mid"))
     }
 
-    func testReportReadBackMismatchCountsAsMissed() throws {
-        let (m, _) = midi()
-        let s = try AXDAWDriver.report(.proTools, SendPayload(bpm: 140, key: nil), AXResult(tempoSet: true), readBack: 120, midi: m)
-        XCTAssertTrue(s.hasPrefix("Could not set tempo (Pro Tools reads 120.00 after the change)"), s)
+    func testReportNothingSetThrowsOneLine() {
+        XCTAssertThrowsError(try AXDAWDriver.report(.proTools, SendPayload(bpm: 140, key: nil), AXResult(tempoSet: true), readBack: 120)) { e in
+            XCTAssertEqual("\(e)", "Could not set tempo (Pro Tools reads 120.00 after the change).")
+        }
+    }
+
+    // MARK: no BPM, field safety, cancel (J's 2026-11-05 17:20 report)
+
+    func testNoBPMPayloadNeverTouchesTempo() throws {
+        let r = Result(file: URL(fileURLWithPath: "/x"), name: "LIVE", bpm: nil, keys: [("D", 85)])
+        let p = SendPayload(r)
+        XCTAssertNil(p.bpm)
+        XCTAssertEqual(DAWSendController.plan(p), "key only (no BPM yet)")
+        XCTAssertNil(DAWSendController.plan(SendPayload(bpm: nil, key: nil)), "no BPM and no key: nothing sent")
+        XCTAssertTrue(AXPlans.plan(.proTools, bpm: nil, tonic: p.tonic).tempo.isEmpty)
+        let (app, tempo, _) = proTools()
+        let x = AXSend.run(AXPlans.plan(.proTools, bpm: nil, tonic: p.tonic), runner: runner(app, FakeKeys()))
+        XCTAssertTrue(x.keySet); XCTAssertNil(tempo(), "the Tempo Change dialog never opened")
+        let s = try AXDAWDriver.report(.proTools, p, x, readBack: nil)
+        XCTAssertEqual(s, "Set in Pro Tools: key D major. No BPM yet; tempo left alone.")
+    }
+
+    /// A Tempo Change dialog whose Location may not be an editable field (shown as text): the
+    /// "Location:" label must never hand back the BPM field after it.
+    private func tempoDialog(locationField: FakeAX?, bpm: FakeAX, cancelCloses: Bool = true) -> FakeAX {
+        let app = FakeAX("AXApplication", title: "Pro Tools")
+        let edit = FakeAX("AXWindow", title: "Edit: Session")
+        app.wins = [edit]
+        edit.add([FakeAX("AXButton", desc: "Add Tempo Change").also { b in
+            b.onPress = { _ in
+                let w = FakeAX("AXWindow", title: "Tempo Change")
+                w.add([FakeAX("AXStaticText", value: "Location:")])
+                w.add([locationField ?? FakeAX("AXStaticText", value: "3| 1| 000")])
+                w.add([FakeAX("AXStaticText", value: "BPM:"), bpm,
+                       FakeAX("AXButton", title: "Cancel").also { c in if cancelCloses { c.onPress = { _ in app.wins.removeAll { $0 === w } } } },
+                       FakeAX("AXButton", title: "OK").also { o in o.onPress = { _ in app.wins.removeAll { $0 === w } } }])
+                app.wins.append(w)
+            }
+        }])
+        return app
+    }
+
+    func testLocationLabelNeverFallsThroughToTheBPMField() {
+        let bpm = FakeAX("AXTextField", value: "120.0000", settable: true)
+        let w = FakeAX("AXWindow", title: "Tempo Change", [FakeAX("AXStaticText", value: "Location:"), FakeAX("AXStaticText", value: "3| 1| 000"),
+                                                           FakeAX("AXStaticText", value: "BPM:"), bpm])
+        XCTAssertNil(AXFind.field(["Location"], in: w, accept: AXFieldKind.time.accepts))
+        XCTAssertNil(AXFind.field(["Location"], in: w), "never walks past the BPM: label")
+        XCTAssertTrue(AXFind.field(["BPM"], in: w, accept: AXFieldKind.tempo(88).accepts) === bpm)
+        // a "Location" field that holds a tempo number is refused
+        let bad = FakeAX("AXWindow", [FakeAX("AXStaticText", value: "Location:"), FakeAX("AXTextField", value: "120.0000")])
+        XCTAssertNil(AXFind.field(["Location"], in: bad, accept: AXFieldKind.time.accepts))
+        XCTAssertNotNil(AXFind.field(["Location"], in: bad))
+    }
+
+    func testMissingLocationCancelsTheDialogAndLeavesBPMAlone() {
+        let bpm = FakeAX("AXTextField", value: "120.0000", settable: true)
+        let app = tempoDialog(locationField: nil, bpm: bpm)
+        let keys = FakeKeys()
+        let r = AXSend.run(AXPlans.plan(.proTools, bpm: 88.12, tonic: nil), runner: runner(app, keys))
+        XCTAssertFalse(r.tempoSet)
+        XCTAssertEqual(bpm.valueText, "120.0000", "BPM untouched")
+        XCTAssertEqual(app.wins.count, 1, "Tempo Change cancelled")
+        XCTAssertTrue(r.log.contains { $0.hasPrefix("pressed Cancel") }, r.log.joined(separator: "\n"))
+        XCTAssertTrue(keys.typed.isEmpty, "nothing typed anywhere")
+        XCTAssertTrue(r.tempoError?.contains("no field \"Location\"") ?? false, r.tempoError ?? "")
+    }
+
+    func testMangledLocationReadBackAborts() {
+        let loc = FakeAX("AXTextField", value: "3|1|000", settable: true)
+        loc.transform = { $0.filter(\.isNumber) }     // "1|1|000" -> "11000"
+        let bpm = FakeAX("AXTextField", value: "120.0000", settable: true)
+        let app = tempoDialog(locationField: loc, bpm: bpm)
+        let r = AXSend.run(AXPlans.plan(.proTools, bpm: 88, tonic: nil), runner: runner(app, FakeKeys()))
+        XCTAssertFalse(r.tempoSet)
+        XCTAssertEqual(bpm.valueText, "120.0000")
+        XCTAssertEqual(app.wins.count, 1)
+    }
+
+    func testBPMReadBackMustMatchAndBeInRange() {
+        XCTAssertNil(AXFieldKind.tempo(88.12).refusal("88.1200", typed: "88.12"))
+        XCTAssertNotNil(AXFieldKind.tempo(88.12).refusal("8812", typed: "88.12"))
+        XCTAssertNotNil(AXFieldKind.tempo(88.12).refusal("88.2", typed: "88.12"))
+        XCTAssertNotNil(AXFieldKind.tempo(88.12).refusal(nil, typed: "88.12"))
+        XCTAssertNotNil(AXFieldKind.tempo(1100).refusal("1100", typed: "1100"))
+        XCTAssertNil(AXFieldKind.time.refusal("1| 1| 000", typed: "1|1|000"))
+        XCTAssertNotNil(AXFieldKind.time.refusal("11000", typed: "1|1|000"))
+        // a field that drops the decimal point: never OK'd, dialog cancelled
+        let bpm = FakeAX("AXTextField", value: "120.0000", settable: true)
+        bpm.transform = { $0.filter(\.isNumber) }
+        let app = tempoDialog(locationField: FakeAX("AXTextField", value: "3|1|000", settable: true), bpm: bpm)
+        let r = AXSend.run(AXPlans.plan(.proTools, bpm: 88.12, tonic: nil), runner: runner(app, FakeKeys()))
+        XCTAssertFalse(r.tempoSet)
+        XCTAssertEqual(app.wins.count, 1)
+        XCTAssertTrue(r.tempoError?.contains("8812") ?? false, r.tempoError ?? "")
+        // out of range: refused before anything is typed
+        let bpm2 = FakeAX("AXTextField", value: "120.0000", settable: true)
+        let app2 = tempoDialog(locationField: FakeAX("AXTextField", value: "3|1|000", settable: true), bpm: bpm2)
+        let r2 = AXSend.run(AXPlans.plan(.proTools, bpm: 1100, tonic: nil), runner: runner(app2, FakeKeys()))
+        XCTAssertFalse(r2.tempoSet); XCTAssertEqual(bpm2.valueText, "120.0000"); XCTAssertEqual(app2.wins.count, 1)
+    }
+
+    func testFieldThatDoesNotReportFocusGetsNoKeystrokes() {
+        let loc = FakeAX("AXTextField", value: "3|1|000")          // not settable: would need typing
+        loc.reportsFocus = false
+        let app = tempoDialog(locationField: loc, bpm: FakeAX("AXTextField", value: "120.0000", settable: true))
+        let keys = FakeKeys()
+        let r = AXSend.run(AXPlans.plan(.proTools, bpm: 90, tonic: nil), runner: runner(app, keys))
+        XCTAssertFalse(r.tempoSet)
+        XCTAssertTrue(keys.typed.isEmpty); XCTAssertFalse(keys.keys.contains(KeyCode.a))
+        XCTAssertEqual(app.wins.count, 1)
+    }
+
+    func testDialogLeftOpenFromBeforeRunsNothing() {
+        let (app, tempo, _) = proTools()
+        app.wins.append(FakeAX("AXWindow", title: "Tempo Change", [FakeAX("AXButton", title: "OK")]))
+        let keys = FakeKeys()
+        let r = AXSend.run(AXPlans.plan(.proTools, bpm: 90, tonic: (0, false)), runner: runner(app, keys))
+        XCTAssertFalse(r.tempoSet); XCTAssertFalse(r.keySet)
+        XCTAssertTrue(r.tempoError?.contains("already open") ?? false, r.tempoError ?? "")
+        XCTAssertNil(tempo()); XCTAssertTrue(keys.keys.isEmpty); XCTAssertTrue(keys.typed.isEmpty)
+    }
+
+    func testStuckDialogStopsTheKeyJob() {
+        let bpm = FakeAX("AXTextField", value: "120.0000", settable: true)
+        let app = tempoDialog(locationField: nil, bpm: bpm, cancelCloses: false)
+        let keys = FakeKeys()
+        let r = AXSend.run(AXPlans.plan(.proTools, bpm: 90, tonic: (0, false)), runner: runner(app, keys))
+        XCTAssertFalse(r.tempoSet); XCTAssertFalse(r.keySet)
+        XCTAssertEqual(keys.keys, [KeyCode.escape], "Cancel did not close it: one Escape, then stop")
+        XCTAssertTrue(r.keyError?.contains("would not close") ?? false, r.keyError ?? "")
     }
 
     func testDriversRouteLogicAndStudioOneThroughAccessibility() {

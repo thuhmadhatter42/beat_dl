@@ -8,7 +8,7 @@ import AppKit
 // - Logic Pro 12.3 Quick Help (Contents/Resources/en.lproj/QuickHelp.plist: TRA_028_TempoDisplay
 //   "Tempo display", TRA_030_KeySignatureDisplay "Key Signature display", TRA_002 Go to Beginning).
 // - Studio One / Studio Pro: no manual reachable; labels are the transport's ("Tempo", "Key") and
-//   Song › Song Setup…; unverified, so it falls back to the MIDI file when they are not found.
+//   Song › Song Setup…; unverified, so a miss is reported, nothing else sent.
 
 /// Key names as DAWs print them, preferred spelling first.
 enum AXKeyNames {
@@ -63,10 +63,10 @@ enum AXPlans {
             p.tempo = [
                 [.press(AXMatch(roles: ["AXButton"], labels: ["Add Tempo Change"]).helped("Add Tempo Change")),
                  .window(["Tempo Change"]),
-                 .set(["Location"], "1|1|000"),
-                 .set(["BPM"], v),
+                 .set(["Location"], "1|1|000", .time),
+                 .set(["BPM"], v, .tempo(bpm)),
                  .press(ok), .waitClosed],
-                [.set(["Tempo", "Manual Tempo"], v)],
+                [.set(["Tempo", "Manual Tempo"], v, .tempo(bpm))],
             ]
         }
         if let t = tonic {
@@ -75,7 +75,7 @@ enum AXPlans {
                 .window(["Key Change"]),
                 .choose([t.minor ? "Minor Keys" : "Major Keys"]),
                 .choose(AXKeyNames.names(t.pc, minor: t.minor)),
-                .optional(.set(["From"], "1|1|000")),
+                .optional(.set(["From"], "1|1|000", .time)),
                 .optional(.check(["Edit Pitched Tracks"], false)),
                 .press(ok), .waitClosed,
             ]]
@@ -108,8 +108,8 @@ enum AXPlans {
         if let bpm {
             let v = bpmText(bpm)
             p.tempo = [
-                [.set(["Tempo"], v)],
-                [.menu([["Song"], ["Song Setup…", "Song Setup"]]), .window(["Song Setup"]), .set(["Tempo"], v), .press(ok), .waitClosed],
+                [.set(["Tempo"], v, .tempo(bpm))],
+                [.menu([["Song"], ["Song Setup…", "Song Setup"]]), .window(["Song Setup"]), .set(["Tempo"], v, .tempo(bpm)), .press(ok), .waitClosed],
             ]
         }
         if let t = tonic {
@@ -129,56 +129,85 @@ struct AXResult: Equatable {
 }
 
 enum AXSend {
-    /// Runs a plan: for each job, routes in order until one finishes. A failed route presses
-    /// Escape in case it left a dialog open, so the next route starts clean.
+    /// The dialogs a plan opens (its .window steps).
+    static func dialogs(_ plan: AXPlan) -> [String] {
+        (plan.tempo + plan.key).flatMap { $0 }.flatMap { step -> [String] in
+            if case .window(let t) = step { return t }
+            return []
+        }
+    }
+
+    /// Runs a plan: for each job, routes in order until one finishes. A failed route cancels the
+    /// dialog it opened (Cancel, else Escape) so the DAW is never left inside it; if that dialog
+    /// will not close, nothing more runs. A plan whose dialog is already open (left from before)
+    /// does not run at all: nothing is pressed or typed.
     static func run(_ plan: AXPlan, runner: () -> AXRunner) -> AXResult {
         var r = AXResult()
-        func job(_ routes: [[AXStep]]) -> (Bool, String?) {
-            var last: String?
-            for steps in routes {
+        var stuck: String?
+        let probe = runner()
+        let titles = dialogs(plan)
+        if let open = probe.app.windows.first(where: { w in titles.contains { AXText.same(w.title, $0) } }) {
+            stuck = "the \(open.title ?? "dialog") dialog is already open; close it first"
+            probe.note("not started: \(stuck!)")
+        }
+        func job(_ name: String, _ routes: [[AXStep]]) -> (Bool, String?) {
+            if let s = stuck { return (false, s) }
+            var errors: [String] = []
+            for (i, steps) in routes.enumerated() {
                 let x = runner()
-                do { try x.run(steps); r.log += x.log; return (true, nil) }
+                x.note("\(name) route \(i + 1) of \(routes.count)")
+                do { try x.run(steps); r.log += x.log; x.note("\(name) set"); return (true, nil) }
                 catch {
-                    r.log += x.log + ["failed: \(error)"]
-                    last = "\(error)"
-                    if x.scope !== x.start { x.keys.key(KeyCode.escape, flags: [], pid: x.pid) }   // a dialog it opened
+                    x.note("\(name) route \(i + 1) failed: \(error)")
+                    errors.append("\(error)")
+                    if !x.cancelDialog() { stuck = "\(x.scope.title ?? "a dialog") would not close" }
+                    r.log += x.log
+                    if let s = stuck { errors.append(s); break }
                 }
             }
-            return (false, last)
+            return (false, errors.joined(separator: "; "))
         }
-        if !plan.tempo.isEmpty { (r.tempoSet, r.tempoError) = job(plan.tempo) }
-        if !plan.key.isEmpty { (r.keySet, r.keyError) = job(plan.key) }
+        if !plan.tempo.isEmpty { (r.tempoSet, r.tempoError) = job("tempo", plan.tempo) }
+        if !plan.key.isEmpty { (r.keySet, r.keyError) = job("key", plan.key) }
         return r
     }
 }
 
-/// Logic Pro and Studio One / Studio Pro: Accessibility first, the MIDI file when it fails.
+/// Pro Tools, Logic Pro and Studio One / Studio Pro through Accessibility. No MIDI-file fallback
+/// (J, 2026-11-05: File › Export MIDI is its own button); a miss is said in one line.
 struct AXDAWDriver: DAWDriver {
     let daw: DAW
-    var midi: MidiFileDriver? = nil
 
     func send(_ p: SendPayload) throws -> String {
-        try AXDAWDriver.sendWithFallback(daw, p, midi: midi ?? MidiFileDriver(daw: daw), readBack: nil)
+        try AXDAWDriver.sendAX(daw, p, readBack: nil)
     }
 
-    /// Shared by Pro Tools: run the AX plan, report what happened, and hand over the MIDI file
-    /// for whatever AX could not set. `readBack` confirms the tempo where the DAW can say it.
-    static func sendWithFallback(_ d: DAW, _ p: SendPayload, midi: MidiFileDriver, readBack: (() -> Double?)?) throws -> String {
+    /// Shared by Pro Tools: run the AX plan and report what happened. `readBack` confirms the
+    /// tempo where the DAW can say it. Accessibility not allowed yet: the system prompt (once),
+    /// nothing sent, no failure alert.
+    static func sendAX(_ d: DAW, _ p: SendPayload, readBack: (() -> Double?)?) throws -> String {
         let wantTempo = p.bpm != nil, wantKey = p.tonic != nil
-        guard wantTempo || wantKey else { return try midi.send(p) }
-        guard AXTrust.isTrusted(prompt: true) else {
-            return "Beat Key could not set it directly: allow Beat Key in System Settings › Privacy & Security › Accessibility, then send again. For now: " + (try midi.send(p))
+        guard wantTempo || wantKey else { throw DAWError("No BPM or key yet; nothing sent.") }
+        if let b = p.bpm, !AXFieldKind.tempoRange.contains(b) {
+            throw DAWError(String(format: "Tempo %.2f is outside 20-999 BPM; nothing sent.", b))
         }
-        guard let app = AXApps.running(d) else { return try midi.send(p) }
+        guard AXIsProcessTrusted() else {
+            let shown = AXTrust.promptOnce()
+            AppLog.log("daw send: accessibility not allowed (system prompt \(shown ? "shown" : "already shown")); nothing sent")
+            throw AXPermissionPending(promptShown: shown)
+        }
+        guard let app = AXApps.running(d) else { throw DAWError("\(d.name) is not open.") }
         let tree = AXElement.app(pid: app.processIdentifier)
         let focus = AXFocus.begin(app, app: tree)
         let r = AXSend.run(AXPlans.plan(d, bpm: p.bpm, tonic: p.tonic)) { AXRunner(app: tree, pid: app.processIdentifier) }
         focus.end(app)
-        return try report(d, p, r, readBack: readBack?(), midi: midi)
+        let back = r.tempoSet ? readBack?() : nil
+        if r.tempoSet { AppLog.log("daw send: tempo read back \(back.map { String(format: "%.2f", $0) } ?? "unavailable")") }
+        return try report(d, p, r, readBack: back)
     }
 
-    /// The alert text: which values went in by Accessibility, which by the MIDI file, and why.
-    static func report(_ d: DAW, _ p: SendPayload, _ r: AXResult, readBack: Double?, midi: MidiFileDriver) throws -> String {
+    /// The result text: which values went in, which did not and why. Nothing went in = throws.
+    static func report(_ d: DAW, _ p: SendPayload, _ r: AXResult, readBack: Double?) throws -> String {
         var done: [String] = [], missed: [String] = []
         if let bpm = p.bpm {
             if r.tempoSet {
@@ -192,11 +221,13 @@ struct AXDAWDriver: DAWDriver {
         if let k = p.keyText {
             if r.keySet { done.append("key \(k)") } else { missed.append("key (\(r.keyError ?? "not found"))") }
         }
-        var out = done.isEmpty ? "" : "Set directly in \(d.name): " + done.joined(separator: ", ") + "."
+        var out = done.isEmpty ? "" : "Set in \(d.name): " + done.joined(separator: ", ") + "."
+        if p.bpm == nil { out += (out.isEmpty ? "" : " ") + "No BPM yet; tempo left alone." }
         if !missed.isEmpty {
-            let lead = "Could not set " + missed.joined(separator: "; ") + " through Accessibility."
-            out += (out.isEmpty ? "" : " ") + lead + " " + (try midi.send(p))
+            out += (out.isEmpty ? "" : " ") + "Could not set " + missed.joined(separator: "; ") + "."
         }
+        AppLog.log("daw send: result \(out)")
+        if done.isEmpty { throw DAWError(out) }
         return out
     }
 }
