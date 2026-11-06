@@ -1,0 +1,568 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Verify labels</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  :root { --bg:#14161a; --panel:#1d2026; --line:#2c3038; --ink:#e8e6e1; --dim:#8b8f98; --yes:#2f9e5b; --no:#c8453c; --acc:#e0a63a; --sel:#3d6fd6; }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--ink); font:15px/1.4 -apple-system, "SF Pro Text", system-ui, sans-serif; }
+  #errbar { display:none; position:sticky; top:0; z-index:9; background:var(--no); color:#fff; padding:10px 16px; font-weight:600; }
+  #errbar button { margin-left:12px; }
+  main { max-width:980px; margin:0 auto; padding:18px 20px 40px; }
+  header { display:flex; align-items:baseline; gap:16px; flex-wrap:wrap; }
+  h1 { font-size:28px; margin:0; font-variant-numeric:tabular-nums; }
+  .dim { color:var(--dim); }
+  #prog { flex:1; min-width:200px; height:8px; background:var(--line); border-radius:4px; overflow:hidden; align-self:center; }
+  #progfill { height:100%; background:var(--yes); width:0; }
+  .row { display:flex; gap:14px; flex-wrap:wrap; margin-top:14px; }
+  .card { background:var(--panel); border:1px solid var(--line); border-radius:10px; padding:14px 16px; flex:1; min-width:280px; }
+  .card h2 { margin:0 0 8px; font-size:13px; text-transform:uppercase; letter-spacing:.08em; color:var(--dim); font-weight:600; }
+  .big { font-size:34px; font-weight:700; font-variant-numeric:tabular-nums; }
+  .src { font-size:13px; color:var(--dim); }
+  button { background:#2a2e36; color:var(--ink); border:1px solid #3a3f49; border-radius:7px; padding:7px 11px; font:inherit; cursor:pointer; }
+  button:hover { background:#343944; }
+  button.on { background:var(--sel); border-color:var(--sel); }
+  input[type=text], input[type=number], textarea { background:#101215; color:var(--ink); border:1px solid #3a3f49; border-radius:7px; padding:7px 9px; font:inherit; }
+  #bpm { width:110px; font-size:26px; font-weight:700; font-variant-numeric:tabular-nums; }
+  .ctl { display:flex; gap:6px; flex-wrap:wrap; align-items:center; margin-top:8px; }
+  canvas { width:100%; height:110px; display:block; background:#0e1013; border-radius:8px; margin-top:10px; }
+  .q { display:flex; align-items:center; gap:12px; padding:10px 12px; border-radius:9px; border:2px solid transparent; }
+  .q.cur { border-color:var(--acc); }
+  .q .label { font-size:20px; font-weight:700; width:130px; }
+  .q button.ans { font-size:20px; font-weight:700; padding:12px 26px; border-radius:9px; }
+  .q button.yes.on { background:var(--yes); border-color:var(--yes); }
+  .q button.no.on { background:var(--no); border-color:var(--no); }
+  #keyin { font-size:20px; width:140px; }
+  #keynorm { font-size:20px; font-weight:700; color:var(--acc); min-width:60px; }
+  #note { width:100%; height:44px; margin-top:6px; }
+  #flash { width:22px; height:22px; border-radius:50%; background:#333; display:inline-block; vertical-align:middle; }
+  .kbd { font-size:12px; color:var(--dim); margin-top:16px; line-height:1.7; }
+  .kbd b { color:var(--ink); background:#262a31; padding:1px 6px; border-radius:4px; font-weight:600; }
+  #status { font-size:13px; color:var(--dim); margin-left:auto; }
+  input[type=range] { width:130px; }
+</style>
+</head>
+<body>
+<div id="errbar"><span id="errmsg"></span><button id="retry">Retry save</button></div>
+<main>
+  <header>
+    <h1 id="title">Loading…</h1>
+    <span id="count" class="dim"></span>
+    <div id="prog"><div id="progfill"></div></div>
+    <span id="status"></span>
+  </header>
+
+  <div class="row">
+    <div class="card">
+      <h2>Label</h2>
+      <div><span class="big" id="lbpm">–</span> <span class="dim">BPM</span> &nbsp; <span class="big" id="lkey">–</span></div>
+      <div class="src" id="lsrc"></div>
+      <div class="src" id="lextra"></div>
+    </div>
+    <div class="card">
+      <h2>Playback</h2>
+      <div class="ctl">
+        <button id="play" style="font-size:18px;padding:8px 18px">▶ Play</button>
+        <button id="from30">from 0:30</button>
+        <button id="from0">from 0:00</button>
+        <span id="flash"></span>
+        <span id="pos" class="dim" style="font-variant-numeric:tabular-nums">0:00 / 0:00</span>
+      </div>
+      <div class="ctl">
+        <button id="srcbeat" class="on">Beat</button><button id="srcmix">Mix</button>
+        <span class="dim">&nbsp;Music</span><input type="range" id="volm" min="0" max="1" step="0.01" value="0.8">
+        <span class="dim">Click</span><input type="range" id="volc" min="0" max="1.5" step="0.01" value="0.6">
+      </div>
+      <input type="range" id="seek" min="0" max="1" step="0.1" value="0" style="width:100%;margin-top:8px">
+    </div>
+  </div>
+
+  <div class="card" style="margin-top:14px">
+    <h2>Metronome</h2>
+    <div class="ctl">
+      <input type="number" id="bpm" step="0.1" min="30" max="300">
+      <button data-d="-1">−1</button><button data-d="-0.1">−0.1</button><button data-d="0.1">+0.1</button><button data-d="1">+1</button>
+      <button id="half">÷2</button><button id="dbl">×2</button>
+      <button id="tap" style="padding:7px 20px">Tap</button>
+      <button id="reset">Label BPM</button>
+      <span style="width:18px"></span>
+      <span class="dim">Phase</span>
+      <button data-p="-20">−20ms</button><button data-p="-5">−5</button><button data-p="5">+5</button><button data-p="20">+20ms</button>
+      <button id="realign">Re-align</button>
+      <span id="phase" class="dim" style="font-variant-numeric:tabular-nums"></span>
+    </div>
+    <canvas id="cv" width="1880" height="220"></canvas>
+    <div class="src">Onsets (grey = all, orange = low end) around the playhead; white lines = clicks, thick = downbeat.</div>
+  </div>
+
+  <div class="card" style="margin-top:14px">
+    <div class="q" id="qbpm">
+      <span class="label">BPM right?</span>
+      <button class="ans yes" id="bpmy">Yes</button><button class="ans no" id="bpmn">No</button>
+      <span id="bpmfix" class="dim"></span>
+    </div>
+    <div class="q" id="qkey">
+      <span class="label" id="keyq">Key right?</span>
+      <span id="keybtns"><button class="ans yes" id="keyy">Yes</button> <button class="ans no" id="keyn">No</button></span>
+      <input type="text" id="keyin" placeholder="e.g. C#m" autocomplete="off">
+      <span id="keynorm"></span>
+    </div>
+    <div class="ctl" style="margin-top:10px">
+      <button id="prev">← Prev</button>
+      <button id="skip">Skip</button>
+      <button id="next" style="padding:7px 22px">Save + next →</button>
+      <span id="saved" class="dim"></span>
+    </div>
+    <textarea id="note" placeholder="Note (optional)"></textarea>
+  </div>
+
+  <div class="kbd">
+    <b>Space</b> play/pause · <b>Y</b>/<b>N</b> answer the outlined question · <b>←</b>/<b>→</b> ±0.1 BPM · <b>Shift</b>+<b>←</b>/<b>→</b> ±1 · <b>T</b> tap ·
+    <b>[</b>/<b>]</b> phase ±5 ms · <b>A</b> re-align · <b>M</b> beat/mix · <b>Enter</b> save + next · <b>Backspace</b> previous · <b>Esc</b> leave a text field
+  </div>
+</main>
+
+<script>
+"use strict";
+// ---------- error beacons ----------
+function beacon(kind, detail) {
+  try {
+    fetch("/api/clientlog", { method:"POST", headers:{"Content-Type":"application/json"},
+      body: JSON.stringify({ kind, detail: String(detail).slice(0, 3000), item: cur && cur.id, at: new Date().toString() }) });
+  } catch (e) {}
+}
+window.onerror = (msg, src, line, col, err) => { beacon("onerror", `${msg} @${line}:${col} ${err && err.stack || ""}`); };
+window.addEventListener("unhandledrejection", e => beacon("unhandledrejection", e.reason && (e.reason.stack || e.reason)));
+const $ = id => document.getElementById(id);
+function showErr(msg) { $("errmsg").textContent = msg; $("errbar").style.display = "block"; }
+function clearErr() { $("errbar").style.display = "none"; }
+
+// ---------- keys ----------
+const PC = { C:0, D:2, E:4, F:5, G:7, A:9, B:11 };
+const MAJ = ["C","Db","D","Eb","E","F","F#","G","Ab","A","Bb","B"];
+const MIN = ["C","C#","D","Eb","E","F","F#","G","G#","A","Bb","B"];
+function normKey(s) {
+  if (!s) return null;
+  let t = s.trim().replace(/♯/g, "#").replace(/♭/g, "b");
+  const m = t.match(/^([A-Ga-g])\s*(#|b|sharp|flat|s(?![a-z]))?\s*(.*)$/i);
+  if (!m) return null;
+  let pc = PC[m[1].toUpperCase()];
+  const acc = (m[2] || "").toLowerCase();
+  if (acc === "#" || acc === "sharp" || acc === "s") pc += 1;
+  else if (acc === "b" || acc === "flat") pc -= 1;
+  pc = (pc + 12) % 12;
+  let rest = m[3].trim();
+  let minor;
+  if (rest === "" ) minor = false;
+  else if (rest === "M" || /^(maj|major|ma)$/i.test(rest)) minor = false;
+  else if (rest === "m" || rest === "-" || /^(min|minor|mi|moll)$/i.test(rest)) minor = true;
+  else return null;
+  return minor ? MIN[pc] + "m" : MAJ[pc];
+}
+
+// ---------- state ----------
+let items = [], answers = {}, idx = 0, cur = null;
+let ctx = null, musicGain, clickGain;
+let buf = null, env = null, envLow = null, envRate = 0, srcKind = "beat";
+let bpm = 120, autoPhase = 0, nudge = 0, downOff = 0;   // phase in seconds (file time)
+let playing = false, source = null, startCtx = 0, startOffset = 0, pausedAt = 30;
+let lastScheduled = -1, schedTimer = null;
+let ans = null;       // working answer for cur
+let pendingSave = null;
+let loadToken = 0;
+
+function ensureCtx() {
+  if (ctx) return;
+  ctx = new (window.AudioContext || window.webkitAudioContext)();
+  musicGain = ctx.createGain(); musicGain.gain.value = +$("volm").value; musicGain.connect(ctx.destination);
+  clickGain = ctx.createGain(); clickGain.gain.value = +$("volc").value; clickGain.connect(ctx.destination);
+}
+
+// ---------- onset envelope (spectral flux) ----------
+function fft(re, im) {
+  const n = re.length;
+  for (let i = 1, j = 0; i < n; i++) {
+    let bit = n >> 1;
+    for (; j & bit; bit >>= 1) j ^= bit;
+    j ^= bit;
+    if (i < j) { [re[i], re[j]] = [re[j], re[i]]; [im[i], im[j]] = [im[j], im[i]]; }
+  }
+  for (let len = 2; len <= n; len <<= 1) {
+    const ang = -2 * Math.PI / len, wr = Math.cos(ang), wi = Math.sin(ang);
+    for (let i = 0; i < n; i += len) {
+      let cr = 1, ci = 0;
+      for (let k = 0; k < len / 2; k++) {
+        const a = i + k, b = a + len / 2;
+        const tr = re[b] * cr - im[b] * ci, ti = re[b] * ci + im[b] * cr;
+        re[b] = re[a] - tr; im[b] = im[a] - ti; re[a] += tr; im[a] += ti;
+        const ncr = cr * wr - ci * wi; ci = cr * wi + ci * wr; cr = ncr;
+      }
+    }
+  }
+}
+function onsetEnvelope(ab) {
+  const x = ab.getChannelData(0), sr = ab.sampleRate;
+  const N = 256, hop = 64, nb = N / 2;
+  const win = new Float32Array(N); for (let i = 0; i < N; i++) win[i] = 0.5 - 0.5 * Math.cos(2 * Math.PI * i / N);
+  const frames = Math.max(0, Math.floor((x.length - N) / hop));
+  const e = new Float32Array(frames), el = new Float32Array(frames);
+  let prev = new Float32Array(nb), mag = new Float32Array(nb);
+  const re = new Float32Array(N), im = new Float32Array(N);
+  const lowBin = Math.max(2, Math.round(160 / (sr / N)));
+  for (let f = 0; f < frames; f++) {
+    const o = f * hop;
+    for (let i = 0; i < N; i++) { re[i] = x[o + i] * win[i]; im[i] = 0; }
+    fft(re, im);
+    let s = 0, sl = 0;
+    for (let k = 1; k < nb; k++) {
+      const m = Math.log1p(100 * Math.sqrt(re[k] * re[k] + im[k] * im[k]));
+      const d = m - prev[k];
+      if (d > 0) { s += d; if (k <= lowBin) sl += d; }
+      mag[k] = m;
+    }
+    e[f] = s; el[f] = sl;
+    const t = prev; prev = mag; mag = t;
+  }
+  // subtract local mean (adaptive threshold), half-wave rectify
+  const out = [e, el].map(a => {
+    const r = new Float32Array(a.length), W = 20; let acc = 0;
+    for (let i = 0; i < a.length; i++) {
+      acc += a[i]; if (i >= 2 * W + 1) acc -= a[i - 2 * W - 1];
+      const c = i - W; if (c >= 0) { const v = a[c] - acc / (2 * W + 1); r[c] = v > 0 ? v : 0; }
+    }
+    return r;
+  });
+  // frame f is centred at f*hop + N/2 samples
+  return { env: out[0], low: out[1], rate: sr / hop, t0: (N / 2) / sr };
+}
+let envT0 = 0;
+function envAt(a, t) {        // linear interp at file time t (s)
+  const p = (t - envT0) * envRate, i = Math.floor(p);
+  if (i < 0 || i + 1 >= a.length) return 0;
+  const f = p - i; return a[i] * (1 - f) + a[i + 1] * f;
+}
+function align() {
+  if (!env) return;
+  const P = 60 / bpm, dur = buf.duration;
+  let best = -1, bestPh = 0;
+  for (let ph = 0; ph < P; ph += 0.002) {
+    let s = 0;
+    for (let t = ph; t < dur; t += P) s += envAt(env, t) + 0.5 * envAt(envLow, t);
+    if (s > best) { best = s; bestPh = ph; }
+  }
+  autoPhase = bestPh;
+  // downbeat: which of 4 beat slots has the most low-end onset energy
+  const sc = [0, 0, 0, 0];
+  let k = 0;
+  for (let t = bestPh; t < dur; t += P, k++) sc[k % 4] += envAt(envLow, t) + 0.3 * envAt(env, t);
+  downOff = sc.indexOf(Math.max(...sc));
+  resetSched(); showPhase();
+}
+function phase() { return autoPhase + nudge; }
+function showPhase() { $("phase").textContent = `${(phase() * 1000).toFixed(0)} ms${nudge ? ` (nudge ${nudge > 0 ? "+" : ""}${(nudge * 1000).toFixed(0)})` : ""}`; }
+
+// ---------- clicks ----------
+function click(at, accent) {
+  const o = ctx.createOscillator(), g = ctx.createGain();
+  o.frequency.value = accent ? 1760 : 1100;
+  g.gain.setValueAtTime(0, at);
+  g.gain.linearRampToValueAtTime(accent ? 1 : 0.6, at + 0.001);
+  g.gain.exponentialRampToValueAtTime(0.001, at + 0.05);
+  o.connect(g); g.connect(clickGain); o.start(at); o.stop(at + 0.06);
+}
+function fileNow() { return playing ? ctx.currentTime - startCtx + startOffset : pausedAt; }
+function resetSched() { if (playing) lastScheduled = ctx.currentTime + 0.002; }
+function schedule() {
+  if (!playing) return;
+  const P = 60 / bpm, ph = phase(), now = ctx.currentTime, horizon = now + 0.12;
+  const toCtx = tf => tf - startOffset + startCtx;
+  let k = Math.ceil((Math.max(fileNow(), startOffset) - ph) / P - 1e-6);
+  for (;; k++) {
+    const tc = toCtx(ph + k * P);
+    if (tc > horizon) break;
+    if (tc > lastScheduled + 0.03 && tc >= now - 0.001) {
+      click(tc, ((k - downOff) % 4 + 4) % 4 === 0); lastScheduled = tc;
+    }
+  }
+}
+
+// ---------- playback ----------
+function play(from) {
+  if (!buf) return;
+  ensureCtx(); if (ctx.state === "suspended") ctx.resume();
+  stop(true);
+  startOffset = Math.max(0, Math.min(from, buf.duration - 0.1));
+  source = ctx.createBufferSource(); source.buffer = buf; source.connect(musicGain);
+  startCtx = ctx.currentTime + 0.06;
+  source.start(startCtx, startOffset);
+  source.onended = () => { if (source && playing && fileNow() >= buf.duration - 0.2) { stop(); pausedAt = defaultStart(); } };
+  playing = true; lastScheduled = startCtx - 1;
+  schedTimer = setInterval(schedule, 25); schedule();
+  $("play").textContent = "❚❚ Pause";
+}
+function stop(keepPos) {
+  if (playing) pausedAt = fileNow();
+  if (source) { try { source.onended = null; source.stop(); } catch (e) {} source.disconnect(); source = null; }
+  playing = false; clearInterval(schedTimer);
+  $("play").textContent = "▶ Play";
+}
+function defaultStart() { return buf && buf.duration > 40 ? 30 : 0; }
+function toggle() { if (playing) stop(); else play(pausedAt); }
+function fmt(t) { t = Math.max(0, t); return `${Math.floor(t / 60)}:${String(Math.floor(t % 60)).padStart(2, "0")}`; }
+
+// ---------- drawing ----------
+const cv = $("cv"), g2 = cv.getContext("2d");
+function draw() {
+  requestAnimationFrame(draw);
+  if (!buf) return;
+  const t = fileNow();
+  $("pos").textContent = `${fmt(t)} / ${fmt(buf.duration)}`;
+  if (!seeking) $("seek").value = t;
+  const P = 60 / bpm, ph = phase();
+  const k = Math.floor((t - ph) / P), into = (t - ph) / P - k;
+  const acc = ((k - downOff) % 4 + 4) % 4 === 0;
+  $("flash").style.background = playing && into < 0.18 ? (acc ? "#e0a63a" : "#ddd") : "#333";
+  const W = cv.width, Hh = cv.height, span = 4, t0 = t - span / 2;
+  g2.fillStyle = "#0e1013"; g2.fillRect(0, 0, W, Hh);
+  if (!env) return;
+  let mx = 1e-9; for (let x = 0; x < W; x += 2) mx = Math.max(mx, envAt(env, t0 + span * x / W));
+  for (const [a, col] of [[env, "#6b7280"], [envLow, "#e0a63a"]]) {
+    g2.strokeStyle = col; g2.lineWidth = 2; g2.beginPath();
+    for (let x = 0; x < W; x += 2) { const y = Hh - 6 - (Hh - 12) * Math.min(1, envAt(a, t0 + span * x / W) / mx); x ? g2.lineTo(x, y) : g2.moveTo(x, y); }
+    g2.stroke();
+  }
+  for (let kk = Math.ceil((t0 - ph) / P); ph + kk * P < t0 + span; kk++) {
+    const x = (ph + kk * P - t0) / span * W, d = ((kk - downOff) % 4 + 4) % 4 === 0;
+    g2.strokeStyle = d ? "#fff" : "rgba(255,255,255,.55)"; g2.lineWidth = d ? 4 : 1.5;
+    g2.beginPath(); g2.moveTo(x, 0); g2.lineTo(x, Hh); g2.stroke();
+  }
+  g2.strokeStyle = "#3d6fd6"; g2.lineWidth = 2; g2.beginPath(); g2.moveTo(W / 2, 0); g2.lineTo(W / 2, Hh); g2.stroke();
+}
+let seeking = false;
+
+// ---------- data ----------
+async function api(path, body) {
+  const r = await fetch(path, body ? { method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify(body) } : {});
+  const j = await r.json().catch(() => ({ ok:false, error:`HTTP ${r.status}` }));
+  if (!r.ok || j.ok === false) throw new Error(j.error || `HTTP ${r.status}`);
+  return j;
+}
+async function save(extra) {
+  if (!cur) return false;
+  const body = Object.assign({ id: cur.id }, ans, { phase_ms: Math.round(phase() * 10000) / 10, note: $("note").value.trim() || null }, extra || {});
+  if (body.bpm_ok !== 0) body.bpm_fixed = null; else body.bpm_fixed = Math.round(bpm * 100) / 100;
+  pendingSave = body;
+  try {
+    const j = await api("/api/answer", body);
+    answers[cur.id] = j.answer; pendingSave = null; clearErr();
+    $("saved").textContent = `saved ${j.answer.answered_at.slice(11)}`;
+    updateProgress();
+    return true;
+  } catch (e) {
+    showErr(`NOT SAVED (item ${body.id}): ${e.message}. Your answer is kept here; press Retry.`);
+    beacon("save-failed", `${e.message} ${JSON.stringify(body)}`);
+    return false;
+  }
+}
+$("retry").onclick = async () => {
+  if (!pendingSave) return clearErr();
+  try { const j = await api("/api/answer", pendingSave); answers[pendingSave.id] = j.answer; pendingSave = null; clearErr(); updateProgress(); }
+  catch (e) { showErr(`STILL NOT SAVED: ${e.message}`); }
+};
+
+function updateProgress() {
+  const n = Object.keys(answers).length;
+  $("count").textContent = `item ${idx + 1} of ${items.length} · ${n} answered`;
+  $("progfill").style.width = `${100 * n / items.length}%`;
+}
+function keyLabel(k) {   // 'D minor' -> 'Dm'
+  if (!k) return null;
+  return normKey(k) || k;
+}
+
+async function loadItem(i) {
+  stop(); idx = Math.max(0, Math.min(items.length - 1, i)); cur = items[idx];
+  const a = answers[cur.id];
+  ans = { bpm_ok: a ? a.bpm_ok : null, key_ok: a ? a.key_ok : null, key_fixed: a ? a.key_fixed : null, skipped: 0 };
+  $("title").textContent = `#${String(cur.id).padStart(4, "0")}`;
+  $("lbpm").textContent = cur.bpm != null ? (+cur.bpm.toFixed(2)) : "none";
+  $("lkey").textContent = keyLabel(cur.key) || "no key";
+  $("lsrc").textContent = `BPM from: ${cur.bpm_source || "–"}${cur.bpm_confidence ? ` (${cur.bpm_confidence})` : ""} · Key from: ${cur.key_source || "–"}`;
+  const ex = [];
+  if (cur.beatdl_estimate != null) ex.push(`Beat Key estimate ${+cur.beatdl_estimate.toFixed(1)}`);
+  if (cur.comment_bpm != null) ex.push(`comment BPM ${cur.comment_bpm}`);
+  if (cur.comment_key) ex.push(`comment key ${keyLabel(cur.comment_key)}`);
+  if (cur.autotune_key) ex.push(`Auto-Tune ${keyLabel(cur.autotune_key)}`);
+  if (!cur.beat_file) ex.push("no beat bounce: mix only");
+  $("lextra").textContent = ex.join(" · ");
+  $("note").value = a && a.note || "";
+  $("keyin").value = a && a.key_fixed || "";
+  $("keynorm").textContent = a && a.key_fixed || "";
+  $("saved").textContent = a ? `answered ${a.answered_at}${a.skipped ? " (skipped)" : ""}` : "";
+  const hasKey = !!cur.key;
+  $("keybtns").style.display = hasKey ? "" : "none";
+  $("keyq").textContent = hasKey ? "Key right?" : "Key?";
+  bpm = a && a.bpm_fixed != null ? a.bpm_fixed : (cur.bpm || cur.beatdl_estimate || 120);
+  $("bpm").value = +bpm.toFixed(2);
+  srcKind = cur.beat_file ? "beat" : "mix";
+  renderAnswers(); updateProgress();
+  await loadAudio(a && a.phase_ms != null ? a.phase_ms / 1000 : null);
+}
+async function loadAudio(savedPhase) {
+  const tok = ++loadToken;
+  $("srcbeat").classList.toggle("on", srcKind === "beat"); $("srcmix").classList.toggle("on", srcKind === "mix");
+  $("srcbeat").disabled = !cur.beat_file; $("srcmix").disabled = !cur.mix_file;
+  const file = srcKind === "beat" ? cur.beat_file : cur.mix_file;
+  $("status").textContent = "loading audio…"; buf = null; env = null;
+  try {
+    ensureCtx();
+    const r = await fetch(`/audio/${file}`);
+    if (!r.ok) throw new Error(`audio HTTP ${r.status}`);
+    const ab = await ctx.decodeAudioData(await r.arrayBuffer());
+    if (tok !== loadToken) return;
+    buf = ab;
+    const o = onsetEnvelope(ab); env = o.env; envLow = o.low; envRate = o.rate; envT0 = o.t0;
+    $("seek").max = ab.duration;
+    pausedAt = defaultStart();
+    align();
+    if (savedPhase != null) {   // restore saved grid: keep it as nudge from the auto phase
+      const P = 60 / bpm; let d = savedPhase - autoPhase; d -= Math.round(d / P) * P; nudge = d;
+    } else nudge = 0;
+    showPhase();
+    $("status").textContent = `${file} · ${ab.duration.toFixed(0)} s`;
+  } catch (e) {
+    if (tok !== loadToken) return;
+    $("status").textContent = `audio failed: ${e.message}`;
+    showErr(`Audio failed for item ${cur.id} (${file}): ${e.message}`);
+    beacon("audio-failed", `${file} ${e.message}`);
+  }
+}
+
+function currentQ() {
+  if (ans.bpm_ok == null) return "bpm";
+  return "key";
+}
+function renderAnswers() {
+  $("bpmy").classList.toggle("on", ans.bpm_ok === 1); $("bpmn").classList.toggle("on", ans.bpm_ok === 0);
+  $("keyy").classList.toggle("on", ans.key_ok === 1); $("keyn").classList.toggle("on", ans.key_ok === 0);
+  $("bpmfix").textContent = ans.bpm_ok === 0 ? `corrected → ${+bpm.toFixed(2)} (follows the metronome)` : "";
+  const q = currentQ();
+  $("qbpm").classList.toggle("cur", q === "bpm"); $("qkey").classList.toggle("cur", q === "key");
+}
+function answer(q, yes) {
+  if (q === "bpm") { ans.bpm_ok = yes ? 1 : 0; }
+  else {
+    if (!cur.key) { $("keyin").focus(); return; }
+    ans.key_ok = yes ? 1 : 0;
+    if (yes) { ans.key_fixed = null; $("keyin").value = ""; $("keynorm").textContent = ""; }
+    else setTimeout(() => $("keyin").focus(), 0);
+  }
+  ans.skipped = 0;
+  renderAnswers(); save();
+}
+function commitKeyField() {
+  const raw = $("keyin").value.trim();
+  if (!raw) return true;
+  const k = normKey(raw);
+  if (!k) { $("keynorm").textContent = "?"; $("keynorm").style.color = "#c8453c"; return false; }
+  ans.key_fixed = k; if (cur.key) ans.key_ok = (k === keyLabel(cur.key)) ? 1 : 0;
+  return true;
+}
+async function saveNext() {
+  if (!commitKeyField()) { $("keyin").focus(); return; }
+  if (await save()) loadItem(idx + 1);
+}
+
+// ---------- bpm control ----------
+function setBpm(v, fromField) {
+  v = Math.max(30, Math.min(300, Math.round(v * 100) / 100));
+  if (!isFinite(v)) return;
+  bpm = v; if (!fromField) $("bpm").value = +v.toFixed(2);
+  align(); renderAnswers();
+  clearTimeout(setBpm.t);
+  if (ans && ans.bpm_ok === 0) setBpm.t = setTimeout(save, 400);
+}
+document.querySelectorAll("[data-d]").forEach(b => b.onclick = () => setBpm(bpm + +b.dataset.d));
+document.querySelectorAll("[data-p]").forEach(b => b.onclick = () => { nudge += b.dataset.p / 1000; resetSched(); showPhase(); });
+$("bpm").addEventListener("change", e => setBpm(+e.target.value, true));
+$("half").onclick = () => setBpm(bpm / 2);
+$("dbl").onclick = () => setBpm(bpm * 2);
+$("reset").onclick = () => setBpm(cur.bpm || cur.beatdl_estimate || 120);
+$("realign").onclick = () => { nudge = 0; align(); };
+let taps = [];
+function tap() {
+  const t = performance.now() / 1000;
+  if (taps.length && t - taps[taps.length - 1] > 2) taps = [];
+  taps.push(t); if (taps.length > 8) taps.shift();
+  if (taps.length >= 3) setBpm(60 * (taps.length - 1) / (taps[taps.length - 1] - taps[0]));
+  $("tap").textContent = `Tap (${taps.length})`;
+}
+$("tap").onclick = tap;
+
+// ---------- wiring ----------
+$("play").onclick = toggle;
+$("from30").onclick = () => play(Math.min(30, buf ? buf.duration - 1 : 30));
+$("from0").onclick = () => play(0);
+$("seek").addEventListener("input", () => { seeking = true; });
+$("seek").addEventListener("change", e => { seeking = false; const t = +e.target.value; if (playing) play(t); else pausedAt = t; });
+$("volm").oninput = e => { ensureCtx(); musicGain.gain.value = +e.target.value; };
+$("volc").oninput = e => { ensureCtx(); clickGain.gain.value = +e.target.value; };
+$("srcbeat").onclick = () => { if (srcKind !== "beat") { stop(); srcKind = "beat"; loadAudio(null); } };
+$("srcmix").onclick = () => { if (srcKind !== "mix") { stop(); srcKind = "mix"; loadAudio(null); } };
+$("bpmy").onclick = () => answer("bpm", true); $("bpmn").onclick = () => answer("bpm", false);
+$("keyy").onclick = () => answer("key", true); $("keyn").onclick = () => answer("key", false);
+$("prev").onclick = () => loadItem(idx - 1);
+$("next").onclick = saveNext;
+$("skip").onclick = async () => { ans.skipped = 1; if (await save({ skipped: 1 })) loadItem(idx + 1); };
+$("keyin").addEventListener("input", e => {
+  const k = normKey(e.target.value); $("keynorm").style.color = "";
+  $("keynorm").textContent = e.target.value.trim() ? (k || "?") : "";
+  if (!k && e.target.value.trim()) $("keynorm").style.color = "#c8453c";
+});
+$("keyin").addEventListener("blur", () => { if (commitKeyField() && $("keyin").value.trim()) { renderAnswers(); save(); } });
+$("note").addEventListener("blur", () => save());
+
+document.addEventListener("keydown", e => {
+  const tag = e.target.tagName;
+  const inText = (tag === "INPUT" && e.target.type === "text") || tag === "TEXTAREA";
+  if (inText) {
+    if (e.key === "Escape") e.target.blur();
+    else if (e.key === "Enter" && tag === "INPUT") { e.preventDefault(); e.target.blur(); saveNext(); }
+    return;
+  }
+  if (tag === "INPUT" && e.target.type === "number") {
+    if (e.key === "Enter") { e.preventDefault(); setBpm(+e.target.value, true); e.target.blur(); }
+    if (e.key === "Escape") e.target.blur();
+    if (/^[0-9.]$/.test(e.key) || e.key === "Backspace") return;
+  }
+  if (e.metaKey || e.ctrlKey || e.altKey) return;
+  const k = e.key;
+  if (k === " ") { e.preventDefault(); toggle(); }
+  else if (k === "y" || k === "Y") answer(currentQ(), true);
+  else if (k === "n" || k === "N") answer(currentQ(), false);
+  else if (k === "ArrowRight" || k === "ArrowUp") { e.preventDefault(); setBpm(bpm + (e.shiftKey ? 1 : 0.1)); }
+  else if (k === "ArrowLeft" || k === "ArrowDown") { e.preventDefault(); setBpm(bpm - (e.shiftKey ? 1 : 0.1)); }
+  else if (k === "Enter") { e.preventDefault(); saveNext(); }
+  else if (k === "Backspace") { e.preventDefault(); loadItem(idx - 1); }
+  else if (k === "t" || k === "T") tap();
+  else if (k === "[") { nudge -= 0.005; resetSched(); showPhase(); }
+  else if (k === "]") { nudge += 0.005; resetSched(); showPhase(); }
+  else if (k === "a" || k === "A") { nudge = 0; align(); }
+  else if (k === "m" || k === "M") { (srcKind === "beat" ? $("srcmix") : $("srcbeat")).click(); }
+});
+
+(async () => {
+  try {
+    const j = await api("/api/items");
+    items = j.items; answers = {}; for (const [k, v] of Object.entries(j.answers)) answers[+k] = v;
+    let first = items.findIndex(it => !answers[it.id]);
+    if (first < 0) first = 0;
+    requestAnimationFrame(draw);
+    await loadItem(first);
+  } catch (e) { showErr(`Could not load items: ${e.message}`); beacon("load-failed", e.stack || e); }
+})();
+</script>
+</body>
+</html>
