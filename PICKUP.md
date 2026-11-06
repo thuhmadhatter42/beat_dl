@@ -1,6 +1,6 @@
 # PICKUP — beat_dl
 
-## CURRENT STATE — 2026-11-05 18:10
+## CURRENT STATE — 2026-11-05 18:32
 
 **Evening testing with J (17:03-18:07). Beat Key 0.1.36 on main (930df35) and installed on the MBP, unreleased.** Nothing running except the label checker server (below).
 - 0.1.36 = Send to DAW safety (19c2961: no BPM → tempo untouched; no Accessibility → prompt once, nothing sent; field finder never crosses labels, Location refuses a number, BPM read back 20-999 within 0.01 or abort; Cancel/Escape the dialog it opened on any failure; NO MIDI-file fallback for Pro Tools/Logic/Studio One (J: Export MIDI is its own button); every step logged) + Analyze Selection global hotkey ⌥⌘B (d7ea902; ⌃⌥⌘L is taken by Pro Tools; changeable in Settings) + play-to-find fix (930df35: the empty link field held the caret and every key was ignored). Swift 263 tests pass.
@@ -11,7 +11,7 @@
 - **Tempo model:** J (17:07) "something feels fishy", don't ship ftC. Plan: J verifies labels in the checker → check same beat in train+test (leakage) → retrain on verified labels → ship only if it still wins. J sets BPM and key of every track BY EAR (17:08), so Auto-Tune keys are independent truth; key baseline 62%/84% stands.
 - **Label checker (built 17:11, merge 1b92753):** tools/verify-labels/ (server.py + index.html), 243 items, answers in docs/research/pt-ground-truth/verify-labels.sqlite3 (STRICT table answers, untracked; 0 answers at 18:07). Server RUNNING on http://127.0.0.1:8765/ (Brave tab "Verify labels"). Start: `cd ~/dev/beat_dl/tools/verify-labels && nohup python3 server.py --port 8765 >> logs/server.log 2>&1 &`. Stop: `pkill -f "verify-labels/server.py"`. Keys: Space, Y/N, arrows ±0.1, shift ±1, T tap, [ ] phase, A realign, M beat/mix, Enter next.
 - **Waves Tune RT: BACK-BURNERED by J 17:17** (no MIDI Learn; Transmission is Waves-only).
-- **Signing keys → Passwords (J said yes 17:41):** import CSV written to the session scratchpad (2 rows: Artemis licence signing key, Beat Key Sparkle update key), Passwords app opened; J does File › Import Passwords…; then the CSV MUST be deleted (it holds private keys). Not confirmed imported as of 18:07.
+- **Signing keys → Passwords (J said yes 17:41):** import CSV was written and the Passwords app opened; CSV DELETED 18:30 (private keys), import NOT confirmed by J. If he didn't import: regenerate the 2-row CSV (Artemis key = `security find-generic-password -s artemis-license-signing -w`, Beat Key = ~/.config/beat-key/sparkle_ed25519_private; never print them), he does File › Import Passwords…, then delete it.
 - Old Beat Key decide lists closed (D-26b87e65f1, D-95fd39e758, D-8a23b81474, D-ec300cc289, D-6ac7676db0); current list D-f14974c814.
 
 ### Block 2026-11-05 16:20 (superseded by the block above)
