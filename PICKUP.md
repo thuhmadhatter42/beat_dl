@@ -1,13 +1,14 @@
 # PICKUP — beat_dl
 
-## CURRENT STATE — 2026-11-08 23:15
+## CURRENT STATE — 2026-11-09 00:25
 
-**ON J'S "GO" (J 23:28, after his compact; he sleeps, I chug until done, he wakes to it finished):** run this queue in order without check-ins. Anything only J can answer → Loops decide list (never chat), keep working on what is not blocked; his answers come back as a message and get queued.
-1. Fix: saved input device missing → Listen falls back to Mac audio (System Audio) instead of "THAT INPUT IS NOT CONNECTED", logged; tests; bump VERSION 0.1.39; `app/build.sh --no-notarize`; install to /Applications (old app → /usr/bin/trash, ditto new, codesign verify). Agent in a worktree.
-2. Tempo leakage check (no shipping): same beat in train+test for candidate ftC (tools/train-tempocnn/, docs/research/pt-ground-truth/) → findings in tools/train-tempocnn/candidates/ftC-leakage.md. Ship only per J's answer on D-9a402439dc item 3.
-3. Apply J's answers from decide list D-9a402439dc (default mode trim; signing keys imported?; tempo ship rule). If "Trim to essentials": default mode = key, BPM, lamp, Listen/source, Send buttons; rest to Advanced; rebuild as next version.
-4. Save state (save-state skill), final Apple alert with results.
-NOT mine: J's hand retests (owed list below), publish.sh, iLok/harvest, label verification.
+**Overnight queue (J's "go" 00:05): items 1-2 DONE, item 3 waits on J's answers to Loops list D-9a402439dc (no verdicts at 00:24), item 4 = this save + alert.**
+1. DONE 0.1.39 (1522777): saved Listen input missing → Mac audio (System Audio) instead of "THAT INPUT IS NOT CONNECTED"; LCD shows "SAVED INPUT MISSING · USING MAC AUDIO" 8 s; saved choice kept so the device returns when plugged in; macOS 12 keeps the old error; logged to beatkey.log ("listen: saved input missing (uid …), falling back to Mac audio"). Pure LiveSourcePlan.plan + LiveFallbackTests. Swift 294 tests, 3 skipped, 0 failures. Built (`app/build.sh --no-notarize`, DMG app/build/Beat-Key-0.1.39.dmg) and installed in /Applications, codesign verify OK, CFBundleShortVersionString 0.1.39. Not tried by hand: unplug the saved interface, press Listen.
+2. DONE ftC leakage check (merge ebefe5a): tools/train-tempocnn/candidates/ftC-leakage.md + leakage_check.py. Split is by artist (30/6/6). Essentially CLEAN: 0 shared rows/sessions/artists/PT sessions; 1 confirmed duplicate (test session 243 = train session 49, two versions of one song under two artists, 2 of 130 rows). Held-out Acc1 without every flagged item 66.1 → 86.3 % (n 124), same as all 130 (66.2 → 86.2). Soft spots: effective n = 65 sessions, 6 test artists, public bpm-bench 87.5 → 82.5 %. Nothing shipped; models/ untouched.
+3. OWED on J's answers (D-9a402439dc on https://loops.jshriver.com/#live): (a) default mode "Keep as is" / "Trim to essentials" — if trim: default = key, BPM, lamp, Listen/source, Send buttons, rest to Advanced, rebuild as 0.1.40; (b) signing keys imported into Passwords? — if no: regenerate the 2-row CSV per the 2026-11-05 18:32 block below (never print the keys), J does File › Import Passwords…, then trash it; (c) tempo "Wait for labels" / "Ship if clean" — leakage came back clean, so "Ship if clean" = copy candidates/ftC-243rows.npz over models/deeptemp-k16-3.npz (old one to archive/), run tests, bump VERSION, build, install.
+NOT mine: J's hand retests (owed list below), publish.sh (would ship 0.1.39), iLok/harvest, label verification.
+
+### Block 2026-11-08 23:15 (superseded by the block above)
 
 **Beat Key 0.1.38 on main (1ce562c) and installed on the MBP (/Applications, codesign OK), unreleased, not notarized (build.sh --no-notarize; DMG app/build/Beat-Key-0.1.38.dmg).** Nothing running: no agents, no worktrees, no background jobs, label checker server off.
 - **0.1.37 (273b056) = Orra Key parity** (J asked 21:49 from https://www.youtube.com/watch?v=I4nfYoofxMg; plan docs/plans/orra-parity.md + -TOC.md, §1 §2 ticked, §3 = install done, J's retest owed):
