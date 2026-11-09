@@ -30,6 +30,23 @@ final class ReadingTests: XCTestCase {
         XCTAssertNil(r.bpmExact); XCTAssertNil(r.tuningCents)
     }
 
+    // J 2026-11-09, design pass F8 ("decimals small"): the whole number big, ".98" small beside it
+    func testBPMSplitsWholeNumberAndDecimals() {
+        XCTAssertTrue(Tempo.split("141.98") == ("141", ".98"))
+        XCTAssertTrue(Tempo.split("142.0") == ("142", ".0"))
+        XCTAssertTrue(Tempo.split("70.99") == ("70", ".99"))
+        XCTAssertTrue(Tempo.split("142") == ("142", nil))          // no decimals: all big
+        XCTAssertTrue(Tempo.split("142.") == ("142", nil))         // a bare point is dropped
+        XCTAssertTrue(Tempo.split("---.-") == ("---.-", nil))      // a placeholder stays whole
+        XCTAssertTrue(Tempo.split(".5") == (".5", nil))
+        XCTAssertTrue(Tempo.split("") == ("", nil))
+        // what the readout gets for each factor of a measured tempo
+        let r = result(exact: 141.98)
+        XCTAssertTrue(Tempo.split(Tempo.text(r)!) == ("141", ".98"))
+        XCTAssertTrue(Tempo.split(Tempo.text(r, factor: .double)!) == ("283", ".96"))
+        XCTAssertTrue(Tempo.split(Tempo.text(r, factor: .half)!) == ("70", ".99"))
+    }
+
     func testTempoTextShowsDecimalWhenMeasured() {
         XCTAssertEqual(Tempo.text(result()), "140.82")
         XCTAssertEqual(Tempo.text(result(exact: nil)), "140.0")     // the analyzer's own text, untouched

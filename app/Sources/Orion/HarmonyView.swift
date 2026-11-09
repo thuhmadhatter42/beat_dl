@@ -30,30 +30,8 @@ struct HarmonyPrefs: Equatable {
     }
 }
 
-/// The key's Camelot code and relative key, beside the dial (Advanced mode).
-struct CamelotBadge: View {
-    let code: String
-    let relative: String?
-
-    var body: some View {
-        VStack(spacing: 3) {
-            Text(code).font(Theme.face(11).monospacedDigit()).tracking(0.4)
-                .foregroundColor(Theme.amber)
-                .frame(minWidth: 30).padding(.vertical, 2).padding(.horizontal, 3)
-                .overlay(RoundedRectangle(cornerRadius: 3, style: .continuous).stroke(Theme.amber(0.45), lineWidth: 1))
-                .amberGlow()
-            if let rel = relative {
-                Text("REL \(rel)").font(Theme.face(7)).tracking(0.8).foregroundColor(Theme.amber(0.6))
-                    .lineLimit(1).fixedSize()
-            }
-        }
-        .accessibilityElement(children: .ignore)
-        .accessibility(label: Text("Camelot \(code)" + (relative.map { ", relative key \($0)" } ?? "")))
-    }
-}
-
 /// The column right of the window's module: one LCD glass with the wheel and the notes heard,
-/// the chords, and MATCH TO.
+/// the chords, and MATCH TO. Its height follows the module beside it.
 struct HarmonyPanel: View {
     let state: PocketState
     var actions = PocketActions()
@@ -66,32 +44,30 @@ struct HarmonyPanel: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             wheelAndNotes
-            HarmonyRule().padding(.vertical, 14)
+            HarmonyRule().padding(.vertical, Theme.S.l)
             chords
-            HarmonyRule().padding(.vertical, 14)
+            HarmonyRule().padding(.vertical, Theme.S.l)
             MatchToRow(key: key, target: prefs.matchKey, pick: actions.pickMatchKey)
             Spacer(minLength: 0)
         }
-        .padding(.vertical, 16)
-        .padding(.horizontal, 18)
+        .padding(.vertical, Theme.S.l)
+        .padding(.horizontal, Theme.S.lcd)
         .frame(maxHeight: .infinity, alignment: .top)
-        .lcdGlass(radius: 5)
-        .padding(EdgeInsets(top: 14, leading: 14, bottom: 16, trailing: 14))
-        .modulePanel()
+        .lcdGlass(radius: Theme.R.well)
     }
 
     // MARK: the wheel and the notes heard
 
     private var wheelAndNotes: some View {
-        HStack(alignment: .top, spacing: 18) {
-            VStack(alignment: .leading, spacing: 8) {
+        HStack(alignment: .top, spacing: Theme.S.l) {
+            VStack(alignment: .leading, spacing: Theme.S.s) {
                 Text.cap("KEY WHEEL").helpTip(HelpText.keyWheel)
                 KeyWheel(keys: state.result?.keys ?? [],
                          onChoose: state.result.map { r in { k in SpellingSettings.shared.choose(k, of: r, from: "the key wheel") } })
                     .frame(width: KeyWheel.side, height: KeyWheel.side)
             }
             if let chroma = state.result?.chroma, chroma.count == 12 {
-                VStack(alignment: .leading, spacing: 8) {
+                VStack(alignment: .leading, spacing: Theme.S.s) {
                     Text.cap("NOTES HEARD")
                     NotesHeard(chroma: chroma, scale: state.scale).frame(height: KeyWheel.side)
                 }
@@ -110,66 +86,56 @@ struct HarmonyPanel: View {
         let diatonic = key.map { Harmony.diatonic($0, quality: quality) } ?? []
         let borrowed = key.map { Harmony.borrowedRow($0, quality: quality) } ?? []
         return VStack(alignment: .leading, spacing: 0) {
-            // "click = hear, drag = MIDI" lives in the chords' help tip (J, 2026-11-09: less text by default)
-            HStack(spacing: 8) {
-                Text.cap(state.scale.map { "CHORDS · \($0.tonicName) \($0.minor ? "MINOR" : "MAJOR")" } ?? "CHORDS")
-                    .helpTip(HelpText.chords)
+            // "click = hear, drag = MIDI" lives in the chords' help tip (J, 2026-11-09: less text by
+            // default); the key's name is already on the readout, so the head is just CHORDS
+            HStack(spacing: Theme.S.m) {
+                Text.cap("CHORDS").helpTip(HelpText.chords)
                 Spacer(minLength: 0)
+                HStack(spacing: Theme.S.s) {
+                    SegmentedChips(options: ChordClip.barChoices.map { b in
+                                       .init(value: b, title: "\(b)", spoken: "\(b) bar\(b == 1 ? "" : "s") long")
+                                   },
+                                   selected: prefs.bars, width: .fixed(24),
+                                   onSelect: { b in var p = prefs; p.bars = b; actions.setHarmony(p) })
+                    Text("BAR").captionStyle().foregroundColor(Theme.A.a3).accessibility(hidden: true)
+                }
+                .helpTip(HelpText.bars)
                 LCDChip(title: "MINI", on: state.miniOpen, label: state.miniOpen ? "Close Beat Key Mini" : "Open Beat Key Mini",
-                        width: 34, action: actions.toggleMini)
+                        action: actions.toggleMini)
                     .helpTip(HelpText.mini)
             }
-            chordControls.padding(.top, 10)
+            chordControls.padding(.top, Theme.S.m)
             if diatonic.isEmpty {
-                Text("NO KEY YET · PASTE, OPEN OR LISTEN").font(Theme.face(8)).tracking(1.4)
-                    .foregroundColor(Theme.amber(0.3))
-                    .frame(maxWidth: .infinity, minHeight: 106)
+                Text("No key yet").font(Theme.T.caption).foregroundColor(Theme.A.a3)
+                    .frame(maxWidth: .infinity, minHeight: ChordFace.height * 2 + 28)
             } else {
                 ChordGrid(diatonic: diatonic, borrowed: borrowed) { c, tonic in
                     ChordCell(chord: c, tonic: tonic, actions: actions)
                 }
-                .padding(.top, 10)
+                .padding(.top, Theme.S.m)
             }
         }
     }
 
-    /// TRIAD / 7TH / 9TH · ROOT / 1ST / 2ND / OPEN · 1 / 2 / 4 BARS.
+    /// TRIAD / 7TH / 9TH · ROOT / 1ST / 2ND / OPEN.
     private var chordControls: some View {
-        HStack(spacing: 10) {
-            HStack(spacing: 3) {
-                ForEach(ChordQuality.allCases, id: \.self) { q in
-                    LCDChip(title: q.label, on: prefs.quality == q, label: "Chords as \(q.spoken)", width: 34) {
-                        var p = prefs; p.quality = q; actions.setHarmony(p)
-                    }
-                }
-            }
-            .helpTip(HelpText.quality)
-            HStack(spacing: 3) {
-                ForEach(Voicing.allCases, id: \.self) { v in
-                    LCDChip(title: v.label, on: prefs.voicing == v, label: "Voicing: \(v.spoken)", width: 32) {
-                        var p = prefs; p.voicing = v; actions.setHarmony(p)
-                    }
-                }
-            }
-            .helpTip(HelpText.voicing)
+        HStack(spacing: Theme.S.m) {
+            SegmentedChips(options: ChordQuality.allCases.map { .init(value: $0, title: $0.label, spoken: "Chords as \($0.spoken)") },
+                           selected: prefs.quality,
+                           onSelect: { q in var p = prefs; p.quality = q; actions.setHarmony(p) })
+                .helpTip(HelpText.quality)
+            SegmentedChips(options: Voicing.allCases.map { .init(value: $0, title: $0.label, spoken: "Voicing: \($0.spoken)") },
+                           selected: prefs.voicing,
+                           onSelect: { v in var p = prefs; p.voicing = v; actions.setHarmony(p) })
+                .helpTip(HelpText.voicing)
             Spacer(minLength: 0)
-            HStack(spacing: 3) {
-                ForEach(ChordClip.barChoices, id: \.self) { b in
-                    LCDChip(title: "\(b)", on: prefs.bars == b, label: "\(b) bar\(b == 1 ? "" : "s") long", width: 18) {
-                        var p = prefs; p.bars = b; actions.setHarmony(p)
-                    }
-                }
-                Text("BAR").font(Theme.face(7)).tracking(1.1).foregroundColor(Theme.amber(0.45)).padding(.leading, 2)
-                    .accessibility(hidden: true)
-            }
-            .helpTip(HelpText.bars)
         }
     }
 }
 
 /// The hairline between the harmony column's sections (the readout's KeyStrip rule).
 struct HarmonyRule: View {
-    var body: some View { Rectangle().fill(Theme.amber(0.12)).frame(height: 1) }
+    var body: some View { Rectangle().fill(Theme.A.a4).frame(height: 1) }
 }
 
 /// The chord grid (J 2026-11-09, design audit F10): one 7-column grid for both rows. Row one is
@@ -180,7 +146,7 @@ struct ChordGrid<Cell: View>: View {
     let diatonic: [Chord]
     /// Seven slots (Harmony.borrowedRow); nil = an empty column.
     let borrowed: [Chord?]
-    var gap: CGFloat = 4
+    var gap: CGFloat = Theme.S.xs
     var cellHeight: CGFloat = ChordFace.height
     var rowTip = HelpText.chords
     var borrowedTip = HelpText.borrowed
@@ -193,8 +159,8 @@ struct ChordGrid<Cell: View>: View {
             }
             .helpTip(rowTip)
             if borrowed.contains(where: { $0 != nil }) {
-                Text("BORROWED").font(Theme.face(6.5)).tracking(1.6).foregroundColor(Theme.amber(0.42))
-                    .padding(.top, 9).padding(.bottom, 4).padding(.leading, 1)
+                Text("BORROWED").captionStyle().foregroundColor(Theme.A.a3)
+                    .padding(.top, Theme.S.s).padding(.bottom, Theme.S.xs)
                     .accessibility(hidden: true)
                 HStack(spacing: gap) {
                     ForEach(0..<7, id: \.self) { i in
@@ -212,9 +178,10 @@ struct ChordGrid<Cell: View>: View {
     }
 }
 
-/// How one chord looks, in the window's grid and on the Mini. Diatonic: a faint amber fill and
-/// hairline. Borrowed: no fill, a solid (never dashed: dashed reads as an empty slot) slightly
-/// brighter hairline, and a small dot top-right as its mark. `lit` = sounding (solid amber).
+/// How one chord looks, in the window's grid and on the Mini. Diatonic: an A5 fill and an A4
+/// hairline (the tonic one step brighter). Borrowed: no fill, the same solid hairline (never
+/// dashed: dashed reads as an empty slot) and a small dot top-right as its mark. `lit` =
+/// sounding (solid amber, dark ink); `hover` = an A4 wash.
 struct ChordFace: View {
     let chord: Chord
     let tonic: Bool
@@ -222,44 +189,44 @@ struct ChordFace: View {
     /// The Mini's computer key ("1", "Q"), top-left; nil = none.
     var hint: String? = nil
     var height: CGFloat = ChordFace.height
+    var hover = false
 
-    static let height: CGFloat = 42
-    static let ink = Theme.hex(0x1a1206)
+    static let height: CGFloat = 48
+    static let ink = Theme.A.ink
 
     var body: some View {
-        let shape = RoundedRectangle(cornerRadius: 4, style: .continuous)
+        let shape = RoundedRectangle(cornerRadius: Theme.R.cap, style: .continuous)
         let b = chord.borrowed
-        return VStack(spacing: 3) {
-            Text(chord.name).font(Theme.face(11.5)).tracking(0.2)
-                .foregroundColor(lit ? ChordFace.ink : Theme.amber(tonic ? 1 : b ? 0.8 : 0.88))
-                .lineLimit(1).minimumScaleFactor(0.7)
-                .modifier(PocketGlow(on: tonic && !lit))
-            Text(chord.roman).font(Theme.face(7.5)).tracking(0.6)
-                .foregroundColor(lit ? ChordFace.ink.opacity(0.8) : Theme.amber(b ? 0.5 : 0.6))
+        let fill: Color = lit ? Theme.A.a1 : hover ? Theme.A.a4 : b ? .clear : tonic ? Theme.A.a4 : Theme.A.a5
+        return VStack(spacing: 2) {
+            Text(chord.name).font(Theme.T.value)
+                .foregroundColor(lit ? ChordFace.ink : tonic ? Theme.A.a1 : Theme.A.a2)
+                .lineLimit(1).minimumScaleFactor(0.8)
+            Text(chord.roman).font(Theme.T.caption)
+                .foregroundColor(lit ? ChordFace.ink.opacity(0.8) : Theme.A.a3)
                 .lineLimit(1)
         }
-        .padding(.horizontal, 6)
-        .padding(.top, hint == nil ? 0 : 4)
+        .padding(.horizontal, 3)
+        .padding(.top, hint == nil ? 0 : Theme.S.s)
         .frame(maxWidth: .infinity)
         .frame(height: height)
-        .background(shape.fill(lit ? Theme.amber : Theme.amber(b ? 0 : tonic ? 0.12 : 0.06)))
-        .overlay(shape.stroke(Theme.amber(lit ? 0 : b ? 0.3 : 0.18), lineWidth: 1))
+        .background(shape.fill(fill))
+        .overlay(shape.stroke(lit ? Color.clear : tonic ? Theme.A.a3 : Theme.A.a4, lineWidth: 1))
         .overlay(mark, alignment: .topTrailing)
         .overlay(hintLabel, alignment: .topLeading)
-        .shadow(color: lit && !Theme.highContrast ? Theme.amberGlow : .clear, radius: 4)
     }
 
     @ViewBuilder private var mark: some View {
         if chord.borrowed {
-            Circle().fill(lit ? ChordFace.ink.opacity(0.7) : Theme.amber(0.55)).frame(width: 3, height: 3)
-                .padding(4).accessibility(hidden: true)
+            Circle().fill(lit ? ChordFace.ink.opacity(0.7) : Theme.A.a3).frame(width: 4, height: 4)
+                .padding(Theme.S.xs).accessibility(hidden: true)
         }
     }
 
     @ViewBuilder private var hintLabel: some View {
         if let h = hint {
-            Text(h).font(Theme.face(6.5)).foregroundColor(lit ? ChordFace.ink.opacity(0.6) : Theme.amber(0.32))
-                .padding(.leading, 4).padding(.top, 3).accessibility(hidden: true)
+            Text(h).font(Theme.T.caption).foregroundColor(lit ? ChordFace.ink.opacity(0.7) : Theme.A.a3)
+                .padding(.leading, Theme.S.xs).padding(.top, 2).accessibility(hidden: true)
         }
     }
 }
@@ -270,10 +237,12 @@ struct ChordCell: View {
     let tonic: Bool
     let actions: PocketActions
     @State private var flash = false
+    @State private var hover = false
 
     var body: some View {
-        ChordFace(chord: chord, tonic: tonic, lit: flash)
-        .contentShape(RoundedRectangle(cornerRadius: 4, style: .continuous))
+        ChordFace(chord: chord, tonic: tonic, lit: flash, hover: hover)
+        .contentShape(RoundedRectangle(cornerRadius: Theme.R.cap, style: .continuous))
+        .onHover { h in withAnimation(.easeOut(duration: 0.12)) { hover = h } }
         .onTapGesture(perform: play)
         .onDrag(drag)
         .pointingHand()
@@ -301,7 +270,7 @@ struct ChordCell: View {
     }
 }
 
-/// MATCH TO: the project key picker and the -6...+6 row, the shift that fits lit.
+/// MATCH TO: the project key picker and the −6…+6 strip, the shift that fits lit.
 struct MatchToRow: View {
     let key: String?
     let target: String?
@@ -313,37 +282,34 @@ struct MatchToRow: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 9) {
-            HStack(spacing: 8) {
+        VStack(alignment: .leading, spacing: Theme.S.s) {
+            HStack(spacing: Theme.S.s) {
                 Text.cap("MATCH TO").helpTip(HelpText.matchTo)
-                Button(action: pick) {
-                    Text((target ?? "PICK KEY") + " ▾").font(Theme.face(8)).tracking(0.8)
-                        .foregroundColor(Theme.amber(target == nil ? 0.6 : 1))
-                        .padding(.horizontal, 6).frame(height: 15)
-                        .overlay(RoundedRectangle(cornerRadius: 3, style: .continuous).stroke(Theme.amber(0.35), lineWidth: 1))
-                        .contentShape(Rectangle())
+                ChipMenuButton(title: target ?? "PICK KEY", tracked: target == nil, action: pick)
+                    .accessibility(label: Text(target.map { "Project key \($0). Change it" } ?? "Pick your project's key"))
+                    .helpTip(HelpText.matchTo)
+                Spacer(minLength: Theme.S.xs)
+                if let l = MatchToRow.line(target: target, shift: shift) {
+                    Text(l).font(Theme.T.value).foregroundColor(Theme.A.a1)
+                        .lineLimit(1).minimumScaleFactor(0.85)
+                        .helpTip(HelpText.pitchToFit)
                 }
-                .buttonStyle(PlainButtonStyle())
-                .pointingHand()
-                .accessibility(label: Text(target.map { "Project key \($0). Change it" } ?? "Pick your project's key"))
-                .helpTip(HelpText.matchTo)
-                Spacer(minLength: 4)
-                Text(line).font(Theme.face(7.5)).tracking(1).foregroundColor(Theme.amber(shift == nil ? 0.35 : 0.75))
-                    .lineLimit(1).minimumScaleFactor(0.8)
             }
-            HStack(spacing: 3) {
-                ForEach(Array(Transpose.range), id: \.self) { n in cell(n) }
-            }
-            .accessibilityElement(children: .ignore)
-            .accessibility(label: Text(spoken))
-            .helpTip(HelpText.matchShift)
+            .frame(height: Theme.H.sm)
+            SegmentedChips(options: Transpose.range.map { .init(value: $0, title: Transpose.label($0), spoken: Transpose.label($0)) },
+                           selected: nil, enabled: shift != nil, width: .fill, marked: 0,
+                           lit: Set(Transpose.range.filter { Transpose.lit($0, shift: shift) }))
+                .accessibilityElement(children: .ignore)
+                .accessibility(label: Text(spoken))
+                .helpTip(HelpText.matchShift)
         }
     }
 
-    private var line: String {
-        guard let t = target else { return "PICK YOUR PROJECT'S KEY" }
-        guard let s = shift else { return "NO KEY YET" }
-        return s == 0 ? "ALREADY FITS \(t)" : "PITCH THE BEAT \(Transpose.label(s)) TO FIT \(t)"
+    /// The result, as a sentence in mixed case (design pass F6); nil = nothing to say yet (no
+    /// project key or no reading: the picker and the dim strip already say so).
+    static func line(target: String?, shift: Int?) -> String? {
+        guard let t = target, let s = shift else { return nil }
+        return s == 0 ? "Already fits \(t)" : "Pitch the beat \(Transpose.label(s)) to fit \(t)"
     }
 
     private var spoken: String {
@@ -352,33 +318,24 @@ struct MatchToRow: View {
         if s == 0 { return "Already fits \(t)" }
         return "Pitch the beat \(s > 0 ? "up" : "down") \(abs(s)) semitone\(abs(s) == 1 ? "" : "s") to fit \(t)"
     }
-
-    private func cell(_ n: Int) -> some View {
-        let on = Transpose.lit(n, shift: shift)
-        let shape = RoundedRectangle(cornerRadius: 3, style: .continuous)
-        return Text(Transpose.label(n)).font(Theme.face(8.5).monospacedDigit())
-            .foregroundColor(on ? Theme.hex(0x1a1206) : Theme.amber(n == 0 ? 0.6 : 0.4))
-            .frame(maxWidth: .infinity).frame(height: 20)
-            .background(shape.fill(on ? Theme.amber : Theme.amber(0.05)))
-            .overlay(shape.stroke(Theme.amber(on ? 0 : (n == 0 ? 0.3 : 0.14)), lineWidth: 1))
-            .shadow(color: on && !Theme.highContrast ? Theme.amberGlow : .clear, radius: 3)
-    }
 }
 
 /// The circle of fifths: 12 majors outside, their relative minors inside. The key on show is
-/// lit, the runner-ups outlined; a click makes a key THE key (SpellingSettings.choose, the
-/// same path as a click on key 2 or 3).
+/// lit, the runner-ups washed, the keys that fit it (its fifths neighbours and its relative)
+/// faintly outlined; a click makes a key THE key (SpellingSettings.choose, the same path as a
+/// click on key 2 or 3).
 struct KeyWheel: View {
     let keys: [(String, Int)]
     var onChoose: ((String) -> Void)? = nil
 
-    static let side: CGFloat = 200
+    static let side: CGFloat = 216
     /// Three circles (J, 2026-11-09): the centre holds the Camelot code, minors fill the ring between
     /// `innerRadius` and `middleRadius`, majors the ring between `middleRadius` and `outerRadius`.
     /// A line between every two keys splits each ring into 12 sections; a lit key lights its section.
-    static let innerRadius: CGFloat = 32
-    static let middleRadius: CGFloat = 64
-    static let outerRadius: CGFloat = side / 2 - 1
+    /// The 8 pt band outside the majors carries the small MAJOR label.
+    static let innerRadius: CGFloat = 34
+    static let middleRadius: CGFloat = 70
+    static let outerRadius: CGFloat = 100
 
     /// Position `i` (0 = top, clockwise) of the circle: (pitch class, minor).
     static func slot(_ i: Int, minor: Bool) -> (pc: Int, minor: Bool) {
@@ -394,19 +351,26 @@ struct KeyWheel: View {
         return nil
     }
 
+    /// The keys that fit the key on show (KeyFit): outlined when they are not lit already.
+    var fits: Set<WheelKey> { keys.first.map { KeyFit.keys($0.0) } ?? [] }
+
     /// The section under the mouse: slot index * 2 + (minor ? 1 : 0). nil = none.
     @State private var hovered: Int?
 
     var body: some View {
+        let fit = fits
         ZStack {
             ForEach(0..<12, id: \.self) { i in
                 ForEach([false, true], id: \.self) { minor in
-                    KeyWheelSection(index: i, minor: minor, rank: rank(KeyWheel.slot(i, minor: minor).pc, minor: minor),
+                    let s = KeyWheel.slot(i, minor: minor)
+                    KeyWheelSection(index: i, minor: minor, rank: rank(s.pc, minor: minor),
+                                    fit: fit.contains(WheelKey(s.pc, minor: minor)),
                                     hover: hovered == i * 2 + (minor ? 1 : 0), onChoose: onChoose)
                 }
             }
             KeyWheelGrid().allowsHitTesting(false)
-            center.allowsHitTesting(false)
+            ringLabels.allowsHitTesting(false)
+            center
             // SwiftUI's onHover tracks a view's whole frame (every section is the full square), so the
             // section under the mouse is worked out from the mouse position instead.
             if !Pocket.snapshot {   // offscreen renders draw AppKit views as a placeholder
@@ -418,9 +382,20 @@ struct KeyWheel: View {
         }
         .frame(width: KeyWheel.side, height: KeyWheel.side)
         // the hover card rides the surface's card layer, at the mouse (Help.swift)
-        .hoverCard(hovered.map(tip(for:)), width: 176)
+        .hoverCard(hovered.map(tip(for:)), width: 196)
         .accessibilityElement(children: .contain)
         .accessibility(label: Text("Key wheel"))
+    }
+
+    /// MAJOR along the outside of the major ring (top left), MINOR inside the minor ring (bottom
+    /// of the hub): small and quiet, so the two rings name themselves without a legend.
+    private var ringLabels: some View {
+        ZStack {
+            ArcText(text: "MAJOR", radius: KeyWheel.outerRadius + 4.5, angle: -38, top: true)
+            ArcText(text: "MINOR", radius: KeyWheel.innerRadius - 9, angle: 180, top: false)
+        }
+        .frame(width: KeyWheel.side, height: KeyWheel.side)
+        .accessibility(hidden: true)
     }
 
     /// The pop-up for the hovered section: how sure, and why it is lit (J, 2026-11-09: no extra text
@@ -487,33 +462,75 @@ struct KeyWheel: View {
         return (title, "Shares \(shared) of 7 notes with \(topName)" + (shared <= 4 ? ", so it clashes." : "."))
     }
 
-    /// The key on show's Camelot code in the middle (the wheel's own numbering).
-    @ViewBuilder private var center: some View {
-        if let k = keys.first?.0, let code = Camelot.code(k) {
-            VStack(spacing: 1) {
-                Text(code).font(Theme.face(13)).foregroundColor(Theme.amber(0.85))
-                Text("CAMELOT").font(Theme.face(5.5)).tracking(1).foregroundColor(Theme.amber(0.4))
+    /// The key on show's Camelot code in the middle (the wheel's own numbering; what it is lives
+    /// in the help tip, not in a printed CAMELOT label).
+    private var center: some View {
+        ZStack {
+            if let k = keys.first?.0, let code = Camelot.code(k) {
+                Text(code).font(Theme.T.value).foregroundColor(Theme.A.a2)
+                    .offset(y: -4)
+                    .animation(nil, value: code)
             }
-            .animation(nil, value: code)
-            .accessibility(hidden: true)
+        }
+        .frame(width: KeyWheel.innerRadius * 2, height: KeyWheel.innerRadius * 2)
+        .contentShape(Circle())
+        .helpTip(HelpText.camelot)
+        .accessibility(hidden: true)
+    }
+}
+
+/// Text set along a circle, centred on `angle` (degrees, 0 = top, clockwise). top = it reads along
+/// the top of the circle (feet toward the centre); else along the bottom (heads toward the centre).
+struct ArcText: View {
+    let text: String
+    let radius: CGFloat
+    let angle: Double
+    let top: Bool
+
+    /// Each character's advance at the caption size and tracking.
+    static func advances(_ s: String) -> [CGFloat] {
+        let font = NSFont(name: "HelveticaNeue-Medium", size: Theme.T.captionSize)
+            ?? NSFont.systemFont(ofSize: Theme.T.captionSize, weight: .medium)
+        return s.map { (String($0) as NSString).size(withAttributes: [.font: font]).width + Theme.T.captionTracking }
+    }
+
+    var body: some View {
+        let chars = Array(text)
+        let w = ArcText.advances(text)
+        let total = w.reduce(0, +)
+        return ZStack {
+            ForEach(chars.indices, id: \.self) { i in
+                let along = w[..<i].reduce(0, +) + w[i] / 2 - total / 2
+                let d = Double(along / radius) * 180 / .pi
+                let a = top ? angle + d : angle - d
+                let rad = a * .pi / 180
+                Text(String(chars[i])).font(Theme.T.caption).foregroundColor(Theme.A.a3)
+                    .fixedSize()
+                    .rotationEffect(.degrees(top ? a : a - 180))
+                    .offset(x: CGFloat(sin(rad)) * radius, y: -CGFloat(cos(rad)) * radius)
+            }
         }
     }
 }
 
 /// One ring section between two lines: centred on slot `index` (0 = top, clockwise), 30° wide,
-/// from `inner` to `outer` radius, in the wheel's own square.
+/// from `inner` to `outer` radius, in the wheel's own square. `inset` pulls every edge in (the
+/// fit outline sits inside the grid lines).
 struct RingSector: Shape {
     let index: Int
     let inner: CGFloat
     let outer: CGFloat
+    var inset: CGFloat = 0
 
     func path(in rect: CGRect) -> Path {
         let c = CGPoint(x: rect.midX, y: rect.midY)
         let mid = Double(index) * 30 - 90          // SwiftUI angles start at 3 o'clock, y down
-        let a0 = Angle.degrees(mid - 15), a1 = Angle.degrees(mid + 15)
+        let r0 = inner + inset, r1 = outer - inset
+        // the side edges move in by `inset` at each radius
+        let d0 = Double(inset / r0) * 180 / .pi, d1 = Double(inset / r1) * 180 / .pi
         var p = Path()
-        p.addArc(center: c, radius: outer, startAngle: a0, endAngle: a1, clockwise: false)
-        p.addArc(center: c, radius: inner, startAngle: a1, endAngle: a0, clockwise: true)
+        p.addArc(center: c, radius: r1, startAngle: .degrees(mid - 15 + d1), endAngle: .degrees(mid + 15 - d1), clockwise: false)
+        p.addArc(center: c, radius: r0, startAngle: .degrees(mid + 15 - d0), endAngle: .degrees(mid - 15 + d0), clockwise: true)
         p.closeSubpath()
         return p
     }
@@ -527,25 +544,27 @@ private struct KeyWheelGrid: View {
             let r0 = KeyWheel.innerRadius, r1 = KeyWheel.middleRadius, r2 = KeyWheel.outerRadius
             var circles = Path()
             for r in [r0, r1, r2] { circles.addEllipse(in: CGRect(x: c.x - r, y: c.y - r, width: r * 2, height: r * 2)) }
-            ctx.stroke(circles, with: .color(Theme.amber(0.28)), lineWidth: 1)
             var lines = Path()
             for i in 0..<12 {
                 let a = (Double(i) * 30 - 90 + 15) * .pi / 180
                 lines.move(to: CGPoint(x: c.x + CGFloat(cos(a)) * r0, y: c.y + CGFloat(sin(a)) * r0))
                 lines.addLine(to: CGPoint(x: c.x + CGFloat(cos(a)) * r2, y: c.y + CGFloat(sin(a)) * r2))
             }
-            ctx.stroke(lines, with: .color(Theme.amber(0.2)), lineWidth: 1)
+            ctx.stroke(circles, with: .color(Theme.A.a4), lineWidth: 1)
+            ctx.stroke(lines, with: .color(Theme.A.a4), lineWidth: 1)
         }
         .frame(width: KeyWheel.side, height: KeyWheel.side)
     }
 }
 
-/// One key's section: lit whole when it is the key (solid) or a runner-up (dim), a faint wash on
-/// hover, and the light eases in and out instead of jumping.
+/// One key's section: lit whole when it is the key (solid, glowing), an A4 wash for a runner-up,
+/// a faint inset outline for a key that fits (quieter than a runner-up), an A4 wash on hover; the
+/// light eases in and out instead of jumping.
 private struct KeyWheelSection: View {
     let index: Int
     let minor: Bool
     let rank: Int?
+    let fit: Bool
     let hover: Bool
     let onChoose: ((String) -> Void)?
 
@@ -555,28 +574,36 @@ private struct KeyWheelSection: View {
         let inner = minor ? KeyWheel.innerRadius : KeyWheel.middleRadius
         let outer = minor ? KeyWheel.middleRadius : KeyWheel.outerRadius
         let shape = RingSector(index: index, inner: inner, outer: outer)
-        let fill: Double = rank == 0 ? 1 : rank == 1 ? 0.22 : (hover && onChoose != nil ? 0.1 : 0)
+        let fill: Color = rank == 0 ? Theme.A.a1 : (rank == 1 || (hover && onChoose != nil)) ? Theme.A.a4 : .clear
         let mid = Double(index) * .pi / 6, r = (inner + outer) / 2
-        let label = Text(name).font(Theme.face(minor ? 8 : 10)).lineLimit(1).minimumScaleFactor(0.6)
-            .foregroundColor(rank == 0 ? Theme.hex(0x1a1206) : Theme.amber(rank == 1 ? 0.95 : (hover ? 0.8 : (minor ? 0.4 : 0.5))))
-            .frame(width: minor ? 26 : 34)
+        let ink: Color = rank == 0 ? Theme.A.ink : (rank == 1 || hover) ? Theme.A.a1 : fit ? Theme.A.a2 : Theme.A.a3
+        let label = Text(name).font(Theme.face(minor ? Theme.T.captionSize : Theme.T.valueSize))
+            .lineLimit(1).minimumScaleFactor(0.8)
+            .foregroundColor(ink)
+            .frame(width: minor ? 30 : 36)
             .offset(x: CGFloat(sin(mid)) * r, y: -CGFloat(cos(mid)) * r)
         let body = ZStack {
-            shape.fill(Theme.amber(fill))
+            shape.fill(fill)
                 .shadow(color: rank == 0 && !Theme.highContrast ? Theme.amberGlow : .clear, radius: 5)
+            if fit && rank == nil {
+                RingSector(index: index, inner: inner, outer: outer, inset: 2.5)
+                    .stroke(Theme.A.a3, lineWidth: 1)
+            }
             label
         }
         .frame(width: KeyWheel.side, height: KeyWheel.side)
         .contentShape(shape)
         .animation(.easeOut(duration: 0.18), value: rank)
+        .animation(.easeOut(duration: 0.18), value: fit)
         .animation(.easeOut(duration: 0.1), value: hover)
         let spoken = "\(KeyChoice.keyName(s.pc, minor: minor).replacingOccurrences(of: "m", with: "")) \(minor ? "minor" : "major")"
+        let role = rank == 0 ? ", the key" : rank == 1 ? ", a runner-up" : fit ? ", fits the key" : ""
         return Group {
             if let choose = onChoose {
                 Button(action: { choose(name) }) { body }
                     .buttonStyle(KeyWheelPress())
                     .pointingHand()
-                    .accessibility(label: Text(spoken + (rank == 0 ? ", the key" : rank == 1 ? ", a runner-up" : "")))
+                    .accessibility(label: Text(spoken + role))
                     .accessibility(hint: Text("Makes it the key"))
                     .accessibility(addTraits: rank == 0 ? .isSelected : [])
             } else {
@@ -607,23 +634,23 @@ struct NotesHeard: View {
 
     var body: some View {
         let lv = NotesHeard.levels(chroma)
-        HStack(alignment: .bottom, spacing: 3) {
+        HStack(alignment: .bottom, spacing: 2) {
             ForEach(0..<12, id: \.self) { pc in
                 let inScale = scale?.notes.contains(pc) ?? false
                 let tonic = scale?.tonic == pc
-                VStack(spacing: 4) {
+                VStack(spacing: Theme.S.xs) {
                     GeometryReader { g in
                         ZStack(alignment: .bottom) {
-                            RoundedRectangle(cornerRadius: 1.5).fill(Theme.amber(0.05))
+                            RoundedRectangle(cornerRadius: 1.5).fill(Theme.A.a5)
                             RoundedRectangle(cornerRadius: 1.5)
-                                .fill(Theme.rgb(255, 176, 32, tonic ? 1 : inScale ? 0.8 : (Theme.highContrast ? 0.35 : 0.25)))
+                                .fill(tonic ? Theme.A.a1 : inScale ? Theme.A.a2 : Theme.A.a4)
                                 .frame(height: max(2, g.size.height * CGFloat(lv[pc])))
-                                .shadow(color: tonic && !Theme.highContrast ? Theme.amberGlow : .clear, radius: 3)
                         }
                     }
-                    Text(scale?.name(pc) ?? Scale.sharpNames[pc]).font(Theme.face(7)).lineLimit(1).minimumScaleFactor(0.7)
-                        .foregroundColor(Theme.amber(inScale ? 0.85 : 0.35)).frame(height: 9)
-                    Circle().fill(Theme.amber(inScale ? 0.8 : 0)).frame(width: 3, height: 3)
+                    .padding(.horizontal, 1)
+                    Text(scale?.name(pc) ?? Scale.sharpNames[pc]).font(Theme.T.caption).fixedSize()
+                        .foregroundColor(inScale ? Theme.A.a2 : Theme.A.a3).frame(height: 12)
+                    Circle().fill(inScale ? Theme.A.a2 : .clear).frame(width: 3, height: 3)
                 }
                 .frame(maxWidth: .infinity)
             }

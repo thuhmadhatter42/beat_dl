@@ -38,8 +38,8 @@ struct LCD: View {
     var actions = PocketActions()
 
     /// The state area's height: the dial (112) beside the BPM, the file line under both.
-    static let topHeight: CGFloat = 130
-    private let r: CGFloat = 5
+    static let topHeight: CGFloat = 136
+    private let r: CGFloat = Theme.R.well
 
     var body: some View {
         let shape = RoundedRectangle(cornerRadius: r, style: .continuous)
@@ -47,10 +47,11 @@ struct LCD: View {
             content
                 .frame(maxWidth: .infinity, alignment: .topLeading)
                 .frame(height: LCD.topHeight, alignment: .topLeading)
-            KeyStrip(state: state, onTeach: actions.teachKey, keyboardHeight: FaceplateView.keyboardHeight).padding(.top, 8)
+            KeyStrip(state: state, onTeach: actions.teachKey, keyboardHeight: FaceplateView.keyboardHeight)
+                .padding(.top, Theme.S.s)
         }
-        .padding(.vertical, 16)
-        .padding(.horizontal, 20)
+        .padding(.vertical, Theme.S.l)
+        .padding(.horizontal, Theme.S.lcd)
         .lcdGlass(radius: r)
         .background(highlighted ? AnyView(dropRing(shape)) : AnyView(EmptyView()))
     }
@@ -80,8 +81,9 @@ struct LCD: View {
 }
 
 extension View {
-    /// The window's amber-LCD glass: the near-black face, the sheen across its top, the recess
-    /// shadow and the black ring (the readout's and Advanced mode's harmony display).
+    /// The amber-LCD glass (the window's readout, Advanced mode's harmony display, the pocket's
+    /// readout, the Mini): the near-black face, the sheen across its top, the recess shadow and
+    /// the black ring.
     func lcdGlass(radius r: CGFloat) -> some View {
         let shape = RoundedRectangle(cornerRadius: r, style: .continuous)
         return overlay(Theme.vertical([(Color.white.opacity(Theme.highContrast ? 0 : 0.07), 0), (Color.white.opacity(0), 0.45)])
@@ -103,23 +105,25 @@ private struct Centered<C: View>: View {
     }
 }
 
+/// The start state: an invitation, not a skeleton of missing numbers (design pass F11).
 struct IdleReadout: View {
     var body: some View {
         Centered {
-            Text("---.-").font(Theme.face(58).monospacedDigit()).tracking(58 * 0.06)
-                .foregroundColor(Theme.amber(0.12))
-                .accessibility(hidden: true)
-            Text.cap("PASTE A LINK · OPEN OR DROP A BEAT").padding(.top, 10)
+            Text("Drop a beat").font(Theme.T.title).foregroundColor(Theme.A.a2)
+            Text("or paste a YouTube link, open a file or listen").font(Theme.T.caption)
+                .foregroundColor(Theme.A.a3).padding(.top, Theme.S.s)
         }
+        .accessibilityElement(children: .combine)
     }
 }
 
 struct DropReadout: View {
     var body: some View {
         Centered {
-            Text("DROP TO GET BPM AND KEY").font(Theme.face(18)).tracking(0.9)
-                .foregroundColor(Theme.amber).amberGlow()
-            Text.cap("THE FILE STAYS WHERE IT IS").padding(.top, 10)
+            Text("DROP TO GET BPM AND KEY").font(Theme.T.title).tracking(Theme.T.titleTracking)
+                .foregroundColor(Theme.A.a1)
+            Text("The file stays where it is").font(Theme.T.caption).foregroundColor(Theme.A.a2)
+                .padding(.top, Theme.S.s)
         }
     }
 }
@@ -130,12 +134,13 @@ struct LoginReadout: View {
     var caption: String?
     var body: some View {
         Centered {
-            Text(first).font(Theme.face(18)).tracking(0.9).multilineTextAlignment(.center)
-                .foregroundColor(Theme.amber).amberGlow()
-            Text.cap(second).multilineTextAlignment(.center).padding(.top, 10)
+            Text(first).font(Theme.T.title).tracking(Theme.T.titleTracking).multilineTextAlignment(.center)
+                .foregroundColor(Theme.A.a1)
+            Text(second).labelStyle().foregroundColor(Theme.A.a2).multilineTextAlignment(.center)
+                .padding(.top, Theme.S.s)
             if let c = caption {
-                Text(c).font(Theme.face(8)).tracking(0.4).foregroundColor(Theme.amber(0.45))
-                    .padding(.top, 14)
+                Text(c).font(Theme.T.caption).foregroundColor(Theme.A.a3)
+                    .padding(.top, Theme.S.m)
             }
         }
         .accessibilityElement(children: .ignore)
@@ -149,12 +154,12 @@ struct WorkingReadout: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            Text(Faceplate.stageText(stage)).font(Theme.face(18)).tracking(0.9)
-                .foregroundColor(Theme.amber).amberGlow()
+            Text(Faceplate.stageText(stage)).font(Theme.T.title).tracking(Theme.T.titleTracking)
+                .foregroundColor(Theme.A.a1)
                 .accessibility(label: Text(Faceplate.stageText(stage).capitalized))
-            RunningBar().padding(.top, 14)
+            RunningBar().padding(.top, Theme.S.m)
             Spacer(minLength: 0)
-            HStack(spacing: 20) {
+            HStack(spacing: Theme.S.l) {
                 ForEach(stepLights, id: \.0) { name, step in
                     StepLabel(name: name, step: step)
                 }
@@ -180,9 +185,9 @@ struct ListeningReadout: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            Text("LISTENING").font(Theme.face(18)).tracking(0.9)
-                .foregroundColor(Theme.amber).amberGlow()
-            RunningBar().padding(.top, 14)
+            Text("LISTENING").font(Theme.T.title).tracking(Theme.T.titleTracking)
+                .foregroundColor(Theme.A.a1)
+            RunningBar().padding(.top, Theme.S.m)
             Spacer(minLength: 0)
             StateLamp(lamp: .listening, text: status)
         }
@@ -199,22 +204,13 @@ struct DoctorReadout: View {
         let failed = report.outcome == .failed
         VStack(alignment: .leading, spacing: 0) {
             Text.cap("DOCTOR")
-            Group {
-                if failed {
-                    Text(report.title).font(Theme.face(26)).tracking(26 * 0.04)
-                        .foregroundColor(Theme.redText)
-                        .shadow(color: Theme.red.opacity(0.6), radius: 3)
-                        .shadow(color: Theme.red.opacity(0.3), radius: 8)
-                } else {
-                    Text(report.title).font(Theme.face(34)).tracking(34 * 0.05)
-                        .foregroundColor(Theme.amber).amberGlow()
-                }
-            }
-            .lineLimit(1)
-            .padding(.top, 8)
+            Text(report.title).font(Theme.T.key).tracking(Theme.T.keySize * 0.03)
+                .foregroundColor(failed ? Theme.redText : Theme.A.a1)
+                .lineLimit(1).minimumScaleFactor(0.6)
+                .padding(.top, Theme.S.s)
             Spacer(minLength: 0)
-            Text(report.line).font(Theme.face(10)).tracking(1.2)
-                .foregroundColor(failed ? Theme.rgb(255, 106, 92, 0.85) : Theme.amber(0.6))
+            Text(report.line).captionStyle()
+                .foregroundColor(failed ? Theme.rgb(255, 106, 92, 0.85) : Theme.A.a2)
                 .lineLimit(2)
                 .fixedSize(horizontal: false, vertical: true)
         }
@@ -227,11 +223,11 @@ private struct StepLabel: View {
     let name: String
     let step: Faceplate.Step
     var body: some View {
-        let t = Text(step == .done ? "✓ \(name)" : name).font(Theme.face(8)).tracking(2.4)
+        let t = Text(step == .done ? "✓ \(name)" : name).captionStyle()
         switch step {
-        case .done: t.foregroundColor(Theme.amber(0.55))
-        case .on: t.foregroundColor(Theme.amber).shadow(color: Theme.amberGlow, radius: 2.5)
-        case .off: t.foregroundColor(Theme.rgb(235, 235, 240, 0.2))
+        case .done: t.foregroundColor(Theme.A.a2)
+        case .on: t.foregroundColor(Theme.A.a1)
+        case .off: t.foregroundColor(Theme.A.a3)
         }
     }
 }
@@ -246,9 +242,8 @@ struct RunningBar: View {
         GeometryReader { g in
             let w = g.size.width * 0.4
             ZStack(alignment: .leading) {
-                Theme.amber(0.1)
-                Theme.amber.frame(width: w)
-                    .shadow(color: Theme.amberGlow, radius: 4)
+                Theme.A.a4
+                Theme.A.a1.frame(width: w)
                     .offset(x: reduceMotion ? 0 : (sweep ? w * 2.6 : -w))
                     // the repeat is scoped to the slug's offset alone
                     .animation(sweep ? RunningBar.sweepAnimation : nil, value: sweep)
@@ -282,132 +277,84 @@ struct ResultReadout: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            HStack(alignment: .top, spacing: 22) {
-                bpmColumn
-                Dial(state: state, actions: actions).frame(width: 112, height: 112)
-                    .overlay(camelot, alignment: .leading)
+            HStack(alignment: .top, spacing: Theme.S.xl) {
+                bpmColumn.frame(maxWidth: .infinity, alignment: .leading)
+                Dial(state: state, actions: actions).frame(width: Dial.side, height: Dial.side)
             }
-            .frame(height: 112)
+            .frame(height: Dial.side)
             Spacer(minLength: 0)
             fileRow
         }
     }
 
-    /// BPM, its rounded value, the beat light and the x0.5 / x1 / x2 chips; the confidence lamp.
+    /// BPM, the beat light and the x0.5 / x1 / x2 chips, then the number: the whole BPM big,
+    /// its decimals small (the rounded echo and the lamp line are gone: each fact once, F3).
     private var bpmColumn: some View {
         VStack(alignment: .leading, spacing: 0) {
-            HStack(spacing: 8) {
+            HStack(spacing: Theme.S.s) {
                 Text.cap("BPM")
-                if let r = Tempo.rounded(result, factor: options.factor) {
-                    Text(r).font(Theme.face(8)).tracking(1.6).foregroundColor(Theme.amber(0.45))
-                        .helpTip(HelpText.bpmRounded)
-                }
                 if let period = Faceplate.tempoPeriod(bpmShown) {
-                    TempoLight(period: period).padding(.leading, 2)
+                    TempoLight(period: period)
                 }
-                Spacer(minLength: 4)
+                Spacer(minLength: Theme.S.xs)
                 // Advanced mode: the x0.5 / x1 / x2 chips. Default: a click on the BPM cycles them
                 // (and Reading › Half / Double Tempo); only a factor other than x1 is tagged.
                 if state.advanced {
-                    HStack(spacing: 4) {
-                        ForEach([TempoFactor.half, .one, .double], id: \.self) { f in
-                            FactorChip(factor: f, on: f == options.factor, enabled: bpmShown != nil) { actions.setFactor(f) }
-                        }
-                    }
-                    .helpTip(HelpText.tempoFactor)
+                    FactorChips(factor: options.factor, enabled: bpmShown != nil, set: actions.setFactor)
                 } else if let tag = options.factor.label, bpmShown != nil {
-                    Text(tag).font(Theme.face(8).monospacedDigit()).foregroundColor(Theme.amber(0.7))
+                    Text(tag).font(Theme.T.caption.monospacedDigit()).foregroundColor(Theme.A.a2)
                         .accessibility(label: Text(options.factor == .double ? "Double time" : "Half time"))
                         .helpTip(HelpText.tempoFactor)
                 }
             }
-            .frame(height: 15)
-            bpmNumber.padding(.top, 6)
+            .frame(height: Theme.H.sm)
+            bpmNumber.padding(.top, Theme.S.m)
                 .accessibilityElement(children: .ignore)
                 .accessibility(label: Text(bpmLabel))
                 .helpTip(HelpText.bpm)
-            Spacer(minLength: 0)
-            statusLine
         }
     }
 
-    /// Advanced mode: the key's Camelot code and its relative key, just left of the dial (below
-    /// the factor chips, clear of the BPM).
-    @ViewBuilder private var camelot: some View {
-        if state.advanced, let key = result.keys.first?.0, let code = Camelot.code(key) {
-            CamelotBadge(code: code, relative: Camelot.relative(key)).helpTip(HelpText.camelot)
-                .frame(width: 40).offset(x: -46, y: 6)
-        }
-    }
-
-    /// The file (or Listen's source, or the note), paging, Show in Finder: the readout's width.
-    private var fileRow: some View {
-        HStack(spacing: 10) {
-            Text(lineText)
-                .font(Theme.face(10)).tracking(1.2)
-                .foregroundColor(Theme.amber(note == nil ? 0.6 : 0.8))
-                .lineLimit(1).truncationMode(.tail)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .accessibility(label: Text(note ?? options.live.map { "Live, \($0.source)" } ?? result.name))
-                .helpTip(HelpText.fileLine)
-            if let p = page {
-                HStack(spacing: 6) {
-                    PageArrow(glyph: "‹", label: "Previous file") { actions.page(-1) }
-                    Text.cap(p).accessibility(label: Text(p.lowercased()))
-                    PageArrow(glyph: "›", label: "Next file") { actions.page(1) }
+    /// The file (yours, in its own case: name warm white, folder dimmer) or the note; paging;
+    /// Show in Finder. Nothing while listening: the rail already says LIVE and the source.
+    @ViewBuilder private var fileRow: some View {
+        if note != nil || options.live == nil {
+            HStack(spacing: Theme.S.m) {
+                fileText
+                    .lineLimit(1).truncationMode(.middle)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .accessibility(label: Text(note ?? result.name))
+                    .helpTip(HelpText.fileLine)
+                if let p = page {
+                    HStack(spacing: Theme.S.xs) {
+                        PageArrow(glyph: "‹", label: "Previous file") { actions.page(-1) }
+                        Text(p).captionStyle().foregroundColor(Theme.A.a2).accessibility(label: Text(p.lowercased()))
+                        PageArrow(glyph: "›", label: "Next file") { actions.page(1) }
+                    }
                 }
+                if options.live == nil { FinderLink(file: result.file) }
             }
-            if options.live == nil { finderButton }
+            .frame(height: Theme.H.xs)
         }
     }
 
-    /// The note (a partial analysis), Listen's source, or the file and its folder.
-    private var lineText: String {
-        if let n = note { return n }
-        if let l = options.live { return "LIVE · \(l.source.uppercased())" }
-        return Faceplate.fileLine(result)
-    }
-
-    private var finderButton: some View {
-        Button(action: {
-            AppLog.log("window: show in finder")
-            NSWorkspace.shared.activateFileViewerSelecting([result.file])
-        }) {
-            Text("SHOW IN FINDER ›").font(Theme.face(9)).tracking(1.8)
-                .foregroundColor(Theme.amber)
-                .shadow(color: Theme.amberGlow, radius: 2.5)
-                .fixedSize()
-        }
-        .buttonStyle(PlainButtonStyle())
-        .pointingHand()
-        .accessibility(label: Text("Show in Finder"))
-        .helpTip(HelpText.showInFinder)
+    private var fileText: Text {
+        if let n = note { return Text(n).font(Theme.T.caption).foregroundColor(Theme.A.a2) }
+        let p = Faceplate.fileParts(result)
+        return Text(p.name).font(Theme.T.body).foregroundColor(Theme.textHi)
+            + Text("  ·  \(p.folder)").font(Theme.T.body).foregroundColor(Theme.textLo)
     }
 
     /// The big BPM. A click cycles x1 / x2 / x0.5 when there is a BPM to cycle.
     @ViewBuilder private var bpmNumber: some View {
-        let text = Text(bpmShown ?? "---.-").font(Theme.face(68).monospacedDigit()).tracking(68 * 0.02)
-            .foregroundColor(bpmShown == nil ? Theme.amber(0.12) : Theme.amber)
-            .modifier(GlowIf(on: bpmShown != nil))
-            .lineBox(68, 0.9)
+        let number = BPMNumber(text: bpmShown, whole: Theme.T.heroSize, fraction: Theme.T.keySize)
+            .lineBox(Theme.T.heroSize, 0.9)
         if bpmShown != nil, let cycle = options.onCycleTempo {
-            Button(action: cycle) { text.contentShape(Rectangle()) }
+            Button(action: cycle) { number.contentShape(Rectangle()) }
                 .buttonStyle(PlainButtonStyle())
                 .pointingHand()
         } else {
-            text
-        }
-    }
-
-    /// Confidence lamp (locked / unsure), one line above the file line. (The tuning is on the
-    /// scale line under the keyboard.)
-    @ViewBuilder private var statusLine: some View {
-        if let c = options.live?.status ?? Faceplate.confidenceLine(result.keys),
-           let lamp = options.live?.lamp ?? Lamp.of(result.keys) {
-            StateLamp(lamp: lamp, text: c)
-                .accessibilityElement(children: .ignore)
-                .accessibility(label: Text(c.lowercased()))
-                .helpTip(HelpText.confidence)
+            number
         }
     }
 
@@ -418,33 +365,40 @@ struct ResultReadout: View {
     }
 }
 
+/// SHOW IN FINDER ›: a text link, A2 brightening to A1 on hover.
+private struct FinderLink: View {
+    let file: URL
+    @State private var hover = false
+
+    var body: some View {
+        Button(action: {
+            AppLog.log("window: show in finder")
+            NSWorkspace.shared.activateFileViewerSelecting([file])
+        }) {
+            Text("SHOW IN FINDER ›").captionStyle()
+                .foregroundColor(hover ? Theme.A.a1 : Theme.A.a2)
+                .fixedSize()
+        }
+        .buttonStyle(PlainButtonStyle())
+        .onHover { hover = $0 }
+        .animation(.easeOut(duration: 0.12), value: hover)
+        .pointingHand()
+        .accessibility(label: Text("Show in Finder"))
+        .helpTip(HelpText.showInFinder)
+    }
+}
+
 /// A small lit lamp and a caption: green LOCKED, amber UNSURE, red ANALYZING / LISTENING.
 struct StateLamp: View {
     let lamp: Lamp
     let text: String
     var body: some View {
-        HStack(spacing: 6) {
+        HStack(spacing: Theme.S.s) {
             // the shape says the state without the colour (octagon / triangle / circle)
             LampShape(lamp: lamp).fill(lamp.color).frame(width: 8, height: 8)
                 .shadow(color: Theme.highContrast ? .clear : lamp.color.opacity(0.8), radius: 3)
-            Text(text).font(Theme.face(9)).tracking(1.4).foregroundColor(lamp.textColor).lineLimit(1)
+            Text(text).captionStyle().foregroundColor(lamp.textColor).lineLimit(1)
         }
-    }
-}
-
-/// A small amber chevron that pages through dropped files (the arrow keys do the same).
-private struct PageArrow: View {
-    let glyph: String
-    let label: String
-    let action: () -> Void
-    var body: some View {
-        Button(action: action) {
-            Text(glyph).font(Theme.face(12)).foregroundColor(Theme.amber(0.7))
-                .frame(width: 14, height: 14).contentShape(Rectangle())
-        }
-        .buttonStyle(PlainButtonStyle())
-        .pointingHand()
-        .accessibility(label: Text(label))
     }
 }
 
@@ -452,13 +406,6 @@ extension View {
     /// The pointing-hand cursor over a clickable legend (CSS `cursor: pointer`).
     func pointingHand() -> some View {
         onHover { inside in if inside { NSCursor.pointingHand.push() } else { NSCursor.pop() } }
-    }
-}
-
-private struct GlowIf: ViewModifier {
-    let on: Bool
-    func body(content: Content) -> some View {
-        if on { content.amberGlow() } else { content }
     }
 }
 
@@ -513,18 +460,16 @@ struct ErrorReadout: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            Text(Faceplate.errorText(message)).font(Theme.face(15)).tracking(0.6)
+            Text(Faceplate.errorText(message)).font(Theme.T.title)
                 .foregroundColor(Theme.redText)
-                .shadow(color: Theme.red.opacity(0.6), radius: 3)
-                .shadow(color: Theme.red.opacity(0.3), radius: 8)
                 .lineLimit(4)
                 .fixedSize(horizontal: false, vertical: true)
                 .accessibility(label: Text(message))
             Text(hint ?? Faceplate.failureHint(download: download))
-                .font(Theme.face(9)).tracking(9 * 0.24)
-                .foregroundColor(Theme.rgb(255, 106, 92, 0.6))
+                .captionStyle()
+                .foregroundColor(Theme.rgb(255, 106, 92, Theme.highContrast ? 1 : 0.75))
                 .lineLimit(1)
-                .padding(.top, 8)
+                .padding(.top, Theme.S.s)
         }
     }
 }

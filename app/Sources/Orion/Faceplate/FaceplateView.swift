@@ -70,7 +70,11 @@ struct FaceplateView: View {
     static let size = size(advanced: false)
     /// The module column inside the plate's 12 pt padding (the default plate is 520).
     static let moduleWidth: CGFloat = 520 - 24
-    static let columnGap: CGFloat = 12
+    static let columnGap: CGFloat = Theme.S.l
+    /// The gap between a field and its cap, and between the send caps (one column grid).
+    static let gridGap: CGFloat = Theme.S.m
+    /// SEND TO DAW and SEND TO AUTO-TUNE split what the cap column leaves.
+    static var sendWidth: CGFloat { (moduleWidth - capWidth - gridGap * 2) / 2 }
     /// The plate: the module, plus the gap and the harmony column in Advanced mode.
     static func plateWidth(advanced: Bool) -> CGFloat {
         advanced ? 520 + columnGap + HarmonyPanel.width : 520
@@ -267,8 +271,8 @@ struct FaceplateFace: View {
                         }
                     }
                     .fixedSize(horizontal: false, vertical: true)
-                    .padding(.top, 10)
-                    footer.padding(.top, 10)
+                    .padding(.top, Theme.S.l)
+                    footer.padding(.top, Theme.S.l)
                 }
             }
             .padding(.top, 6)          // + the 28 pt title bar above = the mockup's traffic-light gap
@@ -303,38 +307,42 @@ struct FaceplateFace: View {
 
     // MARK: module: readout + rows
 
+    /// The module on the plate itself (no extra panel box, F5): the LCD, 16, the three input rows
+    /// 8 apart, 16 / rule / 16, the send row. One column grid: every cap on the right (DOWNLOAD,
+    /// FIND, LISTEN, EXPORT MIDI) shares one x and one width; the two other send caps split the rest.
     private var module: some View {
-        VStack(spacing: 0) {
+        let gap = FaceplateView.gridGap
+        return VStack(spacing: 0) {
             LCD(state: state, highlighted: highlighted, actions: actions)
                 .id(state.highContrast)   // Theme.highContrast is read while drawing: redraw the readout
-            HStack(spacing: 12) {
+            HStack(spacing: gap) {
                 LinkField(text: $url, focused: $fieldFocused, onSubmit: { actions.downloadPressed(state) })
                 if state.needsLogin, let cap = Faceplate.loginCap(busy: state.busy) {
                     Button(action: actions.openLogin) {
                         SSLCapStyle.label(cap.label).lineLimit(1).fixedSize().frame(minWidth: capWidth - SSLCapStyle.sidePadding * 2)
                     }
-                    .buttonStyle(SSLCapStyle(lit: cap.lit))
+                    .buttonStyle(SSLCapStyle(lit: cap.lit, height: Theme.H.lg))
                     .accessibility(label: Text(cap.label.capitalized))
                     .helpTip(HelpText.download)
                 } else {
                     DownloadCap(state: state, action: { actions.downloadPressed(state) }).frame(width: capWidth)
                 }
             }
-            .padding(.top, 14)
-            HStack(spacing: 12) {
+            .padding(.top, Theme.S.l)
+            HStack(spacing: gap) {
                 AudioPickField(label: Faceplate.pickLabel(picked), focused: $pickFocused,
                                onOpen: files.openAudio, onSubmit: { findLit ? files.find() : files.openAudio() })
                     .helpTip(HelpText.openAudio)
                 Button(action: files.find) { SSLCapStyle.label("FIND KEY/BPM").lineLimit(1).frame(maxWidth: .infinity) }
-                    .buttonStyle(SSLCapStyle(lit: findLit))
+                    .buttonStyle(SSLCapStyle(lit: findLit, height: Theme.H.lg))
                     .frame(width: capWidth)
                     .accessibility(label: Text("Find key and BPM"))
                     .accessibility(hint: Text(findLit ? "Finds the BPM and key of the chosen audio" : "Open an audio file first"))
                     .helpTip(HelpText.findKey)
             }
-            .padding(.top, 10)
+            .padding(.top, Theme.S.s)
             // the window keeps its size: HOLD and the reset key stay put, dim until Listen is on
-            HStack(spacing: 10) {
+            HStack(spacing: gap) {
                 SourceField(source: state.source, level: state.level, listening: state.listening,
                             action: actions.pickSource)
                 HStack(spacing: Pocket.transportGap) {
@@ -343,29 +351,28 @@ struct FaceplateFace: View {
                 }
                 ListenCap(state: state, action: actions.toggleListen).frame(width: capWidth)
             }
-            .padding(.top, 10)
-            ModuleRule().padding(.vertical, 14)
-            HStack(spacing: 12) {
-                SendDAWCap(state: state, action: actions.sendDAW)
-                AutoTuneCap(state: state, send: actions.sendAutoTune)
-                ExportMidiCap(state: state, action: actions.exportMidi)
+            .padding(.top, Theme.S.s)
+            ModuleRule().padding(.vertical, Theme.S.l)
+            HStack(spacing: gap) {
+                SendDAWCap(state: state, action: actions.sendDAW).frame(width: FaceplateView.sendWidth)
+                AutoTuneCap(state: state, send: actions.sendAutoTune).frame(width: FaceplateView.sendWidth)
+                ExportMidiCap(state: state, action: actions.exportMidi).frame(width: capWidth)
             }
         }
-        .padding(EdgeInsets(top: 14, leading: 16, bottom: 16, trailing: 16))
-        .modulePanel()
     }
 
     // MARK: footer
 
     private var footer: some View {
-        HStack(spacing: 16) {
+        HStack(spacing: Theme.S.l) {
             RecentLink(state: state, action: actions.showRecents)
             FooterLink(title: "SETTINGS", label: "Settings", action: actions.settings).helpTip(HelpText.settings)
             HelpChip(on: state.help, action: actions.toggleHelp)
             Spacer()
         }
-        .padding(.horizontal, 16)
-        .frame(height: 16)
+        // clear of the corner screws, on the LCD's text edge
+        .padding(.horizontal, Theme.S.lcd)
+        .frame(height: Theme.H.xs)
     }
 }
 

@@ -2,6 +2,25 @@ import XCTest
 @testable import Orion
 
 final class FaceplateTests: XCTestCase {
+    // design pass 2026-11-09 (F1, F2, F4, F5): a small set of intentional tokens
+    func testDesignTokensStayASmallReadableSet() {
+        XCTAssertLessThanOrEqual(Theme.T.all.count, 7)
+        XCTAssertEqual(Set(Theme.T.all).count, Theme.T.all.count)
+        XCTAssertGreaterThanOrEqual(Theme.T.all.min()!, 10)            // nothing under the macOS floor
+        XCTAssertEqual(Theme.T.all, Theme.T.all.sorted(by: >))
+        XCTAssertEqual(Theme.A.alphas.count, 5)
+        XCTAssertGreaterThanOrEqual(Theme.A.alphas[2], 0.6)            // A3, the floor for any text
+        XCTAssertEqual(Theme.A.alphas, Theme.A.alphas.sorted(by: >))
+        XCTAssertEqual([Theme.H.lg, Theme.H.md, Theme.H.sm, Theme.H.xs], [36, 28, 20, 16])
+        XCTAssertEqual([Theme.R.plate, Theme.R.well, Theme.R.cap], [12, 6, 3])
+        for s in [Theme.S.xs, Theme.S.s, Theme.S.m, Theme.S.l, Theme.S.xl, Theme.S.xxl] {
+            XCTAssertEqual(s.truncatingRemainder(dividingBy: 4), 0)    // the 4/8 grid
+        }
+        // the send row lines up with the cap column above it
+        XCTAssertEqual(FaceplateView.sendWidth * 2 + FaceplateView.gridGap * 2 + FaceplateView.capWidth,
+                       FaceplateView.moduleWidth)
+    }
+
     func testLitNeedsALinkAndIdle() {
         XCTAssertFalse(Faceplate.isLit("", busy: false))
         XCTAssertFalse(Faceplate.isLit("youtube.com/watch?v=x", busy: false))
@@ -48,7 +67,10 @@ final class FaceplateTests: XCTestCase {
                        "THAT VIDEO IS PRIVATE OR WAS REMOVED")
         let r = Result(file: URL(fileURLWithPath: "/Users/x/Downloads/a (90.0 BPM Am).mp3"),
                        name: "a (90.0 BPM Am).mp3", bpm: "90.0", keys: [])
-        XCTAssertEqual(Faceplate.fileLine(r), "A (90.0 BPM AM).MP3 · DOWNLOADS")
+        // your file in its own case (design pass F6), not a tracked caps label
+        XCTAssertEqual(Faceplate.fileLine(r), "a (90.0 BPM Am).mp3 · Downloads")
+        XCTAssertEqual(Faceplate.fileParts(r).name, "a (90.0 BPM Am).mp3")
+        XCTAssertEqual(Faceplate.fileParts(r).folder, "Downloads")
     }
 
     func testDropKeepsOnlyAudioFiles() throws {

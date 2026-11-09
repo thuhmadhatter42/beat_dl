@@ -55,6 +55,92 @@ enum Theme {
     static func face(_ size: CGFloat, bold: Bool = true) -> Font {
         Font.custom(bold ? "HelveticaNeue-Bold" : "HelveticaNeue", size: size)
     }
+
+    // MARK: the design tokens (design pass 2026-11-09, audit F1/F2/F4/F5)
+    // Every surface (window, Advanced, pocket, Mini) sets its type, amber, spacing, control
+    // heights and corners from these tables; nothing on the faceplate picks its own number.
+
+    /// Six type sizes, nothing under 10 pt (Apple's macOS floor). Each role carries its weight and
+    /// tracking. UPPERCASE + tracking only for labels of 1-3 words; names and sentences mixed case.
+    enum T {
+        /// 68 Bold: the window's BPM (whole number).
+        static let heroSize: CGFloat = 68
+        /// 34 Bold: the key in the dial, the BPM's decimals, the pocket's BPM, Doctor's title.
+        static let keySize: CGFloat = 34
+        /// 18 Bold: stage words (WORKING, LISTENING), the top keys, the Mini's key, the idle invitation.
+        static let titleSize: CGFloat = 18
+        /// 13: values and content. Bold for chord names, wheel majors, percentages; Regular for the
+        /// file name, the source, the link field.
+        static let valueSize: CGFloat = 13
+        /// 11 Bold, +0.08em: cap legends, section heads, the status legend, menus.
+        static let labelSize: CGFloat = 11
+        /// 10 Medium, +0.10em in caps: small labels, roman numerals, note letters, chips, footer.
+        static let captionSize: CGFloat = 10
+
+        static let all: [CGFloat] = [heroSize, keySize, titleSize, valueSize, labelSize, captionSize]
+
+        static var hero: Font { face(heroSize).monospacedDigit() }
+        static var key: Font { face(keySize) }
+        static var title: Font { face(titleSize) }
+        static var value: Font { face(valueSize) }
+        static var body: Font { face(valueSize, bold: false) }
+        static var label: Font { face(labelSize) }
+        /// The help card's sentences: the label size, Regular.
+        static var note: Font { face(labelSize, bold: false) }
+        static var caption: Font { Font.custom("HelveticaNeue-Medium", size: captionSize) }
+
+        static let labelTracking: CGFloat = labelSize * 0.08
+        static let captionTracking: CGFloat = captionSize * 0.10
+        /// Large caps (stage words): +0.04em.
+        static let titleTracking: CGFloat = titleSize * 0.04
+    }
+
+    /// Five amber steps, nothing else (contrast on the LCD's #0c0a06 in brackets):
+    /// A1 the reading (10.8:1), A2 labels and secondary values (~6.3:1), A3 tertiary text and the
+    /// floor for any text (~4.6:1), A4 structure (rules, outlines, unlit bars), A5 fills.
+    /// High Contrast: A2 and A3 go full, A4 to 0.3, A5 to 0.12.
+    enum A {
+        static let alphas: [Double] = [1, 0.75, 0.62, 0.16, 0.06]
+        static var a1: Color { Theme.amber }
+        static var a2: Color { step(0.75, hc: 1) }
+        static var a3: Color { step(0.62, hc: 1) }
+        static var a4: Color { step(0.16, hc: 0.3) }
+        static var a5: Color { step(0.06, hc: 0.12) }
+        /// Ink on a lit amber fill (selected chip, lit section, lit key).
+        static let ink = hex(0x1a1206)
+        private static func step(_ a: Double, hc: Double) -> Color {
+            rgb(255, 176, 32, highContrast ? hc : a)
+        }
+    }
+
+    /// The 4/8 spacing grid: 8 within a group, 16 between groups.
+    enum S {
+        static let xs: CGFloat = 4
+        static let s: CGFloat = 8
+        static let m: CGFloat = 12
+        static let l: CGFloat = 16
+        static let xl: CGFloat = 24
+        static let xxl: CGFloat = 32
+        /// The LCD glass's inner padding.
+        static let lcd: CGFloat = 20
+    }
+
+    /// Four control heights, nothing else: fields and the caps beside them, send / action caps,
+    /// chips and menus, inline pills.
+    enum H {
+        static let lg: CGFloat = 36
+        static let md: CGFloat = 28
+        static let sm: CGFloat = 20
+        static let xs: CGFloat = 16
+    }
+
+    /// Three corners: the plate, wells (LCD, fields), caps and chips.
+    enum R {
+        static let plate: CGFloat = 12
+        static let well: CGFloat = 6
+        static let cap: CGFloat = 3
+    }
+
     static func nsFace(_ size: CGFloat, bold: Bool = false) -> NSFont {
         NSFont(name: bold ? "HelveticaNeue-Bold" : "HelveticaNeue", size: size)
             ?? NSFont.systemFont(ofSize: size, weight: bold ? .bold : .regular)
@@ -129,9 +215,14 @@ extension View {
 }
 
 extension Text {
-    /// A caption in the LCD's 8 pt, .3em amber style.
-    static func cap(_ s: String) -> some View {
-        Text(s).font(Theme.face(8)).tracking(2.4).foregroundColor(Theme.amber(0.7))
-            .shadow(color: Theme.highContrast ? .clear : Theme.amber(0.35), radius: 2)
+    /// A section head / label on the LCD: T.label (11 Bold, +0.08em) in A2. No glow: the glow is
+    /// kept for the reading (BPM, key, the lit wheel section).
+    static func cap(_ s: String) -> Text {
+        Text(s).labelStyle().foregroundColor(Theme.A.a2)
     }
+
+    /// T.label: 11 Bold, +0.08em (UPPERCASE, 1-3 words).
+    func labelStyle() -> Text { font(Theme.T.label).tracking(Theme.T.labelTracking) }
+    /// T.caption: 10 Medium, +0.10em (UPPERCASE, 1-3 words).
+    func captionStyle() -> Text { font(Theme.T.caption).tracking(Theme.T.captionTracking) }
 }

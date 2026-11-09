@@ -46,6 +46,16 @@ enum Tempo {
         guard r.bpmExact != nil, let v = (text(r, factor: factor)).flatMap(Double.init) else { return nil }
         return String(Int(v.rounded()))
     }
+
+    /// The BPM as the readout draws it (J 2026-11-09, "decimals small"): the whole number big,
+    /// the decimals (with their point) small beside it. "141.98" -> ("141", ".98"); "142" ->
+    /// ("142", nil); "---.-" or text with no digits before the point stays whole.
+    static func split(_ text: String) -> (whole: String, fraction: String?) {
+        guard let dot = text.firstIndex(of: "."), dot != text.startIndex,
+              text[..<dot].allSatisfy(\.isNumber) else { return (text, nil) }
+        let frac = String(text[dot...])
+        return (String(text[..<dot]), frac.count > 1 ? frac : nil)
+    }
 }
 
 enum Tuning {

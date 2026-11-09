@@ -137,9 +137,15 @@ enum Faceplate {
         }
     }
 
-    /// "NAME · FOLDER", the LCD's file line.
+    /// "Name.wav · Folder", the LCD's file line: the user's file in its own case (design pass F6).
     static func fileLine(_ r: Result) -> String {
-        "\(r.name) · \(r.file.deletingLastPathComponent().lastPathComponent)".uppercased()
+        let p = fileParts(r)
+        return "\(p.name) · \(p.folder)"
+    }
+
+    /// The file line's two halves: the name (warm white) and its folder (dimmer).
+    static func fileParts(_ r: Result) -> (name: String, folder: String) {
+        (r.name, r.file.deletingLastPathComponent().lastPathComponent)
     }
 }
 
