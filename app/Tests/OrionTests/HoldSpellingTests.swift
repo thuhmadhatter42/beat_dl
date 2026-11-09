@@ -200,7 +200,7 @@ final class HoldSpellingTests: XCTestCase {
     }
 
     func testHoldHotkeyDefaultsAppended() {
-        XCTAssertEqual(HotkeyAction.hold.defaultShortcut.display, "⌃⌥⌘H")
+        XCTAssertEqual(HotkeyAction.hold.defaultShortcut!.display, "⌃⌥⌘H")
         XCTAssertEqual(HotkeyAction.hold.hotKeyID, 4)
     }
 }

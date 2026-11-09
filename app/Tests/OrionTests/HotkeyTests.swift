@@ -14,14 +14,14 @@ final class HotkeyTests: XCTestCase {
     // MARK: 2.2 global shortcuts
 
     func testDefaults() {
-        XCTAssertEqual(HotkeyAction.listen.defaultShortcut.display, "⌃⌥⌘K")
-        XCTAssertEqual(HotkeyAction.analyzeFile.defaultShortcut.display, "⌃⌥⌘F")
-        XCTAssertEqual(HotkeyAction.newSong.defaultShortcut.display, "⌃⌥⌘R")
+        XCTAssertEqual(HotkeyAction.listen.defaultShortcut!.display, "⌃⌥⌘K")
+        XCTAssertEqual(HotkeyAction.analyzeFile.defaultShortcut!.display, "⌃⌥⌘F")
+        XCTAssertEqual(HotkeyAction.newSong.defaultShortcut!.display, "⌃⌥⌘R")
         XCTAssertEqual(HotkeyAction.newSong.hotKeyID, 3)   // appended: the older IDs stay put
-        XCTAssertEqual(HotkeyAction.analyzeSelection.defaultShortcut.display, "⌥⌘B")   // ⌃⌥⌘L is Pro Tools'
+        XCTAssertNil(HotkeyAction.analyzeSelection.defaultShortcut)   // ⌃⌥⌘L and ⌥⌘B are Pro Tools'
+        XCTAssertNil(ShortcutStore(defaults: UserDefaults(suiteName: "hk-\(UUID())")!).shortcut(.analyzeSelection))
         XCTAssertEqual(HotkeyAction.analyzeSelection.hotKeyID, 5)
-        XCTAssertEqual(HotkeyAction.analyzeSelection.defaultShortcut.menuShortcut?.modifiers, [.option, .command])
-        XCTAssertEqual(HotkeyAction.listen.defaultShortcut.keyCode, UInt32(kVK_ANSI_K))
+        XCTAssertEqual(HotkeyAction.listen.defaultShortcut!.keyCode, UInt32(kVK_ANSI_K))
         let s = ShortcutStore(defaults: defaults())
         XCTAssertEqual(s.shortcut(.listen), HotkeyAction.listen.defaultShortcut)
     }
@@ -51,7 +51,7 @@ final class HotkeyTests: XCTestCase {
     func testOneKeyDoesOneThing() {
         let s = ShortcutStore(defaults: defaults())
         XCTAssertFalse(s.set(HotkeyAction.analyzeFile.defaultShortcut, for: .listen))
-        XCTAssertEqual(s.conflict(HotkeyAction.analyzeFile.defaultShortcut, for: .listen), .analyzeFile)
+        XCTAssertEqual(s.conflict(HotkeyAction.analyzeFile.defaultShortcut!, for: .listen), .analyzeFile)
         XCTAssertEqual(s.shortcut(.listen), HotkeyAction.listen.defaultShortcut)
         // resetting to a default someone else now holds leaves it off rather than doubled
         s.set(nil, for: .analyzeFile)
@@ -61,7 +61,7 @@ final class HotkeyTests: XCTestCase {
     }
 
     func testMenuShortcutMirrorsTheGlobalOne() {
-        let m = HotkeyAction.analyzeFile.defaultShortcut.menuShortcut
+        let m = HotkeyAction.analyzeFile.defaultShortcut!.menuShortcut
         XCTAssertEqual(m?.key, KeyEquivalentProxy.f)
         XCTAssertEqual(m?.modifiers, [.control, .option, .command])
         XCTAssertNil(Shortcut(keyCode: UInt32(kVK_F5), modifiers: UInt32(cmdKey), key: "F5").menuShortcut)

@@ -79,15 +79,16 @@ enum HotkeyAction: String, CaseIterable, Identifiable {
         }
     }
 
-    var defaultShortcut: Shortcut {
+    /// nil = no keys until the user sets some in Settings › Shortcuts.
+    var defaultShortcut: Shortcut? {
         let ctrlOptCmd = UInt32(controlKey | optionKey | cmdKey)
         switch self {
         case .listen: return Shortcut(keyCode: UInt32(kVK_ANSI_K), modifiers: ctrlOptCmd, key: "K")
         case .analyzeFile: return Shortcut(keyCode: UInt32(kVK_ANSI_F), modifiers: ctrlOptCmd, key: "F")
         case .newSong: return Shortcut(keyCode: UInt32(kVK_ANSI_R), modifiers: ctrlOptCmd, key: "R")
         case .hold: return Shortcut(keyCode: UInt32(kVK_ANSI_H), modifiers: ctrlOptCmd, key: "H")
-        // ⌃⌥⌘L is Pro Tools' own (J, 2026-11-05): ⌥⌘B instead.
-        case .analyzeSelection: return Shortcut(keyCode: UInt32(kVK_ANSI_B), modifiers: UInt32(optionKey | cmdKey), key: "B")
+        // Unassigned by default: ⌃⌥⌘L (J, 2026-11-05) and ⌥⌘B (J, 2026-11-08, Bounce) are Pro Tools' own.
+        case .analyzeSelection: return nil
         }
     }
 
@@ -130,7 +131,7 @@ final class ShortcutStore: ObservableObject {
     func reset(_ a: HotkeyAction) {
         defaults.removeObject(forKey: ShortcutStore.key(a))
         shortcuts[a] = a.defaultShortcut
-        if conflict(a.defaultShortcut, for: a) != nil { set(nil, for: a) }
+        if let d = a.defaultShortcut, conflict(d, for: a) != nil { set(nil, for: a) }
     }
 }
 

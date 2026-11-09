@@ -1,7 +1,7 @@
 import AppKit
 import SwiftUI
 
-// Reading › Send to DAW (⌃⌥⌘S), Send to All DAWs (⌃⌥⌘D), Analyze Selection (⌥⌘B, global). Plan §4.2, §4.3.
+// Reading › Send to DAW (⌃⌥⌘S), Send to All DAWs (⌃⌥⌘D), Analyze Selection (no default keys; set in Settings › Shortcuts, global). Plan §4.2, §4.3.
 // One driver per DAW; what each DAW can really take is in docs/research/send-to-daw.md.
 
 /// The DAWs Beat Key knows, in the order "Send to All" walks them.

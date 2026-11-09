@@ -285,8 +285,8 @@ final class HarmonyTests: XCTestCase {
     func testAdvancedShortcutIsFree() {
         // ⌥⌘A: not a global shortcut's default, not a play-to-find key (⇧⌘A is)
         let optCmd = Shortcut(keyCode: 0, modifiers: UInt32(2048 | 256), key: "A")
-        XCTAssertFalse(HotkeyAction.allCases.contains { $0.defaultShortcut.keyCode == optCmd.keyCode
-            && $0.defaultShortcut.modifiers == optCmd.modifiers })
+        XCTAssertFalse(HotkeyAction.allCases.contains { $0.defaultShortcut?.keyCode == optCmd.keyCode
+            && $0.defaultShortcut?.modifiers == optCmd.modifiers })
         XCTAssertNil(MusicalTyping.action(keyCode: 0, modifiers: [.option, .command]))
     }
 
