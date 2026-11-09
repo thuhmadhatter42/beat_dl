@@ -298,8 +298,12 @@ struct KeyWheel: View {
     var onChoose: ((String) -> Void)? = nil
 
     static let side: CGFloat = 200
-    /// The minors' ring (the majors sit at side / 2 - 17).
-    static let innerRadius: CGFloat = 50
+    /// Three circles (J, 2026-11-09): the centre holds the Camelot code, minors fill the ring between
+    /// `innerRadius` and `middleRadius`, majors the ring between `middleRadius` and `outerRadius`.
+    /// A line between every two keys splits each ring into 12 sections; a lit key lights its section.
+    static let innerRadius: CGFloat = 32
+    static let middleRadius: CGFloat = 64
+    static let outerRadius: CGFloat = side / 2 - 1
 
     /// Position `i` (0 = top, clockwise) of the circle: (pitch class, minor).
     static func slot(_ i: Int, minor: Bool) -> (pc: Int, minor: Bool) {
@@ -316,26 +320,17 @@ struct KeyWheel: View {
     }
 
     var body: some View {
-        let r = KeyWheel.side / 2
         ZStack {
-            let inner = KeyWheel.innerRadius
-            Circle().stroke(Theme.amber(0.1), lineWidth: 1).frame(width: KeyWheel.side - 2, height: KeyWheel.side - 2)
-            Circle().stroke(Theme.amber(0.08), lineWidth: 1).frame(width: (inner + 16) * 2, height: (inner + 16) * 2)
-            Circle().stroke(Theme.amber(0.06), lineWidth: 1).frame(width: (inner - 15) * 2, height: (inner - 15) * 2)
             ForEach(0..<12, id: \.self) { i in
-                slotView(i, minor: false).offset(position(i, radius: r - 17))
-                slotView(i, minor: true).offset(position(i, radius: inner))
+                KeyWheelSection(index: i, minor: false, rank: rank(KeyWheel.slot(i, minor: false).pc, minor: false), onChoose: onChoose)
+                KeyWheelSection(index: i, minor: true, rank: rank(KeyWheel.slot(i, minor: true).pc, minor: true), onChoose: onChoose)
             }
-            center
+            KeyWheelGrid().allowsHitTesting(false)
+            center.allowsHitTesting(false)
         }
         .frame(width: KeyWheel.side, height: KeyWheel.side)
         .accessibilityElement(children: .contain)
         .accessibility(label: Text("Key wheel"))
-    }
-
-    private func position(_ i: Int, radius: CGFloat) -> CGSize {
-        let a = Double(i) * .pi / 6
-        return CGSize(width: CGFloat(sin(a)) * radius, height: -CGFloat(cos(a)) * radius)
     }
 
     /// The key on show's Camelot code in the middle (the wheel's own numbering).
@@ -345,36 +340,104 @@ struct KeyWheel: View {
                 Text(code).font(Theme.face(13)).foregroundColor(Theme.amber(0.85))
                 Text("CAMELOT").font(Theme.face(5.5)).tracking(1).foregroundColor(Theme.amber(0.4))
             }
+            .animation(nil, value: code)
             .accessibility(hidden: true)
         }
     }
+}
 
-    private func slotView(_ i: Int, minor: Bool) -> some View {
-        let s = KeyWheel.slot(i, minor: minor)
+/// One ring section between two lines: centred on slot `index` (0 = top, clockwise), 30° wide,
+/// from `inner` to `outer` radius, in the wheel's own square.
+struct RingSector: Shape {
+    let index: Int
+    let inner: CGFloat
+    let outer: CGFloat
+
+    func path(in rect: CGRect) -> Path {
+        let c = CGPoint(x: rect.midX, y: rect.midY)
+        let mid = Double(index) * 30 - 90          // SwiftUI angles start at 3 o'clock, y down
+        let a0 = Angle.degrees(mid - 15), a1 = Angle.degrees(mid + 15)
+        var p = Path()
+        p.addArc(center: c, radius: outer, startAngle: a0, endAngle: a1, clockwise: false)
+        p.addArc(center: c, radius: inner, startAngle: a1, endAngle: a0, clockwise: true)
+        p.closeSubpath()
+        return p
+    }
+}
+
+/// The three circles and the 12 lines between keys, drawn once over the sections.
+private struct KeyWheelGrid: View {
+    var body: some View {
+        Canvas { ctx, size in
+            let c = CGPoint(x: size.width / 2, y: size.height / 2)
+            let r0 = KeyWheel.innerRadius, r1 = KeyWheel.middleRadius, r2 = KeyWheel.outerRadius
+            var circles = Path()
+            for r in [r0, r1, r2] { circles.addEllipse(in: CGRect(x: c.x - r, y: c.y - r, width: r * 2, height: r * 2)) }
+            ctx.stroke(circles, with: .color(Theme.amber(0.28)), lineWidth: 1)
+            var lines = Path()
+            for i in 0..<12 {
+                let a = (Double(i) * 30 - 90 + 15) * .pi / 180
+                lines.move(to: CGPoint(x: c.x + CGFloat(cos(a)) * r0, y: c.y + CGFloat(sin(a)) * r0))
+                lines.addLine(to: CGPoint(x: c.x + CGFloat(cos(a)) * r2, y: c.y + CGFloat(sin(a)) * r2))
+            }
+            ctx.stroke(lines, with: .color(Theme.amber(0.2)), lineWidth: 1)
+        }
+        .frame(width: KeyWheel.side, height: KeyWheel.side)
+    }
+}
+
+/// One key's section: lit whole when it is the key (solid) or a runner-up (dim), a faint wash on
+/// hover, and the light eases in and out instead of jumping.
+private struct KeyWheelSection: View {
+    let index: Int
+    let minor: Bool
+    let rank: Int?
+    let onChoose: ((String) -> Void)?
+    @State private var hover = false
+
+    var body: some View {
+        let s = KeyWheel.slot(index, minor: minor)
         let name = KeySpelling.respell(KeyChoice.keyName(s.pc, minor: minor), to: SpellingSettings.shared.preference)
-        let rank = rank(s.pc, minor: minor)
-        let d: CGFloat = minor ? 24 : 30
-        let label = Text(name).font(Theme.face(minor ? 8 : 10)).lineLimit(1).minimumScaleFactor(0.7)
-            .foregroundColor(rank == 0 ? Theme.hex(0x1a1206) : Theme.amber(rank == 1 ? 0.95 : (minor ? 0.4 : 0.5)))
-            .frame(width: d, height: d)
-            .background(Circle().fill(rank == 0 ? Theme.amber : Theme.amber(rank == 1 ? 0.14 : 0)))
-            .overlay(Circle().stroke(Theme.amber(rank == 1 ? 0.7 : 0), lineWidth: 1))
-            .shadow(color: rank == 0 && !Theme.highContrast ? Theme.amberGlow : .clear, radius: 4)
-            .contentShape(Circle())
+        let inner = minor ? KeyWheel.innerRadius : KeyWheel.middleRadius
+        let outer = minor ? KeyWheel.middleRadius : KeyWheel.outerRadius
+        let shape = RingSector(index: index, inner: inner, outer: outer)
+        let fill: Double = rank == 0 ? 1 : rank == 1 ? 0.22 : (hover && onChoose != nil ? 0.1 : 0)
+        let mid = Double(index) * .pi / 6, r = (inner + outer) / 2
+        let label = Text(name).font(Theme.face(minor ? 8 : 10)).lineLimit(1).minimumScaleFactor(0.6)
+            .foregroundColor(rank == 0 ? Theme.hex(0x1a1206) : Theme.amber(rank == 1 ? 0.95 : (hover ? 0.8 : (minor ? 0.4 : 0.5))))
+            .frame(width: minor ? 26 : 34)
+            .offset(x: CGFloat(sin(mid)) * r, y: -CGFloat(cos(mid)) * r)
+        let body = ZStack {
+            shape.fill(Theme.amber(fill))
+                .shadow(color: rank == 0 && !Theme.highContrast ? Theme.amberGlow : .clear, radius: 5)
+            label
+        }
+        .frame(width: KeyWheel.side, height: KeyWheel.side)
+        .contentShape(shape)
+        .animation(.easeOut(duration: 0.18), value: rank)
+        .animation(.easeOut(duration: 0.1), value: hover)
         let spoken = "\(KeyChoice.keyName(s.pc, minor: minor).replacingOccurrences(of: "m", with: "")) \(minor ? "minor" : "major")"
         return Group {
             if let choose = onChoose {
-                Button(action: { choose(name) }) { label }
-                    .buttonStyle(PlainButtonStyle())
+                Button(action: { choose(name) }) { body }
+                    .buttonStyle(KeyWheelPress())
+                    .onHover { hover = $0 }
                     .pointingHand()
                     .help("Use \(name) as the key")
                     .accessibility(label: Text(spoken + (rank == 0 ? ", the key" : rank == 1 ? ", a runner-up" : "")))
                     .accessibility(hint: Text("Makes it the key"))
                     .accessibility(addTraits: rank == 0 ? .isSelected : [])
             } else {
-                label.accessibility(label: Text(spoken))
+                body.accessibility(label: Text(spoken))
             }
         }
+    }
+}
+
+/// A press shows at once (brightens), so a click feels instant even before the key changes.
+private struct KeyWheelPress: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label.brightness(configuration.isPressed ? 0.12 : 0)
     }
 }
 
