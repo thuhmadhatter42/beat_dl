@@ -332,15 +332,17 @@ struct KeyWheel: View {
             ForEach(0..<12, id: \.self) { i in
                 ForEach([false, true], id: \.self) { minor in
                     KeyWheelSection(index: i, minor: minor, rank: rank(KeyWheel.slot(i, minor: minor).pc, minor: minor),
-                                    hover: hovered == i * 2 + (minor ? 1 : 0), onChoose: onChoose,
-                                    onHover: { inside in
-                                        let id = i * 2 + (minor ? 1 : 0)
-                                        if inside { hovered = id } else if hovered == id { hovered = nil }
-                                    })
+                                    hover: hovered == i * 2 + (minor ? 1 : 0), onChoose: onChoose)
                 }
             }
             KeyWheelGrid().allowsHitTesting(false)
             center.allowsHitTesting(false)
+            // SwiftUI's onHover tracks a view's whole frame (every section is the full square), so the
+            // section under the mouse is worked out from the mouse position instead.
+            MouseTracker { p in
+                let id = p.flatMap(KeyWheel.section(at:))
+                if id != hovered { hovered = id }
+            }
             if let h = hovered { card(for: h).allowsHitTesting(false).transition(.opacity) }
         }
         .animation(.easeOut(duration: 0.12), value: hovered)
@@ -359,6 +361,18 @@ struct KeyWheel: View {
         let top = cos(Double(i) * .pi / 6) > 0
         return HelpCard(title: info.title, text: info.why, width: 176)
             .offset(y: top ? 52 : -52)
+    }
+
+    /// The section (slot index * 2 + minor) under `p`, in the wheel's own square (y down); nil = the
+    /// centre, outside the wheel, or no point.
+    static func section(at p: CGPoint) -> Int? {
+        let dx = Double(p.x - side / 2), dy = Double(p.y - side / 2)
+        let r = CGFloat((dx * dx + dy * dy).squareRoot())
+        guard r >= innerRadius, r <= outerRadius else { return nil }
+        var a = atan2(dx, -dy) * 180 / .pi            // 0 = top, clockwise
+        if a < 0 { a += 360 }
+        let i = Int((a + 15) / 30) % 12
+        return i * 2 + (r < middleRadius ? 1 : 0)
     }
 
     /// The name as the wheel spells it.
@@ -465,7 +479,6 @@ private struct KeyWheelSection: View {
     let rank: Int?
     let hover: Bool
     let onChoose: ((String) -> Void)?
-    let onHover: (Bool) -> Void
 
     var body: some View {
         let s = KeyWheel.slot(index, minor: minor)
@@ -493,13 +506,12 @@ private struct KeyWheelSection: View {
             if let choose = onChoose {
                 Button(action: { choose(name) }) { body }
                     .buttonStyle(KeyWheelPress())
-                    .onHover(perform: onHover)
                     .pointingHand()
                     .accessibility(label: Text(spoken + (rank == 0 ? ", the key" : rank == 1 ? ", a runner-up" : "")))
                     .accessibility(hint: Text("Makes it the key"))
                     .accessibility(addTraits: rank == 0 ? .isSelected : [])
             } else {
-                body.onHover(perform: onHover).accessibility(label: Text(spoken))
+                body.accessibility(label: Text(spoken))
             }
         }
     }
@@ -555,5 +567,37 @@ struct NotesHeard: View {
         let order = (0..<12).filter { lv[$0] > 0.05 }.sorted { lv[$0] > lv[$1] }.prefix(7)
         let names = order.map { scale?.name($0) ?? Scale.sharpNames[$0] }
         return names.isEmpty ? "Notes heard: none" : "Notes heard, strongest first: " + names.joined(separator: ", ")
+    }
+}
+
+/// Reports the mouse position (view coordinates, y down) while it moves over this view, nil when it
+/// leaves. Lets clicks through (hitTest nil); the tracking area still gets the moves.
+struct MouseTracker: NSViewRepresentable {
+    let onMove: (CGPoint?) -> Void
+
+    func makeNSView(context: Context) -> TrackView {
+        let v = TrackView()
+        v.onMove = onMove
+        return v
+    }
+
+    func updateNSView(_ v: TrackView, context: Context) { v.onMove = onMove }
+
+    final class TrackView: NSView {
+        var onMove: ((CGPoint?) -> Void)?
+        override var isFlipped: Bool { true }
+        override func hitTest(_ point: NSPoint) -> NSView? { nil }
+
+        override func updateTrackingAreas() {
+            super.updateTrackingAreas()
+            trackingAreas.forEach(removeTrackingArea)
+            addTrackingArea(NSTrackingArea(rect: .zero,
+                                           options: [.mouseMoved, .mouseEnteredAndExited, .activeAlways, .inVisibleRect],
+                                           owner: self, userInfo: nil))
+        }
+
+        override func mouseEntered(with e: NSEvent) { onMove?(convert(e.locationInWindow, from: nil)) }
+        override func mouseMoved(with e: NSEvent) { onMove?(convert(e.locationInWindow, from: nil)) }
+        override func mouseExited(with e: NSEvent) { onMove?(nil) }
     }
 }

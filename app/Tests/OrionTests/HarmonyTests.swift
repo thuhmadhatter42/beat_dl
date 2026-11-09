@@ -256,6 +256,17 @@ final class HarmonyTests: XCTestCase {
         XCTAssertNil(w.rank(0, minor: false))
     }
 
+    func testKeyWheelSectionUnderTheMouse() {
+        let c = KeyWheel.side / 2
+        XCTAssertNil(KeyWheel.section(at: CGPoint(x: c, y: c)))                                   // centre
+        XCTAssertNil(KeyWheel.section(at: CGPoint(x: 0, y: 0)))                                   // corner, outside
+        XCTAssertEqual(KeyWheel.section(at: CGPoint(x: c, y: c - 80)), 0)                         // C, top, outer
+        XCTAssertEqual(KeyWheel.section(at: CGPoint(x: c, y: c - 48)), 1)                         // Am, top, inner
+        XCTAssertEqual(KeyWheel.section(at: CGPoint(x: c + 80, y: c)), 6)                         // A, 3 o'clock = slot 3
+        XCTAssertEqual(KeyWheel.section(at: CGPoint(x: c, y: c + 80)), 12)                        // F#, bottom = slot 6
+        XCTAssertEqual(KeyWheel.section(at: CGPoint(x: c - 48, y: c)), 19)                        // Fm? slot 9 inner
+    }
+
     func testKeyWheelHoverExplainsEachLitKey() {
         let w = KeyWheel(keys: [("Cm", 64), ("Eb", 18), ("Gm", 9)])
         let pick = w.info(0, minor: true)
