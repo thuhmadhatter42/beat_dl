@@ -256,6 +256,23 @@ final class HarmonyTests: XCTestCase {
         XCTAssertNil(w.rank(0, minor: false))
     }
 
+    func testKeyWheelHoverExplainsEachLitKey() {
+        let w = KeyWheel(keys: [("Cm", 64), ("Eb", 18), ("Gm", 9)])
+        let pick = w.info(0, minor: true)
+        XCTAssertTrue(pick.title.hasSuffix("64% SURE"))
+        XCTAssertTrue(pick.why.contains("pick"))
+        let rel = w.info(3, minor: false)                       // Eb: relative major
+        XCTAssertTrue(rel.title.hasSuffix("18% SURE"))
+        XCTAssertTrue(rel.why.contains("relative major") && rel.why.contains("seven notes"))
+        let nb = w.info(7, minor: true)                         // Gm: neighbour
+        XCTAssertTrue(nb.why.contains("circle of fifths") && nb.why.contains("one note"))
+        let par = w.info(0, minor: false)                       // C major: parallel, not in the reading
+        XCTAssertFalse(par.title.contains("%"))
+        XCTAssertTrue(par.why.contains("Same root"))
+        XCTAssertTrue(w.info(6, minor: false).why.contains("clashes"))   // F#/Gb: far side
+        XCTAssertTrue(KeyWheel(keys: []).info(0, minor: false).why.contains("Click"))
+    }
+
     // MARK: the mode and its settings
 
     func testAdvancedModeAndChoicesAreRemembered() {

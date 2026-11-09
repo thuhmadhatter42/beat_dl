@@ -319,18 +319,93 @@ struct KeyWheel: View {
         return nil
     }
 
+    /// The section under the mouse: slot index * 2 + (minor ? 1 : 0). nil = none.
+    @State private var hovered: Int?
+
     var body: some View {
         ZStack {
             ForEach(0..<12, id: \.self) { i in
-                KeyWheelSection(index: i, minor: false, rank: rank(KeyWheel.slot(i, minor: false).pc, minor: false), onChoose: onChoose)
-                KeyWheelSection(index: i, minor: true, rank: rank(KeyWheel.slot(i, minor: true).pc, minor: true), onChoose: onChoose)
+                ForEach([false, true], id: \.self) { minor in
+                    KeyWheelSection(index: i, minor: minor, rank: rank(KeyWheel.slot(i, minor: minor).pc, minor: minor),
+                                    hover: hovered == i * 2 + (minor ? 1 : 0), onChoose: onChoose,
+                                    onHover: { inside in
+                                        let id = i * 2 + (minor ? 1 : 0)
+                                        if inside { hovered = id } else if hovered == id { hovered = nil }
+                                    })
+                }
             }
             KeyWheelGrid().allowsHitTesting(false)
             center.allowsHitTesting(false)
+            if let h = hovered { card(for: h).allowsHitTesting(false).transition(.opacity) }
         }
+        .animation(.easeOut(duration: 0.12), value: hovered)
         .frame(width: KeyWheel.side, height: KeyWheel.side)
         .accessibilityElement(children: .contain)
         .accessibility(label: Text("Key wheel"))
+    }
+
+    /// The pop-up for the hovered section: how sure, and why it is lit (J, 2026-11-09: no extra text
+    /// on screen by default; the explanation appears only on hover). Sits in the half of the wheel
+    /// away from the section so it never covers it.
+    private func card(for id: Int) -> some View {
+        let i = id / 2, minor = id % 2 == 1
+        let s = KeyWheel.slot(i, minor: minor)
+        let info = info(s.pc, minor: minor)
+        let top = cos(Double(i) * .pi / 6) > 0
+        return VStack(alignment: .leading, spacing: 3) {
+            Text(info.title).font(Theme.face(11)).foregroundColor(Theme.amber)
+            Text(info.why).font(.system(size: 10)).foregroundColor(Theme.amber(0.8))
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .padding(.horizontal, 8).padding(.vertical, 6)
+        .frame(width: 176, alignment: .leading)
+        .background(RoundedRectangle(cornerRadius: 6).fill(Theme.hex(0x15100a).opacity(0.96)))
+        .overlay(RoundedRectangle(cornerRadius: 6).stroke(Theme.amber(0.45), lineWidth: 1))
+        .shadow(color: Color.black.opacity(0.5), radius: 6, y: 2)
+        .offset(y: top ? 52 : -52)
+    }
+
+    /// The name as the wheel spells it.
+    static func name(_ pc: Int, minor: Bool) -> String {
+        KeySpelling.respell(KeyChoice.keyName(pc, minor: minor), to: SpellingSettings.shared.preference)
+    }
+
+    /// The scale's seven pitch classes.
+    static func notes(_ pc: Int, minor: Bool) -> Set<Int> {
+        Set((minor ? Scale.naturalMinor : Scale.major).map { ($0 + pc) % 12 })
+    }
+
+    /// How sure the reading is of this key (0-100), nil = not one of its top three.
+    func percent(_ pc: Int, minor: Bool) -> Int? {
+        for k in keys.prefix(3) {
+            if let c = AutoTuneSend.keyClass(k.0), c.pitchClass == pc, c.minor == minor { return k.1 }
+        }
+        return nil
+    }
+
+    /// What the hover card says: the key and how sure, then why it relates to the key on show.
+    func info(_ pc: Int, minor: Bool) -> (title: String, why: String) {
+        let name = KeyWheel.name(pc, minor: minor)
+        let title = percent(pc, minor: minor).map { "\(name) · \($0)% SURE" } ?? name
+        guard let k = keys.first?.0, let t = AutoTuneSend.keyClass(k) else {
+            return (title, "Click to use it as the key.")
+        }
+        if t.pitchClass == pc && t.minor == minor {
+            return (title, "Beat Key's pick: the closest match to what it heard.")
+        }
+        let topName = KeyWheel.name(t.pitchClass, minor: t.minor)
+        let shared = KeyWheel.notes(pc, minor: minor).intersection(KeyWheel.notes(t.pitchClass, minor: t.minor)).count
+        let mode = minor ? "minor" : "major"
+        if shared == 7 {
+            return (title, "The relative \(mode) of \(topName): the same seven notes, so the two are easy to mix up.")
+        }
+        if shared == 6 {
+            return (title, "Next to \(topName) on the circle of fifths. They differ by one note, so they fit together.")
+        }
+        if pc == t.pitchClass {
+            return (title, "Same root as \(topName), but \(mode). Three notes differ.")
+        }
+        return (title, "Shares \(shared) of 7 notes with \(topName)" + (shared <= 4 ? ", so it clashes." : "."))
     }
 
     /// The key on show's Camelot code in the middle (the wheel's own numbering).
@@ -392,8 +467,9 @@ private struct KeyWheelSection: View {
     let index: Int
     let minor: Bool
     let rank: Int?
+    let hover: Bool
     let onChoose: ((String) -> Void)?
-    @State private var hover = false
+    let onHover: (Bool) -> Void
 
     var body: some View {
         let s = KeyWheel.slot(index, minor: minor)
@@ -421,14 +497,13 @@ private struct KeyWheelSection: View {
             if let choose = onChoose {
                 Button(action: { choose(name) }) { body }
                     .buttonStyle(KeyWheelPress())
-                    .onHover { hover = $0 }
+                    .onHover(perform: onHover)
                     .pointingHand()
-                    .help("Use \(name) as the key")
                     .accessibility(label: Text(spoken + (rank == 0 ? ", the key" : rank == 1 ? ", a runner-up" : "")))
                     .accessibility(hint: Text("Makes it the key"))
                     .accessibility(addTraits: rank == 0 ? .isSelected : [])
             } else {
-                body.accessibility(label: Text(spoken))
+                body.onHover(perform: onHover).accessibility(label: Text(spoken))
             }
         }
     }
