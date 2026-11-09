@@ -378,10 +378,10 @@ extension Faceplate {
     static func readout(_ state: ViewState, live: LiveState, liveSource: String, page: Pager,
                         factor: TempoFactor, lastAction: LastAction, note: String?, reference: Double,
                         onCycleTempo: (() -> Void)?, held: Bool = false, spelling: KeySpelling? = nil,
-                        onToggleSpelling: (() -> Void)? = nil) -> Readout {
+                        onToggleSpelling: (() -> Void)? = nil, liveNotice: String? = nil) -> Readout {
         if let l = liveReadout(live, source: liveSource, factor: factor, onCycleTempo: onCycleTempo, held: held,
                                spelling: spelling, onToggleSpelling: onToggleSpelling,
-                               reference: reference) { return l }
+                               reference: reference, notice: liveNotice) { return l }
         let dl = lastAction == .download
         func options(_ r: Result) -> ResultOptions {
             ResultOptions(factor: factor, tuning: Tuning.line(r.tuningCents, reference: reference),

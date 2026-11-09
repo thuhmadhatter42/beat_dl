@@ -152,18 +152,18 @@ extension Faceplate {
     static func liveReadout(_ s: LiveState, source: String, factor: TempoFactor,
                             onCycleTempo: (() -> Void)? = nil, held: Bool = false,
                             spelling: KeySpelling? = nil, onToggleSpelling: (() -> Void)? = nil,
-                            reference: Double = Tuning.defaultReference) -> Readout? {
+                            reference: Double = Tuning.defaultReference, notice: String? = nil) -> Readout? {
         switch s {
         case .off:
             return nil
         case .failed(let m):
             return .error(m, download: false, hint: liveRetryHint)
         case .listening:
-            return .listening(status: s.status(source: source) ?? "LISTENING")
+            return .listening(status: notice ?? s.status(source: source) ?? "LISTENING")
         case .reading(let r), .locked(let r):
             let opts = ResultOptions(factor: factor, tuning: Tuning.line(r.tuningCents, reference: reference),
                                      onCycleTempo: onCycleTempo,
-                                     live: (s.lamp ?? .listening, s.status(source: source, held: held) ?? "", source),
+                                     live: (s.lamp ?? .listening, notice ?? s.status(source: source, held: held) ?? "", source),
                                      onToggleSpelling: onToggleSpelling)
             return .result(r.respelled(spelling), page: nil, download: false, options: opts)
         }
@@ -204,13 +204,41 @@ enum LiveSource: Equatable {
     }
 }
 
+/// What Listen really opens for the saved source. A saved input device that isn't connected
+/// (unplugged, renamed) falls back to Mac audio (System Audio) instead of failing; the saved
+/// choice is left alone, so the device is used again once it is back (J, 2026-11-05 17:06).
+enum LiveSourcePlan: Equatable {
+    case use(LiveSource)
+    /// The saved device (`missingUID`, channel) is gone: `source` (System Audio) instead.
+    case fallback(LiveSource, missingUID: String, channel: Int)
+
+    var source: LiveSource {
+        switch self {
+        case .use(let s), .fallback(let s, _, _): return s
+        }
+    }
+
+    static let fallbackNotice = "SAVED INPUT MISSING · USING MAC AUDIO"
+    /// How long the notice stands in for the lamp's caption.
+    static let noticeSeconds: TimeInterval = 8
+
+    /// Pure: `connectedUIDs` = the input devices Core Audio lists right now. Without System Audio
+    /// (macOS 12) there is nothing to fall back to, and the input's own "not connected" error stands.
+    static func plan(saved: LiveSource, connectedUIDs: Set<String>, systemAvailable: Bool) -> LiveSourcePlan {
+        guard case .input(let uid?, let ch) = saved, !connectedUIDs.contains(uid), systemAvailable else {
+            return .use(saved)
+        }
+        return .fallback(.system, missingUID: uid, channel: ch)
+    }
+}
+
 final class LiveSettings: ObservableObject {
     static let sourceKey = "liveSource"
     static let gapKey = "liveGapSeconds"
     static let gaps: [Double] = [2, 3, 5, 10]
     static let defaultGap = 3.0
     private let defaults: UserDefaults
-    private let systemAvailable: Bool
+    let systemAvailable: Bool
 
     @Published var source: LiveSource { didSet { defaults.set(source.stored, forKey: LiveSettings.sourceKey) } }
     /// Seconds of silence that mean a new song: everything heard is dropped and it starts over.
@@ -228,7 +256,9 @@ final class LiveSettings: ObservableObject {
     }
 
     /// "System Audio", "MacBook Pro Microphone", "Scarlett 4i4 · Ch 3".
-    func sourceName(devices: [InputDevice]) -> String {
+    func sourceName(devices: [InputDevice]) -> String { LiveSettings.name(of: source, devices: devices) }
+
+    static func name(of source: LiveSource, devices: [InputDevice]) -> String {
         switch source {
         case .system: return "System Audio"
         case .input(let uid, let ch):
@@ -359,6 +389,9 @@ final class LiveController: ObservableObject {
     /// Hold is on (a button, never automatic).
     @Published private(set) var isHeld = false
     @Published private(set) var sourceName = ""
+    /// A short non-error line that stands in for the lamp's caption for a few seconds (the saved
+    /// input is missing, Mac audio is used instead). nil = none.
+    @Published private(set) var notice: String?
     /// The input's level while listening, 0...1 (peak, dB-scaled, falling back slowly), for the
     /// popover's meter. 0 when Listen is off.
     @Published private(set) var level: Float = 0
@@ -369,6 +402,8 @@ final class LiveController: ObservableObject {
     private let launch: LiveLauncher
     private let makeCapture: (LiveSource) -> AudioCapture?
     private let now: () -> Date
+    private let devices: () -> [InputDevice]
+    private var noticeWork: DispatchWorkItem?
     private var pipe: LivePipe?
     private var capture: AudioCapture?
     private var filler: SilenceFiller?
@@ -382,12 +417,14 @@ final class LiveController: ObservableObject {
 
     init(settings: LiveSettings, launch: @escaping LiveLauncher,
          makeCapture: @escaping (LiveSource) -> AudioCapture? = LiveController.realCapture,
-         now: @escaping () -> Date = Date.init, songs: SongTracker? = nil) {
+         now: @escaping () -> Date = Date.init, songs: SongTracker? = nil,
+         devices: @escaping () -> [InputDevice] = InputDevice.all) {
         self.settings = settings
         self.songs = songs ?? SongTracker(now: now)
         self.launch = launch
         self.makeCapture = makeCapture
         self.now = now
+        self.devices = devices
     }
 
     static func realCapture(_ s: LiveSource) -> AudioCapture? {
@@ -414,8 +451,18 @@ final class LiveController: ObservableObject {
         stop()
         generation += 1
         let gen = generation
-        sourceName = settings.sourceName(devices: InputDevice.all())
-        guard let cap = makeCapture(settings.source) else {
+        let devs = devices()
+        let plan = LiveSourcePlan.plan(saved: settings.source, connectedUIDs: Set(devs.map(\.uid)),
+                                       systemAvailable: settings.systemAvailable)
+        sourceName = LiveSettings.name(of: plan.source, devices: devs)
+        if case .fallback(_, let uid, let ch) = plan {
+            AppLog.log("listen: saved input missing (uid \(uid), ch \(ch); connected: "
+                       + (devs.isEmpty ? "none" : devs.map { "\($0.name) [\($0.uid)]" }.joined(separator: ", "))
+                       + "), falling back to Mac audio (System Audio); saved choice kept")
+            showNotice(LiveSourcePlan.fallbackNotice, gen: gen)
+        }
+        guard let cap = makeCapture(plan.source) else {
+            AppLog.log("listen: no capture for \(plan.source.stored)")
             fail("SYSTEM AUDIO NEEDS MACOS 13 OR NEWER", gen: gen); return
         }
         let onLine: (String) -> Void = { [weak self] line in
@@ -499,7 +546,21 @@ final class LiveController: ObservableObject {
     func toggleHold() -> Bool { setHold(!session.isHeld) }
     var canHold: Bool { session.canHold }
 
+    /// The notice for `noticeSeconds`, then the lamp's own caption again.
+    private func showNotice(_ text: String, gen: Int) {
+        notice = text
+        let work = DispatchWorkItem { [weak self] in
+            guard let self = self, gen == self.generation else { return }
+            self.notice = nil
+        }
+        noticeWork = work
+        DispatchQueue.main.asyncAfter(deadline: .now() + LiveSourcePlan.noticeSeconds, execute: work)
+    }
+
     private func teardown() {
+        noticeWork?.cancel()
+        noticeWork = nil
+        if notice != nil { notice = nil }
         songs.end()
         fillTimer?.invalidate()
         fillTimer = nil

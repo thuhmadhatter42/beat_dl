@@ -150,6 +150,7 @@ final class InputCapture: AudioCapture {
         let input = engine.inputNode
         if let uid = deviceUID {
             guard var id = InputDevice.deviceID(uid: uid), let unit = input.audioUnit else {
+                AppLog.log("input capture: device uid \(uid) not connected (or no audio unit)")
                 onError("THAT INPUT IS NOT CONNECTED · PICK ANOTHER IN SETTINGS"); return
             }
             let st = AudioUnitSetProperty(unit, kAudioOutputUnitProperty_CurrentDevice, kAudioUnitScope_Global, 0,

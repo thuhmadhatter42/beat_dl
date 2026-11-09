@@ -465,7 +465,7 @@ extension PocketState {
                                       factor: model.tempoFactor, lastAction: model.lastAction, note: engine.note,
                                       reference: tuning.reference,
                                       onCycleTempo: { [model] in model.tempoFactor = model.tempoFactor.next },
-                                      held: live.isHeld, spelling: spelling.preference)
+                                      held: live.isHeld, spelling: spelling.preference, liveNotice: live.notice)
         s.listening = live.state.isActive
         s.source = live.state.isActive ? live.sourceName : extras.sourceName
         s.level = live.level
