@@ -738,8 +738,9 @@ struct ChipMenuButton: View {
 
 /// The confidence dial around the key: twelve ticks (the icon's dial), a track, and an arc in
 /// the lamp's colour as long as the top key's confidence. The key sits in the middle, the lamp's
-/// shape and word under it, so the state reads without colour. The percentage itself is in the
-/// top keys (each fact once, design pass F3).
+/// shape and word under it, so the state reads without colour. Under the key sits the percentage
+/// (J 2026-11-09: "bring the confidence % back"; 0.1.46 had swapped it for the word), counting to
+/// each new reading with Motion.value; the lamp's word is the small label under it.
 struct Dial: View {
     let state: PocketState
     var actions = PocketActions()
@@ -750,6 +751,8 @@ struct Dial: View {
     static let side: CGFloat = 112
     /// The box the dial fills: the ticks sit on its edge, the ring 12 inside it.
     var side: CGFloat = Dial.side
+    /// The pocket's dial has no room for a word under the %.
+    private var compact: Bool { side < 120 }
 
     var body: some View {
         let lamp = state.lamp
@@ -785,17 +788,35 @@ struct Dial: View {
             }
             VStack(spacing: Theme.S.xs) {
                 keyButton(key)
-                // LOCKED / UNSURE / HELD crossfade (Motion.swap)
-                Crossfade(key != nil ? lamp.map { state.held ? "HELD" : $0.spoken.uppercased() } ?? "KEY" : "KEY") { _ in
-                    if let l = lamp, key != nil {
-                        HStack(spacing: Theme.S.xs) {
+                if let c = state.confidence, key != nil {
+                    // the pocket's dial is too small for a word under the %: its lamp shape sits
+                    // beside the number instead (the word stays in the VoiceOver label)
+                    HStack(spacing: Theme.S.xs) {
+                        if compact, let l = lamp {
                             LampShape(lamp: l).fill(l.color).frame(width: 7, height: 7)
-                            Text(state.held ? "HELD" : l.spoken.uppercased()).captionStyle()
-                                .foregroundColor(l.textColor).lineLimit(1).fixedSize()
                         }
-                        .helpTip(HelpText.confidence)
-                    } else {
-                        Text("KEY").captionStyle().foregroundColor(Theme.A.a3)
+                        Color.clear.frame(width: 0, height: 0)
+                            .modifier(CountingNumber(value: (c * 100).rounded(), suffix: "%"))
+                            .font(Theme.T.value.monospacedDigit())
+                            .foregroundColor(lamp.map { $0.textColor } ?? Theme.A.a2)
+                            .fixedSize()
+                            .liveAnimation(Theme.Motion.value, value: Int((c * 100).rounded()), live: true)
+                    }
+                    .helpTip(HelpText.confidence)
+                }
+                // LOCKED / UNSURE / HELD crossfade (Motion.swap), the small label under the %
+                if !compact || key == nil || state.confidence == nil {
+                    Crossfade(key != nil ? lamp.map { state.held ? "HELD" : $0.spoken.uppercased() } ?? "KEY" : "KEY") { _ in
+                        if let l = lamp, key != nil {
+                            HStack(spacing: Theme.S.xs) {
+                                LampShape(lamp: l).fill(l.color).frame(width: 7, height: 7)
+                                Text(state.held ? "HELD" : l.spoken.uppercased()).captionStyle()
+                                    .foregroundColor(l.textColor).lineLimit(1).fixedSize()
+                            }
+                            .helpTip(HelpText.confidence)
+                        } else {
+                            Text("KEY").captionStyle().foregroundColor(Theme.A.a3)
+                        }
                     }
                 }
             }
