@@ -79,7 +79,7 @@ struct Rail: View {
     enum Status: Equatable { case ready, working, failed, live(String) }
 
     var body: some View {
-        let shape = RoundedRectangle(cornerRadius: 7, style: .continuous)
+        let shape = RoundedRectangle(cornerRadius: Theme.R.well, style: .continuous)
         HStack {
             Wordmark()
             Spacer()
@@ -97,7 +97,7 @@ struct Rail: View {
             .clipShape(shape))
         .innerShadow(shape, Color.white.opacity(0.07), blur: 0, y: 1)
         .innerShadow(shape, Color.black.opacity(0.6), blur: 4, y: -2)
-        .dropShadow(radius: 7, Color.black.opacity(0.5), blur: 4, y: 2)
+        .dropShadow(radius: Theme.R.well, Color.black.opacity(0.5), blur: 4, y: 2)
     }
 }
 
@@ -126,16 +126,14 @@ struct StatusLegend: View {
             case .live(let source): return ("LIVE · \(source)", Theme.redText, Theme.red, Theme.red.opacity(0.7))
             }
         }()
-        return HStack(spacing: 9) {
+        return HStack(spacing: Theme.S.s) {
             Circle().fill(lamp)
                 .overlay(Circle().stroke(Color.white.opacity(0.6), lineWidth: 0.5).blur(radius: 0.5).clipShape(Circle()))
                 .frame(width: 8, height: 8)
                 .shadow(color: glow, radius: 4)
-            Text(word).font(Theme.face(11)).tracking(2.2).foregroundColor(text)
+            Text(word).labelStyle().foregroundColor(text)
                 .lineLimit(1).truncationMode(.middle).frame(maxWidth: 250, alignment: .trailing)
                 .fixedSize(horizontal: true, vertical: false)
-                .shadow(color: (status == .ready ? Theme.green : status == .working ? Theme.amber : Theme.red)
-                    .opacity(0.45), radius: 2.5)
         }
         .accessibilityElement(children: .ignore)
         .accessibility(label: Text("Status: \(word.lowercased())"))

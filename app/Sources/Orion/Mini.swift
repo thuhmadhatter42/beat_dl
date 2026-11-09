@@ -417,20 +417,20 @@ struct MiniView: View {
     var release: (MiniPad) -> Void = { _ in }
     var toggleSound: () -> Void = {}
 
-    static let padWidth: CGFloat = 54
-    static let padHeight: CGFloat = 46
-    static let gap: CGFloat = 4
+    static let padWidth: CGFloat = 56
+    static let padHeight: CGFloat = 48
+    static let gap: CGFloat = Theme.S.xs
     static var gridWidth: CGFloat { padWidth * 7 + gap * 6 }
 
     private var scale: Scale? { state.key.flatMap(Scale.of) }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
+        VStack(alignment: .leading, spacing: Theme.S.m) {
             header
             if state.layout.isEmpty {
-                Text("NO KEY YET · READ A BEAT IN THE WINDOW").font(Theme.face(8)).tracking(1.4)
-                    .foregroundColor(Theme.amber(0.3))
-                    .frame(width: MiniView.gridWidth, height: MiniView.padHeight * 2 + 26)
+                Text("No key yet. Read a beat in the window.").font(Theme.T.caption)
+                    .foregroundColor(Theme.A.a3)
+                    .frame(width: MiniView.gridWidth, height: MiniView.padHeight * 2 + 30)
             } else {
                 ChordGrid(diatonic: state.layout.diatonic, borrowed: state.layout.borrowed, gap: MiniView.gap,
                           cellHeight: MiniView.padHeight, rowTip: HelpText.miniPanel, borrowedTip: HelpText.miniPanel) { c, tonic in
@@ -439,28 +439,29 @@ struct MiniView: View {
                 .frame(width: MiniView.gridWidth)
             }
         }
-        .padding(.vertical, 12).padding(.horizontal, 12)
-        .lcdGlass(radius: 5)
-        .padding(10)
+        .padding(Theme.S.l)
+        .lcdGlass(radius: Theme.R.well)
+        .padding(Theme.S.m)
         .background(Theme.desk)
         .environment(\.helpMode, state.help)
         .helpTipLayer()
     }
 
     private var header: some View {
-        HStack(alignment: .firstTextBaseline, spacing: 8) {
-            Text(scale.map { "\($0.tonicName) \($0.minor ? "MINOR" : "MAJOR")" } ?? "NO KEY")
-                .font(Theme.face(13)).tracking(1).foregroundColor(Theme.amber(scale == nil ? 0.35 : 1))
+        HStack(alignment: .firstTextBaseline, spacing: Theme.S.m) {
+            Text(scale.map { "\($0.tonicName) \($0.minor ? "minor" : "major")" } ?? "No key")
+                .font(Theme.T.title).foregroundColor(scale == nil ? Theme.A.a3 : Theme.A.a1)
                 .modifier(PocketGlow(on: scale != nil))
                 .helpTip(HelpText.miniPanel)
-            Text(state.midiReady ? "MIDI OUT · \(MidiOut.sourceName.uppercased())" : "MIDI UNAVAILABLE · SEE LOG")
-                .font(Theme.face(6.5)).tracking(1.4)
-                .foregroundColor(state.midiReady ? Theme.amber(0.42) : Theme.redText)
+            Text(state.midiReady ? "MIDI out: \(MidiOut.sourceName)" : "MIDI unavailable: see the log")
+                .font(Theme.T.caption)
+                .foregroundColor(state.midiReady ? Theme.A.a3 : Theme.redText)
                 .lineLimit(1)
             Spacer(minLength: 0)
             LCDChip(title: "SOUND", on: state.sound, label: state.sound ? "Built-in sound on" : "Built-in sound off",
-                    width: 40, action: toggleSound)
+                    action: toggleSound)
                 .helpTip(HelpText.miniSound)
+                .alignmentGuide(.firstTextBaseline) { d in d[VerticalAlignment.center] + 4 }
         }
     }
 
@@ -486,7 +487,7 @@ private struct MiniPadView: View {
     var body: some View {
         ChordFace(chord: chord, tonic: tonic, lit: lit, hint: pad.map(MiniKeys.hint), height: MiniView.padHeight)
             .frame(width: MiniView.padWidth)
-            .contentShape(RoundedRectangle(cornerRadius: 4, style: .continuous))
+            .contentShape(RoundedRectangle(cornerRadius: Theme.R.cap, style: .continuous))
             .gesture(DragGesture(minimumDistance: 0)
                 .onChanged { _ in
                     guard !down, let p = pad else { return }

@@ -62,13 +62,13 @@ struct PocketView: View {
     @State private var fieldFocused = false
 
     var body: some View {
-        VStack(spacing: 10) {
+        VStack(spacing: Theme.S.l) {
             PocketHeader(state: state)
             PocketLCD(state: state, actions: actions)
             module
             footer
         }
-        .padding(EdgeInsets(top: 12, leading: 14, bottom: 12, trailing: 14))
+        .padding(Theme.S.l)
         .frame(width: Pocket.width)
         .environment(\.helpMode, state.help)
         .helpTipLayer()
@@ -76,52 +76,51 @@ struct PocketView: View {
         .id(state.highContrast)   // Theme.highContrast is read while drawing
     }
 
-    // MARK: module: download, listen, send
+    // MARK: module: download, listen, send (on the plate itself: no extra panel box)
 
     private var module: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            HStack(spacing: 10) {
+        let g = Theme.S.s
+        return VStack(alignment: .leading, spacing: 0) {
+            HStack(spacing: g) {
                 LinkField(text: $url, focused: $fieldFocused, onSubmit: { actions.downloadPressed(state) })
                 DownloadCap(state: state, action: { actions.downloadPressed(state) })
                     .frame(width: Pocket.downloadCapWidth)
             }
-            HStack(spacing: 10) {
+            HStack(spacing: g) {
                 ListenCap(state: state, action: actions.toggleListen).frame(width: Pocket.listenCapWidth)
                 SourceField(source: state.source, level: state.level, listening: state.listening,
                             action: actions.pickSource)
             }
-            .padding(.top, 10)
+            .padding(.top, g)
             if state.listening {
                 // HOLD and the reset key sit under LISTEN, the pair as wide as LISTEN's cap
                 HStack(spacing: Pocket.transportGap) {
-                    HoldCap(state: state, action: actions.toggleHold)
-                    NewSongCap(lit: true, keys: state.newSongKeys, action: actions.newSong)
+                    HoldCap(state: state, height: Theme.H.md, action: actions.toggleHold)
+                    NewSongCap(lit: true, keys: state.newSongKeys, height: Theme.H.md, action: actions.newSong)
                 }
                 .frame(width: Pocket.listenCapWidth)
                 .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(.top, 10)
+                .padding(.top, g)
             }
-            ModuleRule().padding(.vertical, 12)
-            VStack(spacing: 10) {
-                HStack(spacing: 10) {
+            ModuleRule().padding(.vertical, Theme.S.l)
+            VStack(spacing: g) {
+                HStack(spacing: g) {
                     ActionCap(title: "ANALYZE FILE", ready: !state.busy, label: "Analyze a file", action: actions.analyzeFile)
                         .helpTip(HelpText.analyzeFile)
                     SendDAWCap(state: state, action: actions.sendDAW)
                 }
-                HStack(spacing: 10) {
+                HStack(spacing: g) {
                     AutoTuneCap(state: state, send: actions.sendAutoTune)
                     ExportMidiCap(state: state, action: actions.exportMidi)
                 }
             }
         }
-        .padding(EdgeInsets(top: 12, leading: 12, bottom: 12, trailing: 12))
-        .modulePanel()
     }
 
     // MARK: footer
 
     private var footer: some View {
-        HStack(spacing: 16) {
+        HStack(spacing: Theme.S.l) {
             RecentLink(state: state, action: actions.showRecents)
             FooterLink(title: "WINDOW", label: "Show the Beat Key window", action: actions.openWindow)
                 .helpTip(HelpText.window)
@@ -130,7 +129,7 @@ struct PocketView: View {
             Spacer()
             FooterLink(title: "QUIT", label: Brand.quit, action: actions.quit).helpTip(HelpText.quit)
         }
-        .padding(.horizontal, 4)
+        .frame(height: Theme.H.xs)
     }
 }
 
@@ -172,7 +171,8 @@ struct DownloadCap: View {
             SSLCapStyle.label(state.downloadTitle).lineLimit(1).frame(maxWidth: .infinity)
         }
         // not .disabled(): AppKit would grey the legend; an unlit cap only beeps
-        .buttonStyle(SSLCapStyle(lit: state.downloadLit || state.clipboardReady || (login && !state.busy)))
+        .buttonStyle(SSLCapStyle(lit: state.downloadLit || state.clipboardReady || (login && !state.busy),
+                                 height: Theme.H.lg))
         .nativeHelp(help)
         .accessibility(label: Text(login ? "Log in to YouTube" : state.fieldEmpty ? "Paste and download" : "Download"))
         .accessibility(hint: Text(hint))
@@ -195,17 +195,6 @@ struct DownloadCap: View {
 
 // MARK: shared module parts (the pocket and the window draw these same views)
 
-extension View {
-    /// The module's recessed panel (the window's and the pocket's).
-    func modulePanel() -> some View {
-        let shape = RoundedRectangle(cornerRadius: 7, style: .continuous)
-        return background(Theme.vertical([(Theme.hex(0x1d1d20), 0), (Theme.hex(0x151517), 1)]).clipShape(shape))
-            .innerShadow(shape, Color.white.opacity(0.06), blur: 0, y: 1)
-            .ring(radius: 7, spread: 1, Theme.black)
-            .dropShadow(radius: 7, Color.black.opacity(0.7), blur: 3, y: 1)
-    }
-}
-
 /// The engraved line between the inputs and the send caps.
 struct ModuleRule: View {
     var body: some View {
@@ -217,6 +206,7 @@ struct ModuleRule: View {
 /// LISTEN / STOP: the red lamp while on.
 struct ListenCap: View {
     let state: PocketState
+    var height: CGFloat = Theme.H.lg
     let action: () -> Void
     var body: some View {
         Button(action: action) {
@@ -229,7 +219,7 @@ struct ListenCap: View {
             }
             .frame(maxWidth: .infinity)
         }
-        .buttonStyle(SSLCapStyle(lit: !state.listening && !state.busy, ready: state.listening))
+        .buttonStyle(SSLCapStyle(lit: !state.listening && !state.busy, ready: state.listening, height: height))
         .accessibility(label: Text(state.listening ? "Stop listening" : "Start listening to \(state.source)"))
         .helpTip(HelpText.listen)
     }
@@ -240,14 +230,16 @@ struct ListenCap: View {
 struct NewSongCap: View {
     let lit: Bool
     var keys: String? = nil
+    /// Square: as wide as it is tall (H.lg in the window's field row, H.md under LISTEN).
+    var height: CGFloat = Theme.H.lg
     let action: () -> Void
     var body: some View {
         Button(action: action) {
             Image(systemName: "arrow.counterclockwise")
-                .font(.system(size: 12, weight: .bold))
-                .frame(width: SSLCapStyle.height)
+                .font(.system(size: Theme.T.labelSize, weight: .bold))
+                .frame(width: height - SSLCapStyle.ring * 2)
         }
-        .buttonStyle(SSLCapStyle(lit: false, ready: lit, padding: 0))
+        .buttonStyle(SSLCapStyle(lit: false, ready: lit, height: height, padding: 0))
         .nativeHelp("New song · reset")
         .accessibility(label: Text("New song: reset listening"))
         .accessibility(hint: Text("Drops what was heard and the lock, and listens again"
@@ -259,6 +251,7 @@ struct NewSongCap: View {
 /// HOLD: freeze the reading on show (a button, never automatic).
 struct HoldCap: View {
     let state: PocketState
+    var height: CGFloat = Theme.H.lg
     let action: () -> Void
     var body: some View {
         Button(action: action) {
@@ -268,7 +261,7 @@ struct HoldCap: View {
             }
             .frame(maxWidth: .infinity)
         }
-        .buttonStyle(SSLCapStyle(lit: state.held, ready: state.canHold && !state.held))
+        .buttonStyle(SSLCapStyle(lit: state.held, ready: state.canHold && !state.held, height: height))
         .nativeHelp(state.held ? "Release: follow the music again" : "Hold: freeze the reading on show")
         .accessibility(label: Text(state.held ? "Release hold" : "Hold reading"))
         .accessibility(hint: Text("Freezes the reading on show while listening carries on. Press again to follow the music"))
@@ -354,14 +347,17 @@ struct FooterLink: View {
     let action: () -> Void
     var body: some View {
         Button(action: { if enabled { action() } }) {
-            Text(title).font(Theme.face(8.5)).tracking(1.7)
-                .foregroundColor(enabled ? Theme.textLo : Theme.textFaint)
+            Text(title).captionStyle()
+                .foregroundColor(!enabled ? Theme.textFaint : hover ? Theme.textHi : Theme.textLo)
+                .frame(height: Theme.H.xs)
                 .contentShape(Rectangle())
         }
         .buttonStyle(PlainButtonStyle())
+        .onHover { hover = $0 }
         .pointingHand()
         .accessibility(label: Text(label))
     }
+    @State private var hover = false
 }
 
 // MARK: plate + header
@@ -385,10 +381,9 @@ private struct PocketHeader: View {
     let state: PocketState
 
     var body: some View {
-        HStack(spacing: 8) {
+        HStack(spacing: Theme.S.s) {
             KeyGlyph().frame(width: 22, height: 13)
-                .shadow(color: Theme.highContrast ? .clear : Theme.amber(0.45), radius: 3)
-            let t = Text(Brand.wordmark).font(Theme.face(12)).tracking(12 * 0.24)
+            let t = Text(Brand.wordmark).font(Theme.T.label).tracking(Theme.T.labelSize * 0.24)
             t.foregroundColor(.clear)
                 .overlay(Theme.vertical([(Theme.hex(0xf4f4f6), 0), (Theme.hex(0xababb0), 0.55), (Theme.hex(0xcbcbcf), 1)]).mask(t))
                 .fixedSize()
@@ -396,8 +391,7 @@ private struct PocketHeader: View {
             Spacer()
             legend
         }
-        .padding(.horizontal, 4)
-        .frame(height: 20)
+        .frame(height: Theme.H.sm)
     }
 
     private var legend: some View {
@@ -416,8 +410,8 @@ private struct PocketHeader: View {
             } else {
                 Circle().fill(Theme.red).frame(width: 7, height: 7)
             }
-            Text(word).font(Theme.face(8.5)).tracking(1.7).foregroundColor(color).lineLimit(1)
-                .truncationMode(.middle).frame(maxWidth: 190).fixedSize(horizontal: true, vertical: false)
+            Text(word).labelStyle().foregroundColor(color).lineLimit(1)
+                .truncationMode(.middle).frame(maxWidth: 200).fixedSize(horizontal: true, vertical: false)
         }
         .accessibilityElement(children: .ignore)
         .accessibility(label: Text("Status: \(word.lowercased())"))
@@ -470,23 +464,17 @@ private struct PocketLCD: View {
     let actions: PocketActions
 
     var body: some View {
-        let shape = RoundedRectangle(cornerRadius: 6, style: .continuous)
+        let shape = RoundedRectangle(cornerRadius: Theme.R.well, style: .continuous)
         VStack(alignment: .leading, spacing: 0) {
-            HStack(alignment: .center, spacing: 16) {
-                Dial(state: state, actions: actions).frame(width: 112, height: 112)
+            HStack(alignment: .center, spacing: Theme.S.l) {
+                Dial(state: state, actions: actions).frame(width: Dial.side, height: Dial.side)
                 right.frame(maxWidth: .infinity, alignment: .leading)
             }
-            .frame(height: 118)
-            KeyStrip(state: state, onTeach: actions.teachKey, keyboardHeight: Pocket.keyboardHeight).padding(.top, 8)
+            .frame(height: Dial.side)
+            KeyStrip(state: state, onTeach: actions.teachKey, keyboardHeight: Pocket.keyboardHeight).padding(.top, Theme.S.s)
         }
-        .padding(EdgeInsets(top: 14, leading: 14, bottom: 12, trailing: 14))
-        .background(Theme.highContrast ? Theme.vertical([(Theme.black, 0), (Theme.black, 1)])
-                                       : Theme.vertical([(Theme.hex(0x0b0d0a), 0), (Theme.hex(0x050604), 1)]))
-        .overlay(Theme.vertical([(Color.white.opacity(Theme.highContrast ? 0 : 0.06), 0), (Color.white.opacity(0), 0.35)])
-            .allowsHitTesting(false))
-        .clipShape(shape)
-        .innerShadow(shape, Color.black.opacity(0.95), blur: 6, y: 2)
-        .ring(radius: 6, spread: 1, Theme.black)
+        .padding(Theme.S.l)
+        .lcdGlass(radius: Theme.R.well)
         .background(shape.fill(Color.white.opacity(0.05)).offset(y: 1).padding(-1))
     }
 
@@ -498,35 +486,35 @@ private struct PocketLCD: View {
             ResultSide(result: r, page: page, note: note, options: o, state: state, actions: actions)
         case .working(let stage, let download):
             VStack(alignment: .leading, spacing: 0) {
-                Text(Faceplate.stageText(stage)).font(Theme.face(14)).tracking(0.7)
-                    .foregroundColor(Theme.amber).amberGlow().lineLimit(2)
+                Text(Faceplate.stageText(stage)).font(Theme.T.title).tracking(Theme.T.titleTracking)
+                    .foregroundColor(Theme.A.a1).lineLimit(2)
                     .fixedSize(horizontal: false, vertical: true)
-                RunningBar().padding(.top, 12)
-                HStack(spacing: 10) {
+                RunningBar().padding(.top, Theme.S.m)
+                HStack(spacing: Theme.S.s) {
                     ForEach(steps(stage, download), id: \.0) { name, step in
-                        Text(step == .done ? "✓ \(name)" : name).font(Theme.face(7.5)).tracking(1.4)
+                        Text(step == .done ? "✓ \(name)" : name).captionStyle()
                             .lineLimit(1).fixedSize()
-                            .foregroundColor(step == .on ? Theme.amber : step == .done ? Theme.amber(0.55) : Theme.textFaint)
+                            .foregroundColor(step == .on ? Theme.A.a1 : step == .done ? Theme.A.a2 : Theme.A.a3)
                     }
                 }
-                .padding(.top, 10)
+                .padding(.top, Theme.S.m)
             }
             .accessibilityElement(children: .ignore)
             .accessibility(label: Text(Faceplate.stageText(stage).capitalized))
         case .listening(let status):
             VStack(alignment: .leading, spacing: 0) {
-                Text("LISTENING").font(Theme.face(18)).tracking(0.9).foregroundColor(Theme.amber).amberGlow()
-                RunningBar().padding(.top, 12)
+                Text("LISTENING").font(Theme.T.title).tracking(Theme.T.titleTracking).foregroundColor(Theme.A.a1)
+                RunningBar().padding(.top, Theme.S.m)
             }
             .accessibilityElement(children: .ignore)
             .accessibility(label: Text("Listening. \(status.lowercased())"))
         case .error(let m, let download, let hint):
-            VStack(alignment: .leading, spacing: 6) {
-                Text(Faceplate.errorText(m)).font(Theme.face(12)).tracking(0.4)
-                    .foregroundColor(Theme.redText).shadow(color: Theme.highContrast ? .clear : Theme.red.opacity(0.6), radius: 3)
+            VStack(alignment: .leading, spacing: Theme.S.s) {
+                Text(Faceplate.errorText(m)).font(Theme.T.value)
+                    .foregroundColor(Theme.redText)
                     .lineLimit(4).fixedSize(horizontal: false, vertical: true)
-                Text(hint ?? Faceplate.failureHint(download: download)).font(Theme.face(7.5)).tracking(1.2)
-                    .foregroundColor(Theme.rgb(255, 106, 92, Theme.highContrast ? 1 : 0.65)).lineLimit(2)
+                Text(hint ?? Faceplate.failureHint(download: download)).captionStyle()
+                    .foregroundColor(Theme.rgb(255, 106, 92, Theme.highContrast ? 1 : 0.75)).lineLimit(2)
                     .fixedSize(horizontal: false, vertical: true)
             }
             .accessibilityElement(children: .ignore)
@@ -536,12 +524,11 @@ private struct PocketLCD: View {
         case .doctor(let r):
             message(r.title, r.line, red: r.outcome == .failed)
         case .idle, .drop:
-            VStack(alignment: .leading, spacing: 0) {
-                Text.cap("BPM")
-                Text("---.--").font(Theme.face(38).monospacedDigit()).foregroundColor(Theme.amber(0.12))
-                    .lineBox(38, 1).padding(.top, 5)
-                Text("PASTE A LINK, OPEN A FILE OR LISTEN").font(Theme.face(7.5)).tracking(1.2)
-                    .foregroundColor(Theme.amber(0.6)).fixedSize(horizontal: false, vertical: true).padding(.top, 12)
+            // the empty state: an invitation, not a skeleton of missing numbers (F11)
+            VStack(alignment: .leading, spacing: Theme.S.s) {
+                Text("Drop a beat").font(Theme.T.title).foregroundColor(Theme.A.a2)
+                Text("or paste a YouTube link, open a file or listen").font(Theme.T.caption)
+                    .foregroundColor(Theme.A.a3).fixedSize(horizontal: false, vertical: true)
             }
             .accessibilityElement(children: .ignore)
             .accessibility(label: Text("No reading yet. Paste a link, analyze a file or listen."))
@@ -549,10 +536,10 @@ private struct PocketLCD: View {
     }
 
     private func message(_ a: String, _ b: String, red: Bool = false) -> some View {
-        VStack(alignment: .leading, spacing: 6) {
-            Text(a).font(Theme.face(13)).tracking(0.5).foregroundColor(red ? Theme.redText : Theme.amber)
+        VStack(alignment: .leading, spacing: Theme.S.s) {
+            Text(a).font(Theme.T.value).foregroundColor(red ? Theme.redText : Theme.A.a1)
                 .lineLimit(3).fixedSize(horizontal: false, vertical: true)
-            Text(b).font(Theme.face(7.5)).tracking(1.2).foregroundColor(red ? Theme.redText : Theme.amber(0.7))
+            Text(b).captionStyle().foregroundColor(red ? Theme.redText : Theme.A.a2)
                 .lineLimit(3).fixedSize(horizontal: false, vertical: true)
         }
         .accessibilityElement(children: .ignore)
@@ -576,39 +563,37 @@ struct KeyStrip: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             // the hairline runs into the menu at the strip's right edge (the % column's edge)
-            HStack(spacing: 10) {
-                Rectangle().fill(Theme.amber(0.12)).frame(height: 1)
+            HStack(spacing: Theme.S.m) {
+                Rectangle().fill(Theme.A.a4).frame(height: 1)
                 if let teach = onTeach {
                     ManualKeyMenu(enabled: state.result != nil, action: teach).helpTip(HelpText.manual)
                 }
             }
-            .frame(height: ManualKeyMenu.height)
+            .frame(height: Theme.H.sm)
             TopKeys(keys: state.result?.keys ?? [],
                     onChoose: state.result.map { r in { k in SpellingSettings.shared.choose(k, of: r, from: "top keys") } })
                 .helpTip(HelpText.topKeys)
-                .padding(.top, 8)
-            NoteKeyboard(scale: state.scale).frame(height: keyboardHeight).helpTip(HelpText.keyboard).padding(.top, 12)
-            scaleLine.padding(.top, 7)
-            TuningMeterRow(meter: state.options?.tuning).padding(.top, 7)
+                .padding(.top, Theme.S.s)
+            NoteKeyboard(scale: state.scale).frame(height: keyboardHeight).helpTip(HelpText.keyboard)
+                .padding(.top, Theme.S.m)
+            scaleLine.padding(.top, Theme.S.s)
+            TuningMeterRow(meter: state.options?.tuning).padding(.top, Theme.S.s)
         }
     }
 
-    /// "E♭ MINOR · E♭ F G♭ A♭ B♭ B D♭" left, the tuning right.
+    /// "C minor  C D E♭ F G A♭ B♭": the key's name and its notes (nothing until there is a key).
     private var scaleLine: some View {
-        HStack(spacing: 8) {
-            HStack(spacing: 8) {
-                if let s = state.scale {
-                    Text("\(s.tonicName) \(s.minor ? "MINOR" : "MAJOR")").font(Theme.face(8.5)).tracking(1.4)
-                        .foregroundColor(Theme.amber(0.85))
-                    Text(s.spelled.joined(separator: "  ")).font(.custom("HelveticaNeue", size: 9)).tracking(0.4)
-                        .foregroundColor(Theme.amber(0.55)).lineLimit(1)
-                } else {
-                    Text("SCALE").font(Theme.face(8.5)).tracking(1.4).foregroundColor(Theme.amber(0.25))
-                }
+        HStack(alignment: .firstTextBaseline, spacing: Theme.S.m) {
+            if let s = state.scale {
+                Text("\(s.tonicName) \(s.minor ? "minor" : "major")").font(Theme.T.value)
+                    .foregroundColor(Theme.A.a2)
+                Text(s.spelled.joined(separator: "  ")).font(Theme.T.body)
+                    .foregroundColor(Theme.A.a3).lineLimit(1)
             }
-            .helpTip(HelpText.scale)
-            Spacer(minLength: 4)
+            Spacer(minLength: 0)
         }
+        .frame(height: 16)
+        .helpTip(HelpText.scale)
         .accessibilityElement(children: .combine)
     }
 }
@@ -623,12 +608,11 @@ struct TuningMeterRow: View {
     static let markerWidth: CGFloat = 4
 
     var body: some View {
-        HStack(spacing: 10) {
-            Text("TUNING").font(Theme.face(7)).tracking(1.4).foregroundColor(Theme.amber(meter == nil ? 0.25 : 0.45))
-                .fixedSize()
+        HStack(spacing: Theme.S.m) {
+            Text("TUNING").captionStyle().foregroundColor(Theme.A.a3).fixedSize()
             track.frame(height: TuningMeterRow.height)
-            Text(meter?.text ?? "—").font(Theme.face(8.5).monospacedDigit()).tracking(0.4)
-                .foregroundColor(Theme.amber(meter == nil ? 0.25 : 0.8)).lineLimit(1).fixedSize()
+            Text(meter?.text ?? "—").font(Theme.T.caption.monospacedDigit())
+                .foregroundColor(meter == nil ? Theme.A.a3 : Theme.A.a2).lineLimit(1).fixedSize()
                 .frame(minWidth: 128, alignment: .leading)
         }
         .accessibilityElement(children: .ignore)
@@ -640,17 +624,16 @@ struct TuningMeterRow: View {
         GeometryReader { g in
             let w = g.size.width, mid = g.size.height / 2
             ZStack(alignment: .topLeading) {
-                Capsule().fill(Theme.amber(meter == nil ? 0.06 : 0.1)).frame(width: w, height: 2).offset(y: mid - 1)
+                Capsule().fill(Theme.A.a4).frame(width: w, height: 2).offset(y: mid - 1)
                 // −25 / +25 ticks faint, the centre brighter
                 ForEach([0.25, 0.5, 0.75], id: \.self) { f in
-                    Rectangle().fill(Theme.amber(f == 0.5 ? (meter == nil ? 0.2 : 0.4) : 0.14))
+                    Rectangle().fill(f == 0.5 ? Theme.A.a3 : Theme.A.a4)
                         .frame(width: 1, height: f == 0.5 ? 8 : 4)
                         .offset(x: (w * CGFloat(f)).rounded() - 0.5, y: mid - (f == 0.5 ? 4 : 2))
                 }
                 if let m = meter {
                     RoundedRectangle(cornerRadius: 1.5, style: .continuous).fill(m.inTune ? Theme.green : Theme.amber)
                         .frame(width: TuningMeterRow.markerWidth, height: g.size.height)
-                        .shadow(color: Theme.highContrast ? .clear : (m.inTune ? Theme.greenGlow : Theme.amberGlow), radius: 3)
                         .offset(x: TuningMeterRow.markerX(m.fraction, width: w))
                         .animation(.easeOut(duration: 0.35), value: m.cents)
                 }
@@ -665,45 +648,65 @@ struct TuningMeterRow: View {
     }
 }
 
-/// MANUAL ⌄: set the key by hand. A bordered LCD menu button (the x0.5 / x1 / x2 chips'
-/// language) whose chevron says it drops a list: the 24 keys; the pick becomes THE key and the
-/// reading is saved to teach Beat Key. Dim with no reading.
+/// MANUAL ⌄: set the key by hand. The LCD's one chip recipe with a chevron that says it drops a
+/// list: the 24 keys; the pick becomes THE key and the reading is saved to teach Beat Key. Dim
+/// with no reading.
 struct ManualKeyMenu: View {
     let enabled: Bool
     let action: () -> Void
-    static let height: CGFloat = 18
+    static let height: CGFloat = Theme.H.sm
 
     var body: some View {
-        let shape = RoundedRectangle(cornerRadius: 3, style: .continuous)
+        ChipMenuButton(title: "MANUAL", enabled: enabled, action: action)
+            .nativeHelp("Set the key by hand: pick it from all 24 keys. It becomes the key, and the reading is saved to teach Beat Key")
+            .accessibility(label: Text("Manual key"))
+            .accessibility(hint: Text("Opens a menu of all 24 keys. The pick becomes the key and teaches Beat Key"))
+    }
+}
+
+/// A chip that opens a menu (MANUAL ⌄, MATCH TO's key): the segmented chips' recipe, one segment,
+/// a chevron 4 pt after the text.
+struct ChipMenuButton: View {
+    let title: String
+    var enabled = true
+    /// UPPERCASE legends are tracked; a key name ("Am") is not.
+    var tracked = true
+    let action: () -> Void
+    @State private var hover = false
+
+    var body: some View {
+        let shape = RoundedRectangle(cornerRadius: Theme.R.cap, style: .continuous)
         Button(action: { if enabled { action() } }) {
-            HStack(spacing: 5) {
-                Text("MANUAL").font(Theme.face(8.5)).tracking(1.1)
-                Image(systemName: "chevron.down").font(.system(size: 7, weight: .heavy))
+            HStack(spacing: Theme.S.xs) {
+                Text(title).font(Theme.T.caption).tracking(tracked ? Theme.T.captionTracking : 0)
+                Image(systemName: "chevron.down").font(.system(size: 8, weight: .bold))
             }
-            .foregroundColor(Theme.amber(enabled ? 0.85 : 0.25))
-            .padding(.leading, 8).padding(.trailing, 7)
-            .frame(height: ManualKeyMenu.height)
-            .background(shape.fill(Theme.amber(enabled ? 0.08 : 0.03)))
-            .overlay(shape.stroke(Theme.amber(enabled ? 0.45 : 0.15), lineWidth: 1))
+            .foregroundColor(enabled ? Theme.A.a2 : Theme.A.a3)
+            .padding(.horizontal, Theme.S.s)
+            .frame(height: Theme.H.sm)
+            .background(shape.fill(hover && enabled ? Theme.A.a4 : Theme.A.a5))
+            .overlay(shape.stroke(Theme.A.a4, lineWidth: 1))
             .contentShape(shape)
             .fixedSize()
         }
         .buttonStyle(PlainButtonStyle())
+        .onHover { hover = $0 }
+        .animation(.easeOut(duration: 0.12), value: hover)
         .pointingHand()
-        .nativeHelp("Set the key by hand: pick it from all 24 keys. It becomes the key, and the reading is saved to teach Beat Key")
-        .accessibility(label: Text("Manual key"))
-        .accessibility(hint: Text("Opens a menu of all 24 keys. The pick becomes the key and teaches Beat Key"))
     }
 }
 
 /// The confidence dial around the key: twelve ticks (the icon's dial), a track, and an arc in
 /// the lamp's colour as long as the top key's confidence. The key sits in the middle, the lamp's
-/// shape and the percentage under it, so the state reads without colour.
+/// shape and word under it, so the state reads without colour. The percentage itself is in the
+/// top keys (each fact once, design pass F3).
 struct Dial: View {
     let state: PocketState
     var actions = PocketActions()
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var spin = false
+
+    static let side: CGFloat = 112
 
     var body: some View {
         let lamp = state.lamp
@@ -712,12 +715,12 @@ struct Dial: View {
         ZStack {
             // ticks
             ForEach(0..<12, id: \.self) { i in
-                Capsule().fill(Theme.amber(i % 3 == 0 ? 0.55 : 0.28))
+                Capsule().fill(i % 3 == 0 ? Theme.A.a3 : Theme.A.a4)
                     .frame(width: i % 3 == 0 ? 2 : 1.5, height: i % 3 == 0 ? 7 : 5)
                     .offset(y: -51.5)
                     .rotationEffect(.degrees(Double(i) * 30))
             }
-            Circle().stroke(Theme.amber(0.09), lineWidth: 5).padding(12)
+            Circle().stroke(Theme.A.a5, lineWidth: 5).padding(12)
             if let c = state.confidence {
                 Circle().trim(from: 0, to: CGFloat(c))
                     .stroke(color, style: StrokeStyle(lineWidth: 5, lineCap: .round))
@@ -734,19 +737,20 @@ struct Dial: View {
                     .shadow(color: Theme.highContrast ? .clear : color.opacity(0.7), radius: 4)
                     .onAppear { if !reduceMotion && !Pocket.snapshot { DispatchQueue.main.async { spin = true } } }
             }
-            VStack(spacing: 3) {
+            VStack(spacing: Theme.S.xs) {
                 keyButton(key)
-                if let l = lamp, let c = state.confidence {
-                    HStack(spacing: 4) {
+                if let l = lamp, key != nil {
+                    HStack(spacing: Theme.S.xs) {
                         LampShape(lamp: l).fill(l.color).frame(width: 7, height: 7)
-                        Text("\(Int((c * 100).rounded()))%").font(Theme.face(10).monospacedDigit())
-                            .foregroundColor(l.textColor)
+                        Text(state.held ? "HELD" : l.spoken.uppercased()).captionStyle()
+                            .foregroundColor(l.textColor).lineLimit(1).fixedSize()
                     }
+                    .helpTip(HelpText.confidence)
                 } else {
-                    Text("KEY").font(Theme.face(7.5)).tracking(1.8).foregroundColor(Theme.amber(key == nil ? 0.35 : 0.6))
+                    Text("KEY").captionStyle().foregroundColor(Theme.A.a3)
                 }
             }
-            .frame(width: 76)
+            .frame(width: 80)
         }
         .accessibilityElement(children: .ignore)
         .accessibility(label: Text(dialLabel))
@@ -760,9 +764,8 @@ struct Dial: View {
 
     /// The big key; a click on a black-key tonic switches sharp / flat.
     @ViewBuilder private func keyButton(_ key: String?) -> some View {
-        let text = Text(key ?? "--").font(Theme.face(key.map { $0.count > 3 ? 24 : 30 } ?? 30))
-            .tracking(0.6)
-            .foregroundColor(key == nil ? Theme.amber(0.14) : Theme.amber)
+        let text = Text(key ?? "--").font(Theme.T.key)
+            .foregroundColor(key == nil ? Theme.A.a4 : Theme.A.a1)
             .lineLimit(1).minimumScaleFactor(0.6)
             .modifier(PocketGlow(on: key != nil))
         if state.canRespell {
@@ -774,7 +777,6 @@ struct Dial: View {
         }
     }
 
-
     private var dialLabel: String {
         guard let k = state.result?.keys.first else { return state.lamp == .listening ? "Listening" : "No key yet" }
         return "Key \(k.0), \(k.1) percent" + (state.lamp.map { ", \($0.spoken)" } ?? "")
@@ -783,7 +785,34 @@ struct Dial: View {
     }
 }
 
-/// BPM (clickable, x0.5 / x1 / x2 chips), the lamp's word, the file or source line.
+/// The BPM as the readout draws it (J 2026-11-09, "decimals small"): the whole number big and
+/// glowing, the decimals smaller and one step dimmer, on one baseline. No BPM = dim dashes.
+struct BPMNumber: View {
+    let text: String?
+    let whole: CGFloat
+    let fraction: CGFloat
+
+    var body: some View {
+        if let t = text {
+            let p = Tempo.split(t)
+            HStack(alignment: .firstTextBaseline, spacing: 0) {
+                Text(p.whole).font(Theme.face(whole).monospacedDigit()).tracking(whole * 0.02)
+                    .foregroundColor(Theme.A.a1).amberGlow()
+                if let f = p.fraction {
+                    Text(f).font(Theme.face(fraction).monospacedDigit())
+                        .foregroundColor(Theme.A.a2)
+                }
+            }
+            .lineLimit(1)
+            .fixedSize()
+        } else {
+            Text("---").font(Theme.face(whole).monospacedDigit()).foregroundColor(Theme.A.a4)
+                .lineLimit(1).fixedSize()
+        }
+    }
+}
+
+/// BPM (clickable, x0.5 / x1 / x2 chips) and the file line beside the dial.
 private struct ResultSide: View {
     let result: Result
     let page: String?
@@ -795,110 +824,199 @@ private struct ResultSide: View {
     var body: some View {
         let bpm = Tempo.text(result, factor: options.factor)
         VStack(alignment: .leading, spacing: 0) {
-            HStack(spacing: 4) {
+            HStack(spacing: Theme.S.s) {
                 Text.cap("BPM")
-                Spacer(minLength: 4)
-                HStack(spacing: 4) {
-                    ForEach([TempoFactor.half, .one, .double], id: \.self) { f in
-                        FactorChip(factor: f, on: f == options.factor, enabled: bpm != nil) { actions.setFactor(f) }
-                    }
-                }
-                .helpTip(HelpText.tempoFactor)
+                Spacer(minLength: Theme.S.xs)
+                FactorChips(factor: options.factor, enabled: bpm != nil, set: actions.setFactor)
             }
+            .frame(height: Theme.H.sm)
             Button(action: { options.onCycleTempo?() }) {
-                Text(bpm ?? "---.--").font(Theme.face(bpm.map { $0.count > 6 ? 32 : 38 } ?? 38).monospacedDigit())
-                    .tracking(0.4)
-                    .foregroundColor(bpm == nil ? Theme.amber(0.12) : Theme.amber)
-                    .modifier(PocketGlow(on: bpm != nil))
-                    .lineLimit(1).minimumScaleFactor(0.7)
-                    .lineBox(38, 1)
+                BPMNumber(text: bpm, whole: Theme.T.keySize, fraction: Theme.T.titleSize)
                     .contentShape(Rectangle())
             }
             .buttonStyle(PlainButtonStyle())
             .pointingHand()
-            .padding(.top, 6)
+            .padding(.top, Theme.S.s)
             .accessibility(label: Text(bpm.map { "BPM \($0)" } ?? "BPM not found"))
             .accessibility(hint: Text("Click to switch between normal, double and half time"))
             .helpTip(HelpText.bpm)
-            if let l = state.lamp, let w = state.lampWord {
-                HStack(spacing: 6) {
-                    LampShape(lamp: l).fill(l.color).frame(width: 8, height: 8)
-                        .shadow(color: Theme.highContrast ? .clear : l.color.opacity(0.8), radius: 3)
-                    Text(w).font(Theme.face(8.5)).tracking(1.4).foregroundColor(l.textColor)
-                }
-                .helpTip(HelpText.confidence)
-                .padding(.top, 10)
+            if showsFileRow {
+                Spacer(minLength: 0)
+                fileRow
             }
-            HStack(spacing: 6) {
-                Text(lineText).font(Theme.face(7.5)).tracking(1.1).foregroundColor(Theme.amber(0.55))
+        }
+    }
+
+    /// No file line while listening (the header already says LIVE and the source): the BPM then
+    /// sits centred beside the dial.
+    private var showsFileRow: Bool { note != nil || options.live == nil }
+
+    /// The file's name (yours: warm white, its own case) or the note; nothing while listening
+    /// (the header already says LIVE and the source).
+    @ViewBuilder private var fileRow: some View {
+        if note != nil || options.live == nil {
+            HStack(spacing: Theme.S.xs) {
+                Text(note ?? (result.name as NSString).deletingPathExtension)
+                    .font(note == nil ? Theme.T.body : Theme.T.caption)
+                    .foregroundColor(note == nil ? Theme.textHi : Theme.A.a2)
                     .lineLimit(1).truncationMode(.middle)
                     .helpTip(HelpText.fileLine)
                 if let p = page {
                     Spacer(minLength: 2)
-                    Button(action: { actions.page(-1) }) { Text("‹").font(Theme.face(11)).foregroundColor(Theme.amber(0.7)) }
-                        .buttonStyle(PlainButtonStyle()).accessibility(label: Text("Previous file"))
-                    Text(p).font(Theme.face(7.5)).tracking(1).foregroundColor(Theme.amber(0.7)).fixedSize()
-                    Button(action: { actions.page(1) }) { Text("›").font(Theme.face(11)).foregroundColor(Theme.amber(0.7)) }
-                        .buttonStyle(PlainButtonStyle()).accessibility(label: Text("Next file"))
+                    PageArrow(glyph: "‹", label: "Previous file") { actions.page(-1) }
+                    Text(p).captionStyle().foregroundColor(Theme.A.a2).fixedSize()
+                    PageArrow(glyph: "›", label: "Next file") { actions.page(1) }
                 }
             }
-            .padding(.top, 7)
+        }
+    }
+}
+
+/// ×0.5 / ×1 / ×2 as one segmented control.
+struct FactorChips: View {
+    let factor: TempoFactor
+    let enabled: Bool
+    let set: (TempoFactor) -> Void
+
+    var body: some View {
+        SegmentedChips(options: [TempoFactor.half, .one, .double].map { f in
+                           .init(value: f, title: f.label ?? "×1",
+                                 spoken: f == .one ? "Normal time" : f == .double ? "Double time" : "Half time")
+                       },
+                       selected: factor, enabled: enabled, width: .fixed(34), onSelect: set)
+            .helpTip(HelpText.tempoFactor)
+    }
+}
+
+/// How wide a chip's segments are.
+enum ChipWidth: Equatable {
+    /// The legend plus 8 pt each side.
+    case fit
+    /// Every segment this wide.
+    case fixed(CGFloat)
+    /// The segments share the width they are given.
+    case fill
+}
+
+/// The LCD's one segmented control (design pass F9): one object, 20 pt high, radius 3, an A4
+/// outline with A4 dividers and no gaps. Unselected = A2 legend on an A5 fill; selected = an A1
+/// fill with dark ink; hover = an A4 wash. The BPM factor, the chord choices, the transpose
+/// strip and every single chip (MINI, SOUND) are this control.
+struct SegmentedChips<V: Hashable>: View {
+    struct Option {
+        let value: V
+        let title: String
+        let spoken: String
+    }
+
+    let options: [Option]
+    let selected: V?
+    var enabled = true
+    var width: ChipWidth = .fit
+    /// A small tick under this option (the transpose strip's 0).
+    var marked: V? = nil
+    /// nil = a display, not a control (the transpose strip).
+    var onSelect: ((V) -> Void)? = nil
+    /// More than one lit at once (a tritone lights −6 and +6); nil = just `selected`.
+    var lit: Set<V>? = nil
+
+    var body: some View {
+        let shape = RoundedRectangle(cornerRadius: Theme.R.cap, style: .continuous)
+        HStack(spacing: 0) {
+            ForEach(Array(options.enumerated()), id: \.offset) { i, o in
+                if i > 0 { Rectangle().fill(Theme.A.a4).frame(width: 1) }
+                ChipSegment(title: o.title, spoken: o.spoken, on: lit?.contains(o.value) ?? (o.value == selected), enabled: enabled,
+                            marked: marked == o.value, width: width,
+                            action: onSelect.map { f in { f(o.value) } })
+            }
+        }
+        .frame(height: Theme.H.sm)
+        .background(Theme.A.a5)
+        .clipShape(shape)
+        .overlay(shape.stroke(Theme.A.a4, lineWidth: 1))
+        .fixedSize(horizontal: width != .fill, vertical: false)
+    }
+}
+
+private struct ChipSegment: View {
+    let title: String
+    let spoken: String
+    let on: Bool
+    let enabled: Bool
+    let marked: Bool
+    let width: ChipWidth
+    let action: (() -> Void)?
+    @State private var hover = false
+
+    var body: some View {
+        let lit = on && enabled
+        let face = Text(title).font(Theme.T.caption.monospacedDigit())
+            .tracking(title.count > 2 && title.uppercased() == title ? Theme.T.captionTracking : 0)
+            .foregroundColor(lit ? Theme.A.ink : enabled ? Theme.A.a2 : Theme.A.a3)
+            .lineLimit(1)
+            .padding(.horizontal, width == .fit ? Theme.S.s : 0)
+            .frame(width: fixed, height: Theme.H.sm)
+            .frame(maxWidth: width == .fill ? .infinity : nil)
+            .background(lit ? Theme.A.a1 : on ? Theme.A.a4 : (hover && enabled && action != nil ? Theme.A.a4 : Color.clear))
+            .overlay(marked ? Rectangle().fill(lit ? Theme.A.ink : Theme.A.a3).frame(width: 10, height: 2)
+                                .padding(.bottom, 2) : nil, alignment: .bottom)
+        if let act = action {
+            Button(action: { if enabled { act() } }) { face.contentShape(Rectangle()) }
+                .buttonStyle(PlainButtonStyle())
+                .onHover { hover = $0 }
+                .animation(.easeOut(duration: 0.12), value: hover)
+                .pointingHand()
+                .accessibility(label: Text(spoken))
+                .accessibility(addTraits: on ? .isSelected : [])
+        } else {
+            face
         }
     }
 
-    private var lineText: String {
-        if let n = note { return n }
-        if let l = options.live { return "LIVE · \(l.source.uppercased())" }
-        return (result.name as NSString).deletingPathExtension.uppercased()
+    private var fixed: CGFloat? {
+        if case .fixed(let w) = width { return w }
+        return nil
     }
 }
 
-struct FactorChip: View {
-    let factor: TempoFactor
-    let on: Bool
-    let enabled: Bool
-    let action: () -> Void
-    var body: some View {
-        LCDChip(title: factor.label ?? "×1", on: on, enabled: enabled,
-                label: factor == .one ? "Normal time" : factor == .double ? "Double time" : "Half time",
-                action: action)
-    }
-}
-
-/// A small amber segment on the LCD (the BPM's x0.5 / x1 / x2, Advanced mode's chord choices):
-/// filled when on, outlined when not, dim when there is nothing to act on.
+/// A single chip (MINI, SOUND): the segmented control with one segment, lit when on.
 struct LCDChip: View {
     let title: String
     let on: Bool
     var enabled = true
     let label: String
-    var width: CGFloat = 26
+    var width: CGFloat? = nil
     let action: () -> Void
     var body: some View {
-        let shape = RoundedRectangle(cornerRadius: 3, style: .continuous)
-        Button(action: { if enabled { action() } }) {
-            Text(title).font(Theme.face(8).monospacedDigit()).tracking(title.count > 2 ? 0.8 : 0)
-                .foregroundColor(on && enabled ? Theme.hex(0x1a1206) : Theme.amber(enabled ? 0.5 : 0.2))
-                .lineLimit(1)
-                .frame(width: width, height: 15)
-                .background(shape.fill(on && enabled ? Theme.amber : Theme.amber(0.06)))
-                .overlay(shape.stroke(Theme.amber(on && enabled ? 0 : 0.18), lineWidth: 1))
-                .contentShape(shape)
+        SegmentedChips(options: [.init(value: 0, title: title, spoken: label)], selected: on ? 0 : nil,
+                       enabled: enabled, width: width.map { .fixed($0) } ?? .fit, onSelect: { _ in action() })
+    }
+}
+
+/// A small amber chevron that pages through dropped files (the arrow keys do the same).
+struct PageArrow: View {
+    let glyph: String
+    let label: String
+    let action: () -> Void
+    var body: some View {
+        Button(action: action) {
+            Text(glyph).font(Theme.T.value).foregroundColor(Theme.A.a2)
+                .frame(width: 16, height: 16).contentShape(Rectangle())
         }
         .buttonStyle(PlainButtonStyle())
         .pointingHand()
         .accessibility(label: Text(label))
-        .accessibility(addTraits: on ? .isSelected : [])
     }
 }
 
 /// Beat Key's headline: the three likeliest keys with their percentages and a bar each. A click
 /// on key 2 or 3 makes it THE key: it moves to the front, the dial and the sends use it.
+/// No reading = the row keeps its height but draws nothing (an empty state, not a skeleton).
 struct TopKeys: View {
     let keys: [(String, Int)]
     var onChoose: ((String) -> Void)? = nil
     var body: some View {
-        HStack(alignment: .top, spacing: 12) {
+        HStack(alignment: .top, spacing: Theme.S.m) {
             ForEach(0..<3, id: \.self) { i in
                 if i > 0, i < keys.count, let choose = onChoose {
                     let name = keys[i].0
@@ -917,29 +1035,28 @@ struct TopKeys: View {
     }
 
     private func cell(_ i: Int, _ k: (String, Int)?) -> some View {
-        let strength: Double = i == 0 ? 1 : 0.72
-        return VStack(alignment: .leading, spacing: 5) {
-            HStack(alignment: .firstTextBaseline, spacing: 5) {
-                Text("\(i + 1)").font(Theme.face(8).monospacedDigit()).foregroundColor(Theme.amber(0.4))
-                Text(k?.0 ?? "--").font(Theme.face(i == 0 ? 19 : 17))
-                    .foregroundColor(k == nil ? Theme.amber(0.14) : Theme.amber(strength))
-                    .modifier(PocketGlow(on: k != nil && i == 0))
+        let first = i == 0
+        return VStack(alignment: .leading, spacing: Theme.S.s) {
+            HStack(alignment: .firstTextBaseline, spacing: Theme.S.xs) {
+                Text("\(i + 1)").font(Theme.T.caption.monospacedDigit()).foregroundColor(Theme.A.a3)
+                Text(k?.0 ?? " ").font(Theme.T.title)
+                    .foregroundColor(first ? Theme.A.a1 : Theme.A.a2)
                     .lineLimit(1).minimumScaleFactor(0.7)
                 Spacer(minLength: 2)
-                Text(k.map { "\($0.1)%" } ?? "").font(Theme.face(11).monospacedDigit())
-                    .foregroundColor(Theme.amber(i == 0 ? 0.9 : 0.6))
+                Text(k.map { "\($0.1)%" } ?? "").font(Theme.T.value.monospacedDigit())
+                    .foregroundColor(first ? Theme.A.a1 : Theme.A.a2)
             }
             GeometryReader { g in
                 ZStack(alignment: .leading) {
-                    Capsule().fill(Theme.amber(0.1))
-                    Capsule().fill(Theme.amber(i == 0 ? 1 : 0.55))
+                    Capsule().fill(Theme.A.a5)
+                    Capsule().fill(first ? Theme.A.a1 : Theme.A.a3)
                         .frame(width: g.size.width * CGFloat(min(100, max(0, k?.1 ?? 0))) / 100)
-                        .shadow(color: Theme.highContrast || i != 0 ? .clear : Theme.amberGlow, radius: 2.5)
                 }
             }
             .frame(height: 3)
         }
         .frame(maxWidth: .infinity)
+        .opacity(k == nil ? 0 : 1)   // keeps its height: the readout never jumps
     }
 }
 
@@ -975,24 +1092,21 @@ struct NoteKeyboard: View {
     private func key(_ pc: Int, black: Bool) -> some View {
         let on = scale?.notes.contains(pc) ?? false
         let tonic = scale?.tonic == pc
-        let shape = RoundedRectangle(cornerRadius: black ? 2 : 3, style: .continuous)
-        // key fills are not text: raw amber, so High Contrast keeps tonic / scale / off apart
-        let amber = { (a: Double) in Theme.rgb(255, 176, 32, a) }
-        let fill: Color = tonic ? amber(1) : on ? amber(black ? 0.6 : 0.5)
-                                           : (black ? Theme.hex(0x070806) : amber(Theme.highContrast ? 0.1 : 0.05))
+        let shape = RoundedRectangle(cornerRadius: Theme.R.cap, style: .continuous)
+        // tonic A1, the scale's other notes A3, the rest an A5 body with an A4 edge
+        let fill: Color = tonic ? Theme.A.a1 : on ? Theme.A.a3 : (black ? Theme.hex(0x070806) : Theme.A.a5)
         return ZStack(alignment: .bottom) {
             shape.fill(fill)
-            shape.stroke(on ? Color.clear : amber(black ? 0.3 : (Theme.highContrast ? 0.35 : 0.16)), lineWidth: 1)
+            shape.stroke(on ? Color.clear : Theme.A.a4, lineWidth: 1)
             if !black, let s = scale, on {
-                Text(s.name(pc)).font(Theme.face(8)).foregroundColor(Theme.hex(0x1a1206).opacity(tonic ? 1 : 0.8))
-                    .padding(.bottom, 3)
+                Text(s.name(pc)).font(Theme.T.caption).foregroundColor(Theme.A.ink)
+                    .padding(.bottom, Theme.S.xs)
             }
             if tonic {
-                Circle().fill(Theme.hex(0x1a1206)).frame(width: 4, height: 4)
-                    .padding(.bottom, black ? 5 : 15)
+                Circle().fill(Theme.A.ink).frame(width: 4, height: 4)
+                    .padding(.bottom, black ? 6 : 18)
             }
         }
-        .shadow(color: tonic && !Theme.highContrast ? Theme.amberGlow : .clear, radius: 4)
         // black keys sit on the white ones: a dark gap around them
         .background(black ? shape.fill(Theme.hex(0x050604)).padding(-1.5) : nil)
     }
@@ -1007,23 +1121,23 @@ struct SourceField: View {
     static let segments = 12
 
     var body: some View {
-        let shape = RoundedRectangle(cornerRadius: 4, style: .continuous)
+        let shape = RoundedRectangle(cornerRadius: Theme.R.well, style: .continuous)
         Button(action: action) {
-            HStack(spacing: 8) {
-                VStack(alignment: .leading, spacing: 2) {
-                    Text("SOURCE").font(Theme.face(6.5)).tracking(1.3).foregroundColor(Theme.textLo).lineLimit(1).fixedSize()
-                    Text(source).font(.custom("HelveticaNeue", size: 11)).foregroundColor(Theme.textHi)
+            HStack(spacing: Theme.S.s) {
+                VStack(alignment: .leading, spacing: 1) {
+                    Text("SOURCE").captionStyle().foregroundColor(Theme.textLo).lineLimit(1).fixedSize()
+                    Text(source).font(Theme.T.body).foregroundColor(Theme.textHi)
                         .lineLimit(1).truncationMode(.middle).layoutPriority(1)
                 }
                 Spacer(minLength: 0)
                 meter
-                Text("▾").font(Theme.face(9)).foregroundColor(Theme.amber(0.6))
+                Image(systemName: "chevron.down").font(.system(size: 8, weight: .bold)).foregroundColor(Theme.A.a2)
             }
-            .padding(.horizontal, 10)
-            .frame(height: 36)
+            .padding(.horizontal, Theme.S.m)
+            .frame(height: Theme.H.lg)
             .background(Theme.panelDeep.clipShape(shape))
             .innerShadow(shape, Color.black.opacity(0.9), blur: 5, y: 2)
-            .ring(radius: 4, spread: 1, Theme.black)
+            .ring(radius: Theme.R.well, spread: 1, Theme.black)
             .background(shape.fill(Color.white.opacity(0.05)).offset(y: 1).padding(-1))
             .contentShape(shape)
         }
@@ -1040,7 +1154,7 @@ struct SourceField: View {
         return HStack(spacing: 2) {
             ForEach(0..<SourceField.segments, id: \.self) { i in
                 let c: Color = i >= 10 ? Theme.red : i >= 7 ? Theme.amber : Theme.green
-                RoundedRectangle(cornerRadius: 0.8)
+                RoundedRectangle(cornerRadius: 1)
                     .fill(i < n ? c : c.opacity(Theme.highContrast ? 0.22 : 0.12))
                     .frame(width: 3, height: 6 + CGFloat(i) * 0.9)
             }

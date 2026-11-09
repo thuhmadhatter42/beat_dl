@@ -243,6 +243,47 @@ final class HarmonyTests: XCTestCase {
 
     // MARK: the wheel
 
+    // J 2026-11-09 design pass: the wheel outlines the keys that fit the pick
+    func testKeysThatFitAreTheFifthsNeighboursAndTheRelative() {
+        // C major: G and F beside it, Am inside
+        XCTAssertEqual(KeyFit.keys(WheelKey(0, minor: false)),
+                       [WheelKey(7, minor: false), WheelKey(5, minor: false), WheelKey(9, minor: true)])
+        // A minor: Em and Dm beside it, C outside
+        XCTAssertEqual(KeyFit.keys(WheelKey(9, minor: true)),
+                       [WheelKey(4, minor: true), WheelKey(2, minor: true), WheelKey(0, minor: false)])
+        // by name, and wrapping round the circle: Cm → Gm, Fm, Eb; F# → C#, B, D#m
+        XCTAssertEqual(KeyFit.keys("Cm"), [WheelKey(7, minor: true), WheelKey(5, minor: true), WheelKey(3, minor: false)])
+        XCTAssertEqual(KeyFit.keys("F#"), [WheelKey(1, minor: false), WheelKey(11, minor: false), WheelKey(3, minor: true)])
+        XCTAssertEqual(KeyFit.keys("Ebm"), KeyFit.keys("D#m"))
+        XCTAssertEqual(KeyFit.keys("not a key"), [])
+        XCTAssertEqual(WheelKey(-1, minor: false), WheelKey(11, minor: false))
+        // every fit is next to the pick on the wheel: same slot (relative) or one slot either side
+        for pc in 0..<12 {
+            for minor in [false, true] {
+                let fits = KeyFit.keys(WheelKey(pc, minor: minor))
+                XCTAssertEqual(fits.count, 3)
+                XCTAssertFalse(fits.contains(WheelKey(pc, minor: minor)))
+                let slot = { (k: WheelKey) in (0..<12).first { KeyWheel.slot($0, minor: k.minor).pc == k.pc }! }
+                let me = slot(WheelKey(pc, minor: minor))
+                for f in fits {
+                    let d = (slot(f) - me + 12) % 12
+                    XCTAssertTrue(f.minor == minor ? (d == 1 || d == 11) : d == 0, "\(pc) \(minor) → \(f)")
+                }
+            }
+        }
+        // the wheel's own set follows the key on show
+        XCTAssertEqual(KeyWheel(keys: [("Cm", 64), ("Eb", 18)]).fits, KeyFit.keys("Cm"))
+        XCTAssertEqual(KeyWheel(keys: []).fits, [])
+    }
+
+    func testMatchToLineIsASentenceOrNothing() {
+        XCTAssertEqual(MatchToRow.line(target: "Am", shift: -3), "Pitch the beat −3 to fit Am")
+        XCTAssertEqual(MatchToRow.line(target: "F#m", shift: 2), "Pitch the beat +2 to fit F#m")
+        XCTAssertEqual(MatchToRow.line(target: "Am", shift: 0), "Already fits Am")
+        XCTAssertNil(MatchToRow.line(target: nil, shift: nil))     // the picker says PICK KEY
+        XCTAssertNil(MatchToRow.line(target: "Am", shift: nil))    // no reading yet
+    }
+
     func testWheelSlotsAndRanks() {
         XCTAssertTrue(KeyWheel.slot(0, minor: false) == (0, false))   // C at the top
         XCTAssertTrue(KeyWheel.slot(0, minor: true) == (9, true))     // Am inside it

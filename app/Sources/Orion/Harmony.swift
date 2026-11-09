@@ -32,6 +32,29 @@ enum Camelot {
     }
 }
 
+/// A key as the wheel holds it: pitch class 0...11 and major / minor.
+struct WheelKey: Hashable {
+    let pc: Int
+    let minor: Bool
+    init(_ pc: Int, minor: Bool) { self.pc = ((pc % 12) + 12) % 12; self.minor = minor }
+}
+
+/// The keys that fit a pick (J 2026-11-09, design pass): its two neighbours on the circle of
+/// fifths (same ring, a fifth up and down: one note apart) and its relative (other ring, the same
+/// seven notes). The key wheel outlines them faintly.
+enum KeyFit {
+    static func keys(_ k: WheelKey) -> Set<WheelKey> {
+        let relative = k.minor ? WheelKey(k.pc + 3, minor: false) : WheelKey(k.pc + 9, minor: true)
+        return [WheelKey(k.pc + 7, minor: k.minor), WheelKey(k.pc + 5, minor: k.minor), relative]
+    }
+
+    /// The fits for a key name as shown ("Cm"); empty = not a key name.
+    static func keys(_ name: String) -> Set<WheelKey> {
+        guard let c = AutoTuneSend.keyClass(name) else { return [] }
+        return keys(WheelKey(c.pitchClass, minor: c.minor))
+    }
+}
+
 /// How many notes each chord stacks.
 enum ChordQuality: String, CaseIterable {
     case triad, seventh, ninth

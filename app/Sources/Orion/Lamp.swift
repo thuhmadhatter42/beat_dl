@@ -28,7 +28,7 @@ enum Lamp: Equatable {
     var textColor: Color {
         switch self {
         case .locked: return Theme.greenText
-        case .unsure: return Theme.amber(0.8)
+        case .unsure: return Theme.A.a1
         case .listening: return Theme.redText
         }
     }
