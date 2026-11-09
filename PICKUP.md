@@ -1,6 +1,8 @@
 # PICKUP — beat_dl
 
-## CURRENT STATE — 2026-11-09 15:36
+## CURRENT STATE — 2026-11-09 15:45
+
+**0.1.56 installed + running (15:44:50, 397 tests pass, SIGN_OK):** key wheel names keys exactly as the reading/dial/top-3 do (sharps/flats choice respected; Auto-Tune sends unchanged); menu-bar item in Manual Key Selection = key glyph white (near-black on light bar), no lamp, menu row ends "Manual", shows at once while listening. Renders docs/research/spelling-menubar-2026-11-09/. Release = J runs publish.sh (ships 0.1.56).
 
 **0.1.55 installed + running (15:35:22, 386 tests pass, SIGN_OK): Manual Key Selection** (state SpellingSettings.manualKey via setManualKey/clearManualKey, ManualKeySelection.swift): wheel section white, hover card "Locked to this key because it was selected manually…", hovered name → reset icon, re-click clears; dial white ring + white MANUAL, % hidden, hover → reset icon + card "Click to reset manual selection", click clears; top-3 slot 1 = manual key labelled MANUAL, detected keys keep real %. Set/clear logged with source in beatkey.log. Known: wheel spells black-key majors F# (Auto-Tune spelling) while dial/top-3 say Gb; menu-bar lamp UNSURE when manual key undetected. 0.1.54 = BPM label row up 6 pt. Release = J runs publish.sh (ships 0.1.55).
 
