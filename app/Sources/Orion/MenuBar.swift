@@ -307,7 +307,7 @@ extension PocketActions {
         }
         a.teachKey = {
             guard let r = shown() else { NSSound.beep(); return }
-            log("wrong key menu")
+            log("manual key menu")
             let now = r.keys.first.flatMap { AutoTuneSend.keyClass($0.0) }
             PopupMenu.show(KeyChoice.allKeys.enumerated().flatMap { i, k -> [PopupMenu.Item] in
                 let kc = AutoTuneSend.keyClass(k)

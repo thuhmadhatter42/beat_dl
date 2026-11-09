@@ -195,18 +195,28 @@ struct SSLCapStyle: ButtonStyle {
     let lit: Bool
     /// A pale cap that can be pressed now (full strength, not lit): the popover's action caps.
     var ready = false
-    var height: CGFloat = 36
+    var height: CGFloat = SSLCapStyle.height
+    /// Square caps (the icon-only reset key) drop the side padding.
+    var padding: CGFloat = SSLCapStyle.sidePadding
 
-    /// The cap's legend: 9 pt bold, .16em (Text-only tracking is the macOS 11 way).
-    static func label(_ s: String, size: CGFloat = 9) -> Text { Text(s).font(Theme.face(size)).tracking(size * 0.16) }
+    /// Every cap in the family: one height, one legend size (J 2026-11-09: smaller caps,
+    /// bigger legends). 28 pt + the 4 pt bezel rings = the 36 pt fields beside them.
+    static let height: CGFloat = 28
+    static let legendSize: CGFloat = 11
+    static let sidePadding: CGFloat = 10
+
+    /// The cap's legend: 11 pt bold, .08em (Text-only tracking is the macOS 11 way).
+    static func label(_ s: String, size: CGFloat = SSLCapStyle.legendSize) -> Text {
+        Text(s).font(Theme.face(size)).tracking(size * 0.08)
+    }
 
     func makeBody(configuration: Configuration) -> some View {
         let shape = RoundedRectangle(cornerRadius: 2.5, style: .continuous)
         let pressed = configuration.isPressed
-        return configuration.label   // a Text set in Theme.face(9), .16em (see SSLCapStyle.label)
+        return configuration.label   // a Text set by SSLCapStyle.label
             .foregroundColor(lit ? Theme.hex(0x3a2a06) : Theme.hex(0x4a463c))
             .shadow(color: Color.white.opacity(lit ? 0.35 : 0.5), radius: 0, y: 1)
-            .padding(.horizontal, 18)
+            .padding(.horizontal, padding)
             .frame(height: height)
             .background(
                 ZStack(alignment: .top) {

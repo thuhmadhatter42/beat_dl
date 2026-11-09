@@ -42,14 +42,41 @@ final class WindowParityTests: XCTestCase {
         XCTAssertEqual(log, ["login", "download", "paste https://youtu.be/y"])
     }
 
-    func testClipboardLineOnlyForANewLinkWhileIdle() {
+    /// The clipboard line is gone: the download cap says what a press does instead.
+    func testDownloadTitleEmptyFieldPastesTypedLinkDownloads() {
+        XCTAssertEqual(PocketState.downloadTitle(url: ""), "PASTE + DOWNLOAD")
+        XCTAssertEqual(PocketState.downloadTitle(url: "  \n"), "PASTE + DOWNLOAD")
+        XCTAssertEqual(PocketState.downloadTitle(url: "https://youtu.be/x"), "DOWNLOAD")
+        XCTAssertEqual(PocketState.downloadTitle(url: "https://youtu.be/x", needsLogin: true), "LOG IN…")
         var s = PocketState()
-        XCTAssertFalse(ClipboardLine.shows(s, url: ""))
+        XCTAssertEqual(s.downloadTitle, "PASTE + DOWNLOAD")
         s.clipboardLink = "https://youtu.be/y"
-        XCTAssertTrue(ClipboardLine.shows(s, url: ""))
-        XCTAssertFalse(ClipboardLine.shows(s, url: " https://youtu.be/y\n"))
+        XCTAssertEqual(s.downloadTitle, "PASTE + DOWNLOAD")
+        s.url = "https://youtu.be/x"            // a typed link wins over the clipboard
+        XCTAssertEqual(s.downloadTitle, "DOWNLOAD")
+    }
+
+    /// Lit for a typed link, or for an empty field with a link on the clipboard; dim with neither.
+    func testDownloadCapLitRules() {
+        var s = PocketState()
+        XCTAssertFalse(s.downloadLit || s.clipboardReady)
+        s.clipboardLink = "https://youtu.be/y"
+        XCTAssertTrue(s.clipboardReady)
+        s.clipboardLink = nil
+        s.url = "https://youtu.be/x"
+        XCTAssertTrue(s.downloadLit)
         s.busy = true
-        XCTAssertFalse(ClipboardLine.shows(s, url: ""))
+        XCTAssertFalse(s.downloadLit || s.clipboardReady)
+    }
+
+    /// An empty field and no link on the clipboard: the press still reaches download (it beeps).
+    func testDownloadPressedWithNothingToPasteFallsToDownload() {
+        var log: [String] = []
+        var a = PocketActions()
+        a.download = { log.append("download") }
+        a.pasteAndDownload = { log.append("paste \($0)") }
+        a.downloadPressed(PocketState())
+        XCTAssertEqual(log, ["download"])
     }
 
     // MARK: offscreen renders (ORION_SNAPSHOT_DIR=<dir> swift test --filter WindowParityTests/testRender)
