@@ -383,6 +383,11 @@ protocol AudioCapture: AnyObject {
     func stop()
 }
 
+/// Listen's input level, 0...1, on its own so its 20 Hz ticks redraw only the meter segments.
+final class LiveLevel: ObservableObject {
+    @Published var value: Float = 0
+}
+
 final class LiveController: ObservableObject {
     /// What is shown: the frozen reading while Hold is on.
     @Published private(set) var state: LiveState = .off
@@ -393,8 +398,12 @@ final class LiveController: ObservableObject {
     /// input is missing, Mac audio is used instead). nil = none.
     @Published private(set) var notice: String?
     /// The input's level while listening, 0...1 (peak, dB-scaled, falling back slowly), for the
-    /// popover's meter. 0 when Listen is off.
-    @Published private(set) var level: Float = 0
+    /// meters. 0 when Listen is off. Its own object, not a @Published here: it ticks 20 times a
+    /// second, and every tick of the controller re-derived and redrew the whole face (12.6 ms of
+    /// main thread per tick in the window), dropping frames from the readout's animations (0.1.50,
+    /// J 2026-11-09: "very jerky clicky movements"). Only the meter segments observe it.
+    let meter = LiveLevel()
+    var level: Float { meter.value }
     let settings: LiveSettings
     /// New-song boundaries and one Recent Readings entry per song (SongBoundary.swift).
     let songs: SongTracker
@@ -505,7 +514,7 @@ final class LiveController: ObservableObject {
     private func updateLevel() {
         fillLock.lock(); let pk = peak; peak = 0; fillLock.unlock()
         let next = max(LevelMeter.scale(pk), level * 0.8)
-        if abs(next - level) > 0.004 { level = next < 0.01 ? 0 : next }
+        if abs(next - level) > 0.004 { meter.value = next < 0.01 ? 0 : next }
     }
 
     /// Up to the last minute of audio heard since Listen (or New Song) started.
@@ -566,7 +575,7 @@ final class LiveController: ObservableObject {
         fillTimer = nil
         levelTimer?.invalidate()
         levelTimer = nil
-        if level != 0 { level = 0 }
+        if level != 0 { meter.value = 0 }
         capture?.stop()
         capture = nil
         pipe?.close()

@@ -297,6 +297,30 @@ final class LiveTests: XCTestCase {
         XCTAssertTrue(cap.stopped)
     }
 
+    /// 0.1.50: the 20 Hz input level ticks its own object (LiveLevel), never the controller, so a
+    /// tick redraws the meter and not the whole face (the jerky animations J saw in 0.1.49).
+    func testLevelTicksNeverRepublishTheController() {
+        let pipe = FakePipe(), cap = FakeCapture()
+        let c = LiveController(settings: LiveSettings(defaults: defaults(), systemAvailable: false),
+                               launch: { _, _, _ in pipe }, makeCapture: { _ in cap })
+        c.start()
+        var controllerChanges = 0, meterChanges = 0
+        let a = c.objectWillChange.sink { controllerChanges += 1 }
+        let b = c.meter.objectWillChange.sink { meterChanges += 1 }
+        let end = Date().addingTimeInterval(0.4)
+        while Date() < end {
+            cap.onSamples?([0.5, -0.4, 0.2])
+            RunLoop.main.run(until: Date().addingTimeInterval(0.02))
+        }
+        XCTAssertGreaterThan(c.level, 0)
+        XCTAssertEqual(c.level, c.meter.value)
+        XCTAssertGreaterThan(meterChanges, 0)
+        XCTAssertEqual(controllerChanges, 0, "a level tick republished LiveController")
+        c.stop()
+        XCTAssertEqual(c.level, 0)
+        a.cancel(); b.cancel()
+    }
+
     /// New Song: a locked reading is dropped at once, a fresh analyzer and capture start, the lamp
     /// goes back to red LISTENING. With Listen off it does nothing.
     func testNewSongResetsALock() {

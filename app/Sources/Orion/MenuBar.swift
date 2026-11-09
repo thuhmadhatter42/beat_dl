@@ -445,6 +445,7 @@ struct PocketContainer: View {
 
     var body: some View {
         PocketView(state: state, url: $model.url, actions: actions)
+            .environment(\.liveLevel, live.meter)   // the meter ticks on its own (LiveLevel)
             .fixedSize()
             .background(GeometryReader { g in Color.clear.preference(key: PocketSizeKey.self, value: g.size) })
             .onPreferenceChange(PocketSizeKey.self, perform: onSize)

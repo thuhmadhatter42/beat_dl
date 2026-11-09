@@ -29,6 +29,7 @@ struct FaceplateView: View {
         FaceplateFace(state: state, picked: model.picked, url: $model.url, fieldFocused: $model.fieldFocused,
                       pickFocused: $model.pickFocused, actions: windowActions,
                       files: FaceplateFace.FileActions(openAudio: openAudio, find: find))
+        .environment(\.liveLevel, live.meter)   // the meter ticks on its own (LiveLevel)
         .onDrop(of: ["public.file-url"], isTargeted: dropBinding, perform: drop)
         .onReceive(engine.$state) { s in
             // a download, an analysis, Run Doctor or a recent reading takes the LCD back from Listen

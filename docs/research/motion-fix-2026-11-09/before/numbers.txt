@@ -1,0 +1,12 @@
+pocket locked->locked: in-between 11/12
+  t(ms)  58 118 174 227 285 342 390 439 485 535 582 630
+  prog  0.42 0.67 0.81 0.94 0.95 0.93 0.90 0.92 0.93 0.96 1.00 0.96
+pacing: no meter 113 frames, max gap 6 ms; meter at 20 Hz 60 frames, max gap 47 ms
+  gaps(ms, meter) 4 10 5 4 5 5 6 5 5 5 4 13 5 47 7 13 7 11 9 17 6 10 5 17 10 7 6 19 8 5 9 5 3 7 22 6 8 5 17 4 4 3 4 3 4 4 5 3 3 5 3 11 4 3 3 3 4 3 3
+window reading->locked: in-between 5/12
+  t(ms)  67 251 383 493 682 813 939 1116 1297 1475 1639 1913
+  prog  0.08 0.97 1.00 0.99 0.98 0.96 0.99 1.00 0.99 0.96 0.96 1.00
+window locked->locked: in-between 5/12
+  t(ms)  51 203 419 540 709 887 1015 1177 1349 1528 1792 2036
+  prog  0.30 0.85 1.00 1.00 0.98 0.96 0.99 1.00 0.99 0.96 0.96 1.00
+value curve BEFORE (0.1.49 easeOutExpo timingCurve 0.16,1,0.3,1), debug: 0.00 0.03 0.18 0.60 0.93 0.99 1.00 1.00 at 17/33/50/100/200/300/450/600 ms; biggest step in one 60 Hz frame 0.21

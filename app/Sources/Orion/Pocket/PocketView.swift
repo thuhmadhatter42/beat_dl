@@ -1258,10 +1258,49 @@ struct SourceField: View {
         .helpTip(HelpText.source)
     }
 
-    /// Twelve LED segments: green, then amber, then red at the top.
-    private var meter: some View {
+    /// Listen's own level object when the app put one in the environment (the window and the
+    /// popover): only the segments observe it, so its 20 Hz ticks never redraw the rest of the
+    /// face. nil = `level` (offscreen renders and tests).
+    @Environment(\.liveLevel) private var liveLevel
+
+    @ViewBuilder private var meter: some View {
+        if let l = liveLevel {
+            LiveMeterSegments(meter: l, listening: listening, gap: meterGap)
+        } else {
+            MeterSegments(level: level, listening: listening, gap: meterGap)
+        }
+    }
+}
+
+/// The meter's segments fed by Listen's level object (redrawn alone on each tick).
+private struct LiveMeterSegments: View {
+    @ObservedObject var meter: LiveLevel
+    let listening: Bool
+    let gap: CGFloat
+    var body: some View { MeterSegments(level: meter.value, listening: listening, gap: gap) }
+}
+
+private struct LiveLevelKey: EnvironmentKey {
+    static let defaultValue: LiveLevel? = nil
+}
+
+extension EnvironmentValues {
+    /// Listen's input level for the source field's meter (LiveController.meter).
+    var liveLevel: LiveLevel? {
+        get { self[LiveLevelKey.self] }
+        set { self[LiveLevelKey.self] = newValue }
+    }
+}
+
+/// Twelve LED segments: green, then amber, then red at the top.
+private struct MeterSegments: View {
+    let level: Float
+    let listening: Bool
+    let gap: CGFloat
+
+    var body: some View {
         let n = LevelMeter.lit(listening ? level : 0, count: SourceField.segments)
-        return HStack(spacing: meterGap) {
+        return HStack(spacing: gap) {
             ForEach(0..<SourceField.segments, id: \.self) { i in
                 let c: Color = i >= 10 ? Theme.red : i >= 7 ? Theme.amber : Theme.green
                 RoundedRectangle(cornerRadius: 1)

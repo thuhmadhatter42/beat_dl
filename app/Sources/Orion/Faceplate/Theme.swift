@@ -11,6 +11,9 @@ enum Theme {
     /// View › High Contrast Readout (DisplaySettings sets it; the faceplate redraws when it
     /// changes). Dimmed amber text goes full strength, the faint placeholders brighten, glows go.
     static var highContrast = false
+    /// Tests only (MotionFrameTests): CALayer.render(in:) cannot draw innerShadow's destination-out
+    /// blend, so frame captures leave the inset shadow off. Never set in the app.
+    static var flatInsetForCapture = false
 
     /// An amber alpha under High Contrast: text (0.4 and up) full, faint (under 0.2) to 0.3.
     static func contrast(_ a: Double) -> Double {
@@ -149,7 +152,7 @@ enum Theme {
     enum Motion {
         enum Kind: CaseIterable {
             /// A value moving: bar heights and widths, the dial's arc, counting numbers, the tuning
-            /// marker. Exponential ease-out, no overshoot.
+            /// marker. A critically damped spring, no overshoot.
             case value
             /// One thing replacing another: a key name, LOCKED / UNSURE, lit keys, chords. A crossfade.
             case swap
@@ -157,6 +160,7 @@ enum Theme {
             case hover
         }
 
+        /// The value spring's response: about 98 % of the way there after this long.
         static let valueDuration = 0.45
         static let swapDuration = 0.25
         static let hoverDuration = 0.12
@@ -182,8 +186,12 @@ enum Theme {
         static func animation(_ kind: Kind, reduce: Bool, snapshot: Bool = false) -> Animation? {
             guard let d = duration(kind, reduce: reduce, snapshot: snapshot) else { return nil }
             switch kind {
-            // easeOutExpo-like: quick to leave, long settle, never past the target
-            case .value: return .timingCurve(0.16, 1, 0.3, 1, duration: d)
+            // A critically damped spring: it starts gently, glides, and settles without passing
+            // the target. 0.1.48's easeOutExpo curve (0.16, 1, 0.3, 1) did half of every move in
+            // the first 45 ms and then crawled, so each reading read as a click (0.1.50, J
+            // 2026-11-09). A spring also picks up from its current speed if a reading lands
+            // mid-move instead of restarting from rest.
+            case .value: return .spring(response: d, dampingFraction: 1, blendDuration: 0)
             case .swap: return .easeInOut(duration: d)
             case .hover: return .easeOut(duration: d)
             }
@@ -237,6 +245,7 @@ extension View {
             .compositingGroup()
             .blur(radius: blur / 2)
             .mask(shape)
+            .opacity(Theme.flatInsetForCapture ? 0 : 1)
             .allowsHitTesting(false)
         )
     }
