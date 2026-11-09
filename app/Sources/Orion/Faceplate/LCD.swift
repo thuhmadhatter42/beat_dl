@@ -342,6 +342,8 @@ struct ResultReadout: View {
                 }
             }
             .frame(height: Theme.H.sm)
+            // J 2026-11-09 14:44: "slide this part up a tiny bit by itself" (the number stays put).
+            .offset(y: -6)
             bpmNumber.padding(.top, Theme.S.s)
                 .accessibilityElement(children: .ignore)
                 .accessibility(label: Text(bpmLabel))
