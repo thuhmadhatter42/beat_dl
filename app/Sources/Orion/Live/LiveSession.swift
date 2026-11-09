@@ -161,7 +161,7 @@ extension Faceplate {
         case .listening:
             return .listening(status: notice ?? s.status(source: source) ?? "LISTENING")
         case .reading(let r), .locked(let r):
-            let opts = ResultOptions(factor: factor, tuning: Tuning.line(r.tuningCents, reference: reference),
+            let opts = ResultOptions(factor: factor, tuning: Tuning.meter(r.tuningCents, reference: reference),
                                      onCycleTempo: onCycleTempo,
                                      live: (s.lamp ?? .listening, notice ?? s.status(source: source, held: held) ?? "", source),
                                      onToggleSpelling: onToggleSpelling)

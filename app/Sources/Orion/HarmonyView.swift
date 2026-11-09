@@ -108,35 +108,27 @@ struct HarmonyPanel: View {
     private var chords: some View {
         let quality = prefs.quality
         let diatonic = key.map { Harmony.diatonic($0, quality: quality) } ?? []
-        let borrowed = key.map { Harmony.borrowed($0, quality: quality) } ?? []
+        let borrowed = key.map { Harmony.borrowedRow($0, quality: quality) } ?? []
         return VStack(alignment: .leading, spacing: 0) {
             // "click = hear, drag = MIDI" lives in the chords' help tip (J, 2026-11-09: less text by default)
-            Text.cap(state.scale.map { "CHORDS · \($0.tonicName) \($0.minor ? "MINOR" : "MAJOR")" } ?? "CHORDS")
-                .helpTip(HelpText.chords)
+            HStack(spacing: 8) {
+                Text.cap(state.scale.map { "CHORDS · \($0.tonicName) \($0.minor ? "MINOR" : "MAJOR")" } ?? "CHORDS")
+                    .helpTip(HelpText.chords)
+                Spacer(minLength: 0)
+                LCDChip(title: "MINI", on: state.miniOpen, label: state.miniOpen ? "Close Beat Key Mini" : "Open Beat Key Mini",
+                        width: 34, action: actions.toggleMini)
+                    .helpTip(HelpText.mini)
+            }
             chordControls.padding(.top, 10)
             if diatonic.isEmpty {
                 Text("NO KEY YET · PASTE, OPEN OR LISTEN").font(Theme.face(8)).tracking(1.4)
                     .foregroundColor(Theme.amber(0.3))
                     .frame(maxWidth: .infinity, minHeight: 106)
             } else {
-                HStack(spacing: 4) {
-                    ForEach(Array(diatonic.enumerated()), id: \.offset) { i, c in
-                        ChordCell(chord: c, tonic: i == 0, actions: actions)
-                    }
+                ChordGrid(diatonic: diatonic, borrowed: borrowed) { c, tonic in
+                    ChordCell(chord: c, tonic: tonic, actions: actions)
                 }
-                .helpTip(HelpText.chords)
                 .padding(.top, 10)
-                HStack(spacing: 8) {
-                    Text("BORROWED").font(Theme.face(7)).tracking(1.4).foregroundColor(Theme.amber(0.45))
-                        .fixedSize().frame(width: 60, alignment: .leading)
-                    HStack(spacing: 4) {
-                        ForEach(Array(borrowed.enumerated()), id: \.offset) { _, c in
-                            ChordCell(chord: c, tonic: false, actions: actions)
-                        }
-                    }
-                }
-                .helpTip(HelpText.borrowed)
-                .padding(.top, 6)
             }
         }
     }
@@ -180,6 +172,98 @@ struct HarmonyRule: View {
     var body: some View { Rectangle().fill(Theme.amber(0.12)).frame(height: 1) }
 }
 
+/// The chord grid (J 2026-11-09, design audit F10): one 7-column grid for both rows. Row one is
+/// the key's seven chords; row two, under a small BORROWED caption on the same left edge, holds
+/// each borrowed chord in the column of the degree it stands in for, the other columns empty.
+/// `cell` draws one chord (the window's click/drag cell, the Mini's press pad).
+struct ChordGrid<Cell: View>: View {
+    let diatonic: [Chord]
+    /// Seven slots (Harmony.borrowedRow); nil = an empty column.
+    let borrowed: [Chord?]
+    var gap: CGFloat = 4
+    var cellHeight: CGFloat = ChordFace.height
+    var rowTip = HelpText.chords
+    var borrowedTip = HelpText.borrowed
+    let cell: (Chord, Bool) -> Cell
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            HStack(spacing: gap) {
+                ForEach(Array(diatonic.enumerated()), id: \.offset) { i, c in cell(c, i == 0) }
+            }
+            .helpTip(rowTip)
+            if borrowed.contains(where: { $0 != nil }) {
+                Text("BORROWED").font(Theme.face(6.5)).tracking(1.6).foregroundColor(Theme.amber(0.42))
+                    .padding(.top, 9).padding(.bottom, 4).padding(.leading, 1)
+                    .accessibility(hidden: true)
+                HStack(spacing: gap) {
+                    ForEach(0..<7, id: \.self) { i in
+                        if i < borrowed.count, let c = borrowed[i] {
+                            cell(c, false)
+                        } else {
+                            Color.clear.frame(maxWidth: .infinity).frame(height: cellHeight)
+                                .accessibility(hidden: true)
+                        }
+                    }
+                }
+                .helpTip(borrowedTip)
+            }
+        }
+    }
+}
+
+/// How one chord looks, in the window's grid and on the Mini. Diatonic: a faint amber fill and
+/// hairline. Borrowed: no fill, a solid (never dashed: dashed reads as an empty slot) slightly
+/// brighter hairline, and a small dot top-right as its mark. `lit` = sounding (solid amber).
+struct ChordFace: View {
+    let chord: Chord
+    let tonic: Bool
+    let lit: Bool
+    /// The Mini's computer key ("1", "Q"), top-left; nil = none.
+    var hint: String? = nil
+    var height: CGFloat = ChordFace.height
+
+    static let height: CGFloat = 42
+    static let ink = Theme.hex(0x1a1206)
+
+    var body: some View {
+        let shape = RoundedRectangle(cornerRadius: 4, style: .continuous)
+        let b = chord.borrowed
+        return VStack(spacing: 3) {
+            Text(chord.name).font(Theme.face(11.5)).tracking(0.2)
+                .foregroundColor(lit ? ChordFace.ink : Theme.amber(tonic ? 1 : b ? 0.8 : 0.88))
+                .lineLimit(1).minimumScaleFactor(0.7)
+                .modifier(PocketGlow(on: tonic && !lit))
+            Text(chord.roman).font(Theme.face(7.5)).tracking(0.6)
+                .foregroundColor(lit ? ChordFace.ink.opacity(0.8) : Theme.amber(b ? 0.5 : 0.6))
+                .lineLimit(1)
+        }
+        .padding(.horizontal, 6)
+        .padding(.top, hint == nil ? 0 : 4)
+        .frame(maxWidth: .infinity)
+        .frame(height: height)
+        .background(shape.fill(lit ? Theme.amber : Theme.amber(b ? 0 : tonic ? 0.12 : 0.06)))
+        .overlay(shape.stroke(Theme.amber(lit ? 0 : b ? 0.3 : 0.18), lineWidth: 1))
+        .overlay(mark, alignment: .topTrailing)
+        .overlay(hintLabel, alignment: .topLeading)
+        .shadow(color: lit && !Theme.highContrast ? Theme.amberGlow : .clear, radius: 4)
+    }
+
+    @ViewBuilder private var mark: some View {
+        if chord.borrowed {
+            Circle().fill(lit ? ChordFace.ink.opacity(0.7) : Theme.amber(0.55)).frame(width: 3, height: 3)
+                .padding(4).accessibility(hidden: true)
+        }
+    }
+
+    @ViewBuilder private var hintLabel: some View {
+        if let h = hint {
+            Text(h).font(Theme.face(6.5)).foregroundColor(lit ? ChordFace.ink.opacity(0.6) : Theme.amber(0.32))
+                .padding(.leading, 4).padding(.top, 3).accessibility(hidden: true)
+        }
+    }
+}
+
 /// One chord: its name and numeral. Click = hear it; drag = its MIDI clip into a DAW or Finder.
 struct ChordCell: View {
     let chord: Chord
@@ -188,22 +272,8 @@ struct ChordCell: View {
     @State private var flash = false
 
     var body: some View {
-        let shape = RoundedRectangle(cornerRadius: 4, style: .continuous)
-        VStack(spacing: 3) {
-            Text(chord.name).font(Theme.face(chord.name.count > 6 ? 9.5 : 11.5)).tracking(0.2)
-                .foregroundColor(flash ? Theme.hex(0x1a1206) : Theme.amber(tonic ? 1 : 0.88))
-                .lineLimit(1).minimumScaleFactor(0.6)
-                .modifier(PocketGlow(on: tonic && !flash))
-            Text(chord.roman).font(Theme.face(7.5)).tracking(0.6)
-                .foregroundColor(flash ? Theme.hex(0x1a1206).opacity(0.8) : Theme.amber(chord.borrowed ? 0.5 : 0.6))
-                .lineLimit(1)
-        }
-        .frame(maxWidth: .infinity)
-        .frame(height: 42)
-        .background(shape.fill(flash ? Theme.amber : Theme.amber(tonic ? 0.12 : 0.06)))
-        .overlay(shape.stroke(Theme.amber(chord.borrowed ? 0.32 : 0.18),
-                              style: StrokeStyle(lineWidth: 1, dash: chord.borrowed ? [3, 2] : [])))
-        .contentShape(shape)
+        ChordFace(chord: chord, tonic: tonic, lit: flash)
+        .contentShape(RoundedRectangle(cornerRadius: 4, style: .continuous))
         .onTapGesture(perform: play)
         .onDrag(drag)
         .pointingHand()
@@ -339,28 +409,27 @@ struct KeyWheel: View {
             center.allowsHitTesting(false)
             // SwiftUI's onHover tracks a view's whole frame (every section is the full square), so the
             // section under the mouse is worked out from the mouse position instead.
-            MouseTracker { p in
-                let id = p.flatMap(KeyWheel.section(at:))
-                if id != hovered { hovered = id }
+            if !Pocket.snapshot {   // offscreen renders draw AppKit views as a placeholder
+                MouseTracker { p in
+                    let id = p.flatMap(KeyWheel.section(at:))
+                    if id != hovered { hovered = id }
+                }
             }
-            if let h = hovered { card(for: h).allowsHitTesting(false).transition(.opacity) }
         }
-        .animation(.easeOut(duration: 0.12), value: hovered)
         .frame(width: KeyWheel.side, height: KeyWheel.side)
+        // the hover card rides the surface's card layer, at the mouse (Help.swift)
+        .hoverCard(hovered.map(tip(for:)), width: 176)
         .accessibilityElement(children: .contain)
         .accessibility(label: Text("Key wheel"))
     }
 
     /// The pop-up for the hovered section: how sure, and why it is lit (J, 2026-11-09: no extra text
-    /// on screen by default; the explanation appears only on hover). Sits in the half of the wheel
-    /// away from the section so it never covers it.
-    private func card(for id: Int) -> some View {
+    /// on screen by default; the explanation appears only on hover, at the mouse).
+    func tip(for id: Int) -> HelpTip {
         let i = id / 2, minor = id % 2 == 1
         let s = KeyWheel.slot(i, minor: minor)
         let info = info(s.pc, minor: minor)
-        let top = cos(Double(i) * .pi / 6) > 0
-        return HelpCard(title: info.title, text: info.why, width: 176)
-            .offset(y: top ? 52 : -52)
+        return HelpTip(title: info.title, body: info.why)
     }
 
     /// The section (slot index * 2 + minor) under `p`, in the wheel's own square (y down); nil = the

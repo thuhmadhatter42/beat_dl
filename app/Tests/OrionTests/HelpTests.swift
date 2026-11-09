@@ -140,7 +140,7 @@ final class HelpTests: XCTestCase {
         s.source = "System Audio"
         s.daw = "Pro Tools"
         s.readout = .result(r, page: nil, download: false, options: ResultOptions(
-            factor: .one, tuning: Tuning.line(12, reference: 440), onCycleTempo: {}))
+            factor: .one, tuning: Tuning.meter(12, reference: 440), onCycleTempo: {}))
         var off = s
         off.advanced = true
         off.harmony = HarmonyPrefs(quality: .seventh, voicing: .root, bars: 2, matchKey: "Am")

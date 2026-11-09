@@ -87,6 +87,59 @@ enum Tuning {
     static func refText(_ hz: Double) -> String {
         hz == hz.rounded() ? String(Int(hz)) : String(format: "%g", hz)
     }
+
+    /// The TUNING meter's reading (J 2026-11-09, Orra's meter), or nil when there is no confident
+    /// reading: the same rule as `line`.
+    static func meter(_ trackCents: Double?, reference: Double) -> TuningMeter? {
+        guard let c = trackCents else { return nil }
+        let o = offset(trackCents: c, reference: reference)
+        guard abs(o) <= maxOffset else { return nil }
+        return TuningMeter(cents: o, reference: reference)
+    }
+}
+
+/// What the TUNING meter shows: a track from −50 ¢ to +50 ¢ with a marker at the offset (green
+/// when close to in tune), then "+0.1 ct  A4 = 440.0 Hz", the concert pitch the offset implies.
+struct TuningMeter: Equatable {
+    /// Cents above (+) or below (−) the reference, folded to −50...+50.
+    let cents: Double
+    /// The Settings reference (A = 440 by default).
+    let reference: Double
+
+    static let span = 50.0
+    /// Within this many cents the marker is green: in tune.
+    static let inTuneCents = 5.0
+
+    /// The marker's place on the track, 0 (−50 ¢) ... 0.5 (in tune) ... 1 (+50 ¢), clamped.
+    static func fraction(_ cents: Double) -> Double {
+        guard cents.isFinite else { return 0.5 }
+        return (min(max(cents, -span), span) + span) / (2 * span)
+    }
+
+    static func inTune(_ cents: Double) -> Bool { abs(cents) <= inTuneCents }
+
+    /// The concert A the track implies: reference · 2^(cents / 1200).
+    static func concertHz(cents: Double, reference: Double) -> Double { reference * pow(2, cents / 1200) }
+
+    /// "+0.1 ct", "−12.0 ct", "0.0 ct".
+    static func centsText(_ cents: Double) -> String {
+        let r = (cents * 10).rounded() / 10
+        if r == 0 { return "0.0 ct" }
+        return (r > 0 ? "+" : "−") + String(format: "%.1f", abs(r)) + " ct"
+    }
+
+    /// "A4 = 440.0 Hz".
+    static func hzText(_ hz: Double) -> String { "A4 = " + String(format: "%.1f", hz) + " Hz" }
+
+    var fraction: Double { TuningMeter.fraction(cents) }
+    var inTune: Bool { TuningMeter.inTune(cents) }
+    var concertHz: Double { TuningMeter.concertHz(cents: cents, reference: reference) }
+    var text: String { TuningMeter.centsText(cents) + "  " + TuningMeter.hzText(concertHz) }
+    var spoken: String {
+        let r = (cents * 10).rounded() / 10
+        let dir = r == 0 ? "in tune" : String(format: "%.1f cents %@", abs(r), r > 0 ? "sharp" : "flat")
+        return "Tuning \(dir), A4 = \(String(format: "%.1f", concertHz)) hertz"
+    }
 }
 
 /// The reference pitch, remembered between launches.

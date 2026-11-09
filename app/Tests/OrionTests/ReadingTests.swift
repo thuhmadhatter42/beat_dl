@@ -95,7 +95,7 @@ final class ReadingTests: XCTestCase {
         guard case .result(_, _, _, _, let o)? = Faceplate.liveReadout(.reading(r), source: "x", factor: .one,
                                                                     reference: 442)
         else { return XCTFail("no result readout") }
-        XCTAssertEqual(o.tuning, Tuning.line(14, reference: 442))
+        XCTAssertEqual(o.tuning, Tuning.meter(14, reference: 442))
     }
 
     func testLiveReadingParsesTuningAndChroma() {

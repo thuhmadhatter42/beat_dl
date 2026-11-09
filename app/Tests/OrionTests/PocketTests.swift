@@ -113,7 +113,7 @@ final class PocketTests: XCTestCase {
                                   lastAction: .download, note: nil, reference: 440, onCycleTempo: nil)
         guard case .result(_, _, true, _, let o) = r else { return XCTFail() }
         XCTAssertEqual(o.factor, .double)
-        XCTAssertEqual(o.tuning, "TUNING +12¢ · A=440")
+        XCTAssertEqual(o.tuning, TuningMeter(cents: 12, reference: 440))
         guard case .listening = Faceplate.readout(.done(result()), live: .listening, liveSource: "Mic", page: p,
                                                   factor: .one, lastAction: .download, note: nil, reference: 440,
                                                   onCycleTempo: nil) else { return XCTFail() }
@@ -167,7 +167,7 @@ final class PocketTests: XCTestCase {
         var locked = idle
         let l = result([("Ebm", 86), ("Gb", 9), ("Bbm", 5)], exact: 128.04, cents: 12)
         locked.readout = .result(l, page: nil, download: true, options: ResultOptions(
-            factor: .one, tuning: Tuning.line(12, reference: 440), onCycleTempo: {}))
+            factor: .one, tuning: Tuning.meter(12, reference: 440), onCycleTempo: {}))
         locked.clipboardLink = nil
 
         var hc = locked

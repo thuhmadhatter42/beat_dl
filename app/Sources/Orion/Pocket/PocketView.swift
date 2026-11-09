@@ -31,6 +31,8 @@ struct PocketActions {
     var chordFile: (Chord) -> URL? = { _ in nil }
     var setHarmony: (HarmonyPrefs) -> Void = { _ in }
     var pickMatchKey: () -> Void = {}
+    /// MINI: Beat Key Mini's floating pad panel, open / closed.
+    var toggleMini: () -> Void = {}
     var openWindow: () -> Void = {}
     var settings: () -> Void = {}
     var quit: () -> Void = {}
@@ -587,6 +589,7 @@ struct KeyStrip: View {
                 .padding(.top, 8)
             NoteKeyboard(scale: state.scale).frame(height: keyboardHeight).helpTip(HelpText.keyboard).padding(.top, 12)
             scaleLine.padding(.top, 7)
+            TuningMeterRow(meter: state.options?.tuning).padding(.top, 7)
         }
     }
 
@@ -605,14 +608,60 @@ struct KeyStrip: View {
             }
             .helpTip(HelpText.scale)
             Spacer(minLength: 4)
-            if let t = state.options?.tuning {
-                Text(t.replacingOccurrences(of: "TUNING ", with: "")).font(Theme.face(8.5)).tracking(1)
-                    .foregroundColor(Theme.amber(0.7)).lineLimit(1)
-                    .accessibility(label: Text(t.lowercased()))
-                    .helpTip(HelpText.tuning)
-            }
         }
         .accessibilityElement(children: .combine)
+    }
+}
+
+/// TUNING (J 2026-11-09, Orra's meter in Beat Key's amber): a thin −50 ¢ … +50 ¢ track with a
+/// centre tick and a marker at the offset (green within ±5 ¢), then "+0.1 ct  A4 = 440.0 Hz".
+/// Always drawn, so the readout never jumps: no reading = a dim track and a dash.
+struct TuningMeterRow: View {
+    let meter: TuningMeter?
+
+    static let height: CGFloat = 12
+    static let markerWidth: CGFloat = 4
+
+    var body: some View {
+        HStack(spacing: 10) {
+            Text("TUNING").font(Theme.face(7)).tracking(1.4).foregroundColor(Theme.amber(meter == nil ? 0.25 : 0.45))
+                .fixedSize()
+            track.frame(height: TuningMeterRow.height)
+            Text(meter?.text ?? "—").font(Theme.face(8.5).monospacedDigit()).tracking(0.4)
+                .foregroundColor(Theme.amber(meter == nil ? 0.25 : 0.8)).lineLimit(1).fixedSize()
+                .frame(minWidth: 128, alignment: .leading)
+        }
+        .accessibilityElement(children: .ignore)
+        .accessibility(label: Text(meter?.spoken ?? "Tuning: no reading"))
+        .helpTip(HelpText.tuning)
+    }
+
+    private var track: some View {
+        GeometryReader { g in
+            let w = g.size.width, mid = g.size.height / 2
+            ZStack(alignment: .topLeading) {
+                Capsule().fill(Theme.amber(meter == nil ? 0.06 : 0.1)).frame(width: w, height: 2).offset(y: mid - 1)
+                // −25 / +25 ticks faint, the centre brighter
+                ForEach([0.25, 0.5, 0.75], id: \.self) { f in
+                    Rectangle().fill(Theme.amber(f == 0.5 ? (meter == nil ? 0.2 : 0.4) : 0.14))
+                        .frame(width: 1, height: f == 0.5 ? 8 : 4)
+                        .offset(x: (w * CGFloat(f)).rounded() - 0.5, y: mid - (f == 0.5 ? 4 : 2))
+                }
+                if let m = meter {
+                    RoundedRectangle(cornerRadius: 1.5, style: .continuous).fill(m.inTune ? Theme.green : Theme.amber)
+                        .frame(width: TuningMeterRow.markerWidth, height: g.size.height)
+                        .shadow(color: Theme.highContrast ? .clear : (m.inTune ? Theme.greenGlow : Theme.amberGlow), radius: 3)
+                        .offset(x: TuningMeterRow.markerX(m.fraction, width: w))
+                        .animation(.easeOut(duration: 0.35), value: m.cents)
+                }
+            }
+        }
+    }
+
+    /// The marker's left edge for `fraction` (0...1) on a track `width` wide, kept on the track.
+    static func markerX(_ fraction: Double, width: CGFloat) -> CGFloat {
+        let f = CGFloat(min(max(fraction, 0), 1))
+        return min(max(f * width - markerWidth / 2, 0), max(0, width - markerWidth))
     }
 }
 

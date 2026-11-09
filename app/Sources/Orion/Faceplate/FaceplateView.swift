@@ -20,6 +20,7 @@ struct FaceplateView: View {
     @ObservedObject private var spelling = SpellingSettings.shared
     @ObservedObject private var watcher = DAWWatcher.shared
     @ObservedObject private var help = HelpSettings.shared
+    @ObservedObject private var mini = MiniController.shared
     @State private var keyMonitor: Any?
     @State private var pasteboardCount = NSPasteboard.general.changeCount
     private let clipboardTick = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
@@ -88,6 +89,7 @@ struct FaceplateView: View {
                                  display: display, shortcuts: shortcuts, extras: extras, spelling: spelling,
                                  daw: watcher.target?.name)
         if showDrop { s.readout = .drop }
+        s.miniOpen = mini.isOpen
         return s
     }
 
@@ -109,6 +111,18 @@ struct FaceplateView: View {
             let url = ChordClip.write(chord, voicing: d.chordVoicing, bars: d.chordBars, bpm: bpm, key: r?.keys.first?.0)
             if url != nil { AppLog.log("window: chord \(chord.asciiName) dragged as a MIDI clip") }
             return url
+        }
+        a.toggleMini = {
+            let sp = SpellingSettings.shared
+            let changes = Publishers.MergeMany([e.objectWillChange.map { _ in () }.eraseToAnyPublisher(),
+                                                l.objectWillChange.map { _ in () }.eraseToAnyPublisher(),
+                                                m.objectWillChange.map { _ in () }.eraseToAnyPublisher(),
+                                                d.objectWillChange.map { _ in () }.eraseToAnyPublisher(),
+                                                sp.objectWillChange.map { _ in () }.eraseToAnyPublisher()])
+                .eraseToAnyPublisher()
+            MiniController.shared.toggle(source: {
+                MiniFeed(key: shown()?.keys.first?.0, quality: d.chordQuality, voicing: d.chordVoicing)
+            }, changes: changes)
         }
         a.setHarmony = { p in
             AppLog.log("window: chords \(p.quality.rawValue) \(p.voicing.rawValue) \(p.bars) bar")
@@ -367,7 +381,7 @@ extension Faceplate {
                                reference: reference, notice: liveNotice) { return l }
         let dl = lastAction == .download
         func options(_ r: Result) -> ResultOptions {
-            ResultOptions(factor: factor, tuning: Tuning.line(r.tuningCents, reference: reference),
+            ResultOptions(factor: factor, tuning: Tuning.meter(r.tuningCents, reference: reference),
                           onCycleTempo: onCycleTempo, onToggleSpelling: onToggleSpelling)
         }
         switch state {

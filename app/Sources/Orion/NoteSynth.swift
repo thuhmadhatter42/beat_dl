@@ -37,8 +37,34 @@ final class NoteSynth {
         let rel = DispatchWorkItem { [weak self] in self?.stopNotes() }
         release = rel
         DispatchQueue.main.asyncAfter(deadline: .now() + seconds, execute: rel)
+        scheduleIdleStop(after: seconds)
+    }
+
+    /// Notes the Mini is holding (noteOn until noteOff); the idle stop waits for them.
+    private(set) var held: Set<Int> = []
+
+    /// Beat Key Mini: start a note and hold it until noteOff.
+    func noteOn(_ n: Int, velocity: UInt8) {
+        guard let s = ensureRunning() else { return }
+        idle?.cancel(); idle = nil
+        let note = max(0, min(127, n))
+        s.startNote(UInt8(note), withVelocity: min(velocity, 127), onChannel: 0)
+        held.insert(note)
+    }
+
+    func noteOff(_ n: Int) {
+        let note = max(0, min(127, n))
+        guard held.remove(note) != nil else { return }
+        sampler?.stopNote(UInt8(note), onChannel: 0)
+        if held.isEmpty { scheduleIdleStop(after: 0) }
+    }
+
+    private func scheduleIdleStop(after seconds: Double) {
         idle?.cancel()
-        let stop = DispatchWorkItem { [weak self] in self?.stop() }
+        let stop = DispatchWorkItem { [weak self] in
+            guard let self, self.held.isEmpty else { return }
+            self.stop()
+        }
         idle = stop
         DispatchQueue.main.asyncAfter(deadline: .now() + seconds + NoteSynth.idleSeconds, execute: stop)
     }
@@ -79,6 +105,8 @@ final class NoteSynth {
     func stop() {
         idle?.cancel(); idle = nil
         stopNotes()
+        for n in held { sampler?.stopNote(UInt8(n), onChannel: 0) }
+        held = []
         engine?.stop()
         engine = nil; sampler = nil
     }
