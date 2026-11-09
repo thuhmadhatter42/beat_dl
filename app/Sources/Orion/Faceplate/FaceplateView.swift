@@ -65,25 +65,32 @@ struct FaceplateView: View {
     /// send caps and the footer links. Advanced mode adds the harmony column to the right: the
     /// window grows wider, never taller (laptop screens have width to spare, not height).
     static func size(advanced: Bool) -> CGSize {
-        CGSize(width: plateWidth(advanced: advanced) + 32, height: 732)
+        CGSize(width: plateWidth(advanced: advanced) + 32, height: height)
     }
     static let size = size(advanced: false)
-    /// The module column inside the plate's 12 pt padding (the default plate is 520).
-    static let moduleWidth: CGFloat = 520 - 24
+    /// The window's content height, both modes (J 2026-11-09: 732 + 12 for the taller keyboard).
+    static let height: CGFloat = 744
+    /// The module column inside the plate's 12 pt padding (J 2026-11-09: "the whole left side is
+    /// too wide": 496 -> 472, as narrow as SEND TO AUTO-TUNE and the source name allow at full size).
+    static let moduleWidth: CGFloat = 472
     static let columnGap: CGFloat = Theme.S.l
     /// The gap between a field and its cap, and between the send caps (one column grid).
     static let gridGap: CGFloat = Theme.S.m
     /// SEND TO DAW and SEND TO AUTO-TUNE split what the cap column leaves.
     static var sendWidth: CGFloat { (moduleWidth - capWidth - gridGap * 2) / 2 }
-    /// The plate: the module, plus the gap and the harmony column in Advanced mode.
+    /// The send caps' legend padding: S.xs, so SEND TO AUTO-TUNE (132.5 pt) fits 148 at full size.
+    static let sendPadding: CGFloat = Theme.S.xs
+    /// The plate: the module in its 12 pt padding, plus the gap and the harmony column in Advanced mode.
     static func plateWidth(advanced: Bool) -> CGFloat {
-        advanced ? 520 + columnGap + HarmonyPanel.width : 520
+        let plate = moduleWidth + 24
+        return advanced ? plate + columnGap + HarmonyPanel.width : plate
     }
     /// Every cap on the right of a field shares one width so the fields line up; it fits the
     /// longest legend in that column (PASTE + DOWNLOAD).
     static let capWidth: CGFloat = 152
-    /// The scale keyboard in the window's readout (J 2026-11-09: taller, same width).
-    static let keyboardHeight: CGFloat = 84
+    /// The scale keyboard in the window's readout (J 2026-11-09: taller and narrower, not stubby):
+    /// 432 x 96, white keys about 62 x 96 (was 456 x 84).
+    static let keyboardHeight: CGFloat = 96
 
     // MARK: derived state
 
@@ -344,7 +351,7 @@ struct FaceplateFace: View {
             // the window keeps its size: HOLD and the reset key stay put, dim until Listen is on
             HStack(spacing: gap) {
                 SourceField(source: state.source, level: state.level, listening: state.listening,
-                            action: actions.pickSource)
+                            meterGap: 1, action: actions.pickSource)
                 HStack(spacing: Pocket.transportGap) {
                     HoldCap(state: state, action: actions.toggleHold).frame(width: 72)
                     NewSongCap(lit: state.listening, keys: state.newSongKeys, action: actions.newSong)
@@ -354,8 +361,10 @@ struct FaceplateFace: View {
             .padding(.top, Theme.S.s)
             ModuleRule().padding(.vertical, Theme.S.l)
             HStack(spacing: gap) {
-                SendDAWCap(state: state, action: actions.sendDAW).frame(width: FaceplateView.sendWidth)
-                AutoTuneCap(state: state, send: actions.sendAutoTune).frame(width: FaceplateView.sendWidth)
+                SendDAWCap(state: state, padding: FaceplateView.sendPadding, action: actions.sendDAW)
+                    .frame(width: FaceplateView.sendWidth)
+                AutoTuneCap(state: state, padding: FaceplateView.sendPadding, send: actions.sendAutoTune)
+                    .frame(width: FaceplateView.sendWidth)
                 ExportMidiCap(state: state, action: actions.exportMidi).frame(width: capWidth)
             }
         }

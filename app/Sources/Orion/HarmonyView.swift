@@ -332,7 +332,7 @@ struct KeyWheel: View {
     /// Three circles (J, 2026-11-09): the centre holds the Camelot code, minors fill the ring between
     /// `innerRadius` and `middleRadius`, majors the ring between `middleRadius` and `outerRadius`.
     /// A line between every two keys splits each ring into 12 sections; a lit key lights its section.
-    /// The 8 pt band outside the majors carries the small MAJOR label.
+    /// No MAJOR / MINOR ring labels (J 2026-11-09: the names already say C, Am).
     static let innerRadius: CGFloat = 34
     static let middleRadius: CGFloat = 70
     static let outerRadius: CGFloat = 100
@@ -369,7 +369,6 @@ struct KeyWheel: View {
                 }
             }
             KeyWheelGrid().allowsHitTesting(false)
-            ringLabels.allowsHitTesting(false)
             center
             // SwiftUI's onHover tracks a view's whole frame (every section is the full square), so the
             // section under the mouse is worked out from the mouse position instead.
@@ -385,17 +384,6 @@ struct KeyWheel: View {
         .hoverCard(hovered.map(tip(for:)), width: 196)
         .accessibilityElement(children: .contain)
         .accessibility(label: Text("Key wheel"))
-    }
-
-    /// MAJOR along the outside of the major ring (top left), MINOR inside the minor ring (bottom
-    /// of the hub): small and quiet, so the two rings name themselves without a legend.
-    private var ringLabels: some View {
-        ZStack {
-            ArcText(text: "MAJOR", radius: KeyWheel.outerRadius + 4.5, angle: -38, top: true)
-            ArcText(text: "MINOR", radius: KeyWheel.innerRadius - 9, angle: 180, top: false)
-        }
-        .frame(width: KeyWheel.side, height: KeyWheel.side)
-        .accessibility(hidden: true)
     }
 
     /// The pop-up for the hovered section: how sure, and why it is lit (J, 2026-11-09: no extra text
@@ -468,7 +456,6 @@ struct KeyWheel: View {
         ZStack {
             if let k = keys.first?.0, let code = Camelot.code(k) {
                 Text(code).font(Theme.T.value).foregroundColor(Theme.A.a2)
-                    .offset(y: -4)
                     .animation(nil, value: code)
             }
         }
@@ -476,40 +463,6 @@ struct KeyWheel: View {
         .contentShape(Circle())
         .helpTip(HelpText.camelot)
         .accessibility(hidden: true)
-    }
-}
-
-/// Text set along a circle, centred on `angle` (degrees, 0 = top, clockwise). top = it reads along
-/// the top of the circle (feet toward the centre); else along the bottom (heads toward the centre).
-struct ArcText: View {
-    let text: String
-    let radius: CGFloat
-    let angle: Double
-    let top: Bool
-
-    /// Each character's advance at the caption size and tracking.
-    static func advances(_ s: String) -> [CGFloat] {
-        let font = NSFont(name: "HelveticaNeue-Medium", size: Theme.T.captionSize)
-            ?? NSFont.systemFont(ofSize: Theme.T.captionSize, weight: .medium)
-        return s.map { (String($0) as NSString).size(withAttributes: [.font: font]).width + Theme.T.captionTracking }
-    }
-
-    var body: some View {
-        let chars = Array(text)
-        let w = ArcText.advances(text)
-        let total = w.reduce(0, +)
-        return ZStack {
-            ForEach(chars.indices, id: \.self) { i in
-                let along = w[..<i].reduce(0, +) + w[i] / 2 - total / 2
-                let d = Double(along / radius) * 180 / .pi
-                let a = top ? angle + d : angle - d
-                let rad = a * .pi / 180
-                Text(String(chars[i])).font(Theme.T.caption).foregroundColor(Theme.A.a3)
-                    .fixedSize()
-                    .rotationEffect(.degrees(top ? a : a - 180))
-                    .offset(x: CGFloat(sin(rad)) * radius, y: -CGFloat(cos(rad)) * radius)
-            }
-        }
     }
 }
 

@@ -275,11 +275,18 @@ struct ResultReadout: View {
 
     private var bpmShown: String? { Tempo.text(result, factor: options.factor) }
 
+    /// The BPM column's fixed width: "188.88" and, in Advanced, BPM + the x0.5 / x1 / x2 chips.
+    /// Fixed so the dial never moves with the number.
+    static let bpmWidth: CGFloat = 176
+
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            HStack(alignment: .top, spacing: Theme.S.xl) {
-                bpmColumn.frame(maxWidth: .infinity, alignment: .leading)
+            // J 2026-11-09 ("a lot of space between the BPM and the key"): the dial sits centred in
+            // the room right of the BPM column, as far from the BPM as from the glass's edge.
+            HStack(alignment: .top, spacing: 0) {
+                bpmColumn.frame(width: ResultReadout.bpmWidth, alignment: .leading)
                 Dial(state: state, actions: actions).frame(width: Dial.side, height: Dial.side)
+                    .frame(maxWidth: .infinity)
             }
             .frame(height: Dial.side)
             Spacer(minLength: 0)

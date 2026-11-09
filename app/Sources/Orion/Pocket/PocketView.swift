@@ -275,13 +275,15 @@ struct ActionCap: View {
     let title: String
     let ready: Bool
     let label: String
+    /// The legend's side padding: the window's narrow send caps pass S.xs so SEND TO AUTO-TUNE fits.
+    var padding: CGFloat = SSLCapStyle.sidePadding
     let action: () -> Void
     var body: some View {
         Button(action: { if ready { action() } }) {
             SSLCapStyle.label(title).lineLimit(1).minimumScaleFactor(0.8)
                 .frame(maxWidth: .infinity)
         }
-        .buttonStyle(SSLCapStyle(lit: false, ready: ready))
+        .buttonStyle(SSLCapStyle(lit: false, ready: ready, padding: padding))
         .accessibility(label: Text(label))
     }
 }
@@ -289,10 +291,11 @@ struct ActionCap: View {
 /// SEND TO <the DAW that is open>.
 struct SendDAWCap: View {
     let state: PocketState
+    var padding: CGFloat = SSLCapStyle.sidePadding
     let action: () -> Void
     var body: some View {
         let daw = state.daw.map { "SEND TO \($0.uppercased())" } ?? "SEND TO DAW"
-        ActionCap(title: daw, ready: state.canSend, label: daw.capitalized, action: action)
+        ActionCap(title: daw, ready: state.canSend, label: daw.capitalized, padding: padding, action: action)
             .helpTip(HelpText.sendDAW)
     }
 }
@@ -300,10 +303,12 @@ struct SendDAWCap: View {
 /// SEND TO AUTO-TUNE: flashes SENT ✓ (or NO KEY) for a moment after the press.
 struct AutoTuneCap: View {
     let state: PocketState
+    var padding: CGFloat = SSLCapStyle.sidePadding
     let send: () -> Bool
     @State private var flash: String?
     var body: some View {
-        ActionCap(title: flash ?? "SEND TO AUTO-TUNE", ready: state.canAutoTune, label: "Send key to Auto-Tune") {
+        ActionCap(title: flash ?? "SEND TO AUTO-TUNE", ready: state.canAutoTune, label: "Send key to Auto-Tune",
+                  padding: padding) {
             let ok = send()
             flash = ok ? "SENT TO AUTO-TUNE ✓" : "AUTO-TUNE: NO KEY"
             DispatchQueue.main.asyncAfter(deadline: .now() + 1.6) { flash = nil }
@@ -601,20 +606,52 @@ struct KeyStrip: View {
 /// TUNING (J 2026-11-09, Orra's meter in Beat Key's amber): a thin −50 ¢ … +50 ¢ track with a
 /// centre tick and a marker at the offset (green within ±5 ¢), then "+0.1 ct  A4 = 440.0 Hz".
 /// Always drawn, so the readout never jumps: no reading = a dim track and a dash.
+/// J 2026-11-09: the track's centre tick (0 ct) sits on the panel's centre line; TUNING ends 12 pt
+/// left of the track, the reading starts 12 pt right of it (so the row as a whole sits left of centre).
 struct TuningMeterRow: View {
     let meter: TuningMeter?
 
     static let height: CGFloat = 12
     static let markerWidth: CGFloat = 4
+    /// TUNING to the track, the track to the reading.
+    static let gap: CGFloat = Theme.S.m
+    /// Room for the reading: "−50.0 ct  A4 = 452.9 Hz" is 106.5 pt at the caption size.
+    static let textWidth: CGFloat = 108
+    /// TUNING at the caption size and tracking (44 pt).
+    static let labelWidth: CGFloat = 44
+
+    /// Where the row's three parts go in a row `width` wide (x from the row's left edge): the track
+    /// is centred on width / 2 and as long as the wider side (label or reading) allows.
+    struct Layout: Equatable {
+        /// TUNING's right edge.
+        let labelRight: CGFloat
+        let trackX: CGFloat
+        let trackWidth: CGFloat
+        let textX: CGFloat
+        var trackCentre: CGFloat { trackX + trackWidth / 2 }
+    }
+
+    static func layout(width: CGFloat) -> Layout {
+        let side = max(textWidth, labelWidth) + gap
+        let half = max(0, (width / 2 - side).rounded(.down))
+        let x = width / 2 - half
+        return Layout(labelRight: x - gap, trackX: x, trackWidth: half * 2, textX: x + half * 2 + gap)
+    }
 
     var body: some View {
-        HStack(spacing: Theme.S.m) {
-            Text("TUNING").captionStyle().foregroundColor(Theme.A.a3).fixedSize()
-            track.frame(height: TuningMeterRow.height)
-            Text(meter?.text ?? "—").font(Theme.T.caption.monospacedDigit())
-                .foregroundColor(meter == nil ? Theme.A.a3 : Theme.A.a2).lineLimit(1).fixedSize()
-                .frame(minWidth: 128, alignment: .leading)
+        GeometryReader { g in
+            let l = TuningMeterRow.layout(width: g.size.width)
+            let h = TuningMeterRow.height
+            ZStack(alignment: .topLeading) {
+                Text("TUNING").captionStyle().foregroundColor(Theme.A.a3).lineLimit(1).fixedSize()
+                    .frame(width: max(0, l.labelRight), height: h, alignment: .trailing)
+                track.frame(width: l.trackWidth, height: h).offset(x: l.trackX)
+                Text(meter?.text ?? "—").font(Theme.T.caption.monospacedDigit())
+                    .foregroundColor(meter == nil ? Theme.A.a3 : Theme.A.a2).lineLimit(1).fixedSize()
+                    .frame(height: h).offset(x: l.textX)
+            }
         }
+        .frame(height: TuningMeterRow.height)
         .accessibilityElement(children: .ignore)
         .accessibility(label: Text(meter?.spoken ?? "Tuning: no reading"))
         .helpTip(HelpText.tuning)
@@ -1117,21 +1154,26 @@ struct SourceField: View {
     let source: String
     let level: Float
     let listening: Bool
+    /// The gap between the meter's segments: the window's narrower field passes 1.
+    var meterGap: CGFloat = 2
     let action: () -> Void
     static let segments = 12
 
     var body: some View {
         let shape = RoundedRectangle(cornerRadius: Theme.R.well, style: .continuous)
         Button(action: action) {
-            HStack(spacing: Theme.S.s) {
+            // 8 between the name and the meter and between the meter and the chevron (the spacer
+            // takes no gap of its own on either side)
+            HStack(spacing: 0) {
                 VStack(alignment: .leading, spacing: 1) {
                     Text("SOURCE").captionStyle().foregroundColor(Theme.textLo).lineLimit(1).fixedSize()
                     Text(source).font(Theme.T.body).foregroundColor(Theme.textHi)
                         .lineLimit(1).truncationMode(.middle).layoutPriority(1)
                 }
-                Spacer(minLength: 0)
+                Spacer(minLength: Theme.S.s)
                 meter
                 Image(systemName: "chevron.down").font(.system(size: 8, weight: .bold)).foregroundColor(Theme.A.a2)
+                    .padding(.leading, Theme.S.s)
             }
             .padding(.horizontal, Theme.S.m)
             .frame(height: Theme.H.lg)
@@ -1151,7 +1193,7 @@ struct SourceField: View {
     /// Twelve LED segments: green, then amber, then red at the top.
     private var meter: some View {
         let n = LevelMeter.lit(listening ? level : 0, count: SourceField.segments)
-        return HStack(spacing: 2) {
+        return HStack(spacing: meterGap) {
             ForEach(0..<SourceField.segments, id: \.self) { i in
                 let c: Color = i >= 10 ? Theme.red : i >= 7 ? Theme.amber : Theme.green
                 RoundedRectangle(cornerRadius: 1)

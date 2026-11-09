@@ -3,9 +3,9 @@ import SwiftUI
 /// The mockup's `.plate`: noise-and-sheen chassis, black outer rings, four screws.
 struct Plate<Content: View>: View {
     let content: Content
-    /// 520 = the default window's plate; Advanced mode widens it for the harmony column.
-    var width: CGFloat = 520
-    init(width: CGFloat = 520, @ViewBuilder content: () -> Content) { self.width = width; self.content = content() }
+    /// FaceplateView.plateWidth: the default window's plate; Advanced mode widens it for the harmony column.
+    var width: CGFloat
+    init(width: CGFloat, @ViewBuilder content: () -> Content) { self.width = width; self.content = content() }
 
     private let r: CGFloat = 12
 
