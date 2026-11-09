@@ -38,6 +38,8 @@ struct PocketActions {
     var quit: () -> Void = {}
     /// HELP: help mode on / off (both surfaces).
     var toggleHelp: () -> Void = {}
+    /// The footer's ADVANCED box: this surface's Advanced mode on / off.
+    var toggleAdvanced: () -> Void = {}
 }
 
 enum Pocket {
@@ -66,6 +68,8 @@ struct PocketView: View {
             PocketHeader(state: state)
             PocketLCD(state: state, actions: actions)
             module
+            // Advanced mode (the pocket's own): the window's harmony pieces, fitted to the pocket
+            if state.advanced { PocketHarmony(state: state, actions: actions) }
             footer
         }
         .padding(Theme.S.l)
@@ -119,15 +123,22 @@ struct PocketView: View {
 
     // MARK: footer
 
+    /// RECENT · WINDOW · SETTINGS · HELP, then ADVANCED and QUIT on the right. With ADVANCED in
+    /// the line the 344 pt row is full: the links sit 8 apart and QUIT is its power symbol.
     private var footer: some View {
-        HStack(spacing: Theme.S.l) {
-            RecentLink(state: state, action: actions.showRecents)
-            FooterLink(title: "WINDOW", label: "Show the Beat Key window", action: actions.openWindow)
-                .helpTip(HelpText.window)
-            FooterLink(title: "SETTINGS", label: "Settings", action: actions.settings).helpTip(HelpText.settings)
-            HelpChip(on: state.help, action: actions.toggleHelp)
-            Spacer()
-            FooterLink(title: "QUIT", label: Brand.quit, action: actions.quit).helpTip(HelpText.quit)
+        HStack(spacing: 0) {
+            HStack(spacing: Theme.S.s) {
+                RecentLink(state: state, action: actions.showRecents)
+                FooterLink(title: "WINDOW", label: "Show the Beat Key window", action: actions.openWindow)
+                    .helpTip(HelpText.window)
+                FooterLink(title: "SETTINGS", label: "Settings", action: actions.settings).helpTip(HelpText.settings)
+                HelpChip(on: state.help, action: actions.toggleHelp)
+            }
+            Spacer(minLength: Theme.S.s)
+            HStack(spacing: Theme.S.s) {
+                AdvancedBox(on: state.advanced, action: actions.toggleAdvanced)
+                QuitLink(action: actions.quit).helpTip(HelpText.quit)
+            }
         }
         .frame(height: Theme.H.xs)
     }
@@ -342,6 +353,25 @@ enum PocketText {
         var t = s
         for p in ["https://", "http://", "www.", "m."] where t.hasPrefix(p) { t.removeFirst(p.count) }
         return t
+    }
+}
+
+/// QUIT as the power symbol (the pocket's footer has no room for the word next to ADVANCED).
+struct QuitLink: View {
+    let action: () -> Void
+    @State private var hover = false
+    var body: some View {
+        Button(action: action) {
+            Image(systemName: "power").font(.system(size: 11, weight: .semibold))
+                .foregroundColor(hover ? Theme.textHi : Theme.textLo)
+                .frame(width: 16, height: Theme.H.xs)
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(PlainButtonStyle())
+        .onHover { hover = $0 }
+        .pointingHand()
+        .nativeHelp(Brand.quit)
+        .accessibility(label: Text(Brand.quit))
     }
 }
 

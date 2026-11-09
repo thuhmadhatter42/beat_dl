@@ -128,11 +128,18 @@ final class StatusItemController: NSObject, NSMenuDelegate {
                 _ = readings; self?.show(r)
             }
             .store(in: &bag)
+        // a new display colour redraws the key (its image is drawn once per readout)
+        AccentSettings.shared.$effective.dropFirst().removeDuplicates()
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] _ in if let r = self?.readout { self?.show(r) } }
+            .store(in: &bag)
 
-        let actions = PocketActions.wired(surface: "pocket", engine: engine, model: model, live: live, tuning: tuning,
+        var actions = PocketActions.wired(surface: "pocket", engine: engine, model: model, live: live, tuning: tuning,
                                           recents: recents, extras: extras, toggleListening: toggleListening,
                                           newSong: newSong, toggleHold: toggleHold, showAgain: showAgain,
                                           close: { [weak self] in self?.closePopover() })
+        actions.wireHarmony(surface: "pocket", engine: engine, model: model, live: live, display: display)
+        actions.toggleAdvanced = { [display] in display.pocketAdvanced.toggle() }
         let root = PocketContainer(engine: engine, model: model, live: live, tuning: tuning, recents: recents,
                                    display: display, shortcuts: shortcuts, extras: extras, actions: actions) { [weak self] size in
             guard let self = self, size.width > 0, size.height > 0 else { return }
@@ -402,8 +409,11 @@ enum MenuBarImage {
         let img = NSImage(size: size, flipped: true) { rect in
             guard let ctx = NSGraphicsContext.current?.cgContext else { return false }
             let dark = NSAppearance.currentDrawing().bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
-            let gold = color ?? (dark ? NSColor(srgbRed: 1, green: 176 / 255, blue: 32 / 255, alpha: 1)
-                            : NSColor(srgbRed: 168 / 255, green: 104 / 255, blue: 0, alpha: 1))
+            // the display colour (amber unless COLOR picked another); a deeper shade on a light bar
+            let a = Theme.accent
+            let gold = color ?? (dark ? a.nsColor
+                            : a == .amber ? NSColor(srgbRed: 168 / 255, green: 104 / 255, blue: 0, alpha: 1)
+                            : Accent(a.r * 0.66, a.g * 0.6, a.b * 0.5).nsColor)
             ctx.addPath(KeyGlyphShape().path(in: rect.insetBy(dx: 0.25, dy: 0.25)).cgPath)
             ctx.setFillColor(gold.cgColor)
             ctx.fillPath(using: .evenOdd)
@@ -440,11 +450,14 @@ struct PocketContainer: View {
     @ObservedObject private var spelling = SpellingSettings.shared
     @ObservedObject private var watcher = DAWWatcher.shared
     @ObservedObject private var help = HelpSettings.shared
+    @ObservedObject private var accent = AccentSettings.shared
+    @ObservedObject private var mini = MiniController.shared
     let actions: PocketActions
     let onSize: (CGSize) -> Void
 
     var body: some View {
         PocketView(state: state, url: $model.url, actions: actions)
+            .id(accent.effective)   // Theme.accent is read while drawing: a new colour redraws the pocket
             .environment(\.liveLevel, live.meter)   // the meter ticks on its own (LiveLevel)
             .fixedSize()
             .background(GeometryReader { g in Color.clear.preference(key: PocketSizeKey.self, value: g.size) })
@@ -452,8 +465,11 @@ struct PocketContainer: View {
     }
 
     private var state: PocketState {
-        PocketState.make(engine: engine, model: model, live: live, tuning: tuning, recents: recents, display: display,
-                         shortcuts: shortcuts, extras: extras, spelling: spelling, daw: watcher.target?.name)
+        var s = PocketState.make(engine: engine, model: model, live: live, tuning: tuning, recents: recents, display: display,
+                                 shortcuts: shortcuts, extras: extras, spelling: spelling, daw: watcher.target?.name)
+        s.advanced = display.pocketAdvanced   // the pocket's own Advanced mode
+        s.miniOpen = mini.isOpen
+        return s
     }
 }
 
