@@ -1,6 +1,8 @@
 # PICKUP — beat_dl
 
-## CURRENT STATE — 2026-11-09 13:27
+## CURRENT STATE — 2026-11-09 14:43
+
+**0.1.53 installed + running (14:42:42, 371 tests pass, SIGN_OK):** footer = all FooterChip (RECENT ▾ / SETTINGS / COLOR / HELP; pocket RECENT / WINDOW / SETTINGS / HELP, pocket ADVANCED box only, no word: 389.5 pt needed vs 344); window readout BPM 68→80 pt, dial 128→152 (key 40), BPM on the top-keys left edge, dial on MANUAL right edge, group centred (gaps 16/15.5 pt), filename + SHOW IN FINDER under the BPM. Renders docs/research/footer-readout-2026-11-09/. Flaky timing test: MotionFrameTests.testMeterTickDoesNotRedrawTheFace (fails ~2/5 on unchanged main too).
 
 **0.1.52 installed + running (13:26:53, 369 tests pass, SIGN_OK):** dial % back (window: % + small UNSURE/LOCKED; pocket: dot + %, word dropped for room); COLOR chip (window footer between SETTINGS and HELP → macOS colour wheel, live, Reset to Amber, UserDefaults accentColor, dark picks lifted to 7:1); ADVANCED checkbox right-aligned in window + pocket footers (first change per launch sets both, later changes only the side clicked; ⌥⌘A/Settings = window); pocket Advanced section (wheel, chords, MINI, MATCH TO; scrolls on short screens); pocket QUIT is now a power icon. Agent choices for J: unsure lamp follows chosen colour (could stay amber); pure blue/red show lighter. FLR site: full-page handoff handoff/TO-FLR-SITE-2026-11-09-beat-key-full-page-update.md (3a11aaa); owed by me: fresh page screenshots at release version into handoff/flr-assets/. Release = J runs publish.sh (ships 0.1.52).
 
