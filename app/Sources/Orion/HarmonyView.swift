@@ -67,7 +67,7 @@ struct HarmonyPanel: View {
     /// The wheel: a click sets Manual Key Selection; a click on the white (manual) section clears it.
     static func wheel(_ state: PocketState, settings: SpellingSettings = .shared) -> KeyWheel {
         let r = state.result
-        return KeyWheel(keys: r?.keys ?? [], manual: state.manualKey,
+        return KeyWheel(keys: r?.keys ?? [], manual: state.manualKey, spelling: settings.preference,
                         onChoose: r.map { r in { k in _ = settings.setManualKey(k, of: r, from: .wheel) } },
                         onClear: r.map { r in { _ = settings.clearManualKey(of: r, from: .wheelReset) } })
     }
@@ -362,6 +362,9 @@ struct KeyWheel: View {
     /// Manual Key Selection on show: its section is lit white (not the display colour), hovering
     /// it swaps its name for the reset arrow, and a click there clears it (`onClear`).
     var manual: ManualKey? = nil
+    /// Reading > Spell Keys with Sharps (nil = the analyzer's own): the dial's and the top 3's
+    /// spelling, for the keys the reading does not list (see `name`).
+    var spelling: KeySpelling? = nil
     var onChoose: ((String) -> Void)? = nil
     var onClear: (() -> Void)? = nil
 
@@ -413,7 +416,7 @@ struct KeyWheel: View {
         }
         if id == manualSection, let clear = onClear { clear(); return }
         let s = KeyWheel.slot(id / 2, minor: id % 2 == 1)
-        onChoose?(KeyWheel.name(s.pc, minor: s.minor))
+        onChoose?(name(s.pc, minor: s.minor))
     }
 
     var body: some View {
@@ -423,7 +426,8 @@ struct KeyWheel: View {
             ForEach(0..<12, id: \.self) { i in
                 ForEach([false, true], id: \.self) { minor in
                     let s = KeyWheel.slot(i, minor: minor)
-                    KeyWheelSection(index: i, minor: minor, rank: rank(s.pc, minor: minor),
+                    KeyWheelSection(index: i, minor: minor, name: name(s.pc, minor: minor),
+                                    rank: rank(s.pc, minor: minor),
                                     fit: fit.contains(WheelKey(s.pc, minor: minor)),
                                     manual: manual?.isKey(s.pc, minor: minor) ?? false,
                                     hover: hover == i * 2 + (minor ? 1 : 0),
@@ -470,9 +474,32 @@ struct KeyWheel: View {
         return i * 2 + (r < middleRadius ? 1 : 0)
     }
 
-    /// The name as the wheel spells it.
-    static func name(_ pc: Int, minor: Bool) -> String {
-        KeySpelling.respell(KeyChoice.keyName(pc, minor: minor), to: SpellingSettings.shared.preference)
+    /// The name as the wheel spells it: exactly as the dial and the top 3 do (one key, one name
+    /// across the window and the pocket). Labels, hover cards and VoiceOver all read this.
+    func name(_ pc: Int, minor: Bool) -> String {
+        KeyWheel.name(pc, minor: minor, keys: keys, spelling: spelling)
+    }
+
+    /// Key (`pc`, `minor`) as reading `keys` (already respelled, the chosen key in front: what the
+    /// dial and the top 3 draw) names it; a key the reading does not list gets the analyzer's
+    /// name in `spelling` (KeySpelling.respell, the same rule the reading went through). A reading
+    /// key whose name does not resolve is skipped and logged once (the fallback spelling stands).
+    static func name(_ pc: Int, minor: Bool, keys: [(String, Int)], spelling: KeySpelling?) -> String {
+        for k in keys {
+            guard let c = AutoTuneSend.keyClass(k.0) else { logUnresolved(k.0); continue }
+            if c.pitchClass == pc && c.minor == minor { return k.0.trimmingCharacters(in: .whitespaces) }
+        }
+        return KeySpelling.respell(KeyChoice.keyName(pc, minor: minor), to: spelling)
+    }
+
+    /// Names already logged as unresolved (one line per name, not one per redraw).
+    private static var unresolvedLogged = Set<String>()
+    private static let unresolvedLock = NSLock()
+
+    private static func logUnresolved(_ name: String) {
+        unresolvedLock.lock(); defer { unresolvedLock.unlock() }
+        guard unresolvedLogged.insert(name).inserted else { return }
+        AppLog.log("ERROR key wheel spelling: reading key \"\(name)\" does not resolve to a key; the wheel keeps its own spelling")
     }
 
     /// The scale's seven pitch classes.
@@ -492,7 +519,7 @@ struct KeyWheel: View {
 
     /// What the hover card says: the key and how sure, then why it relates to the key on show.
     func info(_ pc: Int, minor: Bool) -> (title: String, why: String) {
-        let name = KeyWheel.name(pc, minor: minor)
+        let name = self.name(pc, minor: minor)
         let title = percent(pc, minor: minor).map { "\(name) · \($0)% SURE" } ?? name
         if let m = manual, m.isKey(pc, minor: minor) {
             // Manual Key Selection (J 2026-11-09 15:19): the lock line, then what a click does
@@ -504,7 +531,7 @@ struct KeyWheel: View {
         if t.pitchClass == pc && t.minor == minor {
             return (title, "Beat Key's pick: the closest match to what it heard.")
         }
-        let topName = KeyWheel.name(t.pitchClass, minor: t.minor)
+        let topName = self.name(t.pitchClass, minor: t.minor)
         let shared = KeyWheel.notes(pc, minor: minor).intersection(KeyWheel.notes(t.pitchClass, minor: t.minor)).count
         let mode = minor ? "minor" : "major"
         if shared == 7 {
@@ -586,6 +613,8 @@ private struct KeyWheelGrid: View {
 private struct KeyWheelSection: View {
     let index: Int
     let minor: Bool
+    /// The key's name as the dial and the top 3 spell it (KeyWheel.name).
+    let name: String
     let rank: Int?
     let fit: Bool
     /// The Manual Key Selection: lit white instead of the display colour.
@@ -595,8 +624,6 @@ private struct KeyWheelSection: View {
     var onClear: (() -> Void)? = nil
 
     var body: some View {
-        let s = KeyWheel.slot(index, minor: minor)
-        let name = KeySpelling.respell(KeyChoice.keyName(s.pc, minor: minor), to: SpellingSettings.shared.preference)
         let inner = minor ? KeyWheel.innerRadius : KeyWheel.middleRadius
         let outer = minor ? KeyWheel.middleRadius : KeyWheel.outerRadius
         let shape = RingSector(index: index, inner: inner, outer: outer)
@@ -635,7 +662,7 @@ private struct KeyWheelSection: View {
         .animation(Theme.Motion.swap, value: manual)
         .animation(Theme.Motion.swap, value: fit)
         .animation(Theme.Motion.hover, value: hover)
-        let spoken = "\(KeyChoice.keyName(s.pc, minor: minor).replacingOccurrences(of: "m", with: "")) \(minor ? "minor" : "major")"
+        let spoken = "\(minor ? String(name.dropLast()) : name) \(minor ? "minor" : "major")"
         let role = manual ? ", the key, selected manually" : rank == 0 ? ", the key" : rank == 1 ? ", a runner-up" : fit ? ", fits the key" : ""
         return Group {
             if manual, let clear = onClear {

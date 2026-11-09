@@ -9,34 +9,43 @@ struct MenuBarReadout: Equatable {
     var lamp: Lamp?
     /// The last reading shown while nothing is on the readout: drawn dimmed.
     var dim = false
+    /// Manual Key Selection on show (ManualKeySelection.swift): the key is the one the user forced,
+    /// so no confidence lamp (no UNSURE at 0 %, no LOCKED): the key glyph is drawn white, like the
+    /// dial's white MANUAL. `lamp` is nil then.
+    var manual = false
     /// The full line for the menu's first row and VoiceOver.
     var detail: String
 
     static let idle = MenuBarReadout(text: nil, lamp: nil, detail: "No reading yet")
 
     /// The reading `r` as the menu bar shows it: top key, then the BPM to one decimal at `factor`.
+    /// `choice` = the Manual Key Selection; when it belongs to `r0` its key shows, in the manual look.
     static func of(_ r0: Result, factor: TempoFactor = .one, lamp: Lamp? = nil, status: String? = nil,
-                   held: Bool = false, spelling: KeySpelling? = nil) -> MenuBarReadout {
-        let r = r0.respelled(spelling)
+                   held: Bool = false, spelling: KeySpelling? = nil,
+                   choice: KeyChoice? = SpellingSettings.shared.manualKey) -> MenuBarReadout {
+        let manual = choice?.matches(r0) ?? false
+        let r = r0.respelled(spelling, choice: choice)
         let bpm = Tempo.text(r, factor: factor).flatMap(Double.init).map { String(format: "%.1f", $0) }
         let key = r.keys.first?.0
         let parts = [key, bpm].compactMap { $0 }
         guard !parts.isEmpty else { return MenuBarReadout(text: nil, lamp: nil, detail: "Nothing read") }
-        let lampNow = lamp ?? Lamp.of(r.keys)
+        let lampNow = manual ? nil : lamp ?? Lamp.of(r.keys)
         var detail = [key.map { "Key \($0)" }, Tempo.text(r, factor: factor).map { "\($0) BPM" }].compactMap { $0 }
-        if let s = status ?? Faceplate.confidenceLine(r.keys) { detail.append(s.capitalized) }
+        if manual { detail.append(ManualLook.word.capitalized) }
+        else if let s = status ?? Faceplate.confidenceLine(r.keys) { detail.append(s.capitalized) }
         let line = parts.joined(separator: " ")
-        return MenuBarReadout(text: held ? "⏸ " + line : line, lamp: lampNow,
+        return MenuBarReadout(text: held ? "⏸ " + line : line, lamp: lampNow, manual: manual,
                               detail: (held ? "Held · " : "") + detail.joined(separator: " · "))
     }
 
     /// The engine's reading: the finished download, or the file paged to on the LCD.
-    static func of(_ state: ViewState, page: Int, factor: TempoFactor, spelling: KeySpelling? = nil) -> MenuBarReadout {
+    static func of(_ state: ViewState, page: Int, factor: TempoFactor, spelling: KeySpelling? = nil,
+                   choice: KeyChoice? = SpellingSettings.shared.manualKey) -> MenuBarReadout {
         switch state {
         case .done(let r):
-            return of(r, factor: factor, spelling: spelling)
+            return of(r, factor: factor, spelling: spelling, choice: choice)
         case .analyzed(let rs) where !rs.isEmpty:
-            return of(rs[min(max(page, 0), rs.count - 1)], factor: factor, spelling: spelling)
+            return of(rs[min(max(page, 0), rs.count - 1)], factor: factor, spelling: spelling, choice: choice)
         case .working(let s):
             return MenuBarReadout(text: nil, lamp: .listening, detail: Faceplate.stageText(s).capitalized)
         default:
@@ -46,7 +55,8 @@ struct MenuBarReadout: Equatable {
 
     /// Listen's reading; nil when Listen is off (the engine's reading shows).
     static func of(live: LiveState, source: String, factor: TempoFactor, held: Bool = false,
-                   spelling: KeySpelling? = nil) -> MenuBarReadout? {
+                   spelling: KeySpelling? = nil,
+                   choice: KeyChoice? = SpellingSettings.shared.manualKey) -> MenuBarReadout? {
         switch live {
         case .off:
             return nil
@@ -56,10 +66,11 @@ struct MenuBarReadout: Equatable {
             return MenuBarReadout(text: nil, lamp: .listening, detail: "Listening · \(source)")
         case .reading(let r), .locked(let r):
             let m = of(r, factor: factor, lamp: live.lamp, status: live.status(source: source), held: held,
-                       spelling: spelling)
+                       spelling: spelling, choice: choice)
             // No key in the menu bar until Beat Key is sure (green): an unsure guess is not a key.
             // The coloured key says how far along it is; the popover still shows the top 3.
-            guard m.text != nil, live.lamp == .locked || held else {
+            // A Manual Key Selection is not a guess: its key shows at once.
+            guard m.text != nil, live.lamp == .locked || held || m.manual else {
                 return MenuBarReadout(text: nil, lamp: live.lamp ?? .listening, detail: m.detail)
             }
             return m
@@ -68,7 +79,7 @@ struct MenuBarReadout: Equatable {
 
     /// Spoken by VoiceOver for the status item.
     var accessibilityLabel: String {
-        "\(Brand.name): \(detail)" + (lamp.map { ", \($0.spoken)" } ?? "")
+        "\(Brand.name): \(detail)" + (manual ? ", selected manually" : lamp.map { ", \($0.spoken)" } ?? "")
     }
 }
 
@@ -118,13 +129,16 @@ final class StatusItemController: NSObject, NSMenuDelegate {
         Publishers.CombineLatest(
             Publishers.CombineLatest4(engine.$state, model.$pager, model.$tempoFactor,
                                       live.$state.combineLatest(live.$sourceName)),
-            recents.$readings.combineLatest(live.$isHeld, SpellingSettings.shared.changes))
+            recents.$readings.combineLatest(live.$isHeld,
+                                            SpellingSettings.shared.$preference.combineLatest(SpellingSettings.shared.$manualKey)))
             .receive(on: DispatchQueue.main)
             .sink { [weak self] a, b in
                 let (state, pager, factor, l) = a
-                let (readings, held, spelling) = b
-                let r = MenuBarReadout.of(live: l.0, source: l.1, factor: factor, held: held, spelling: spelling)
-                    ?? MenuBarReadout.of(state, page: pager.index, factor: factor, spelling: spelling)
+                let (readings, held, sm) = b
+                let (spelling, choice) = sm
+                let r = MenuBarReadout.of(live: l.0, source: l.1, factor: factor, held: held, spelling: spelling,
+                                          choice: choice)
+                    ?? MenuBarReadout.of(state, page: pager.index, factor: factor, spelling: spelling, choice: choice)
                 _ = readings; self?.show(r)
             }
             .store(in: &bag)
@@ -154,11 +168,12 @@ final class StatusItemController: NSObject, NSMenuDelegate {
     }
 
     func show(_ r: MenuBarReadout) {
+        if r.manual != readout.manual { AppLog.log(StatusItemController.manualSwitchLine(r)) }
         readout = r
         guard let button = item?.button else { return }
-        // The key (gold = no reading, else the lamp's colour) sits AFTER the reading, and the item
-        // is one fixed width, so nothing in the menu bar shifts as readings change.
-        button.image = MenuBarImage.make(r.lamp)
+        // The key (gold = no reading, white = Manual Key Selection, else the lamp's colour) sits
+        // AFTER the reading, and the item is one fixed width, so nothing in the menu bar shifts.
+        button.image = MenuBarImage.make(r.lamp, manual: r.manual)
         button.imagePosition = .imageTrailing
         button.alignment = .center
         let quiet = r.dim || r.text == nil
@@ -180,6 +195,12 @@ final class StatusItemController: NSObject, NSMenuDelegate {
     }
 
     private var lastItemFrame: NSRect = .zero
+
+    /// The beatkey.log line when the item switches into or out of Manual Key Selection.
+    static func manualSwitchLine(_ r: MenuBarReadout) -> String {
+        r.manual ? "menu-bar item: manual key \(r.text ?? "-") (white key, no lamp)"
+            : "menu-bar item: manual off; showing \(r.text ?? "-") with the \(r.lamp?.spoken ?? "no") lamp"
+    }
 
     /// Wide enough for the longest reading ("G#m 188.8" + the key), so the item never resizes.
     static func fixedWidth(font: NSFont) -> CGFloat {
@@ -396,22 +417,26 @@ enum MenuBarImage {
     static let side: CGFloat = 11
 
     /// The menu-bar key: gold with no reading, else the confidence lamp's colour (green locked,
-    /// amber unsure, ...). `side` is kept for callers sizing it; the key is 12 pt tall by default.
-    static func make(_ lamp: Lamp?, side: CGFloat = 12) -> NSImage? {
+    /// amber unsure, ...); `manual` = Manual Key Selection: white (no lamp), like the dial's white
+    /// MANUAL. `side` is kept for callers sizing it; the key is 12 pt tall by default.
+    static func make(_ lamp: Lamp?, manual: Bool = false, side: CGFloat = 12) -> NSImage? {
+        if manual { return key(height: side, manual: true) }
         guard let lamp = lamp else { return key(height: side) }
         return key(height: side, color: lamp.nsColor)
     }
 
     /// Beat Key's golden key (KeyGlyphShape: the app icon's dial head and toothed shaft): amber on
     /// a dark menu bar, a deeper gold on a light one, so it is findable either way.
-    static func key(height: CGFloat = 12, color: NSColor? = nil) -> NSImage {
+    /// `manual` = the Manual Key Selection's white; a light menu bar can't show white, so there it
+    /// is the bar's own near-black ink (still neutral, no lamp colour).
+    static func key(height: CGFloat = 12, color: NSColor? = nil, manual: Bool = false) -> NSImage {
         let size = NSSize(width: (height * 1.75).rounded(), height: height)
         let img = NSImage(size: size, flipped: true) { rect in
             guard let ctx = NSGraphicsContext.current?.cgContext else { return false }
             let dark = NSAppearance.currentDrawing().bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
             // the display colour (amber unless COLOR picked another); a deeper shade on a light bar
             let a = Theme.accent
-            let gold = color ?? (dark ? a.nsColor
+            let gold = manual ? MenuBarImage.manualInk(dark: dark) : color ?? (dark ? a.nsColor
                             : a == .amber ? NSColor(srgbRed: 168 / 255, green: 104 / 255, blue: 0, alpha: 1)
                             : Accent(a.r * 0.66, a.g * 0.6, a.b * 0.5).nsColor)
             ctx.addPath(KeyGlyphShape().path(in: rect.insetBy(dx: 0.25, dy: 0.25)).cgPath)
@@ -422,6 +447,14 @@ enum MenuBarImage {
         img.isTemplate = false
         img.accessibilityDescription = Brand.name
         return img
+    }
+}
+
+extension MenuBarImage {
+    /// The manual key's colour: ManualLook's white on a dark bar, near black on a light one.
+    static func manualInk(dark: Bool) -> NSColor {
+        dark ? (NSColor(ManualLook.white).usingColorSpace(.sRGB) ?? .white)
+            : NSColor(srgbRed: 0.11, green: 0.11, blue: 0.12, alpha: 1)
     }
 }
 
