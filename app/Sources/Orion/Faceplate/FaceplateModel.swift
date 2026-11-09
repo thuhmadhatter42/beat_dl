@@ -191,7 +191,8 @@ enum FakeState {
         case "done":
             let name = "Track Title (142.0 BPM Cm Eb Gm).mp3"
             engine.state = .done(Result(file: dl.appendingPathComponent(name), name: name, bpm: "142.0",
-                                        keys: [("Cm", 64), ("Eb", 18), ("Gm", 9)]))
+                                        keys: [("Cm", 64), ("Eb", 18), ("Gm", 9)], tuningCents: 12,
+                                        chroma: [1.0, 0.08, 0.42, 0.81, 0.06, 0.37, 0.1, 0.93, 0.62, 0.05, 0.48, 0.12]))
         case "drop":
             model.pinnedDrop = true
         case "error":

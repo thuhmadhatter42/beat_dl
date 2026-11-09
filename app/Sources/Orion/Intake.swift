@@ -13,8 +13,10 @@ enum Intake {
 
     /// The audio among `urls`, handed to the faceplate. False = nothing was started.
     @discardableResult
-    static func receive(_ urls: [URL]) -> Bool {
+    static func receive(_ urls: [URL], via: String = "other") -> Bool {
         let files = Faceplate.audioFiles(urls)
+        // how files arrive (counts only, never names): proves the Finder service and Open With work
+        AppLog.log("intake via \(via): \(urls.count) item(s), \(files.count) audio\(handler == nil ? ", queued until the window is up" : "")")
         guard !files.isEmpty else { NSSound.beep(); return false }
         guard let go = handler else { waiting = files; return true }
         NSApp?.activate(ignoringOtherApps: true)
@@ -41,7 +43,7 @@ enum Intake {
         panel.message = "Choose a beat, video or MIDI file to find its BPM and key"
         let pick = { (resp: NSApplication.ModalResponse) in
             guard resp == .OK else { return }
-            receive(panel.urls)
+            receive(panel.urls, via: "analyze a file")
         }
         if let w = NSApp.keyWindow ?? NSApp.windows.first { panel.beginSheetModal(for: w, completionHandler: pick) }
         else { pick(panel.runModal()) }
@@ -55,6 +57,6 @@ final class ServiceProvider: NSObject {
         let urls = (pboard.readObjects(forClasses: [NSURL.self],
                                        options: [.urlReadingFileURLsOnly: true]) as? [URL]) ?? []
         if urls.isEmpty { error.pointee = "Select an audio, video or MIDI file in Finder first." as NSString; return }
-        if !Intake.receive(urls) { error.pointee = "Beat Key is busy or found no audio in the selection." as NSString }
+        if !Intake.receive(urls, via: "finder service") { error.pointee = "Beat Key is busy or found no audio in the selection." as NSString }
     }
 }

@@ -3,15 +3,18 @@ import SwiftUI
 /// The mockup's `.plate`: noise-and-sheen chassis, black outer rings, four screws.
 struct Plate<Content: View>: View {
     let content: Content
-    init(@ViewBuilder content: () -> Content) { self.content = content() }
+    /// 520 = the default window's plate; Advanced mode widens it for the harmony column.
+    var width: CGFloat = 520
+    init(width: CGFloat = 520, @ViewBuilder content: () -> Content) { self.width = width; self.content = content() }
 
     private let r: CGFloat = 12
+
 
     var body: some View {
         let shape = RoundedRectangle(cornerRadius: r, style: .continuous)
         content
             .padding(12)
-            .frame(width: 520)
+            .frame(width: width)
             .background(
                 ZStack {
                     Theme.vertical([(Theme.hex(0x232326), 0), (Theme.hex(0x191a1c), 0.4), (Theme.hex(0x131315), 1)])

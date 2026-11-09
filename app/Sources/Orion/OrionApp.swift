@@ -81,10 +81,12 @@ struct OrionApp: App {
                 }
                 SendToAutoTuneMenuItem(engine: engine, tuning: tuning)
                 Button("Half / Double Tempo") { model.tempoFactor = model.tempoFactor.next }
-                DAWSendMenuItems(engine: engine)
+                DAWSendMenuItems(engine: engine, shortcuts: shortcuts)
             }
-            // View menu: the readout's accessibility switch (plan 5.1)
+            // View menu: Advanced Mode (orra-parity §2.1) and the readout's accessibility switch (plan 5.1)
             CommandGroup(before: .toolbar) {
+                Toggle("Advanced Mode", isOn: $display.advanced)
+                    .keyboardShortcut("a", modifiers: [.option, .command])
                 Toggle("High Contrast Readout", isOn: $display.highContrast)
             }
             // The app menu says Beat Key whatever the process is called (swift run = "Orion").
@@ -183,6 +185,13 @@ struct OrionApp: App {
                     NSApp.windows.forEach { $0.makeFirstResponder(nil) }
                 }
             }
+            // ORION_FAKE_FLIP_MODE=1: Advanced Mode flips at 2 s and back at 5 s (screenshots of
+            // the window resizing between modes, no clicks needed); the saved setting ends as it was.
+            if env["ORION_FAKE_FLIP_MODE"] == "1" {
+                let d = display
+                DispatchQueue.main.asyncAfter(deadline: .now() + 2) { d.advanced.toggle() }
+                DispatchQueue.main.asyncAfter(deadline: .now() + 5) { d.advanced.toggle() }
+            }
             if fake == "login-window" {   // the window LOG IN TO YOUTUBE opens (videos); saves nowhere real
                 let scratch = CookieFile(url: FileManager.default.temporaryDirectory
                     .appendingPathComponent("orion-fake-\(CookieFile.fileName)"))
@@ -213,7 +222,12 @@ struct OrionApp: App {
             StatusItemController.bringWindowForward()
             Intake.analyzeAFile()
         }
+        HotkeyCenter.shared.actions[.analyzeSelection] = { DAWSendController.analyzeSelection() }
         HotkeyCenter.shared.apply(shortcuts)
+        // Play to find the key (the computer keyboard as a piano) + ⇧⌘A, while Beat Key is in front.
+        let l = live
+        PlayToFind.shared.install(shown: { PocketState.shown(e.state, live: l.state, page: m.pager) },
+                                  sendAutoTune: windowActions.sendAutoTune)
         // Seed yt-dlp into Application Support, then the weekly self-update, on the shared
         // maintenance queue. The Engine stays idle; downloads and Run Doctor wait their turn.
         Runtime.appDefault().launchMaintenance()
@@ -236,7 +250,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         NSWindow.allowsAutomaticWindowTabbing = false
     }
     /// Open With / `open -a "Beat Key" file`.
-    func application(_ app: NSApplication, open urls: [URL]) { Intake.receive(urls) }
+    func application(_ app: NSApplication, open urls: [URL]) { Intake.receive(urls, via: "open with") }
     func applicationShouldTerminateAfterLastWindowClosed(_ app: NSApplication) -> Bool { true }
     func applicationWillTerminate(_ n: Notification) { AppLog.quitting("app quit") }
 }

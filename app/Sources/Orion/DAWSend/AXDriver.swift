@@ -24,6 +24,8 @@ protocol AXNode: AnyObject {
     var focusedWindow: AXNode? { get }
     var menuBar: AXNode? { get }
     var frame: CGRect? { get }
+    /// Whether the element has keyboard focus; nil = it does not say.
+    var isFocused: Bool? { get }
     func setValue(_ text: String) -> Bool
     func setBool(_ attribute: String, _ on: Bool) -> Bool
     @discardableResult func perform(_ action: String) -> Bool
@@ -97,16 +99,22 @@ enum AXFind {
     /// A value field for `label`: one whose own title/description is the label, else the first
     /// editable element right after a static-text label in the same container (Pro Tools style:
     /// "BPM:" then the field).
-    static func field(_ labels: [String], in root: AXNode) -> AXNode? {
-        if let own = first(AXMatch(roles: AXRole.editable, labels: labels), in: root) { return own }
+    /// The neighbour search never walks past another static-text label, so a "Location:" whose
+    /// own field is not exposed can never hand back the "BPM:" field after it. `accept` refuses
+    /// a candidate (a Location field that holds a tempo number).
+    static func field(_ labels: [String], in root: AXNode, accept: (AXNode) -> Bool = { _ in true }) -> AXNode? {
+        if let own = all(AXMatch(roles: AXRole.editable, labels: labels), in: root).first(where: accept) { return own }
         var queue: [AXNode] = [root], seen = 0
         while !queue.isEmpty && seen < budget {
             let n = queue.removeFirst(); seen += 1
             let kids = n.children
             for (i, k) in kids.enumerated() where k.role == "AXStaticText" && labels.contains(where: { l in k.allText.contains { AXText.same($0, l) } }) {
                 for next in kids.dropFirst(i + 1).prefix(3) {
-                    if let r = next.role, AXRole.editable.contains(r) { return next }
-                    if let inner = first(AXMatch(roles: AXRole.editable), in: next, budget: 200) { return inner }
+                    if next.role == "AXStaticText" { break }                  // the next label: stop
+                    var hit: AXNode?
+                    if let r = next.role, AXRole.editable.contains(r) { hit = next }
+                    else { hit = first(AXMatch(roles: AXRole.editable), in: next, budget: 200) }
+                    if let h = hit { if accept(h) { return h }; break }      // refused: never take a later one
                 }
             }
             queue += kids
@@ -215,6 +223,22 @@ enum AXTrust {
         let opts = [kAXTrustedCheckOptionPrompt.takeUnretainedValue() as String: true] as CFDictionary
         return AXIsProcessTrustedWithOptions(opts)
     }
+
+    /// Not trusted yet: shows the system prompt the first time; true if it was shown just now.
+    static func promptOnce() -> Bool {
+        guard !prompted else { return false }
+        prompted = true
+        let opts = [kAXTrustedCheckOptionPrompt.takeUnretainedValue() as String: true] as CFDictionary
+        _ = AXIsProcessTrustedWithOptions(opts)
+        return true
+    }
+}
+
+/// Accessibility is not allowed yet. Nothing was sent; the controller stays quiet if the
+/// system prompt was just shown, else says the one line.
+struct AXPermissionPending: Error, CustomStringConvertible {
+    let promptShown: Bool
+    var description: String { "Allow Beat Key in Accessibility, then send again" }
 }
 
 struct AXFailure: Error, CustomStringConvertible {
@@ -222,12 +246,61 @@ struct AXFailure: Error, CustomStringConvertible {
     init(_ s: String) { description = s }
 }
 
+/// What a value field must be, checked before typing and on the read-back after.
+enum AXFieldKind: Equatable {
+    case any
+    /// A bars|beats|ticks location: never a field that holds a plain number (a tempo).
+    case time
+    /// A BPM: the read-back must parse within 0.01 of the value, and lie in 20…999.
+    case tempo(Double)
+
+    static let tempoRange: ClosedRange<Double> = 20...999
+    static let tempoLabels = ["BPM", "Tempo", "Manual Tempo"]
+
+    /// "120.0000", " 88.12 BPM" -> the number; "1|1|000" -> nil.
+    static func number(_ s: String?) -> Double? {
+        guard let s, !s.contains("|"), !s.contains(":") else { return nil }
+        let t = s.trimmingCharacters(in: .whitespaces)
+        let lead = t.prefix { $0.isNumber || $0 == "." }
+        guard !lead.isEmpty, t.dropFirst(lead.count).allSatisfy({ !$0.isNumber }) else { return nil }
+        return Double(lead)
+    }
+    static func digits(_ s: String) -> String { String(s.filter(\.isNumber)) }
+
+    /// Before filling: is this the right kind of field?
+    func accepts(_ n: AXNode) -> Bool {
+        switch self {
+        case .any: return true
+        case .time:
+            if AXFieldKind.number(n.valueText) != nil { return false }      // holds a tempo
+            return ![n.title, n.desc].contains { t in AXFieldKind.tempoLabels.contains { AXText.same(t, $0) } }
+        case .tempo:
+            return !(n.valueText?.contains("|") ?? false)
+        }
+    }
+
+    /// After filling: did the field take exactly this? nil = fine, else why not.
+    func refusal(_ got: String?, typed: String) -> String? {
+        switch self {
+        case .any: return nil
+        case .time:
+            guard let g = got else { return nil }                            // field does not report a value
+            if AXFieldKind.number(g) != nil { return "reads \(g), a number, not a location" }
+            return AXFieldKind.digits(g) == AXFieldKind.digits(typed) ? nil : "reads \(g), not \(typed)"
+        case .tempo(let want):
+            guard let v = AXFieldKind.number(got) else { return "gave no tempo back (\(got ?? "nothing"))" }
+            guard AXFieldKind.tempoRange.contains(v) else { return "reads \(v), outside 20-999 BPM" }
+            return abs(v - want) <= 0.01 ? nil : String(format: "reads %.2f, not %.2f", v, want)
+        }
+    }
+}
+
 /// One step of a DAW route.
 enum AXStep: CustomStringConvertible {
     case menu([[String]])                         // press a menu item by path
     case press(AXMatch)                           // press something in the scope (or any window)
     case window([String])                         // wait for a window/dialog; it becomes the scope
-    case set([String], String)                    // value field by label
+    case set([String], String, AXFieldKind = .any) // value field by label, checked
     case choose([String])                         // pick a row / radio / item showing one of these
     case check([String], Bool)                    // checkbox to a state
     case popup(AXMatch, [String])                 // open a pop-up, pick an item
@@ -240,7 +313,7 @@ enum AXStep: CustomStringConvertible {
         case .menu(let p): return "menu " + p.compactMap(\.first).joined(separator: " › ")
         case .press(let m): return "button \(m)"
         case .window(let t): return "window \"\(t.first ?? "")\""
-        case .set(let l, _): return "field \"\(l.first ?? "")\""
+        case .set(let l, _, _): return "field \"\(l.first ?? "")\""
         case .choose(let t): return "item \"\(t.first ?? "")\""
         case .check(let l, _): return "checkbox \"\(l.first ?? "")\""
         case .popup(let m, _): return "pop-up \(m)"
@@ -269,6 +342,36 @@ final class AXRunner {
         start = scope
     }
 
+    /// Every step's outcome goes to the run's log and to beatkey.log (values only, no names).
+    func note(_ line: String) {
+        log.append(line)
+        AppLog.log("daw send: " + line)
+    }
+
+    /// The dialog is still on screen.
+    func isOpen(_ w: AXNode) -> Bool {
+        app.windows.contains(where: { $0 === w || ($0.title != nil && $0.title == w.title && $0.role == w.role) })
+    }
+
+    /// A route failed: if it opened a dialog, press its Cancel (else Escape) so the DAW is never
+    /// left inside it. Returns false if the dialog is still open after that.
+    @discardableResult func cancelDialog() -> Bool {
+        let w = scope
+        guard w !== start, isOpen(w) else { return true }
+        if let c = AXFind.first(AXMatch(roles: ["AXButton"], labels: ["Cancel"]), in: w), c.perform(kAXPressAction) {
+            note("pressed Cancel in \"\(w.title ?? "dialog")\"")
+        } else {
+            keys.key(KeyCode.escape, flags: [], pid: pid)
+            note("pressed Escape in \"\(w.title ?? "dialog")\"")
+        }
+        if wait({ isOpen(w) ? nil : true }) != nil { note("dialog cancelled"); scope = app.focusedWindow ?? app; return true }
+        keys.key(KeyCode.escape, flags: [], pid: pid)
+        note("dialog still open after Cancel; pressed Escape")
+        if wait({ isOpen(w) ? nil : true }) != nil { note("dialog cancelled"); scope = app.focusedWindow ?? app; return true }
+        note("dialog STILL open: stopping")
+        return false
+    }
+
     /// Polls `find` until it returns something or the timeout passes.
     func wait<T>(_ find: () -> T?) -> T? {
         let end = Date().addingTimeInterval(timeout)
@@ -293,30 +396,34 @@ final class AXRunner {
     func step(_ s: AXStep) throws {
         switch s {
         case .optional(let inner):
-            do { try step(inner) } catch { log.append("skipped \(inner)") }
+            do { try step(inner) } catch { note("skipped \(inner): \(error)") }
         case .menu(let path):
             guard let item = wait({ AXFind.menuItem(path, in: app) }) else { throw AXFailure("no \(s)") }
             item.perform(kAXPressAction)
-            log.append("pressed \(s)")
+            note("pressed \(s)")
         case .press(let m):
             guard let b = wait({ locate { AXFind.first(m, in: $0) } }) else { throw AXFailure("no \(s)") }
             b.perform(kAXPressAction)
-            log.append("pressed \(s)")
+            note("pressed \(s)")
         case .window(let titles):
             guard let w = wait({ AXFind.window(titles, in: app) }) else { throw AXFailure("no \(s)") }
             scope = w
-            log.append("found \(s)")
-        case .set(let labels, let text):
-            guard let f = wait({ AXFind.field(labels, in: scope) }) else { throw AXFailure("no \(s)") }
-            try fill(f, text, what: s.description)
+            note("found \(s)")
+        case .set(let labels, let text, let kind):
+            if case .tempo(let v) = kind, !AXFieldKind.tempoRange.contains(v) {
+                throw AXFailure(String(format: "tempo %.2f is outside 20-999 BPM", v))
+            }
+            guard let f = wait({ AXFind.field(labels, in: scope, accept: kind.accepts) }) else { throw AXFailure("no \(s)") }
+            note("found \(s) (holds \(f.valueText ?? "nothing"))")
+            try fill(f, text, kind: kind, what: s.description)
         case .choose(let texts):
             guard let n = wait({ AXFind.choice(texts, in: scope) }) else { throw AXFailure("no \(s)") }
             select(n)
-            log.append("chose \(n.allText.first ?? texts[0])")
+            note("chose \(n.allText.first ?? texts[0])")
         case .check(let labels, let on):
             guard let c = wait({ AXFind.first(AXMatch(roles: ["AXCheckBox"], labels: labels), in: scope) }) else { throw AXFailure("no \(s)") }
             if (c.valueText == "1") != on { c.perform(kAXPressAction) }
-            log.append("\(s) \(on ? "on" : "off")")
+            note("\(s) \(on ? "on" : "off")")
         case .popup(let m, let options):
             guard let p = wait({ locate { AXFind.first(m, in: $0) } }) else { throw AXFailure("no \(s)") }
             if !p.perform(kAXShowMenuAction) { p.perform(kAXPressAction) }
@@ -326,36 +433,42 @@ final class AXRunner {
                 throw AXFailure("no \"\(options.first ?? "")\" in \(s)")
             }
             item.perform(kAXPressAction)
-            log.append("picked \(item.title ?? options[0]) in \(s)")
+            note("picked \(item.title ?? options[0]) in \(s)")
         case .typeInto(let m, let text):
             guard let n = wait({ locate { AXFind.first(m, in: $0) } }) else { throw AXFailure("no \(s)") }
-            if n.isValueSettable, n.setValue(text) { log.append("set \(s)"); return }
+            if n.isValueSettable, n.setValue(text) { note("set \(s) = \(text)"); return }
             guard let f = n.frame, f.width > 0 else { throw AXFailure("\(s) has no frame") }
             keys.doubleClick(CGPoint(x: f.midX, y: f.midY))
             keys.key(KeyCode.a, flags: .maskCommand, pid: pid)
             keys.type(text, pid: pid)
             keys.key(KeyCode.return, flags: [], pid: pid)
-            log.append("typed into \(s)")
+            note("typed \(text) into \(s)")
         case .waitClosed:
             let w = scope
-            let gone = wait({ app.windows.contains(where: { $0 === w || ($0.title != nil && $0.title == w.title && $0.role == w.role) }) ? nil : true })
+            let gone = wait({ isOpen(w) ? nil : true })
             guard gone != nil else { throw AXFailure("the dialog stayed open") }
             scope = app.focusedWindow ?? app
-            log.append("dialog closed")
+            note("dialog closed")
         }
     }
 
-    /// Sets a field: the AX value if the field takes it, else focus it and type.
-    private func fill(_ f: AXNode, _ text: String, what: String) throws {
+    /// Sets a field: the AX value if the field takes it, else focus it and type. Keys are only
+    /// sent once the found field says it has focus (never into whatever else is focused), and the
+    /// value is read back and checked against `kind`.
+    private func fill(_ f: AXNode, _ text: String, kind: AXFieldKind, what: String) throws {
         if f.isValueSettable, f.setValue(text) {
-            log.append("set \(what) = \(text)")
-            return
+            note("set \(what) = \(text)")
+        } else {
+            guard f.setBool(kAXFocusedAttribute, true) else { throw AXFailure("\(what) would not take focus") }
+            guard f.isFocused == true else { throw AXFailure("\(what) did not report focus; nothing typed") }
+            keys.key(KeyCode.a, flags: .maskCommand, pid: pid)
+            keys.type(text, pid: pid)
+            keys.key(KeyCode.tab, flags: [], pid: pid)
+            note("typed \(what) = \(text)")
         }
-        guard f.setBool(kAXFocusedAttribute, true) else { throw AXFailure("\(what) would not take focus") }
-        keys.key(KeyCode.a, flags: .maskCommand, pid: pid)
-        keys.type(text, pid: pid)
-        keys.key(KeyCode.tab, flags: [], pid: pid)
-        log.append("typed \(what) = \(text)")
+        let got = f.valueText
+        note("read back \(what) = \(got ?? "nothing")")
+        if let why = kind.refusal(got, typed: text) { throw AXFailure("\(what) \(why)") }
     }
 
     private func select(_ n: AXNode) {
@@ -409,6 +522,7 @@ final class AXElement: AXNode {
     var windows: [AXNode] { elements(kAXWindowsAttribute) }
     var focusedWindow: AXNode? { element(kAXFocusedWindowAttribute) }
     var menuBar: AXNode? { element(kAXMenuBarAttribute) }
+    var isFocused: Bool? { (attr(kAXFocusedAttribute) as? NSNumber)?.boolValue }
     var isValueSettable: Bool {
         var b = DarwinBoolean(false)
         return AXUIElementIsAttributeSettable(el, kAXValueAttribute as CFString, &b) == .success && b.boolValue

@@ -66,7 +66,7 @@ struct Shortcut: Codable, Equatable {
 /// What a global shortcut does. Send to DAW joins this list with plan §4.
 enum HotkeyAction: String, CaseIterable, Identifiable {
     // new actions go at the end: hotKeyID is the position in this list
-    case listen, analyzeFile, newSong, hold
+    case listen, analyzeFile, newSong, hold, analyzeSelection
     var id: String { rawValue }
 
     var title: String {
@@ -75,6 +75,7 @@ enum HotkeyAction: String, CaseIterable, Identifiable {
         case .analyzeFile: return "Analyze a File…"
         case .newSong: return "New Song (Reset Listening)"
         case .hold: return "Hold / Release Reading"
+        case .analyzeSelection: return "Analyze Selection in DAW"
         }
     }
 
@@ -85,6 +86,8 @@ enum HotkeyAction: String, CaseIterable, Identifiable {
         case .analyzeFile: return Shortcut(keyCode: UInt32(kVK_ANSI_F), modifiers: ctrlOptCmd, key: "F")
         case .newSong: return Shortcut(keyCode: UInt32(kVK_ANSI_R), modifiers: ctrlOptCmd, key: "R")
         case .hold: return Shortcut(keyCode: UInt32(kVK_ANSI_H), modifiers: ctrlOptCmd, key: "H")
+        // ⌃⌥⌘L is Pro Tools' own (J, 2026-11-05): ⌥⌘B instead.
+        case .analyzeSelection: return Shortcut(keyCode: UInt32(kVK_ANSI_B), modifiers: UInt32(optionKey | cmdKey), key: "B")
         }
     }
 
@@ -153,7 +156,13 @@ final class HotkeyCenter {
             var ref: EventHotKeyRef?
             let id = EventHotKeyID(signature: HotkeyCenter.signature, id: a.hotKeyID)
             let st = RegisterEventHotKey(s.keyCode, s.modifiers, id, GetApplicationEventTarget(), 0, &ref)
-            if st == noErr, let r = ref { refs[a] = r } else { failed.insert(a) }
+            if st == noErr, let r = ref {
+                refs[a] = r
+                AppLog.log("hotkey \(a.rawValue) \(s.display): registered")
+            } else {
+                failed.insert(a)
+                AppLog.log("hotkey \(a.rawValue) \(s.display): FAILED (OSStatus \(st)), another app holds it")
+            }
         }
     }
 

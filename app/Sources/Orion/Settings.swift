@@ -12,6 +12,9 @@ struct SettingsView: View {
     var body: some View {
         Form {
             Section(header: Text("Display").font(.headline)) {
+                Toggle("Advanced Mode", isOn: $display.advanced)
+                Text("Adds the Camelot code, chords to hear and drag into your DAW, Match To, the key wheel and the notes heard. Also View › Advanced Mode (⌥⌘A).")
+                    .font(.caption).foregroundColor(.secondary).fixedSize(horizontal: false, vertical: true)
                 Toggle("High Contrast Readout", isOn: $display.highContrast)
                 Text("Brighter LCD text on pure black, no glow. The lamps always carry a shape too: octagon = locked, triangle = unsure, circle = listening.")
                     .font(.caption).foregroundColor(.secondary).fixedSize(horizontal: false, vertical: true)
@@ -152,10 +155,17 @@ struct ShortcutRecorder: View {
     }
 }
 
-/// High Contrast Readout (Settings and the View menu), remembered between launches. Theme reads
-/// it through `Theme.highContrast`; views that observe this object redraw when it flips.
+/// How the window looks, remembered between launches: High Contrast Readout (Settings and the
+/// View menu; Theme reads it through `Theme.highContrast`), Advanced Mode (View › Advanced Mode
+/// ⌥⌘A and Settings) and Advanced mode's own choices (chord quality, voicing, length, the MATCH TO
+/// key). Views that observe this object redraw when any of them changes.
 final class DisplaySettings: ObservableObject {
     static let key = "highContrast"
+    static let advancedKey = "advancedMode"
+    static let matchKeyKey = "matchToKey"
+    static let qualityKey = "chordQuality"
+    static let voicingKey = "chordVoicing"
+    static let barsKey = "chordBars"
     private let defaults: UserDefaults
 
     @Published var highContrast: Bool {
@@ -165,9 +175,48 @@ final class DisplaySettings: ObservableObject {
         }
     }
 
+    /// Advanced mode: the window grows a harmony column (Camelot, chords, MATCH TO, the key
+    /// wheel, notes heard). Off = the default, minimal window. The menu-bar pocket never changes.
+    @Published var advanced: Bool {
+        didSet {
+            defaults.set(advanced, forKey: DisplaySettings.advancedKey)
+            AppLog.log("advanced mode \(advanced ? "on" : "off")")
+        }
+    }
+
+    /// The project's key MATCH TO compares against ("Eb", "F#m"); nil = none picked.
+    @Published var matchKey: String? {
+        didSet {
+            if let k = matchKey { defaults.set(k, forKey: DisplaySettings.matchKeyKey) }
+            else { defaults.removeObject(forKey: DisplaySettings.matchKeyKey) }
+        }
+    }
+
+    @Published var chordQuality: ChordQuality {
+        didSet { defaults.set(chordQuality.rawValue, forKey: DisplaySettings.qualityKey) }
+    }
+
+    @Published var chordVoicing: Voicing {
+        didSet { defaults.set(chordVoicing.rawValue, forKey: DisplaySettings.voicingKey) }
+    }
+
+    /// 1, 2 or 4 bars (ChordClip.barChoices).
+    @Published var chordBars: Int {
+        didSet {
+            if !ChordClip.barChoices.contains(chordBars) { chordBars = 1; return }
+            defaults.set(chordBars, forKey: DisplaySettings.barsKey)
+        }
+    }
+
     init(defaults: UserDefaults = .standard) {
         self.defaults = defaults
         highContrast = defaults.bool(forKey: DisplaySettings.key)
+        advanced = defaults.bool(forKey: DisplaySettings.advancedKey)
+        matchKey = defaults.string(forKey: DisplaySettings.matchKeyKey).flatMap { AutoTuneSend.keyClass($0) == nil ? nil : $0 }
+        chordQuality = defaults.string(forKey: DisplaySettings.qualityKey).flatMap(ChordQuality.init(rawValue:)) ?? .triad
+        chordVoicing = defaults.string(forKey: DisplaySettings.voicingKey).flatMap(Voicing.init(rawValue:)) ?? .root
+        let bars = defaults.integer(forKey: DisplaySettings.barsKey)
+        chordBars = ChordClip.barChoices.contains(bars) ? bars : 1
         Theme.highContrast = highContrast
     }
 }

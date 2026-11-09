@@ -18,8 +18,22 @@ struct Scale: Equatable {
     static let naturalMinor = [0, 2, 3, 5, 7, 8, 10]
     static let sharpNames = ["C", "C♯", "D", "D♯", "E", "F", "F♯", "G", "G♯", "A", "A♯", "B"]
     static let flatNames = ["C", "D♭", "D", "E♭", "E", "F", "G♭", "G", "A♭", "A", "B♭", "B"]
-    private static let letters = Array("CDEFGAB")
+    static let letters = Array("CDEFGAB")
     private static let letterPC = [0, 2, 4, 5, 7, 9, 11]
+
+    /// Pitch class `pc` written on letter `letter` (0 = C ... 6 = B), with the accidentals that
+    /// takes: pc 3 on E = "E♭", pc 6 on E = "E♯", pc 5 on G = "G♭♭". The one speller for scales,
+    /// chord roots and relative keys.
+    static func spell(_ pc: Int, letter: Int) -> String {
+        let li = ((letter % 7) + 7) % 7
+        var diff = (((pc - letterPC[li]) % 12) + 12) % 12
+        if diff > 6 { diff -= 12 }
+        let acc = diff > 0 ? String(repeating: "♯", count: diff) : String(repeating: "♭", count: -diff)
+        return String(letters[li]) + acc
+    }
+
+    /// The tonic's letter (0 = C ... 6 = B).
+    var tonicLetter: Int { tonicName.first.flatMap { Scale.letters.firstIndex(of: $0) } ?? 0 }
 
     /// "Ebm", "F#", "Bb" → its scale; nil = not a key name.
     static func of(_ key: String) -> Scale? {
@@ -42,15 +56,7 @@ struct Scale: Equatable {
     /// where the key needs them, as in G♯ major's F♯♯).
     var spelled: [String] {
         let steps = minor ? Scale.naturalMinor : Scale.major
-        let first = tonicName.first.flatMap { Scale.letters.firstIndex(of: $0) } ?? 0
-        return steps.enumerated().map { i, step in
-            let li = (first + i) % 7
-            let pc = (tonic + step) % 12
-            var diff = (pc - Scale.letterPC[li] + 12) % 12
-            if diff > 6 { diff -= 12 }
-            let acc = diff > 0 ? String(repeating: "♯", count: diff) : String(repeating: "♭", count: -diff)
-            return String(Scale.letters[li]) + acc
-        }
+        return steps.enumerated().map { i, step in Scale.spell((tonic + step) % 12, letter: tonicLetter + i) }
     }
 }
 
@@ -108,6 +114,10 @@ struct PocketState {
     var held = false
     /// Hold's global shortcut as printed; nil = none set.
     var holdKeys: String? = nil
+    /// Advanced mode (the window's harmony column and Camelot code; the pocket ignores it).
+    var advanced = false
+    /// Advanced mode's chord and MATCH TO choices.
+    var harmony = HarmonyPrefs()
     /// A click on the key's name switches sharp / flat; nil = no action wired.
     var canRespell: Bool { result?.keys.first.map { KeySpelling.isBlack($0.0) } ?? false }
 

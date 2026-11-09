@@ -305,6 +305,18 @@ extension PocketActions {
             log("respell key")
             SpellingSettings.shared.click(on: k)
         }
+        a.teachKey = {
+            guard let r = shown() else { NSSound.beep(); return }
+            log("wrong key menu")
+            let now = r.keys.first.flatMap { AutoTuneSend.keyClass($0.0) }
+            PopupMenu.show(KeyChoice.allKeys.enumerated().flatMap { i, k -> [PopupMenu.Item] in
+                let kc = AutoTuneSend.keyClass(k)
+                let item = PopupMenu.Item(title: k, checked: kc?.pitchClass == now?.pitchClass && kc?.minor == now?.minor) {
+                    KeyTeach.teach(k, engine: engine, live: live, model: model)
+                }
+                return i == 12 ? [.separator, item] : [item]
+            })
+        }
         a.pickSource = { log("source menu"); SourceMenu.show(live: live, extras: extras, close: close) }
         a.analyzeFile = {
             log("analyze a file")
@@ -467,6 +479,8 @@ extension PocketState {
         s.newSongKeys = shortcuts.shortcut(.newSong)?.display
         s.held = live.isHeld
         s.holdKeys = shortcuts.shortcut(.hold)?.display
+        s.advanced = display.advanced
+        s.harmony = HarmonyPrefs(display)
         return s
     }
 }

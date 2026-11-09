@@ -1,7 +1,7 @@
 import AppKit
 import SwiftUI
 
-// Reading › Send to DAW (⌃⌥⌘S), Send to All DAWs (⌃⌥⌘D), Analyze Selection (⌃⌥⌘L). Plan §4.2, §4.3.
+// Reading › Send to DAW (⌃⌥⌘S), Send to All DAWs (⌃⌥⌘D), Analyze Selection (⌥⌘B, global). Plan §4.2, §4.3.
 // One driver per DAW; what each DAW can really take is in docs/research/send-to-daw.md.
 
 /// The DAWs Beat Key knows, in the order "Send to All" walks them.
@@ -59,8 +59,8 @@ enum DAW: String, CaseIterable {
     /// What Send gives this DAW, said plainly in the menu's tooltip and the result.
     var gets: String {
         switch self {
-        case .proTools: return "tempo and key, typed into its Tempo Change and Key Change dialogs through Accessibility (PTSL has no tempo or key command); the MIDI file if that fails"
-        case .logic, .studioOne: return "tempo and key, set in its transport through Accessibility; the MIDI file if that fails"
+        case .proTools: return "tempo and key, typed into its Tempo Change and Key Change dialogs through Accessibility (PTSL has no tempo or key command)"
+        case .logic, .studioOne: return "tempo and key, set in its transport through Accessibility"
         case .ableton: return "tempo and key (Live 12; Live 11 tempo only), through Beat Key's Remote Script"
         case .reaper: return "tempo, through Beat Key's ReaScript (REAPER has no project key)"
         case .bitwig: return "tempo, through Beat Key's controller script (Bitwig has no project key)"
@@ -124,6 +124,8 @@ struct SendOutcome {
     let daw: DAW
     let ok: Bool
     let message: String
+    /// Accessibility not allowed yet: nothing sent; `promptShown` = the system prompt is up.
+    var permission: AXPermissionPending? = nil
 }
 
 /// A step only the person can take (install a script, pick it in the DAW). The driver throws it;
@@ -202,18 +204,46 @@ final class DAWWatcher: ObservableObject {
 enum DAWSendController {
     private static let queue = DispatchQueue(label: "beatkey.dawsend")
 
+    /// One send at a time (main thread only): a second press while one runs is ignored.
+    private static var busy = false
+
+    /// What a send would do with this reading; nil = nothing to send (no BPM and no key).
+    static func plan(_ p: SendPayload) -> String? {
+        if p.bpm == nil && p.tonic == nil { return nil }
+        return p.bpm == nil ? "key only (no BPM yet)" : (p.tonic == nil ? "tempo only (no key)" : "tempo and key")
+    }
+
     static func send(_ r: Result, toAll: Bool) {
         let p = SendPayload(r)
+        guard let what = plan(p) else {
+            AppLog.log("send to DAW: no BPM and no key yet; nothing sent")
+            NSSound.beep()
+            alert("No BPM or key yet; nothing sent", "")
+            return
+        }
+        guard !busy else { AppLog.log("send to DAW: already sending; ignored"); NSSound.beep(); return }
         let w = DAWWatcher.shared
         let targets = toAll ? w.running : w.target.map { [$0] } ?? []
         guard !targets.isEmpty else {
+            AppLog.log("send to DAW: no DAW open")
             alert("No DAW is open", "Open Pro Tools, Ableton Live, Logic, REAPER, Bitwig, Studio One, FL Studio, Reason or Cubase, then send again.")
             return
         }
+        AppLog.log("send to DAW: \(what) [\(p.text)] to \(targets.map(\.name).joined(separator: ", "))")
+        busy = true
         queue.async {
             var outcomes: [SendOutcome] = []
             for d in targets { outcomes.append(run(d) { try DAWDrivers.driver(d).send(p) }) }
             DispatchQueue.main.async {
+                busy = false
+                for o in outcomes { AppLog.log("send to DAW: \(o.daw.name) \(o.ok ? "ok" : o.permission != nil ? "needs Accessibility" : "failed"): \(o.message)") }
+                // Accessibility not allowed: the system prompt says it; else one line, no failure alert.
+                if outcomes.allSatisfy({ $0.permission != nil }) {
+                    if !outcomes.contains(where: { $0.permission?.promptShown ?? false }) {
+                        alert("Allow Beat Key in Accessibility, then send again", "")
+                    }
+                    return
+                }
                 let title = outcomes.count == 1 ? (outcomes[0].ok ? "Sent to \(outcomes[0].daw.name)" : "\(outcomes[0].daw.name) did not take it")
                                                 : "Sent to \(outcomes.filter(\.ok).count) of \(outcomes.count) DAWs"
                 let body = outcomes.count == 1 ? outcomes[0].message
@@ -232,7 +262,7 @@ enum DAWSendController {
             var files: [URL] = []
             let o = run(d) { files = try DAWDrivers.driver(d).selectionAudio(); return "" }
             DispatchQueue.main.async {
-                if o.ok, !files.isEmpty { Intake.receive(files) }
+                if o.ok, !files.isEmpty { Intake.receive(files, via: "daw selection") }
                 else { alert("Could not read the selection in \(d.name)", o.ok ? "Nothing came back." : o.message) }
             }
         }
@@ -242,7 +272,9 @@ enum DAWSendController {
     private static func run(_ d: DAW, _ body: () throws -> String) -> SendOutcome {
         for attempt in 0..<2 {
             do { return SendOutcome(daw: d, ok: true, message: try body()) }
-            catch let s as SetupNeeded {
+            catch let a as AXPermissionPending {
+                return SendOutcome(daw: d, ok: false, message: a.description, permission: a)
+            } catch let s as SetupNeeded {
                 guard attempt == 0 else { return SendOutcome(daw: d, ok: false, message: s.message) }
                 var go = false
                 DispatchQueue.main.sync { go = confirm(s.title, s.message, button: s.button) }
@@ -276,6 +308,7 @@ enum DAWSendController {
 /// what is selected (analyze).
 struct DAWSendMenuItems: View {
     @ObservedObject var engine: Engine
+    @ObservedObject var shortcuts: ShortcutStore
     @ObservedObject private var watcher = DAWWatcher.shared
 
     var body: some View {
@@ -290,7 +323,7 @@ struct DAWSendMenuItems: View {
             .keyboardShortcut("d", modifiers: [.control, .option, .command])
             .disabled(!usable)
         Button(target.map { "Analyze Selection in \($0.name)" } ?? "Analyze Selection") { DAWSendController.analyzeSelection() }
-            .keyboardShortcut("l", modifiers: [.control, .option, .command])
+            .optionalShortcut(shortcuts.shortcut(.analyzeSelection)?.menuShortcut)
             .disabled(engine.state.isBusy || !(target?.canAnalyzeSelection ?? false))
     }
 }

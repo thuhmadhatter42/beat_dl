@@ -11,10 +11,13 @@ struct Result: Equatable {
     var bpmExact: Double? = nil
     /// Tuning in cents against A = 440 Hz (+ = sharp); nil = not confident enough to say.
     var tuningCents: Double? = nil
+    /// The 12 pitch-class strengths (C, C#, ... B; 0...1) the key was read from; nil = the
+    /// analyzer sent none (older helper, MIDI file): Notes Heard is hidden.
+    var chroma: [Double]? = nil
 
     static func == (a: Result, b: Result) -> Bool {
         a.file == b.file && a.name == b.name && a.bpm == b.bpm && a.readError == b.readError
-            && a.bpmExact == b.bpmExact && a.tuningCents == b.tuningCents
+            && a.bpmExact == b.bpmExact && a.tuningCents == b.tuningCents && a.chroma == b.chroma
             && a.keys.count == b.keys.count
             && zip(a.keys, b.keys).allSatisfy { $0.0 == $1.0 && $0.1 == $1.1 }
     }
@@ -45,6 +48,38 @@ enum Event: Equatable {
         return keys
     }
 
+    /// `"chroma": [12 numbers]`; missing = nil. Anything else (wrong count, a non-number) is
+    /// logged and dropped: the reading stands, Notes Heard is hidden.
+    static func chroma(_ any: Any?) -> [Double]? {
+        guard let any, !(any is NSNull) else { return nil }
+        guard let list = any as? [Any], list.count == 12 else {
+            AppLog.log("analyzer line: chroma is not 12 numbers, ignored")
+            return nil
+        }
+        var out: [Double] = []
+        for v in list {
+            guard let n = v as? NSNumber, n.doubleValue.isFinite else {
+                AppLog.log("analyzer line: chroma holds a non-number, ignored")
+                return nil
+            }
+            out.append(n.doubleValue)
+        }
+        return out
+    }
+
+    /// The reading every analyzer line carries, from app_run.py's done / analyzed and from
+    /// `bpm.py --stream`'s `reading` (LiveEvent.parse): keys, bpm, bpm_exact, tuning_cents,
+    /// chroma, error. One parser for both, so a field added to one is read from both.
+    /// nil = the keys are malformed (the whole line is ignored).
+    static func reading(_ obj: [String: Any], file: URL, name: String) -> Result? {
+        guard let keys = keyList(obj["keys"]) else { return nil }
+        return Result(file: file, name: name, bpm: obj["bpm"] as? String, keys: keys,
+                      readError: obj["error"] as? String,
+                      bpmExact: (obj["bpm_exact"] as? NSNumber)?.doubleValue,
+                      tuningCents: (obj["tuning_cents"] as? NSNumber)?.doubleValue,
+                      chroma: chroma(obj["chroma"]))
+    }
+
     static func parse(line: String) -> Event? {
         guard let data = line.data(using: .utf8),
               let obj = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any]
@@ -54,12 +89,7 @@ enum Event: Equatable {
         switch kind {
         case "done", "analyzed":
             guard let file = obj["file"] as? String, let name = obj["name"] as? String,
-                  let keys = keyList(obj["keys"]) else { return nil }
-            let r = Result(file: URL(fileURLWithPath: file), name: name,
-                           bpm: obj["bpm"] as? String, keys: keys,
-                           readError: obj["error"] as? String,
-                           bpmExact: (obj["bpm_exact"] as? NSNumber)?.doubleValue,
-                           tuningCents: (obj["tuning_cents"] as? NSNumber)?.doubleValue)
+                  let r = reading(obj, file: URL(fileURLWithPath: file), name: name) else { return nil }
             return kind == "done" ? .done(r) : .analyzed(r)
         case "error":
             return .error((obj["message"] as? String) ?? "Unknown error.")

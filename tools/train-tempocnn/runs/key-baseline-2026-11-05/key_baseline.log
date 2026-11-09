@@ -1,0 +1,103 @@
+2026-11-05 13:12:19,945 INFO start: 30 keyed rows, audio root set, profiles bgate (shipping) + edma
+2026-11-05 13:12:22,350 INFO pt0001 beat truth=C minor bgate=Cm (exact) edma=Cm (exact)
+2026-11-05 13:12:23,730 INFO pt0001m mix truth=C minor bgate=Cm (exact) edma=Cm (exact)
+2026-11-05 13:12:24,937 INFO pt0003 beat truth=E minor bgate=Em (exact) edma=E (parallel)
+2026-11-05 13:12:26,409 INFO pt0003m mix truth=E minor bgate=Em (exact) edma=Em (exact)
+2026-11-05 13:12:27,318 INFO pt0005 beat truth=D minor bgate=Dm (exact) edma=Dm (exact)
+2026-11-05 13:12:28,198 INFO pt0005m mix truth=D minor bgate=Dm (exact) edma=Dm (exact)
+2026-11-05 13:12:28,858 INFO pt0011 beat truth=B minor bgate=Bm (exact) edma=Bm (exact)
+2026-11-05 13:12:29,615 INFO pt0011m mix truth=B minor bgate=Bm (exact) edma=Bm (exact)
+2026-11-05 13:12:30,915 INFO pt0012 beat truth=F major bgate=F (exact) edma=F (exact)
+2026-11-05 13:12:32,367 INFO pt0012m mix truth=F major bgate=F (exact) edma=F (exact)
+2026-11-05 13:12:33,766 INFO pt0014 beat truth=C minor bgate=Cm (exact) edma=Cm (exact)
+2026-11-05 13:12:35,056 INFO pt0014m mix truth=C minor bgate=Cm (exact) edma=Cm (exact)
+2026-11-05 13:12:36,602 INFO pt0024 beat truth=F# minor bgate=F#m (exact) edma=F#m (exact)
+2026-11-05 13:12:38,054 INFO pt0024m mix truth=F# minor bgate=F#m (exact) edma=F#m (exact)
+2026-11-05 13:12:39,055 INFO pt0025 beat truth=Eb minor bgate=Ebm (exact) edma=Ebm (exact)
+2026-11-05 13:12:40,062 INFO pt0025m mix truth=Eb minor bgate=Ebm (exact) edma=Ebm (exact)
+2026-11-05 13:12:41,966 INFO pt0030 beat truth=Eb minor bgate=Ebm (exact) edma=Ebm (exact)
+2026-11-05 13:12:43,555 INFO pt0030m mix truth=Eb minor bgate=Ebm (exact) edma=Ebm (exact)
+2026-11-05 13:12:45,045 INFO pt0034 beat truth=Eb minor bgate=Ebm (exact) edma=Bbm (fifth)
+2026-11-05 13:12:47,195 INFO pt0034m mix truth=Eb minor bgate=Ebm (exact) edma=Ebm (exact)
+2026-11-05 13:12:48,134 INFO pt0037 beat truth=B major bgate=Ebm (other) edma=Ebm (other)
+2026-11-05 13:12:49,094 INFO pt0037m mix truth=B major bgate=Ebm (other) edma=Ebm (other)
+2026-11-05 13:12:50,163 INFO pt0039 beat truth=B minor bgate=C (other) edma=C (other)
+2026-11-05 13:12:51,013 INFO pt0039m mix truth=B minor bgate=C (other) edma=Bm (exact)
+2026-11-05 13:12:52,007 INFO pt0042 beat truth=E minor bgate=Em (exact) edma=Em (exact)
+2026-11-05 13:12:52,925 INFO pt0042m mix truth=E minor bgate=Em (exact) edma=Em (exact)
+2026-11-05 13:12:54,422 INFO pt0043 beat truth=G# minor bgate=C#m (fifth) edma=G#m (exact)
+2026-11-05 13:12:55,970 INFO pt0043m mix truth=G# minor bgate=C#m (fifth) edma=C#m (fifth)
+2026-11-05 13:12:57,694 INFO pt0044 beat truth=C minor bgate=Cm (exact) edma=Cm (exact)
+2026-11-05 13:12:59,351 INFO pt0044m mix truth=C minor bgate=Cm (exact) edma=Cm (exact)
+2026-11-05 13:13:00,441 INFO pt0047 beat truth=Bb minor bgate=Bbm (exact) edma=Bbm (exact)
+2026-11-05 13:13:01,568 INFO pt0047m mix truth=Bb minor bgate=Bbm (exact) edma=Bbm (exact)
+2026-11-05 13:13:02,383 INFO pt0048 beat truth=C major bgate=C (exact) edma=C (exact)
+2026-11-05 13:13:03,653 INFO pt0048m mix truth=C major bgate=C (exact) edma=C (exact)
+2026-11-05 13:13:05,167 INFO pt0049 beat truth=C# minor bgate=C#m (exact) edma=C#m (exact)
+2026-11-05 13:13:06,495 INFO pt0049m mix truth=C# minor bgate=C#m (exact) edma=Db (parallel)
+2026-11-05 13:13:07,565 INFO pt0054 beat truth=Bb minor bgate=Bbm (exact) edma=Fm (fifth)
+2026-11-05 13:13:08,764 INFO pt0054m mix truth=Bb minor bgate=Bbm (exact) edma=Fm (fifth)
+2026-11-05 13:13:10,171 INFO pt0056 beat truth=G minor bgate=Gm (exact) edma=Gm (exact)
+2026-11-05 13:13:11,791 INFO pt0056m mix truth=G minor bgate=Gm (exact) edma=Gm (exact)
+2026-11-05 13:13:13,247 INFO pt0057 beat truth=E minor bgate=A (other) edma=A (other)
+2026-11-05 13:13:14,886 INFO pt0057m mix truth=E minor bgate=A (other) edma=A (other)
+2026-11-05 13:13:15,901 INFO pt0061 beat truth=G minor bgate=Gm (exact) edma=Gm (exact)
+2026-11-05 13:13:16,883 INFO pt0061m mix truth=G minor bgate=Cm (fifth) edma=Gm (exact)
+2026-11-05 13:13:18,678 INFO pt0064 beat truth=A minor bgate=Am (exact) edma=Am (exact)
+2026-11-05 13:13:20,193 INFO pt0064m mix truth=A minor bgate=Am (exact) edma=Am (exact)
+2026-11-05 13:13:21,455 INFO pt0067 beat truth=C minor bgate=F (other) edma=C (parallel)
+2026-11-05 13:13:22,542 INFO pt0067m mix truth=C minor bgate=F (other) edma=C (parallel)
+2026-11-05 13:13:24,451 INFO pt0068 beat truth=E minor bgate=Em (exact) edma=Em (exact)
+2026-11-05 13:13:26,860 INFO pt0068m mix truth=E minor bgate=Em (exact) edma=Em (exact)
+2026-11-05 13:13:28,149 INFO pt0071 beat truth=F# minor bgate=F#m (exact) edma=F#m (exact)
+2026-11-05 13:13:29,542 INFO pt0071m mix truth=F# minor bgate=F#m (exact) edma=F#m (exact)
+2026-11-05 13:13:31,109 INFO pt0090 beat truth=F# minor bgate=F#m (exact) edma=F#m (exact)
+2026-11-05 13:13:32,633 INFO pt0090m mix truth=F# minor bgate=F#m (exact) edma=F#m (exact)
+2026-11-05 13:13:34,129 INFO pt0092 beat truth=Eb minor bgate=Ebm (exact) edma=Ebm (exact)
+2026-11-05 13:13:35,900 INFO pt0092m mix truth=Eb minor bgate=Ebm (exact) edma=Ebm (exact)
+2026-11-05 13:13:36,798 INFO pt0095 beat truth=G# minor bgate=C#m (fifth) edma=Db (other)
+2026-11-05 13:13:37,860 INFO pt0095m mix truth=G# minor bgate=C#m (fifth) edma=Db (other)
+2026-11-05 13:13:39,374 INFO pt0098 beat truth=C minor bgate=Cm (exact) edma=Cm (exact)
+2026-11-05 13:13:41,194 INFO pt0098m mix truth=C minor bgate=Cm (exact) edma=Cm (exact)
+2026-11-05 13:13:41,194 INFO detected 60 files in 81 s, 0 failed
+2026-11-05 13:13:44,371 INFO parity-00 top1_same=1 top3_same=1
+2026-11-05 13:13:47,591 INFO parity-01 top1_same=1 top3_same=1
+2026-11-05 13:13:51,128 INFO parity-02 top1_same=1 top3_same=1
+2026-11-05 13:13:54,042 INFO parity-03 top1_same=1 top3_same=1
+2026-11-05 13:13:57,688 INFO parity-04 top1_same=1 top3_same=1
+2026-11-05 13:14:00,780 INFO parity-05 top1_same=1 top3_same=1
+2026-11-05 13:14:03,743 INFO parity-06 top1_same=1 top3_same=1
+2026-11-05 13:14:06,308 INFO parity-07 top1_same=1 top3_same=1
+2026-11-05 13:14:09,737 INFO parity-08 top1_same=1 top3_same=1
+2026-11-05 13:14:12,594 INFO parity-09 top1_same=1 top3_same=1
+2026-11-05 13:14:14,849 INFO parity-10 top1_same=1 top3_same=1
+2026-11-05 13:14:17,202 INFO parity-11 top1_same=1 top3_same=1
+2026-11-05 13:14:19,346 INFO parity-12 top1_same=1 top3_same=1
+2026-11-05 13:14:21,594 INFO parity-13 top1_same=1 top3_same=1
+2026-11-05 13:14:23,833 INFO parity-14 top1_same=1 top3_same=1
+2026-11-05 13:14:26,125 INFO parity-15 top1_same=1 top3_same=1
+2026-11-05 13:14:28,527 INFO parity-16 top1_same=1 top3_same=1
+2026-11-05 13:14:30,787 INFO parity-17 top1_same=1 top3_same=1
+2026-11-05 13:14:33,239 INFO parity-18 top1_same=1 top3_same=1
+2026-11-05 13:14:35,490 INFO parity-19 top1_same=1 top3_same=1
+2026-11-05 13:14:37,733 INFO parity-20 top1_same=1 top3_same=1
+2026-11-05 13:14:40,014 INFO parity-21 top1_same=1 top3_same=1
+2026-11-05 13:14:42,323 INFO parity-22 top1_same=1 top3_same=1
+2026-11-05 13:14:44,669 INFO parity-23 top1_same=1 top3_same=1
+2026-11-05 13:14:47,003 INFO parity-24 top1_same=1 top3_same=1
+2026-11-05 13:14:49,300 INFO parity-25 top1_same=1 top3_same=1
+2026-11-05 13:14:51,537 INFO parity-26 top1_same=1 top3_same=1
+2026-11-05 13:14:54,006 INFO parity-27 top1_same=1 top3_same=1
+2026-11-05 13:14:56,333 INFO parity-28 top1_same=1 top3_same=1
+2026-11-05 13:14:58,559 INFO parity-29 top1_same=1 top3_same=1
+2026-11-05 13:15:00,922 INFO parity-30 top1_same=1 top3_same=1
+2026-11-05 13:15:03,287 INFO parity-31 top1_same=1 top3_same=1
+2026-11-05 13:15:05,577 INFO parity-32 top1_same=1 top3_same=1
+2026-11-05 13:15:07,815 INFO parity-33 top1_same=1 top3_same=1
+2026-11-05 13:15:10,112 INFO parity-34 top1_same=1 top3_same=1
+2026-11-05 13:15:12,396 INFO parity-35 top1_same=1 top3_same=1
+2026-11-05 13:15:14,682 INFO parity-36 top1_same=1 top3_same=1
+2026-11-05 13:15:17,035 INFO parity-37 top1_same=1 top3_same=1
+2026-11-05 13:15:19,290 INFO parity-38 top1_same=1 top3_same=1
+2026-11-05 13:15:21,748 INFO parity-39 top1_same=1 top3_same=1
+2026-11-05 13:15:21,748 INFO done: wrote results.tsv, summary.md

@@ -38,6 +38,7 @@ KNOWN = [
 # the main session then adds the label line to ~/pt-harvest/approved-dialogs.txt (read every scan).
 PENDING = [
     ("Missing AAX Plugins -> OK", r"Missing\s+AAX\s+Plug-?ins", r"^OK$"),
+    ("UAD Powered Plug-Ins Info -> No", r"UAD\s+Powered\s+Plug-?Ins\s+Info", r"^No$"),
 ]
 APPROVED_FILE = H / "approved-dialogs.txt"
 

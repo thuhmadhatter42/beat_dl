@@ -35,7 +35,7 @@ Everything is under the menus or in Settings (Beat Key > Settings, ⌘,). The gl
   - REAPER: tempo (REAPER has no project key). Bitwig Studio: tempo (no project key). Each through a script Beat Key offers to install (REAPER: a ReaScript you start once; Bitwig: a controller you add once).
   - Pro Tools, Logic Pro, Studio One: tempo and key, typed into the DAW's own tempo and key controls through Accessibility. If that fails, Beat Key hands you a MIDI file with tempo and key to import instead.
   - FL Studio, Reason, Cubase: a MIDI file with tempo and key to import (they can't be told a tempo from outside).
-- **Analyze Selection.** Reading > Analyze Selection (⌃⌥⌘L) reads the clip you have selected in Pro Tools, Ableton Live or REAPER. Other DAWs: export the clip and drop it on Beat Key.
+- **Analyze Selection.** Reading > Analyze Selection (⌥⌘B, global) reads the clip you have selected in Pro Tools, Ableton Live or REAPER. Other DAWs: export the clip and drop it on Beat Key.
 - **Choose the key.** The top 3 keys are clickable: click key 2 or 3 and that becomes THE key for every send (New Song clears it).
 - **Send to Auto-Tune.** One button (Reading > Send to Auto-Tune, ⌃⌥⌘A) hands the chosen key and your reference pitch to Auto-Tune Pro, in any open instance with Auto Key Detection on, and also writes a Waves Tune preset. Waves Tune does not change by itself: load the "Beat Key" preset in the plug-in (as of 0.1.31). Antares doesn't document the hand-off, so tell us if a version doesn't pick it up.
 - **Export MIDI Tempo/Key file.** File > Export MIDI Tempo/Key File… (⌃⌥⌘E) saves a small `.mid` with the tempo and key, for any DAW.

@@ -144,19 +144,21 @@ struct Reading: Codable, Equatable {
     let bpm: String?
     let bpmExact: Double?
     let tuningCents: Double?
+    /// Absent in readings saved before 0.1.37 (decodes as nil).
+    let chroma: [Double]?
     let keys: [Key]
     let date: Date
 
     init(_ r: Result, date: Date = Date()) {
         path = r.file.path; name = r.name; bpm = r.bpm
-        bpmExact = r.bpmExact; tuningCents = r.tuningCents
+        bpmExact = r.bpmExact; tuningCents = r.tuningCents; chroma = r.chroma
         keys = r.keys.map { Key(name: $0.0, percent: $0.1) }
         self.date = date
     }
 
     var result: Result {
         Result(file: URL(fileURLWithPath: path), name: name, bpm: bpm, keys: keys.map { ($0.name, $0.percent) },
-               bpmExact: bpmExact, tuningCents: tuningCents)
+               bpmExact: bpmExact, tuningCents: tuningCents, chroma: chroma)
     }
 
     /// The menu title: name, then what was read.
