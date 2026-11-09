@@ -53,6 +53,23 @@ final class HelpTests: XCTestCase {
         XCTAssertTrue(HelpTipLogic.shows(helpOn: true, hovering: false, forced: true))
     }
 
+    func testNativeTooltipStepsAsideInHelpMode() {
+        XCTAssertEqual(HelpTipLogic.nativeTooltip("New song · reset", helpOn: false), "New song · reset")
+        XCTAssertEqual(HelpTipLogic.nativeTooltip("New song · reset", helpOn: true), "")
+    }
+
+    func testFaceplateHasNoBareNativeTooltips() throws {
+        // every tooltip on the faceplate goes through .nativeHelp, so help mode can silence it
+        let src = URL(fileURLWithPath: #filePath).deletingLastPathComponent()
+            .appendingPathComponent("../../Sources/Orion").standardized
+        for name in ["Pocket/PocketView.swift", "HarmonyView.swift", "Faceplate/FaceplateView.swift",
+                     "Faceplate/LCD.swift", "Faceplate/Controls.swift", "Faceplate/Chassis.swift", "Help.swift"] {
+            let text = try String(contentsOf: src.appendingPathComponent(name), encoding: .utf8)
+            let bare = text.components(separatedBy: "\n").filter { $0.trimmingCharacters(in: .whitespaces).hasPrefix(".help(") }
+            XCTAssertEqual(bare, [], "\(name) has a bare .help(")
+        }
+    }
+
     // MARK: the placement
 
     func testCardStaysInsideAndOffTheControl() {

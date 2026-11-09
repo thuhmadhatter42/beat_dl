@@ -131,6 +131,10 @@ enum HelpTipLogic {
         helpOn && (hovering || forced)
     }
 
+    /// The native tooltip a control shows: its text with help off; none with help on, so the
+    /// system's slow yellow tooltip never lands on top of the amber card.
+    static func nativeTooltip(_ text: String, helpOn: Bool) -> String { helpOn ? "" : text }
+
     static let gap: CGFloat = 6
     static let margin: CGFloat = 8
 
@@ -162,7 +166,7 @@ struct HelpCard: View {
         }
         .padding(.horizontal, 8).padding(.vertical, 6)
         .frame(width: width, alignment: .leading)
-        .background(RoundedRectangle(cornerRadius: 6).fill(Theme.hex(0x15100a).opacity(0.96)))
+        .background(RoundedRectangle(cornerRadius: 6).fill(Theme.hex(0x15100a)))   // opaque: nothing ghosts through
         .overlay(RoundedRectangle(cornerRadius: 6).stroke(Theme.amber(0.45), lineWidth: 1))
         .shadow(color: Color.black.opacity(0.5), radius: 6, y: 2)
     }
@@ -217,6 +221,16 @@ private struct HelpTipModifier: ViewModifier {
     }
 }
 
+/// A native `.help` tooltip that steps aside in help mode (the amber card explains instead).
+private struct NativeHelpModifier: ViewModifier {
+    let text: String
+    @Environment(\.helpMode) private var helpOn
+
+    func body(content: Content) -> some View {
+        content.help(Text(HelpTipLogic.nativeTooltip(text, helpOn: helpOn)))
+    }
+}
+
 private struct HelpTipLayer: ViewModifier {
     func body(content: Content) -> some View {
         content.overlayPreferenceValue(HelpTipKey.self) { v in
@@ -249,6 +263,9 @@ extension View {
     /// In help mode, hovering this view shows `tip` on the shared amber card. Off = nothing.
     func helpTip(_ tip: HelpTip) -> some View { modifier(HelpTipModifier(tip: tip)) }
 
+    /// The native tooltip, shown only while help mode is off. Every `.help` on the faceplate goes here.
+    func nativeHelp(_ text: String) -> some View { modifier(NativeHelpModifier(text: text)) }
+
     /// The surface's card layer (the window's face, the pocket): above every view in it.
     func helpTipLayer() -> some View { modifier(HelpTipLayer()) }
 }
@@ -274,7 +291,7 @@ struct HelpChip: View {
         }
         .buttonStyle(PlainButtonStyle())
         .pointingHand()
-        .help(on ? "Help mode is on" : "Help mode: hover anything to see what it does")
+        .nativeHelp("Help mode: hover anything to see what it does")
         .helpTip(HelpText.help)
         .accessibility(label: Text("Help mode"))
         .accessibility(hint: Text(on ? "Turns help mode off" : "Turns help mode on: hover anything to see what it does"))

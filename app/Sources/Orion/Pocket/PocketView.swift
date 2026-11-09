@@ -171,7 +171,7 @@ struct DownloadCap: View {
         }
         // not .disabled(): AppKit would grey the legend; an unlit cap only beeps
         .buttonStyle(SSLCapStyle(lit: state.downloadLit || state.clipboardReady || (login && !state.busy)))
-        .help(help)
+        .nativeHelp(help)
         .accessibility(label: Text(login ? "Log in to YouTube" : state.fieldEmpty ? "Paste and download" : "Download"))
         .accessibility(hint: Text(hint))
         .helpTip(HelpText.download)
@@ -246,7 +246,7 @@ struct NewSongCap: View {
                 .frame(width: SSLCapStyle.height)
         }
         .buttonStyle(SSLCapStyle(lit: false, ready: lit, padding: 0))
-        .help("New song · reset")
+        .nativeHelp("New song · reset")
         .accessibility(label: Text("New song: reset listening"))
         .accessibility(hint: Text("Drops what was heard and the lock, and listens again"
                                   + (keys.map { ". Shortcut \($0)" } ?? "")))
@@ -267,7 +267,7 @@ struct HoldCap: View {
             .frame(maxWidth: .infinity)
         }
         .buttonStyle(SSLCapStyle(lit: state.held, ready: state.canHold && !state.held))
-        .help(state.held ? "Release: follow the music again" : "Hold: freeze the reading on show")
+        .nativeHelp(state.held ? "Release: follow the music again" : "Hold: freeze the reading on show")
         .accessibility(label: Text(state.held ? "Release hold" : "Hold reading"))
         .accessibility(hint: Text("Freezes the reading on show while listening carries on. Press again to follow the music"))
         .accessibility(addTraits: state.held ? .isSelected : [])
@@ -641,7 +641,7 @@ struct ManualKeyMenu: View {
         }
         .buttonStyle(PlainButtonStyle())
         .pointingHand()
-        .help("Set the key by hand: pick it from all 24 keys. It becomes the key, and the reading is saved to teach Beat Key")
+        .nativeHelp("Set the key by hand: pick it from all 24 keys. It becomes the key, and the reading is saved to teach Beat Key")
         .accessibility(label: Text("Manual key"))
         .accessibility(hint: Text("Opens a menu of all 24 keys. The pick becomes the key and teaches Beat Key"))
     }
@@ -856,7 +856,7 @@ struct TopKeys: View {
                     Button(action: { choose(name) }) { cell(i, keys[i]).contentShape(Rectangle()) }
                         .buttonStyle(PlainButtonStyle())
                         .pointingHand()
-                        .help("Use \(name) as the key")
+                        .nativeHelp("Use \(name) as the key")
                 } else {
                     cell(i, i < keys.count ? keys[i] : nil)
                 }

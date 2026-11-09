@@ -207,7 +207,7 @@ struct ChordCell: View {
         .onTapGesture(perform: play)
         .onDrag(drag)
         .pointingHand()
-        .help("\(chord.name): click to hear, drag into your DAW for a MIDI clip")
+        .nativeHelp("\(chord.name): click to hear, drag into your DAW for a MIDI clip")
         .accessibilityElement(children: .ignore)
         .accessibility(label: Text("\(chord.name), \(chord.roman)\(chord.borrowed ? ", borrowed" : "")"))
         .accessibility(hint: Text("Plays the chord. Drag it into your DAW or Finder for a MIDI clip"))
