@@ -35,6 +35,10 @@ struct HarmonyPrefs: Equatable {
 struct HarmonyPanel: View {
     let state: PocketState
     var actions = PocketActions()
+    /// The menu-bar pocket's fit (its 344 pt column): the wheel on its own, centred, its head in
+    /// the corner beside it (no notes heard: no room), the chord choices 8 apart, a tighter glass.
+    /// The pocket grows taller, not wider.
+    var compact = false
 
     static let width: CGFloat = 432
 
@@ -44,21 +48,35 @@ struct HarmonyPanel: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             wheelAndNotes
-            HarmonyRule().padding(.vertical, Theme.S.l)
+            HarmonyRule().padding(.vertical, compact ? Theme.S.m : Theme.S.l)
             chords
-            HarmonyRule().padding(.vertical, Theme.S.l)
+            HarmonyRule().padding(.vertical, compact ? Theme.S.m : Theme.S.l)
             MatchToRow(key: key, target: prefs.matchKey, pick: actions.pickMatchKey)
-            Spacer(minLength: 0)
+            if !compact { Spacer(minLength: 0) }
         }
-        .padding(.vertical, Theme.S.l)
-        .padding(.horizontal, Theme.S.lcd)
-        .frame(maxHeight: .infinity, alignment: .top)
+        .padding(.vertical, compact ? Theme.S.m : Theme.S.l)
+        .padding(.horizontal, compact ? Theme.S.m : Theme.S.lcd)
+        .frame(maxHeight: compact ? nil : .infinity, alignment: .top)
         .lcdGlass(radius: Theme.R.well)
     }
 
     // MARK: the wheel and the notes heard
 
-    private var wheelAndNotes: some View {
+    @ViewBuilder private var wheelAndNotes: some View {
+        if compact {
+            ZStack(alignment: .topLeading) {
+                KeyWheel(keys: state.result?.keys ?? [],
+                         onChoose: state.result.map { r in { k in SpellingSettings.shared.choose(k, of: r, from: "the pocket's key wheel") } })
+                    .frame(width: KeyWheel.side, height: KeyWheel.side)
+                    .frame(maxWidth: .infinity)
+                Text.cap("KEY WHEEL").helpTip(HelpText.keyWheel)
+            }
+        } else {
+            wideWheelAndNotes
+        }
+    }
+
+    private var wideWheelAndNotes: some View {
         HStack(alignment: .top, spacing: Theme.S.l) {
             VStack(alignment: .leading, spacing: Theme.S.s) {
                 Text.cap("KEY WHEEL").helpTip(HelpText.keyWheel)
@@ -122,7 +140,10 @@ struct HarmonyPanel: View {
 
     /// TRIAD / 7TH / 9TH · ROOT / 1ST / 2ND / OPEN.
     private var chordControls: some View {
-        HStack(spacing: Theme.S.m) {
+        HStack(spacing: compact ? Theme.S.s : Theme.S.m) { chordChoices; Spacer(minLength: 0) }
+    }
+
+    @ViewBuilder private var chordChoices: some View {
             SegmentedChips(options: ChordQuality.allCases.map { .init(value: $0, title: $0.label, spoken: "Chords as \($0.spoken)") },
                            selected: prefs.quality,
                            onSelect: { q in var p = prefs; p.quality = q; actions.setHarmony(p) })
@@ -131,8 +152,6 @@ struct HarmonyPanel: View {
                            selected: prefs.voicing,
                            onSelect: { v in var p = prefs; p.voicing = v; actions.setHarmony(p) })
                 .helpTip(HelpText.voicing)
-            Spacer(minLength: 0)
-        }
     }
 }
 
@@ -195,7 +214,7 @@ struct ChordFace: View {
     var hover = false
 
     static let height: CGFloat = 48
-    static let ink = Theme.A.ink
+    static var ink: Color { Theme.A.ink }
 
     var body: some View {
         let shape = RoundedRectangle(cornerRadius: Theme.R.cap, style: .continuous)

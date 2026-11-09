@@ -398,12 +398,15 @@ final class FirstMouseHostingView<V: View>: NSHostingView<V> {
 
 private struct MiniHost: View {
     @ObservedObject var controller: MiniController
+    @ObservedObject private var accent = AccentSettings.shared
 
     var body: some View {
         MiniView(state: controller.view,
                  press: { controller.press($0, via: "pad") },
                  release: { controller.release($0) },
                  toggleSound: { controller.toggleSound() })
+            // a new display colour redraws the pads (MiniPadView releases a held pad as it goes)
+            .id(accent.effective)
     }
 }
 
@@ -502,6 +505,11 @@ private struct MiniPadView: View {
                     guard down, let p = pad else { return }
                     down = false; release(p)
                 })
+            // redrawn away mid-hold (a new display colour): the note still stops
+            .onDisappear {
+                guard down, let p = pad else { return }
+                down = false; release(p)
+            }
             .accessibilityElement(children: .ignore)
             .accessibility(label: Text("\(chord.name), \(chord.roman)\(chord.borrowed ? ", borrowed" : "")"))
             .accessibility(hint: Text("Plays the chord into MIDI while held"))

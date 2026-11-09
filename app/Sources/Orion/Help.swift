@@ -85,6 +85,8 @@ enum HelpText {
     // the footer
     static let recent = HelpTip(title: "RECENT", body: "Your recent readings. Pick one to put it back on the readout.")
     static let settings = HelpTip(title: "SETTINGS", body: "Display, listening source, global shortcuts and Open at Login.")
+    static let color = HelpTip(title: "COLOR", body: "Pick the display colour on the colour wheel. Reset to Amber puts it back.")
+    static let advanced = HelpTip(title: "ADVANCED", body: "Adds the key wheel, chords to hear and drag, and MATCH TO. First switch each launch sets the window and menu bar; then each on its own.")
     static let window = HelpTip(title: "WINDOW", body: "Opens the full Beat Key window.")
     static let quit = HelpTip(title: "QUIT", body: "Quits Beat Key.")
     static let help = HelpTip(title: "HELP", body: "Help is on: hover anything to see what it does. Click again to turn it off.")
@@ -106,7 +108,7 @@ enum HelpText {
     static let all: [HelpTip] = [
         bpm, pitchToFit, tempoFactor, keyDial, confidence, topKeys, manual, keyboard, scale, tuning, camelot,
         fileLine, showInFinder, status, linkField, download, openAudio, findKey, analyzeFile, source, listen,
-        hold, reset, sendDAW, autoTune, exportMidi, recent, settings, window, quit, help, keyWheel, notesHeard,
+        hold, reset, sendDAW, autoTune, exportMidi, recent, settings, color, advanced, window, quit, help, keyWheel, notesHeard,
         chords, quality, voicing, bars, borrowed, matchTo, matchShift, mini, miniPanel, miniSound,
     ]
 

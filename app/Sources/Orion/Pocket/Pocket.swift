@@ -114,7 +114,8 @@ struct PocketState {
     var held = false
     /// Hold's global shortcut as printed; nil = none set.
     var holdKeys: String? = nil
-    /// Advanced mode (the window's harmony column and Camelot code; the pocket ignores it).
+    /// Advanced mode of the surface drawn: the window's harmony column, or the pocket's harmony
+    /// pieces (PocketContainer puts the pocket's own setting in).
     var advanced = false
     /// Advanced mode's chord and MATCH TO choices.
     var harmony = HarmonyPrefs()

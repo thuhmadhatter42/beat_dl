@@ -21,6 +21,7 @@ struct FaceplateView: View {
     @ObservedObject private var watcher = DAWWatcher.shared
     @ObservedObject private var help = HelpSettings.shared
     @ObservedObject private var mini = MiniController.shared
+    @ObservedObject private var accent = AccentSettings.shared
     @State private var keyMonitor: Any?
     @State private var pasteboardCount = NSPasteboard.general.changeCount
     private let clipboardTick = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
@@ -29,6 +30,8 @@ struct FaceplateView: View {
         FaceplateFace(state: state, picked: model.picked, url: $model.url, fieldFocused: $model.fieldFocused,
                       pickFocused: $model.pickFocused, actions: windowActions,
                       files: FaceplateFace.FileActions(openAudio: openAudio, find: find))
+        // Theme.accent is read while drawing: a new display colour redraws the face (only then)
+        .id(accent.effective)
         .environment(\.liveLevel, live.meter)   // the meter ticks on its own (LiveLevel)
         .onDrop(of: ["public.file-url"], isTargeted: dropBinding, perform: drop)
         .onReceive(engine.$state) { s in
@@ -107,51 +110,13 @@ struct FaceplateView: View {
     }
 
     /// The shared wiring; the window runs the YouTube login itself (the popover sends it here)
-    /// and owns Advanced mode's harmony column (the pocket has none).
+    /// and its own Advanced mode switch (the harmony wiring is shared with the pocket).
     private var windowActions: PocketActions {
         var a = actions
         a.openLogin = openLogin
         let (e, m, l, d) = (engine, model, live, display)
-        let shown = { PocketState.shown(e.state, live: l.state, page: m.pager) }
-        a.playChord = { chord in
-            let bpm = ChordClip.bpm(shown(), factor: m.tempoFactor)
-            AppLog.log("window: chord \(chord.asciiName) played (\(d.chordVoicing.rawValue), \(d.chordBars) bar)")
-            NoteSynth.shared.play(chord.notes(d.chordVoicing), seconds: ChordClip.hearSeconds(bars: d.chordBars, bpm: bpm))
-        }
-        a.chordFile = { chord in
-            let r = shown()
-            let bpm = ChordClip.bpm(r, factor: m.tempoFactor)
-            let url = ChordClip.write(chord, voicing: d.chordVoicing, bars: d.chordBars, bpm: bpm, key: r?.keys.first?.0)
-            if url != nil { AppLog.log("window: chord \(chord.asciiName) dragged as a MIDI clip") }
-            return url
-        }
-        a.toggleMini = {
-            let sp = SpellingSettings.shared
-            let changes = Publishers.MergeMany([e.objectWillChange.map { _ in () }.eraseToAnyPublisher(),
-                                                l.objectWillChange.map { _ in () }.eraseToAnyPublisher(),
-                                                m.objectWillChange.map { _ in () }.eraseToAnyPublisher(),
-                                                d.objectWillChange.map { _ in () }.eraseToAnyPublisher(),
-                                                sp.objectWillChange.map { _ in () }.eraseToAnyPublisher()])
-                .eraseToAnyPublisher()
-            MiniController.shared.toggle(source: {
-                MiniFeed(key: shown()?.keys.first?.0, quality: d.chordQuality, voicing: d.chordVoicing)
-            }, changes: changes)
-        }
-        a.setHarmony = { p in
-            AppLog.log("window: chords \(p.quality.rawValue) \(p.voicing.rawValue) \(p.bars) bar")
-            p.apply(to: d)
-        }
-        a.pickMatchKey = {
-            AppLog.log("window: match to menu")
-            let items = KeyChoice.allKeys.enumerated().flatMap { i, k -> [PopupMenu.Item] in
-                let item = PopupMenu.Item(title: k, checked: d.matchKey == k) {
-                    AppLog.log("window: match to \(k)")
-                    d.matchKey = k
-                }
-                return i == 12 ? [.separator, item] : [item]
-            }
-            PopupMenu.show(items + [.separator, PopupMenu.Item(title: "None", checked: d.matchKey == nil) { d.matchKey = nil }])
-        }
+        a.wireHarmony(surface: "window", engine: e, model: m, live: l, display: d)
+        a.toggleAdvanced = { d.advanced.toggle() }   // the window's box = ⌥⌘A = Settings › Display
         return a
     }
 
@@ -378,8 +343,10 @@ struct FaceplateFace: View {
         HStack(spacing: Theme.S.l) {
             RecentLink(state: state, action: actions.showRecents)
             FooterLink(title: "SETTINGS", label: "Settings", action: actions.settings).helpTip(HelpText.settings)
+            ColorChip()
             HelpChip(on: state.help, action: actions.toggleHelp)
-            Spacer()
+            Spacer(minLength: 0)
+            AdvancedBox(on: state.advanced, action: actions.toggleAdvanced)
         }
         // clear of the corner screws, on the LCD's text edge
         .padding(.horizontal, Theme.S.lcd)

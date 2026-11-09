@@ -183,8 +183,7 @@ final class AmberCaretField: NSTextField {
     override func becomeFirstResponder() -> Bool {
         let ok = super.becomeFirstResponder()
         if ok {
-            (currentEditor() as? NSTextView)?.insertionPointColor =
-                NSColor(srgbRed: 1, green: 176 / 255, blue: 32 / 255, alpha: 1)
+            (currentEditor() as? NSTextView)?.insertionPointColor = Theme.amberNS
             onFocus?()
         }
         return ok
@@ -234,14 +233,15 @@ private struct CapBody<Label: View>: View {
         let shape = RoundedRectangle(cornerRadius: r, style: .continuous)
         let on = lit || ready
         return label   // a Text set by SSLCapStyle.label, or an icon
-            .foregroundColor(lit ? Theme.hex(0x3a2a06) : on ? Theme.hex(0x3a372f) : Theme.hex(0x4a463c, 0.45))
+            .foregroundColor(lit ? Theme.accent.litCap.legend.color : on ? Theme.hex(0x3a372f) : Theme.hex(0x4a463c, 0.45))
             .shadow(color: Color.white.opacity(lit ? 0.35 : on ? 0.5 : 0.2), radius: 0, y: 1)
             .padding(.horizontal, padding)
             .frame(height: height - SSLCapStyle.ring * 2)
             .background(
                 ZStack(alignment: .top) {
                     if lit {
-                        Theme.vertical([(Theme.hex(0xffe4a6), 0), (Theme.hex(0xf7b32b), 0.45), (Theme.hex(0xc07f12), 1)])
+                        let c = Theme.accent.litCap   // the display colour (COLOR)
+                        Theme.vertical([(c.top.color, 0), (c.mid.color, 0.45), (c.bottom.color, 1)])
                     } else if on {
                         Theme.vertical([(Theme.hex(0xefede4), 0), (Theme.hex(0xd6d3c6), 0.45), (Theme.hex(0xb3b0a2), 1)])
                     } else {

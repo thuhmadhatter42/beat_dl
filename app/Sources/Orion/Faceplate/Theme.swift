@@ -4,9 +4,14 @@ import SwiftUI
 /// Artemis's tokens (artemis/app/src/faceplate/shared.css), as used by orion-v1-mockup.html.
 /// CSS sizes are in points; `em` letter-spacing becomes tracking = em * font size.
 enum Theme {
-    static let amberRGB = (255.0, 176.0, 32.0)
-    static let amber = rgb(255, 176, 32)
-    static func amber(_ a: Double) -> Color { rgb(255, 176, 32, contrast(a)) }
+    /// The display colour in use (amber unless J picked another with COLOR; AccentSettings sets it,
+    /// already lifted to read on the LCD). Everything "amber" below derives from it.
+    static var accent = Accent.amber
+    static var amberRGB: (Double, Double, Double) { accent.rgb }
+    static var amber: Color { accent.color }
+    static func amber(_ a: Double) -> Color { rgb(accent.r, accent.g, accent.b, contrast(a)) }
+    /// The accent for AppKit (the link field's caret).
+    static var amberNS: NSColor { accent.nsColor }
 
     /// View › High Contrast Readout (DisplaySettings sets it; the faceplate redraws when it
     /// changes). Dimmed amber text goes full strength, the faint placeholders brighten, glows go.
@@ -22,7 +27,7 @@ enum Theme {
         if a < 0.2 { return 0.3 }
         return a
     }
-    static let amberGlow = rgb(255, 176, 32, 0.6)      // a glow, not text: High Contrast leaves it
+    static var amberGlow: Color { rgb(accent.r, accent.g, accent.b, 0.6) }   // a glow, not text: High Contrast leaves it
     static let green = rgb(61, 220, 122)
     static let greenGlow = rgb(61, 220, 122, 0.7)
     static let greenText = rgb(89, 225, 141)           // #59e18d
@@ -109,10 +114,11 @@ enum Theme {
         static var a3: Color { step(0.62, hc: 1) }
         static var a4: Color { step(0.16, hc: 0.3) }
         static var a5: Color { step(0.06, hc: 0.12) }
-        /// Ink on a lit amber fill (selected chip, lit section, lit key).
-        static let ink = hex(0x1a1206)
+        /// Ink on a lit amber fill (selected chip, lit section, lit key): dark or light by the
+        /// accent's luminance (#1a1206 on amber).
+        static var ink: Color { accent.ink.color }
         private static func step(_ a: Double, hc: Double) -> Color {
-            rgb(255, 176, 32, highContrast ? hc : a)
+            rgb(accent.r, accent.g, accent.b, highContrast ? hc : a)
         }
     }
 
