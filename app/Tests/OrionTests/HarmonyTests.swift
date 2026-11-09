@@ -351,7 +351,7 @@ final class HarmonyTests: XCTestCase {
         s.source = "System Audio"
         s.daw = "Pro Tools"
         s.readout = .result(r, page: nil, download: false, options: ResultOptions(
-            factor: .one, tuning: Tuning.line(12, reference: 440), onCycleTempo: {}))
+            factor: .one, tuning: Tuning.meter(12, reference: 440), onCycleTempo: {}))
         var adv = s
         adv.advanced = true
         adv.harmony = HarmonyPrefs(quality: .seventh, voicing: .root, bars: 2, matchKey: "Am")

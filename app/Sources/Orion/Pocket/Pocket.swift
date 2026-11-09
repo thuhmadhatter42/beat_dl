@@ -118,6 +118,8 @@ struct PocketState {
     var advanced = false
     /// Advanced mode's chord and MATCH TO choices.
     var harmony = HarmonyPrefs()
+    /// Beat Key Mini's panel is open (the MINI chip lights).
+    var miniOpen = false
     /// Help mode: hovering a control explains it (HelpSettings; the HELP chip lights).
     var help = false
     /// A click on the key's name switches sharp / flat; nil = no action wired.

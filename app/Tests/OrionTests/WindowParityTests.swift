@@ -99,7 +99,7 @@ final class WindowParityTests: XCTestCase {
         var locked = idle
         let l = result()
         locked.readout = .result(l, page: nil, download: true, options: ResultOptions(
-            factor: .one, tuning: Tuning.line(12, reference: 440), onCycleTempo: {}))
+            factor: .one, tuning: Tuning.meter(12, reference: 440), onCycleTempo: {}))
         locked.clipboardLink = nil
         locked.daw = "Pro Tools"
         locked.recents = [Reading(l)]

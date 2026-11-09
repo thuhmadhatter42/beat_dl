@@ -116,10 +116,30 @@ enum Harmony {
     /// Neapolitan (from Phrygian), the fourth colour chord minor-key writers reach for.
     static func borrowed(_ key: String, quality: ChordQuality) -> [Chord] {
         guard let s = Scale.of(key) else { return [] }
-        let picks: [(steps: [Int], degree: Int)] = s.minor
+        return borrowedPicks(minor: s.minor).map {
+            chord(in: s, steps: $0.steps, degree: $0.degree, quality: quality, borrowed: true)
+        }
+    }
+
+    private static func borrowedPicks(minor: Bool) -> [(steps: [Int], degree: Int)] {
+        minor
             ? [(Scale.major, 0), (Scale.major, 3), (Scale.major, 4), (phrygian, 1)]
             : [(Scale.naturalMinor, 2), (Scale.naturalMinor, 3), (Scale.naturalMinor, 5), (Scale.naturalMinor, 6)]
-        return picks.map { chord(in: s, steps: $0.steps, degree: $0.degree, quality: quality, borrowed: true) }
+    }
+
+    /// The chord grid's second row (J 2026-11-09, design audit F10): seven columns like the
+    /// diatonic row, each borrowed chord under the degree it stands in for (C minor: I under i,
+    /// ♭II under ii°, IV under iv, V under v), the other columns empty (nil). Empty for no key.
+    static func borrowedRow(_ key: String, quality: ChordQuality) -> [Chord?] {
+        guard let s = Scale.of(key) else { return [] }
+        var row = [Chord?](repeating: nil, count: 7)
+        for (c, pick) in zip(borrowed(key, quality: quality), borrowedPicks(minor: s.minor)) { row[pick.degree] = c }
+        return row
+    }
+
+    /// The borrowed chords left to right as the grid shows them, with their column (0...6).
+    static func borrowedByColumn(_ key: String, quality: ChordQuality) -> [(column: Int, chord: Chord)] {
+        borrowedRow(key, quality: quality).enumerated().compactMap { i, c in c.map { (i, $0) } }
     }
 
     /// The chord on `degree` of `steps` (a 7-note scale on the key's tonic), stacked in thirds

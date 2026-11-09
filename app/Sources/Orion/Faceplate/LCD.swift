@@ -20,7 +20,7 @@ enum Readout {
 /// the tuning line (nil = none to show), and what a click on the BPM does.
 struct ResultOptions {
     var factor: TempoFactor = .one
-    var tuning: String? = nil
+    var tuning: TuningMeter? = nil
     var onCycleTempo: (() -> Void)? = nil
     /// Live listening: the lamp and caption it chose (instead of the key's own confidence), and
     /// the source in place of the file line (no Show in Finder: there is no file).
