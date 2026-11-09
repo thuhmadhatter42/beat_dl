@@ -2,6 +2,13 @@
 
 ## CURRENT STATE — 2026-11-08 23:15
 
+**ON J'S "GO" (J 23:28, after his compact; he sleeps, I chug until done, he wakes to it finished):** run this queue in order without check-ins. Anything only J can answer → Loops decide list (never chat), keep working on what is not blocked; his answers come back as a message and get queued.
+1. Fix: saved input device missing → Listen falls back to Mac audio (System Audio) instead of "THAT INPUT IS NOT CONNECTED", logged; tests; bump VERSION 0.1.39; `app/build.sh --no-notarize`; install to /Applications (old app → /usr/bin/trash, ditto new, codesign verify). Agent in a worktree.
+2. Tempo leakage check (no shipping): same beat in train+test for candidate ftC (tools/train-tempocnn/, docs/research/pt-ground-truth/) → findings in tools/train-tempocnn/candidates/ftC-leakage.md. Ship only per J's answer on D-9a402439dc item 3.
+3. Apply J's answers from decide list D-9a402439dc (default mode trim; signing keys imported?; tempo ship rule). If "Trim to essentials": default mode = key, BPM, lamp, Listen/source, Send buttons; rest to Advanced; rebuild as next version.
+4. Save state (save-state skill), final Apple alert with results.
+NOT mine: J's hand retests (owed list below), publish.sh, iLok/harvest, label verification.
+
 **Beat Key 0.1.38 on main (1ce562c) and installed on the MBP (/Applications, codesign OK), unreleased, not notarized (build.sh --no-notarize; DMG app/build/Beat-Key-0.1.38.dmg).** Nothing running: no agents, no worktrees, no background jobs, label checker server off.
 - **0.1.37 (273b056) = Orra Key parity** (J asked 21:49 from https://www.youtube.com/watch?v=I4nfYoofxMg; plan docs/plans/orra-parity.md + -TOC.md, §1 §2 ticked, §3 = install done, J's retest owed):
   - Live tuning: live listening now shows "TUNING ±N¢" (before: LiveSession passed tuning nil, stream never computed it). Key detection is detune-robust (HPCP rebuilt at A=440·2^(c/1200) when |c|≥5; bpm.key_reading shared by files + stream). Tuning estimator ignores peaks <200 Hz (essentia TuningFrequency was pinned at −21¢ by 808s). Test chords +7/+14/+50/−30¢: tuning within ~1¢, sureness unchanged; 40 GiantSteps at +50¢ sureness 75→82. C+50 may read "Db −50" (same thing). Tuning line cap raised 45→50¢. Live tuning uses the Settings A reference. Tests tests/test_bpm_tuning.py.
