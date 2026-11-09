@@ -588,14 +588,17 @@ struct KeyStrip: View {
 
     /// "C minor  C D E♭ F G A♭ B♭": the key's name and its notes (nothing until there is a key).
     private var scaleLine: some View {
-        HStack(alignment: .firstTextBaseline, spacing: Theme.S.m) {
-            if let s = state.scale {
-                Text("\(s.tonicName) \(s.minor ? "minor" : "major")").font(Theme.T.value)
-                    .foregroundColor(Theme.A.a2)
-                Text(s.spelled.joined(separator: "  ")).font(Theme.T.body)
-                    .foregroundColor(Theme.A.a3).lineLimit(1)
+        // a new key crossfades in place (Motion.swap)
+        Crossfade(state.scale.map { "\($0.tonicName)\($0.minor ? "m" : "")" } ?? "", alignment: .leading) { _ in
+            HStack(alignment: .firstTextBaseline, spacing: Theme.S.m) {
+                if let s = state.scale {
+                    Text("\(s.tonicName) \(s.minor ? "minor" : "major")").font(Theme.T.value)
+                        .foregroundColor(Theme.A.a2)
+                    Text(s.spelled.joined(separator: "  ")).font(Theme.T.body)
+                        .foregroundColor(Theme.A.a3).lineLimit(1)
+                }
+                Spacer(minLength: 0)
             }
-            Spacer(minLength: 0)
         }
         .frame(height: 16)
         .helpTip(HelpText.scale)
@@ -672,7 +675,7 @@ struct TuningMeterRow: View {
                     RoundedRectangle(cornerRadius: 1.5, style: .continuous).fill(m.inTune ? Theme.green : Theme.amber)
                         .frame(width: TuningMeterRow.markerWidth, height: g.size.height)
                         .offset(x: TuningMeterRow.markerX(m.fraction, width: w))
-                        .animation(.easeOut(duration: 0.35), value: m.cents)
+                        .animation(Theme.Motion.value, value: m.cents)
                 }
             }
         }
@@ -759,11 +762,14 @@ struct Dial: View {
             }
             Circle().stroke(Theme.A.a5, lineWidth: 5).padding(12)
             if let c = state.confidence {
+                // the arc eases to each new confidence; its colour crossfades with the lamp
                 Circle().trim(from: 0, to: CGFloat(c))
                     .stroke(color, style: StrokeStyle(lineWidth: 5, lineCap: .round))
+                    .animation(Theme.Motion.swap, value: lamp)
                     .rotationEffect(.degrees(-90))
                     .padding(12)
                     .shadow(color: Theme.highContrast ? .clear : color.opacity(0.7), radius: 4)
+                    .animation(Theme.Motion.value, value: c)
             } else if lamp == .listening {
                 // listening / working with no key yet: a short arc going round
                 Circle().trim(from: 0, to: 0.18)
@@ -776,15 +782,18 @@ struct Dial: View {
             }
             VStack(spacing: Theme.S.xs) {
                 keyButton(key)
-                if let l = lamp, key != nil {
-                    HStack(spacing: Theme.S.xs) {
-                        LampShape(lamp: l).fill(l.color).frame(width: 7, height: 7)
-                        Text(state.held ? "HELD" : l.spoken.uppercased()).captionStyle()
-                            .foregroundColor(l.textColor).lineLimit(1).fixedSize()
+                // LOCKED / UNSURE / HELD crossfade (Motion.swap)
+                Crossfade(key != nil ? lamp.map { state.held ? "HELD" : $0.spoken.uppercased() } ?? "KEY" : "KEY") { _ in
+                    if let l = lamp, key != nil {
+                        HStack(spacing: Theme.S.xs) {
+                            LampShape(lamp: l).fill(l.color).frame(width: 7, height: 7)
+                            Text(state.held ? "HELD" : l.spoken.uppercased()).captionStyle()
+                                .foregroundColor(l.textColor).lineLimit(1).fixedSize()
+                        }
+                        .helpTip(HelpText.confidence)
+                    } else {
+                        Text("KEY").captionStyle().foregroundColor(Theme.A.a3)
                     }
-                    .helpTip(HelpText.confidence)
-                } else {
-                    Text("KEY").captionStyle().foregroundColor(Theme.A.a3)
                 }
             }
             .frame(width: 80)
@@ -801,10 +810,13 @@ struct Dial: View {
 
     /// The big key; a click on a black-key tonic switches sharp / flat.
     @ViewBuilder private func keyButton(_ key: String?) -> some View {
-        let text = Text(key ?? "--").font(Theme.T.key)
-            .foregroundColor(key == nil ? Theme.A.a4 : Theme.A.a1)
-            .lineLimit(1).minimumScaleFactor(0.6)
-            .modifier(PocketGlow(on: key != nil))
+        // a new key crossfades over the old one in the same spot (Motion.swap)
+        let text = Crossfade(key ?? "--") { k in
+            Text(k).font(Theme.T.key)
+                .foregroundColor(key == nil ? Theme.A.a4 : Theme.A.a1)
+                .lineLimit(1).minimumScaleFactor(0.6)
+                .modifier(PocketGlow(on: key != nil))
+        }
         if state.canRespell {
             Button(action: actions.respellKey) { text.contentShape(Rectangle()) }
                 .buttonStyle(PlainButtonStyle())
@@ -829,22 +841,30 @@ struct BPMNumber: View {
     let whole: CGFloat
     let fraction: CGFloat
 
+    /// Each part crossfades on its own (Motion.swap): 120.4 → 120.5 fades only the decimals, the
+    /// whole number stays put; no counting, so a wobbling live tempo never looks busy.
     var body: some View {
-        if let t = text {
-            let p = Tempo.split(t)
-            HStack(alignment: .firstTextBaseline, spacing: 0) {
-                Text(p.whole).font(Theme.face(whole).monospacedDigit()).tracking(whole * 0.02)
-                    .foregroundColor(Theme.A.a1).amberGlow()
-                if let f = p.fraction {
-                    Text(f).font(Theme.face(fraction).monospacedDigit())
-                        .foregroundColor(Theme.A.a2)
+        Crossfade(text == nil, alignment: .leading) { _ in
+            if let t = text {
+                let p = Tempo.split(t)
+                HStack(alignment: .firstTextBaseline, spacing: 0) {
+                    Crossfade(p.whole, alignment: .trailing) { w in
+                        Text(w).font(Theme.face(whole).monospacedDigit()).tracking(whole * 0.02)
+                            .foregroundColor(Theme.A.a1).amberGlow()
+                    }
+                    if let f = p.fraction {
+                        Crossfade(f, alignment: .leading) { f in
+                            Text(f).font(Theme.face(fraction).monospacedDigit())
+                                .foregroundColor(Theme.A.a2)
+                        }
+                    }
                 }
+                .lineLimit(1)
+                .fixedSize()
+            } else {
+                Text("---").font(Theme.face(whole).monospacedDigit()).foregroundColor(Theme.A.a4)
+                    .lineLimit(1).fixedSize()
             }
-            .lineLimit(1)
-            .fixedSize()
-        } else {
-            Text("---").font(Theme.face(whole).monospacedDigit()).foregroundColor(Theme.A.a4)
-                .lineLimit(1).fixedSize()
         }
     }
 }
@@ -1066,6 +1086,8 @@ struct TopKeys: View {
                 }
             }
         }
+        // percentages count and bars ease between readings; the first reading lands at once
+        .liveAnimation(Theme.Motion.value, value: keys.prefix(3).map { $0.1 }, live: !keys.isEmpty)
         .accessibilityElement(children: .ignore)
         .accessibility(label: Text(keys.isEmpty ? "No keys yet"
             : "Top keys: " + keys.prefix(3).map { "\($0.0) \($0.1) percent" }.joined(separator: ", ")))
@@ -1076,11 +1098,15 @@ struct TopKeys: View {
         return VStack(alignment: .leading, spacing: Theme.S.s) {
             HStack(alignment: .firstTextBaseline, spacing: Theme.S.xs) {
                 Text("\(i + 1)").font(Theme.T.caption.monospacedDigit()).foregroundColor(Theme.A.a3)
-                Text(k?.0 ?? " ").font(Theme.T.title)
-                    .foregroundColor(first ? Theme.A.a1 : Theme.A.a2)
-                    .lineLimit(1).minimumScaleFactor(0.7)
+                Crossfade(k?.0 ?? " ", alignment: .leading) { name in
+                    Text(name).font(Theme.T.title)
+                        .foregroundColor(first ? Theme.A.a1 : Theme.A.a2)
+                        .lineLimit(1).minimumScaleFactor(0.7)
+                }
                 Spacer(minLength: 2)
-                Text(k.map { "\($0.1)%" } ?? "").font(Theme.T.value.monospacedDigit())
+                Color.clear.frame(width: 0, height: 0)
+                    .modifier(CountingNumber(value: Double(k?.1 ?? 0), suffix: "%"))
+                    .font(Theme.T.value.monospacedDigit())
                     .foregroundColor(first ? Theme.A.a1 : Theme.A.a2)
             }
             GeometryReader { g in
@@ -1122,6 +1148,8 @@ struct NoteKeyboard: View {
                 }
             }
         }
+        // lit keys, the tonic and its dot crossfade to the new key (Motion.swap)
+        .animation(Theme.Motion.swap, value: scale)
         .accessibilityElement(children: .ignore)
         .accessibility(label: Text(scale.map { "Scale: " + $0.spelled.joined(separator: ", ") } ?? "No scale yet"))
     }

@@ -105,14 +105,17 @@ struct HarmonyPanel: View {
                     .helpTip(HelpText.mini)
             }
             chordControls.padding(.top, Theme.S.m)
-            if diatonic.isEmpty {
-                Text("No key yet").font(Theme.T.caption).foregroundColor(Theme.A.a3)
-                    .frame(maxWidth: .infinity, minHeight: ChordFace.height * 2 + 28)
-            } else {
-                ChordGrid(diatonic: diatonic, borrowed: borrowed) { c, tonic in
-                    ChordCell(chord: c, tonic: tonic, actions: actions)
+            // a new key crossfades the whole grid in place (Motion.swap)
+            Crossfade(key ?? "", alignment: .top) { _ in
+                if diatonic.isEmpty {
+                    Text("No key yet").font(Theme.T.caption).foregroundColor(Theme.A.a3)
+                        .frame(maxWidth: .infinity, minHeight: ChordFace.height * 2 + 28)
+                } else {
+                    ChordGrid(diatonic: diatonic, borrowed: borrowed) { c, tonic in
+                        ChordCell(chord: c, tonic: tonic, actions: actions)
+                    }
+                    .padding(.top, Theme.S.m)
                 }
-                .padding(.top, Theme.S.m)
             }
         }
     }
@@ -290,15 +293,18 @@ struct MatchToRow: View {
                     .helpTip(HelpText.matchTo)
                 Spacer(minLength: Theme.S.xs)
                 if let l = MatchToRow.line(target: target, shift: shift) {
-                    Text(l).font(Theme.T.value).foregroundColor(Theme.A.a1)
-                        .lineLimit(1).minimumScaleFactor(0.85)
-                        .helpTip(HelpText.pitchToFit)
+                    Crossfade(l, alignment: .trailing) { l in
+                        Text(l).font(Theme.T.value).foregroundColor(Theme.A.a1)
+                            .lineLimit(1).minimumScaleFactor(0.85)
+                    }
+                    .helpTip(HelpText.pitchToFit)
                 }
             }
             .frame(height: Theme.H.sm)
             SegmentedChips(options: Transpose.range.map { .init(value: $0, title: Transpose.label($0), spoken: Transpose.label($0)) },
                            selected: nil, enabled: shift != nil, width: .fill, marked: 0,
                            lit: Set(Transpose.range.filter { Transpose.lit($0, shift: shift) }))
+                .animation(Theme.Motion.swap, value: shift)
                 .accessibilityElement(children: .ignore)
                 .accessibility(label: Text(spoken))
                 .helpTip(HelpText.matchShift)
@@ -455,8 +461,9 @@ struct KeyWheel: View {
     private var center: some View {
         ZStack {
             if let k = keys.first?.0, let code = Camelot.code(k) {
-                Text(code).font(Theme.T.value).foregroundColor(Theme.A.a2)
-                    .animation(nil, value: code)
+                Crossfade(code) { code in
+                    Text(code).font(Theme.T.value).foregroundColor(Theme.A.a2)
+                }
             }
         }
         .frame(width: KeyWheel.innerRadius * 2, height: KeyWheel.innerRadius * 2)
@@ -546,8 +553,8 @@ private struct KeyWheelSection: View {
         }
         .frame(width: KeyWheel.side, height: KeyWheel.side)
         .contentShape(shape)
-        .animation(.easeOut(duration: 0.18), value: rank)
-        .animation(.easeOut(duration: 0.18), value: fit)
+        .animation(Theme.Motion.swap, value: rank)
+        .animation(Theme.Motion.swap, value: fit)
         .animation(.easeOut(duration: 0.1), value: hover)
         let spoken = "\(KeyChoice.keyName(s.pc, minor: minor).replacingOccurrences(of: "m", with: "")) \(minor ? "minor" : "major")"
         let role = rank == 0 ? ", the key" : rank == 1 ? ", a runner-up" : fit ? ", fits the key" : ""
@@ -598,16 +605,22 @@ struct NotesHeard: View {
                             RoundedRectangle(cornerRadius: 1.5)
                                 .fill(tonic ? Theme.A.a1 : inScale ? Theme.A.a2 : Theme.A.a4)
                                 .frame(height: max(2, g.size.height * CGFloat(lv[pc])))
+                                .animation(Theme.Motion.value, value: lv[pc])
                         }
                     }
                     .padding(.horizontal, 1)
-                    Text(scale?.name(pc) ?? Scale.sharpNames[pc]).font(Theme.T.caption).fixedSize()
-                        .foregroundColor(inScale ? Theme.A.a2 : Theme.A.a3).frame(height: 12)
+                    Crossfade(scale?.name(pc) ?? Scale.sharpNames[pc]) { n in
+                        Text(n).font(Theme.T.caption).fixedSize()
+                            .foregroundColor(inScale ? Theme.A.a2 : Theme.A.a3)
+                    }
+                    .frame(height: 12)
                     Circle().fill(inScale ? Theme.A.a2 : .clear).frame(width: 3, height: 3)
                 }
                 .frame(maxWidth: .infinity)
             }
         }
+        // in-scale / not-in-scale colours crossfade with the key (heights ease per bar above)
+        .animation(Theme.Motion.swap, value: scale)
         .accessibilityElement(children: .ignore)
         .accessibility(label: Text(spoken(lv)))
     }

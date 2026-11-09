@@ -437,6 +437,9 @@ struct MiniView: View {
                     pad(c, tonic: tonic)
                 }
                 .frame(width: MiniView.gridWidth)
+                // pad fills and outlines ease to the new key. Not an id swap: a pad held through a key
+                // change must keep its gesture, or its release (note off) would never come.
+                .animation(Theme.Motion.swap, value: state.key)
             }
         }
         .padding(Theme.S.l)
@@ -449,10 +452,12 @@ struct MiniView: View {
 
     private var header: some View {
         HStack(alignment: .firstTextBaseline, spacing: Theme.S.m) {
-            Text(scale.map { "\($0.tonicName) \($0.minor ? "minor" : "major")" } ?? "No key")
-                .font(Theme.T.title).foregroundColor(scale == nil ? Theme.A.a3 : Theme.A.a1)
-                .modifier(PocketGlow(on: scale != nil))
-                .helpTip(HelpText.miniPanel)
+            Crossfade(scale.map { "\($0.tonicName) \($0.minor ? "minor" : "major")" } ?? "No key", alignment: .leading) { name in
+                Text(name)
+                    .font(Theme.T.title).foregroundColor(scale == nil ? Theme.A.a3 : Theme.A.a1)
+                    .modifier(PocketGlow(on: scale != nil))
+            }
+            .helpTip(HelpText.miniPanel)
             Text(state.midiReady ? "MIDI out: \(MidiOut.sourceName)" : "MIDI unavailable: see the log")
                 .font(Theme.T.caption)
                 .foregroundColor(state.midiReady ? Theme.A.a3 : Theme.redText)

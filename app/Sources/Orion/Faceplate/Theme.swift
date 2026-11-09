@@ -141,6 +141,59 @@ enum Theme {
         static let cap: CGFloat = 3
     }
 
+    /// Motion (J 2026-11-09: "the notes, note count updates, and then the key changing ... it's all
+    /// very clicky"). Live readings land about once a second; every value that changes with them
+    /// moves on these tokens, and nothing else picks its own timing. Views use `Motion.value` /
+    /// `Motion.swap` scoped with `.animation(_, value:)`, so an unrelated state change never
+    /// re-animates them. Hover cards keep their own quick `hover` timing.
+    enum Motion {
+        enum Kind: CaseIterable {
+            /// A value moving: bar heights and widths, the dial's arc, counting numbers, the tuning
+            /// marker. Exponential ease-out, no overshoot.
+            case value
+            /// One thing replacing another: a key name, LOCKED / UNSURE, lit keys, chords. A crossfade.
+            case swap
+            /// Hover washes (unchanged: hover feedback stays quick).
+            case hover
+        }
+
+        static let valueDuration = 0.45
+        static let swapDuration = 0.25
+        static let hoverDuration = 0.12
+
+        /// Tests set this; nil = ask the system (System Settings › Accessibility › Reduce motion).
+        static var reduceMotionOverride: Bool?
+        static var reduceMotion: Bool {
+            reduceMotionOverride ?? NSWorkspace.shared.accessibilityDisplayShouldReduceMotion
+        }
+
+        /// How long `kind` runs; nil = instant. Reduce Motion keeps the crossfades (opacity is not
+        /// motion) and the hover wash, and makes every moving value jump straight to its new place.
+        /// Offscreen renders (Pocket.snapshot) draw the final frame: everything instant.
+        static func duration(_ kind: Kind, reduce: Bool, snapshot: Bool = false) -> Double? {
+            if snapshot { return nil }
+            switch kind {
+            case .value: return reduce ? nil : valueDuration
+            case .swap: return swapDuration
+            case .hover: return hoverDuration
+            }
+        }
+
+        static func animation(_ kind: Kind, reduce: Bool, snapshot: Bool = false) -> Animation? {
+            guard let d = duration(kind, reduce: reduce, snapshot: snapshot) else { return nil }
+            switch kind {
+            // easeOutExpo-like: quick to leave, long settle, never past the target
+            case .value: return .timingCurve(0.16, 1, 0.3, 1, duration: d)
+            case .swap: return .easeInOut(duration: d)
+            case .hover: return .easeOut(duration: d)
+            }
+        }
+
+        static var value: Animation? { animation(.value, reduce: reduceMotion, snapshot: Pocket.snapshot) }
+        static var swap: Animation? { animation(.swap, reduce: reduceMotion, snapshot: Pocket.snapshot) }
+        static var hover: Animation? { animation(.hover, reduce: reduceMotion, snapshot: Pocket.snapshot) }
+    }
+
     static func nsFace(_ size: CGFloat, bold: Bool = false) -> NSFont {
         NSFont(name: bold ? "HelveticaNeue-Bold" : "HelveticaNeue", size: size)
             ?? NSFont.systemFont(ofSize: size, weight: bold ? .bold : .regular)
