@@ -123,6 +123,8 @@ struct PocketState {
     var miniOpen = false
     /// Help mode: hovering a control explains it (HelpSettings; the HELP chip lights).
     var help = false
+    /// Manual Key Selection on the reading shown (it is `result`'s first key); nil = detection.
+    var manualKey: ManualKey? = nil
     /// A click on the key's name switches sharp / flat; nil = no action wired.
     var canRespell: Bool { result?.keys.first.map { KeySpelling.isBlack($0.0) } ?? false }
 

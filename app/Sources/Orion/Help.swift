@@ -56,8 +56,15 @@ enum HelpText {
     static let tempoFactor = HelpTip(title: "×0.5 · ×1 · ×2", body: "Halve or double the BPM when the beat feels twice as fast or slow as the number shown.")
     static let keyDial = HelpTip(title: "KEY", body: "The key Beat Key hears; the ring and the % under it show how sure it is. Click a sharp or flat key to respell it.")
     static let confidence = HelpTip(title: "LOCKED · UNSURE", body: "How sure the key is, as a %. LOCKED = confident. UNSURE = a close call, so check the runner-up keys.")
-    static let topKeys = HelpTip(title: "TOP KEYS", body: "The three likeliest keys and how sure Beat Key is of each. Click 2 or 3 to use that key instead.")
+    static let topKeys = HelpTip(title: "TOP KEYS", body: "The three likeliest keys and how sure Beat Key is of each. Click 2 or 3 to use that key: it turns white, marked MANUAL.")
     static let manual = HelpTip(title: "MANUAL", body: "Pick the key by hand from all 24. Your pick becomes the key and helps teach Beat Key.")
+    /// Manual Key Selection: the dial's hover card while a key is selected manually (shown help
+    /// mode or not, like the wheel's cards; J 2026-11-09 15:19, his words).
+    static let manualReset = HelpTip(title: "MANUAL KEY", body: "Click to reset manual selection.")
+    /// The line the wheel's hover card adds on the manually selected key (J's words).
+    static let manualLocked = "Locked to this key because it was selected manually."
+    /// What a click on that white section does, after the locked line.
+    static let manualWheelReset = "Click it again to reset: Beat Key goes back to detecting the key."
     static let keyboard = HelpTip(title: "KEYBOARD", body: "The key's scale, root dotted. Play notes on your Mac keys A W S E D F T G Y H U J K: the last note is the root. Space flips major/minor.")
     static let scale = HelpTip(title: "SCALE", body: "The key's seven notes, spelled the way the key is written.")
     static let tuning = HelpTip(title: "TUNING", body: "How far the track sits from standard pitch, in cents; A4 is the concert pitch it implies. Green = in tune.")
@@ -92,7 +99,7 @@ enum HelpText {
     static let help = HelpTip(title: "HELP", body: "Help is on: hover anything to see what it does. Click again to turn it off.")
 
     // Advanced mode
-    static let keyWheel = HelpTip(title: "KEY WHEEL", body: "Circle of fifths: majors outside, minors inside. The key is lit, runner-ups dim, keys that fit it outlined. Click a key to use it.")
+    static let keyWheel = HelpTip(title: "KEY WHEEL", body: "Circle of fifths, majors outside. The key is lit, runner-ups dim, fits outlined. Click a key to use it (white); again to reset.")
     static let notesHeard = HelpTip(title: "NOTES HEARD", body: "How strongly each note was heard. Bright, dotted notes belong to the key's scale.")
     static let chords = HelpTip(title: "CHORDS", body: "The key's chords. Click one to hear it; drag it into your DAW or Finder for a MIDI clip.")
     static let quality = HelpTip(title: "TRIAD · 7TH · 9TH", body: "Chord size: three notes, add the 7th, or add the 7th and 9th.")
@@ -106,7 +113,7 @@ enum HelpText {
     static let miniSound = HelpTip(title: "SOUND", body: "Also plays the chords on Beat Key's own piano. Leave it off when your DAW's instrument is playing them.")
 
     static let all: [HelpTip] = [
-        bpm, pitchToFit, tempoFactor, keyDial, confidence, topKeys, manual, keyboard, scale, tuning, camelot,
+        bpm, pitchToFit, tempoFactor, keyDial, confidence, topKeys, manual, manualReset, keyboard, scale, tuning, camelot,
         fileLine, showInFinder, status, linkField, download, openAudio, findKey, analyzeFile, source, listen,
         hold, reset, sendDAW, autoTune, exportMidi, recent, settings, color, advanced, window, quit, help, keyWheel, notesHeard,
         chords, quality, voicing, bars, borrowed, matchTo, matchShift, mini, miniPanel, miniSound,

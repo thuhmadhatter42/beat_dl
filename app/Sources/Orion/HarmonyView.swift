@@ -62,11 +62,20 @@ struct HarmonyPanel: View {
 
     // MARK: the wheel and the notes heard
 
+    private var wheel: KeyWheel { HarmonyPanel.wheel(state) }
+
+    /// The wheel: a click sets Manual Key Selection; a click on the white (manual) section clears it.
+    static func wheel(_ state: PocketState, settings: SpellingSettings = .shared) -> KeyWheel {
+        let r = state.result
+        return KeyWheel(keys: r?.keys ?? [], manual: state.manualKey,
+                        onChoose: r.map { r in { k in _ = settings.setManualKey(k, of: r, from: .wheel) } },
+                        onClear: r.map { r in { _ = settings.clearManualKey(of: r, from: .wheelReset) } })
+    }
+
     @ViewBuilder private var wheelAndNotes: some View {
         if compact {
             ZStack(alignment: .topLeading) {
-                KeyWheel(keys: state.result?.keys ?? [],
-                         onChoose: state.result.map { r in { k in SpellingSettings.shared.choose(k, of: r, from: "the pocket's key wheel") } })
+                wheel
                     .frame(width: KeyWheel.side, height: KeyWheel.side)
                     .frame(maxWidth: .infinity)
                 Text.cap("KEY WHEEL").helpTip(HelpText.keyWheel)
@@ -80,8 +89,7 @@ struct HarmonyPanel: View {
         HStack(alignment: .top, spacing: Theme.S.l) {
             VStack(alignment: .leading, spacing: Theme.S.s) {
                 Text.cap("KEY WHEEL").helpTip(HelpText.keyWheel)
-                KeyWheel(keys: state.result?.keys ?? [],
-                         onChoose: state.result.map { r in { k in SpellingSettings.shared.choose(k, of: r, from: "the key wheel") } })
+                wheel
                     .frame(width: KeyWheel.side, height: KeyWheel.side)
             }
             if let chroma = state.result?.chroma, chroma.count == 12 {
@@ -351,7 +359,11 @@ struct MatchToRow: View {
 /// click on key 2 or 3).
 struct KeyWheel: View {
     let keys: [(String, Int)]
+    /// Manual Key Selection on show: its section is lit white (not the display colour), hovering
+    /// it swaps its name for the reset arrow, and a click there clears it (`onClear`).
+    var manual: ManualKey? = nil
     var onChoose: ((String) -> Void)? = nil
+    var onClear: (() -> Void)? = nil
 
     static let side: CGFloat = 216
     /// Three circles (J, 2026-11-09): the centre holds the Camelot code, minors fill the ring between
@@ -381,16 +393,42 @@ struct KeyWheel: View {
 
     /// The section under the mouse: slot index * 2 + (minor ? 1 : 0). nil = none.
     @State private var hovered: Int?
+    /// Offscreen renders: "wheel" hovers the manual section.
+    @Environment(\.manualHoverForced) private var forcedHover
+
+    /// The manual section's id (slot index * 2 + minor); nil = no Manual Key Selection.
+    var manualSection: Int? {
+        guard let m = manual, let i = (0..<12).first(where: { KeyWheel.slot($0, minor: m.minor).pc == m.pitchClass })
+        else { return nil }
+        return i * 2 + (m.minor ? 1 : 0)
+    }
+
+    /// A click on section `id` (slot index * 2 + minor): the white (manual) section clears Manual
+    /// Key Selection, any other makes its key the manual one. A section that does not resolve to a
+    /// key is logged as an error and changes nothing.
+    func click(_ id: Int) {
+        guard (0..<24).contains(id) else {
+            AppLog.log("ERROR manual key selection: key wheel section \(id) does not resolve to a key; unchanged")
+            return
+        }
+        if id == manualSection, let clear = onClear { clear(); return }
+        let s = KeyWheel.slot(id / 2, minor: id % 2 == 1)
+        onChoose?(KeyWheel.name(s.pc, minor: s.minor))
+    }
 
     var body: some View {
         let fit = fits
+        let hover = forcedHover == "wheel" ? manualSection : hovered
         ZStack {
             ForEach(0..<12, id: \.self) { i in
                 ForEach([false, true], id: \.self) { minor in
                     let s = KeyWheel.slot(i, minor: minor)
                     KeyWheelSection(index: i, minor: minor, rank: rank(s.pc, minor: minor),
                                     fit: fit.contains(WheelKey(s.pc, minor: minor)),
-                                    hover: hovered == i * 2 + (minor ? 1 : 0), onChoose: onChoose)
+                                    manual: manual?.isKey(s.pc, minor: minor) ?? false,
+                                    hover: hover == i * 2 + (minor ? 1 : 0),
+                                    onChoose: onChoose.map { _ in { _ in click(i * 2 + (minor ? 1 : 0)) } },
+                                    onClear: onClear.map { _ in { click(i * 2 + (minor ? 1 : 0)) } })
                 }
             }
             KeyWheelGrid().allowsHitTesting(false)
@@ -406,7 +444,7 @@ struct KeyWheel: View {
         }
         .frame(width: KeyWheel.side, height: KeyWheel.side)
         // the hover card rides the surface's card layer, at the mouse (Help.swift)
-        .hoverCard(hovered.map(tip(for:)), width: 196)
+        .hoverCard(hover.map(tip(for:)), width: 196)
         .accessibilityElement(children: .contain)
         .accessibility(label: Text("Key wheel"))
     }
@@ -444,6 +482,8 @@ struct KeyWheel: View {
 
     /// How sure the reading is of this key (0-100), nil = not one of its top three.
     func percent(_ pc: Int, minor: Bool) -> Int? {
+        // the manual key: the analyzer's own %, never the 0 it sits at when it was not detected
+        if let m = manual, m.isKey(pc, minor: minor) { return m.detected }
         for k in keys.prefix(3) {
             if let c = AutoTuneSend.keyClass(k.0), c.pitchClass == pc, c.minor == minor { return k.1 }
         }
@@ -454,6 +494,10 @@ struct KeyWheel: View {
     func info(_ pc: Int, minor: Bool) -> (title: String, why: String) {
         let name = KeyWheel.name(pc, minor: minor)
         let title = percent(pc, minor: minor).map { "\(name) · \($0)% SURE" } ?? name
+        if let m = manual, m.isKey(pc, minor: minor) {
+            // Manual Key Selection (J 2026-11-09 15:19): the lock line, then what a click does
+            return (title, "\(HelpText.manualLocked) \(HelpText.manualWheelReset)")
+        }
         guard let k = keys.first?.0, let t = AutoTuneSend.keyClass(k) else {
             return (title, "Click to use it as the key.")
         }
@@ -544,8 +588,11 @@ private struct KeyWheelSection: View {
     let minor: Bool
     let rank: Int?
     let fit: Bool
+    /// The Manual Key Selection: lit white instead of the display colour.
+    var manual = false
     let hover: Bool
     let onChoose: ((String) -> Void)?
+    var onClear: (() -> Void)? = nil
 
     var body: some View {
         let s = KeyWheel.slot(index, minor: minor)
@@ -553,17 +600,29 @@ private struct KeyWheelSection: View {
         let inner = minor ? KeyWheel.innerRadius : KeyWheel.middleRadius
         let outer = minor ? KeyWheel.middleRadius : KeyWheel.outerRadius
         let shape = RingSector(index: index, inner: inner, outer: outer)
-        let fill: Color = rank == 0 ? Theme.A.a1 : (rank == 1 || (hover && onChoose != nil)) ? Theme.A.a4 : .clear
+        let fill: Color = manual ? ManualLook.white
+            : rank == 0 ? Theme.A.a1 : (rank == 1 || (hover && onChoose != nil)) ? Theme.A.a4 : .clear
         let mid = Double(index) * .pi / 6, r = (inner + outer) / 2
-        let ink: Color = rank == 0 ? Theme.A.ink : (rank == 1 || hover) ? Theme.A.a1 : fit ? Theme.A.a2 : Theme.A.a3
-        let label = Text(name).font(Theme.face(minor ? Theme.T.captionSize : Theme.T.valueSize))
-            .lineLimit(1).minimumScaleFactor(0.8)
+        let ink: Color = manual ? ManualLook.ink
+            : rank == 0 ? Theme.A.ink : (rank == 1 || hover) ? Theme.A.a1 : fit ? Theme.A.a2 : Theme.A.a3
+        let glow: Color = manual ? ManualLook.glow : rank == 0 && !Theme.highContrast ? Theme.amberGlow : .clear
+        // Manual Key Selection hovered: the name gives way to the reset arrow (Motion.hover)
+        let resetting = manual && hover && onClear != nil
+        let label = ZStack {
+            Text(name).font(Theme.face(minor ? Theme.T.captionSize : Theme.T.valueSize))
+                .lineLimit(1).minimumScaleFactor(0.8)
+                .opacity(resetting ? 0 : 1)
+            Image(systemName: ManualLook.resetSymbol)
+                .font(.system(size: minor ? 10 : 13, weight: .bold))
+                .opacity(resetting ? 1 : 0)
+        }
             .foregroundColor(ink)
             .frame(width: minor ? 30 : 36)
             .offset(x: CGFloat(sin(mid)) * r, y: -CGFloat(cos(mid)) * r)
+            .animation(Theme.Motion.hover, value: resetting)
         let body = ZStack {
             shape.fill(fill)
-                .shadow(color: rank == 0 && !Theme.highContrast ? Theme.amberGlow : .clear, radius: 5)
+                .shadow(color: glow, radius: 5)
             if fit && rank == nil {
                 RingSector(index: index, inner: inner, outer: outer, inset: 2.5)
                     .stroke(Theme.A.a3, lineWidth: 1)
@@ -573,12 +632,21 @@ private struct KeyWheelSection: View {
         .frame(width: KeyWheel.side, height: KeyWheel.side)
         .contentShape(shape)
         .animation(Theme.Motion.swap, value: rank)
+        .animation(Theme.Motion.swap, value: manual)
         .animation(Theme.Motion.swap, value: fit)
-        .animation(.easeOut(duration: 0.1), value: hover)
+        .animation(Theme.Motion.hover, value: hover)
         let spoken = "\(KeyChoice.keyName(s.pc, minor: minor).replacingOccurrences(of: "m", with: "")) \(minor ? "minor" : "major")"
-        let role = rank == 0 ? ", the key" : rank == 1 ? ", a runner-up" : fit ? ", fits the key" : ""
+        let role = manual ? ", the key, selected manually" : rank == 0 ? ", the key" : rank == 1 ? ", a runner-up" : fit ? ", fits the key" : ""
         return Group {
-            if let choose = onChoose {
+            if manual, let clear = onClear {
+                // a click on the white section clears Manual Key Selection
+                Button(action: clear) { body }
+                    .buttonStyle(KeyWheelPress())
+                    .pointingHand()
+                    .accessibility(label: Text(spoken + role))
+                    .accessibility(hint: Text("Resets the manual selection: Beat Key detects the key again"))
+                    .accessibility(addTraits: .isSelected)
+            } else if let choose = onChoose {
                 Button(action: { choose(name) }) { body }
                     .buttonStyle(KeyWheelPress())
                     .pointingHand()

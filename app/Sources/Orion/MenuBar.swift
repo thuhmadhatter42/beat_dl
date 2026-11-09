@@ -501,6 +501,10 @@ extension PocketState {
         s.advanced = display.advanced
         s.harmony = HarmonyPrefs(display)
         s.help = help.isOn
+        // only while the readout shows that reading (not a drop hover, an error, working)
+        if s.result != nil {
+            s.manualKey = ManualKey.of(spelling.manualKey, raw: KeyTeach.raw(engine.state, live: live.state, page: model.pager))
+        }
         return s
     }
 }

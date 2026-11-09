@@ -49,15 +49,23 @@ struct KeyChoice: Equatable {
 
     /// All 24 keys in that spelling: the 12 majors from C, then the 12 minors from C.
     static let allKeys: [String] = (0..<12).map { keyName($0, minor: false) } + (0..<12).map { keyName($0, minor: true) }
+
+    /// This choice belongs to reading `r` (same file and name).
+    func matches(_ r: Result) -> Bool { file == r.file && name == r.name }
+
+    /// This choice is key `name` (any spelling).
+    func isKey(_ name: String) -> Bool {
+        AutoTuneSend.keyClass(name).map { $0.pitchClass == pitchClass && $0.minor == minor } ?? false
+    }
 }
 
 extension Result {
     /// The reading as shown: the chosen key (if any) moved to the front, then every key name in
     /// `spelling` (nil = untouched). A chosen key the analyzer did not list (taught with "Wrong,
     /// it's X" or played on the keyboard) goes in front at 0 %, and the list keeps its length.
-    func respelled(_ spelling: KeySpelling?, choice: KeyChoice? = SpellingSettings.shared.chosen) -> Result {
+    func respelled(_ spelling: KeySpelling?, choice: KeyChoice? = SpellingSettings.shared.manualKey) -> Result {
         var ks = keys
-        if let c = choice, c.file == file, c.name == name {
+        if let c = choice, c.matches(self) {
             if let i = ks.firstIndex(where: { AutoTuneSend.keyClass($0.0).map { $0.pitchClass == c.pitchClass && $0.minor == c.minor } ?? false }) {
                 if i > 0 { ks.insert(ks.remove(at: i), at: 0) }
             } else {
@@ -84,20 +92,14 @@ final class SpellingSettings: ObservableObject {
         }
     }
 
-    /// The key clicked in the top 3 for the reading on show; nil = the analyzer's order.
-    @Published var chosen: KeyChoice?
+    /// Manual Key Selection: the key the user forced for the reading on show (a key wheel click,
+    /// a top-3 click, the MANUAL menu, play-to-find on the keyboard). The one state every path
+    /// sets and clears (ManualKeySelection.swift); nil = Beat Key's own detection.
+    @Published var manualKey: KeyChoice?
 
-    /// Fires on a spelling change or a key choice (both change what every readout shows).
+    /// Fires on a spelling change or a Manual Key Selection (both change what every readout shows).
     var changes: AnyPublisher<KeySpelling?, Never> {
-        $preference.combineLatest($chosen).map { $0.0 }.eraseToAnyPublisher()
-    }
-
-    /// `key` (any spelling) becomes THE key of `result`: a click on one of the top 3, a "Wrong,
-    /// it's X" pick, or a key played on the computer keyboard. The one override path.
-    func choose(_ key: String, of result: Result, from place: String? = nil) {
-        guard let k = AutoTuneSend.keyClass(key) else { return }
-        if let place { AppLog.log("key chosen from \(place)") }
-        chosen = KeyChoice(file: result.file, name: result.name, pitchClass: k.pitchClass, minor: k.minor)
+        $preference.combineLatest($manualKey).map { $0.0 }.eraseToAnyPublisher()
     }
 
     init(defaults: UserDefaults = .standard) {

@@ -205,7 +205,7 @@ final class PlayToFind {
     private func apply(_ r: Result?) {
         guard let key = state.key else { return }
         guard let r else { AppLog.log("play-to-find: no reading, key not set (\(key))"); return }   // the notes sound
-        SpellingSettings.shared.choose(key, of: r)
+        SpellingSettings.shared.setManualKey(key, of: r, from: .keyboard)
         AppLog.log("play-to-find: key set to \(key)")
     }
 }

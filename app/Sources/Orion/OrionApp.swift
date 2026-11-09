@@ -141,7 +141,7 @@ struct OrionApp: App {
         return {
             guard l.state.isActive else { NSSound.beep(); return }
             m.tempoFactor = .one
-            SpellingSettings.shared.chosen = nil
+            if SpellingSettings.shared.manualKey != nil { SpellingSettings.shared.clearManualKey(of: nil, from: .newSong) }
             l.reset()
         }
     }

@@ -43,8 +43,8 @@ final class KeyChoiceTests: XCTestCase {
 
     func testChooseRecordsTheReading() {
         let s = SpellingSettings(defaults: UserDefaults(suiteName: "KeyChoiceTests")!)
-        s.choose("G#", of: r)
-        XCTAssertEqual(s.chosen, KeyChoice(file: r.file, name: r.name, pitchClass: 8, minor: false))
+        s.setManualKey("G#", of: r, from: .topKeys)
+        XCTAssertEqual(s.manualKey, KeyChoice(file: r.file, name: r.name, pitchClass: 8, minor: false))
     }
 }
 

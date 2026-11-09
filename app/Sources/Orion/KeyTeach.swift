@@ -209,7 +209,7 @@ enum KeyTeach {
         guard let r = raw(engine.state, live: live.state, page: model.pager) else {
             AppLog.log("teach: no reading on show"); NSSound.beep(); return
         }
-        SpellingSettings.shared.choose(key, of: r)
+        guard SpellingSettings.shared.setManualKey(key, of: r, from: .dropdown) else { return }   // logged; nothing changes
         let source: TeachSource
         let audio: TeachAudio
         if live.state.isActive {

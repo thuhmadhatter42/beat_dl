@@ -690,8 +690,7 @@ struct KeyStrip: View {
                 }
             }
             .frame(height: KeyStrip.ruleRowHeight)
-            TopKeys(keys: state.result?.keys ?? [],
-                    onChoose: state.result.map { r in { k in SpellingSettings.shared.choose(k, of: r, from: "top keys") } })
+            KeyStrip.topKeys(state)
                 .helpTip(HelpText.topKeys)
                 .padding(.top, Theme.S.s)
             NoteKeyboard(scale: state.scale).frame(height: keyboardHeight).helpTip(HelpText.keyboard)
@@ -699,6 +698,12 @@ struct KeyStrip: View {
             scaleLine.padding(.top, Theme.S.s)
             TuningMeterRow(meter: state.options?.tuning).padding(.top, Theme.S.s)
         }
+    }
+
+    /// TOP KEYS: a click on 2 or 3 sets Manual Key Selection.
+    static func topKeys(_ state: PocketState, settings: SpellingSettings = .shared) -> TopKeys {
+        TopKeys(keys: state.result?.keys ?? [], manual: state.manualKey,
+                onChoose: state.result.map { r in { k in _ = settings.setManualKey(k, of: r, from: .topKeys) } })
     }
 
     /// "C minor  C D E♭ F G A♭ B♭": the key's name and its notes (nothing until there is a key).
@@ -871,9 +876,22 @@ struct Dial: View {
     /// The pocket's dial has no room for a word under the %.
     private var compact: Bool { side < 120 }
 
+    /// The mouse is over the dial (only acted on during a Manual Key Selection).
+    @State private var hovering = false
+    @State private var cursorPushed = false
+    /// Offscreen renders: "dial" draws the dial hovered.
+    @Environment(\.manualHoverForced) private var forcedHover
+
+    /// Manual Key Selection on show (J 2026-11-09 15:19): key, ring and status line go white, the
+    /// status says MANUAL (no lamp, no %: the % is Beat Key's confidence, not the user's).
+    var manual: Bool { state.manualKey != nil && state.result?.keys.first != nil }
+    /// Manual and hovered: the key name gives way to the reset arrow, a click clears it.
+    var resetting: Bool { manual && (hovering || forcedHover == "dial") }
+
     var body: some View {
         let lamp = state.lamp
-        let color = isWorking ? Theme.amber : (lamp.map { $0.color } ?? Theme.amber)
+        let manual = self.manual
+        let color = manual ? ManualLook.white : isWorking ? Theme.amber : (lamp.map { $0.color } ?? Theme.amber)
         let key = state.result?.keys.first?.0
         ZStack {
             // ticks
@@ -885,13 +903,15 @@ struct Dial: View {
             }
             Circle().stroke(Theme.A.a5, lineWidth: 5).padding(12)
             if let c = state.confidence {
-                // the arc eases to each new confidence; its colour crossfades with the lamp
-                Circle().trim(from: 0, to: CGFloat(c))
+                // the arc eases to each new confidence; its colour crossfades with the lamp. Manual
+                // Key Selection: a closed white ring (locked by the user, not a confidence)
+                Circle().trim(from: 0, to: manual ? 1 : CGFloat(c))
                     .stroke(color, style: StrokeStyle(lineWidth: 5, lineCap: .round))
                     .animation(Theme.Motion.swap, value: lamp)
+                    .animation(Theme.Motion.swap, value: manual)
                     .rotationEffect(.degrees(-90))
                     .padding(12)
-                    .shadow(color: Theme.highContrast ? .clear : color.opacity(0.7), radius: 4)
+                    .shadow(color: Theme.highContrast ? .clear : color.opacity(manual ? 0.45 : 0.7), radius: 4)
                     .animation(Theme.Motion.value, value: c)
             } else if lamp == .listening {
                 // listening / working with no key yet: a short arc going round
@@ -905,7 +925,12 @@ struct Dial: View {
             }
             VStack(spacing: Theme.S.xs) {
                 keyButton(key)
-                if let c = state.confidence, key != nil {
+                if manual {
+                    // MANUAL in white where LOCKED / UNSURE / the % would be, no lamp glyph
+                    Text(ManualLook.word).captionStyle().foregroundColor(ManualLook.white)
+                        .lineLimit(1).fixedSize()
+                        .transition(.opacity)
+                } else if let c = state.confidence, key != nil {
                     // the pocket's dial is too small for a word under the %: its lamp shape sits
                     // beside the number instead (the word stays in the VoiceOver label)
                     HStack(spacing: Theme.S.xs) {
@@ -922,7 +947,7 @@ struct Dial: View {
                     .helpTip(HelpText.confidence)
                 }
                 // LOCKED / UNSURE / HELD crossfade (Motion.swap), the small label under the %
-                if !compact || key == nil || state.confidence == nil {
+                if !manual && (!compact || key == nil || state.confidence == nil) {
                     Crossfade(key != nil ? lamp.map { state.held ? "HELD" : $0.spoken.uppercased() } ?? "KEY" : "KEY") { _ in
                         if let l = lamp, key != nil {
                             HStack(spacing: Theme.S.xs) {
@@ -938,10 +963,31 @@ struct Dial: View {
                 }
             }
             .frame(width: side - 32)
+            .animation(Theme.Motion.swap, value: manual)
         }
+        .contentShape(Circle())
+        .onHover(perform: hover)
+        .onTapGesture { resetManual() }
+        // the reset card wins over the dial's help tip (an inner anchor wins); shown help mode or not
+        .hoverCard(resetting ? HelpText.manualReset : nil)
         .accessibilityElement(children: .ignore)
         .accessibility(label: Text(dialLabel))
+        .accessibilityAction(named: Text("Reset manual selection")) { resetManual() }
         .helpTip(HelpText.keyDial)
+    }
+
+    /// The pointing hand only while a click would reset (balanced push / pop).
+    private func hover(_ inside: Bool) {
+        hovering = inside
+        if inside && manual && !cursorPushed { NSCursor.pointingHand.push(); cursorPushed = true }
+        if !inside && cursorPushed { NSCursor.pop(); cursorPushed = false }
+    }
+
+    /// A click on the dial during a Manual Key Selection: clear it, detection takes over again.
+    /// Not manual = nothing (the dial behaves as it always has).
+    func resetManual(_ settings: SpellingSettings = .shared) {
+        guard manual else { return }
+        settings.clearManualKey(of: state.result, from: .dialReset)
     }
 
     private var isWorking: Bool {
@@ -952,13 +998,26 @@ struct Dial: View {
     /// The big key; a click on a black-key tonic switches sharp / flat.
     @ViewBuilder private func keyButton(_ key: String?) -> some View {
         // a new key crossfades over the old one in the same spot (Motion.swap)
+        let manual = self.manual
         let text = Crossfade(key ?? "--") { k in
             Text(k).font(Theme.face(keySize))
-                .foregroundColor(key == nil ? Theme.A.a4 : Theme.A.a1)
+                .foregroundColor(key == nil ? Theme.A.a4 : manual ? ManualLook.white : Theme.A.a1)
                 .lineLimit(1).minimumScaleFactor(0.6)
-                .modifier(PocketGlow(on: key != nil))
+                .modifier(PocketGlow(on: key != nil && !manual))
+                .shadow(color: manual ? ManualLook.glow : .clear, radius: 3)
         }
-        if state.canRespell {
+        if manual {
+            // hovered: the name crossfades to the reset arrow (Motion.hover); the dial takes the click
+            ZStack {
+                text.opacity(resetting ? 0 : 1)
+                Image(systemName: ManualLook.resetSymbol)
+                    .font(.system(size: keySize * 0.7, weight: .bold))
+                    .foregroundColor(ManualLook.white)
+                    .shadow(color: ManualLook.glow, radius: 3)
+                    .opacity(resetting ? 1 : 0)
+            }
+            .animation(Theme.Motion.hover, value: resetting)
+        } else if state.canRespell {
             Button(action: actions.respellKey) { text.contentShape(Rectangle()) }
                 .buttonStyle(PlainButtonStyle())
                 .pointingHand()
@@ -969,6 +1028,7 @@ struct Dial: View {
 
     private var dialLabel: String {
         guard let k = state.result?.keys.first else { return state.lamp == .listening ? "Listening" : "No key yet" }
+        if manual { return "Key \(k.0), selected manually. Click to reset manual selection" }
         return "Key \(k.0), \(k.1) percent" + (state.lamp.map { ", \($0.spoken)" } ?? "")
             + (state.held ? ", held" : "")
             + (state.canRespell ? ". Click to switch between sharp and flat spelling" : "")
@@ -1217,7 +1277,30 @@ struct PageArrow: View {
 /// the group. Groups sit `groupGap` apart, far more than anything inside a group (proximity).
 struct TopKeys: View {
     let keys: [(String, Int)]
+    /// Manual Key Selection (J 2026-11-09 15:19): it sits first, its name white and MANUAL where
+    /// the % would be (no made-up number, an empty bar); the detected keys after it keep the
+    /// analyzer's order and real %, so an 80 % key in slot 2 reads as "detected, but overruled".
+    var manual: ManualKey? = nil
     var onChoose: ((String) -> Void)? = nil
+
+    /// Slot `i` is the Manual Key Selection.
+    static func isManual(_ i: Int, keys: [(String, Int)], manual: ManualKey?) -> Bool {
+        i == 0 && !keys.isEmpty && (manual?.isKey(keys[0].0) ?? false)
+    }
+
+    /// What slot `i` shows after its name: MANUAL for the manual key, else its %.
+    static func label(_ i: Int, keys: [(String, Int)], manual: ManualKey?) -> String? {
+        guard i < keys.count else { return nil }
+        return isManual(i, keys: keys, manual: manual) ? ManualLook.word : "\(keys[i].1)%"
+    }
+
+    /// VoiceOver: "Top keys: Am, selected manually, Ebm 80 percent, Gb 9 percent".
+    static func spoken(keys: [(String, Int)], manual: ManualKey?) -> String {
+        guard !keys.isEmpty else { return "No keys yet" }
+        return "Top keys: " + keys.prefix(3).enumerated().map { i, k in
+            isManual(i, keys: keys, manual: manual) ? "\(k.0), selected manually" : "\(k.0) \(k.1) percent"
+        }.joined(separator: ", ")
+    }
 
     /// Between the three groups.
     static let groupGap: CGFloat = Theme.S.xl
@@ -1243,27 +1326,35 @@ struct TopKeys: View {
         // percentages count and bars ease between readings; the first reading lands at once
         .liveAnimation(Theme.Motion.value, value: keys.prefix(3).map { $0.1 }, live: !keys.isEmpty)
         .accessibilityElement(children: .ignore)
-        .accessibility(label: Text(keys.isEmpty ? "No keys yet"
-            : "Top keys: " + keys.prefix(3).map { "\($0.0) \($0.1) percent" }.joined(separator: ", ")))
+        .accessibility(label: Text(TopKeys.spoken(keys: keys, manual: manual)))
     }
 
     private func cell(_ i: Int, _ k: (String, Int)?) -> some View {
         let first = i == 0
+        let isManual = TopKeys.isManual(i, keys: keys, manual: manual)
         return VStack(alignment: .leading, spacing: Theme.S.s) {
             HStack(alignment: .firstTextBaseline, spacing: 0) {
                 Text("\(i + 1)").font(Theme.T.caption.monospacedDigit()).foregroundColor(Theme.A.a3)
                     .padding(.trailing, TopKeys.rankGap)
                 Crossfade(k?.0 ?? " ", alignment: .leading) { name in
                     Text(name).font(Theme.T.title)
-                        .foregroundColor(first ? Theme.A.a1 : Theme.A.a2)
+                        .foregroundColor(isManual ? ManualLook.white : first ? Theme.A.a1 : Theme.A.a2)
                         .lineLimit(1).minimumScaleFactor(0.7)
                 }
                 .padding(.trailing, TopKeys.percentGap)
-                Color.clear.frame(width: 0, height: 0)
-                    .modifier(CountingNumber(value: Double(k?.1 ?? 0), suffix: "%"))
-                    .font(Theme.T.value.monospacedDigit())
-                    .foregroundColor(first ? Theme.A.a2 : Theme.A.a3)
-                    .fixedSize()
+                // MANUAL in place of the manual key's % (crossfades with Motion.swap)
+                Crossfade(isManual, alignment: .leading) { m in
+                    if m {
+                        Text(ManualLook.word).captionStyle().foregroundColor(ManualLook.white)
+                            .lineLimit(1).fixedSize()
+                    } else {
+                        Color.clear.frame(width: 0, height: 0)
+                            .modifier(CountingNumber(value: Double(k?.1 ?? 0), suffix: "%"))
+                            .font(Theme.T.value.monospacedDigit())
+                            .foregroundColor(first ? Theme.A.a2 : Theme.A.a3)
+                            .fixedSize()
+                    }
+                }
                 Spacer(minLength: 0)
             }
             // a name of another width: its percent slides along with the crossfade (Motion.swap)
@@ -1271,8 +1362,9 @@ struct TopKeys: View {
             GeometryReader { g in
                 ZStack(alignment: .leading) {
                     Capsule().fill(Theme.A.a5)
+                    // the manual key has no detection % to draw: an empty track
                     Capsule().fill(first ? Theme.A.a1 : Theme.A.a3)
-                        .frame(width: g.size.width * CGFloat(min(100, max(0, k?.1 ?? 0))) / 100)
+                        .frame(width: isManual ? 0 : g.size.width * CGFloat(min(100, max(0, k?.1 ?? 0))) / 100)
                 }
             }
             .frame(height: 3)
