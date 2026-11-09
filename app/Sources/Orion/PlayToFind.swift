@@ -99,73 +99,10 @@ struct PlayState: Equatable {
     var key: String? { root.map { KeyChoice.keyName($0, minor: minor) } }
 }
 
-/// A small, quiet synth: a sine with a little second harmonic and a fast decay, through one
-/// AVAudioEngine that starts on the first note and stops after a few idle seconds.
-final class NoteSynth {
-    private var engine: AVAudioEngine?
-    private var player: AVAudioPlayerNode?
-    private var format: AVAudioFormat?
-    private var idle: Timer?
-    private var failedOnce = false
-    static let gain: Float = 0.12
-    static let seconds = 0.45
-
-    func play(midi: Int) {
-        guard ensureRunning(), let player, let format else { return }
-        let hz = 440 * pow(2, Double(midi - 69) / 12)
-        let rate = format.sampleRate
-        let n = AVAudioFrameCount(rate * NoteSynth.seconds)
-        guard let buf = AVAudioPCMBuffer(pcmFormat: format, frameCapacity: n) else { return }
-        buf.frameLength = n
-        let attack = rate * 0.005
-        for ch in 0..<Int(format.channelCount) {
-            guard let p = buf.floatChannelData?[ch] else { continue }
-            for i in 0..<Int(n) {
-                let t = Double(i) / rate
-                let env = min(1, Double(i) / attack) * exp(-t * 7)
-                let v = sin(2 * .pi * hz * t) + 0.3 * sin(4 * .pi * hz * t)
-                p[i] = Float(v * env) * NoteSynth.gain
-            }
-        }
-        player.scheduleBuffer(buf, at: nil, options: .interrupts, completionHandler: nil)
-        if !player.isPlaying { player.play() }
-        idle?.invalidate()
-        idle = Timer.scheduledTimer(withTimeInterval: 5, repeats: false) { [weak self] _ in self?.stop() }
-    }
-
-    private func ensureRunning() -> Bool {
-        if let e = engine, e.isRunning { return true }
-        let e = AVAudioEngine()
-        let p = AVAudioPlayerNode()
-        let out = e.outputNode.inputFormat(forBus: 0)
-        let rate = out.sampleRate > 0 ? out.sampleRate : 44100
-        guard let f = AVAudioFormat(standardFormatWithSampleRate: rate, channels: 2) else { return false }
-        e.attach(p)
-        e.connect(p, to: e.mainMixerNode, format: f)
-        do {
-            try e.start()
-        } catch {
-            if !failedOnce { AppLog.log("play-to-find: synth would not start: \(error.localizedDescription)") }
-            failedOnce = true
-            return false
-        }
-        engine = e; player = p; format = f
-        return true
-    }
-
-    func stop() {
-        idle?.invalidate(); idle = nil
-        player?.stop()
-        engine?.stop()
-        engine = nil; player = nil; format = nil
-    }
-}
-
 /// The key monitor: one local monitor for the window and the popover.
 final class PlayToFind {
     static let shared = PlayToFind()
     private(set) var state = PlayState()
-    private let synth = NoteSynth()
     private var monitor: Any?
     /// The reading on show (respelled, with any choice), and Send to Auto-Tune's own action.
     private var shown: () -> Result? = { nil }
@@ -254,7 +191,7 @@ final class PlayToFind {
             let keys = (r?.keys ?? []).filter { $0.1 > 0 }
             let midi = state.press(n, keys: keys)
             AppLog.log("play-to-find: note \(PlayToFind.noteName(midi))")
-            synth.play(midi: midi)
+            NoteSynth.shared.play(midi: midi)
             apply(r)
         case .toggleMode:
             guard r != nil else { AppLog.log("play-to-find: space ignored: no reading"); return e }   // let SPACE do what it did

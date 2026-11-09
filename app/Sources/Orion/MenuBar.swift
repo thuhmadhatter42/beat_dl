@@ -479,6 +479,8 @@ extension PocketState {
         s.newSongKeys = shortcuts.shortcut(.newSong)?.display
         s.held = live.isHeld
         s.holdKeys = shortcuts.shortcut(.hold)?.display
+        s.advanced = display.advanced
+        s.harmony = HarmonyPrefs(display)
         return s
     }
 }

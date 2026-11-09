@@ -80,7 +80,7 @@ struct SongLog {
         guard let r = best, wasGreen || lastSecs >= SongLog.minSecs,
               r.bpm != nil || !r.keys.isEmpty else { return nil }
         return Result(file: SongLog.file(started), name: displayName, bpm: r.bpm, keys: r.keys,
-                      bpmExact: r.bpmExact, tuningCents: r.tuningCents)
+                      bpmExact: r.bpmExact, tuningCents: r.tuningCents, chroma: r.chroma)
     }
 
     /// The title, else "Live 10:42 PM".

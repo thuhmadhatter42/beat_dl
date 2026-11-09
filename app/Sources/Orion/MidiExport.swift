@@ -2,7 +2,8 @@ import AppKit
 import SwiftUI
 
 /// File > Export MIDI Tempo/Key File…: a standard MIDI file (format 0) with a set-tempo and a
-/// key-signature meta event, for any DAW that imports tempo / key from MIDI. No notes.
+/// key-signature meta event, for any DAW that imports tempo / key from MIDI. The same writer
+/// makes Advanced mode's chord clips (ChordClip): the meta events, then the chord held.
 enum MidiExport {
     static let ticksPerQuarter: UInt16 = 480
 
@@ -26,10 +27,12 @@ enum MidiExport {
     }
 
     /// The file's bytes. `bpm` outside 1...1000 or nil writes no tempo event; an unknown key
-    /// writes no key event.
-    static func data(bpm: Double?, key: String?, trackName: String? = nil) -> Data {
+    /// writes no key event. `notes` (MIDI numbers, channel 1) start together at tick 0 and end
+    /// together at `noteTicks`; none = the tempo / key file.
+    static func data(bpm: Double?, key: String?, trackName: String? = nil,
+                     notes: [Int] = [], noteTicks: UInt32 = 0, velocity: UInt8 = 96) -> Data {
         var t = [UInt8]()
-        func event(_ bytes: [UInt8]) { t.append(0); t += bytes }   // every event at tick 0
+        func event(_ bytes: [UInt8], delta: UInt32 = 0) { t += varLen(delta); t += bytes }
         if let name = trackName, !name.isEmpty {
             let b = Array(name.utf8.prefix(120))
             event([0xFF, 0x03, UInt8(b.count)] + b)
@@ -42,11 +45,22 @@ enum MidiExport {
         if let key, let k = keySignature(key) {
             event([0xFF, 0x59, 0x02, UInt8(bitPattern: Int8(k.sharps)), k.minor ? 1 : 0])
         }
+        let held = notes.map { UInt8(clamping: max(0, min(127, $0))) }
+        for n in held { event([0x90, n, min(velocity, 127)]) }
+        for (i, n) in held.enumerated() { event([0x80, n, 0], delta: i == 0 ? noteTicks : 0) }
         event([0xFF, 0x2F, 0x00])
         var out = Data("MThd".utf8)
         out += be32(6) + be16(0) + be16(1) + be16(ticksPerQuarter)
         out += Data("MTrk".utf8) + be32(UInt32(t.count)) + Data(t)
         return out
+    }
+
+    /// A MIDI variable-length quantity (7 bits a byte, high bit = more follows).
+    static func varLen(_ v: UInt32) -> [UInt8] {
+        var bytes = [UInt8(v & 0x7F)]
+        var rest = v >> 7
+        while rest > 0 { bytes.insert(UInt8(rest & 0x7F) | 0x80, at: 0); rest >>= 7 }
+        return bytes
     }
 
     private static func be16(_ v: UInt16) -> Data { Data([UInt8(v >> 8), UInt8(v & 0xFF)]) }

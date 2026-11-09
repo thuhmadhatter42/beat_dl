@@ -83,8 +83,10 @@ struct OrionApp: App {
                 Button("Half / Double Tempo") { model.tempoFactor = model.tempoFactor.next }
                 DAWSendMenuItems(engine: engine, shortcuts: shortcuts)
             }
-            // View menu: the readout's accessibility switch (plan 5.1)
+            // View menu: Advanced Mode (orra-parity §2.1) and the readout's accessibility switch (plan 5.1)
             CommandGroup(before: .toolbar) {
+                Toggle("Advanced Mode", isOn: $display.advanced)
+                    .keyboardShortcut("a", modifiers: [.option, .command])
                 Toggle("High Contrast Readout", isOn: $display.highContrast)
             }
             // The app menu says Beat Key whatever the process is called (swift run = "Orion").
@@ -182,6 +184,13 @@ struct OrionApp: App {
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
                     NSApp.windows.forEach { $0.makeFirstResponder(nil) }
                 }
+            }
+            // ORION_FAKE_FLIP_MODE=1: Advanced Mode flips at 2 s and back at 5 s (screenshots of
+            // the window resizing between modes, no clicks needed); the saved setting ends as it was.
+            if env["ORION_FAKE_FLIP_MODE"] == "1" {
+                let d = display
+                DispatchQueue.main.asyncAfter(deadline: .now() + 2) { d.advanced.toggle() }
+                DispatchQueue.main.asyncAfter(deadline: .now() + 5) { d.advanced.toggle() }
             }
             if fake == "login-window" {   // the window LOG IN TO YOUTUBE opens (videos); saves nowhere real
                 let scratch = CookieFile(url: FileManager.default.temporaryDirectory

@@ -51,15 +51,7 @@ struct LCD: View {
         }
         .padding(.vertical, 16)
         .padding(.horizontal, 20)
-        // the glass
-        .overlay(Theme.vertical([(Color.white.opacity(Theme.highContrast ? 0 : 0.07), 0), (Color.white.opacity(0), 0.45)])
-            .allowsHitTesting(false))
-        .background(Theme.highContrast ? Theme.vertical([(Theme.black, 0), (Theme.black, 1)])
-                                       : Theme.vertical([(Theme.hex(0x0a0c09), 0), (Theme.hex(0x050604), 1)]))
-        .clipShape(shape)
-        .innerShadow(shape, Color.black.opacity(0.95), blur: 6, y: 2)
-        .innerShadow(shape, Color.white.opacity(0.03), blur: 0, y: -1)
-        .ring(radius: r, spread: 1, Theme.black)
+        .lcdGlass(radius: r)
         .background(highlighted ? AnyView(dropRing(shape)) : AnyView(EmptyView()))
     }
 
@@ -84,6 +76,22 @@ struct LCD: View {
         case let .login(a, b, c): LoginReadout(first: a, second: b, caption: c)
         case let .listening(status): ListeningReadout(status: status)
         }
+    }
+}
+
+extension View {
+    /// The window's amber-LCD glass: the near-black face, the sheen across its top, the recess
+    /// shadow and the black ring (the readout's and Advanced mode's harmony display).
+    func lcdGlass(radius r: CGFloat) -> some View {
+        let shape = RoundedRectangle(cornerRadius: r, style: .continuous)
+        return overlay(Theme.vertical([(Color.white.opacity(Theme.highContrast ? 0 : 0.07), 0), (Color.white.opacity(0), 0.45)])
+            .allowsHitTesting(false))
+        .background(Theme.highContrast ? Theme.vertical([(Theme.black, 0), (Theme.black, 1)])
+                                       : Theme.vertical([(Theme.hex(0x0a0c09), 0), (Theme.hex(0x050604), 1)]))
+        .clipShape(shape)
+        .innerShadow(shape, Color.black.opacity(0.95), blur: 6, y: 2)
+        .innerShadow(shape, Color.white.opacity(0.03), blur: 0, y: -1)
+        .ring(radius: r, spread: 1, Theme.black)
     }
 }
 
@@ -278,6 +286,7 @@ struct ResultReadout: View {
             HStack(alignment: .top, spacing: 22) {
                 bpmColumn
                 Dial(state: state, actions: actions).frame(width: 112, height: 112)
+                    .overlay(camelot, alignment: .leading)
             }
             .frame(height: 112)
             Spacer(minLength: 0)
@@ -297,10 +306,17 @@ struct ResultReadout: View {
                     TempoLight(period: period).padding(.leading, 2)
                 }
                 Spacer(minLength: 4)
-                HStack(spacing: 4) {
-                    ForEach([TempoFactor.half, .one, .double], id: \.self) { f in
-                        FactorChip(factor: f, on: f == options.factor, enabled: bpmShown != nil) { actions.setFactor(f) }
+                // Advanced mode: the x0.5 / x1 / x2 chips. Default: a click on the BPM cycles them
+                // (and Reading › Half / Double Tempo); only a factor other than x1 is tagged.
+                if state.advanced {
+                    HStack(spacing: 4) {
+                        ForEach([TempoFactor.half, .one, .double], id: \.self) { f in
+                            FactorChip(factor: f, on: f == options.factor, enabled: bpmShown != nil) { actions.setFactor(f) }
+                        }
                     }
+                } else if let tag = options.factor.label, bpmShown != nil {
+                    Text(tag).font(Theme.face(8).monospacedDigit()).foregroundColor(Theme.amber(0.7))
+                        .accessibility(label: Text(options.factor == .double ? "Double time" : "Half time"))
                 }
             }
             .frame(height: 15)
@@ -309,6 +325,14 @@ struct ResultReadout: View {
                 .accessibility(label: Text(bpmLabel))
             Spacer(minLength: 0)
             statusLine
+        }
+    }
+
+    /// Advanced mode: the key's Camelot code and its relative key, just left of the dial (below
+    /// the factor chips, clear of the BPM).
+    @ViewBuilder private var camelot: some View {
+        if state.advanced, let key = result.keys.first?.0, let code = Camelot.code(key) {
+            CamelotBadge(code: code, relative: Camelot.relative(key)).frame(width: 40).offset(x: -46, y: 6)
         }
     }
 

@@ -25,6 +25,12 @@ struct PocketActions {
     var sendAutoTune: () -> Bool = { true }
     var exportMidi: () -> Void = {}
     var showRecents: () -> Void = {}
+    /// Advanced mode (the window only): a click on a chord sounds it; a drag writes its MIDI clip
+    /// and hands the file over (nil = it could not be written); the chord / MATCH TO choices.
+    var playChord: (Chord) -> Void = { _ in }
+    var chordFile: (Chord) -> URL? = { _ in nil }
+    var setHarmony: (HarmonyPrefs) -> Void = { _ in }
+    var pickMatchKey: () -> Void = {}
     var openWindow: () -> Void = {}
     var settings: () -> Void = {}
     var quit: () -> Void = {}
@@ -539,10 +545,7 @@ struct KeyStrip: View {
             Rectangle().fill(Theme.amber(0.12)).frame(height: 1)
                 .overlay(teachButton.offset(y: -7), alignment: .trailing)
             TopKeys(keys: state.result?.keys ?? [],
-                    onChoose: state.result.map { r in { k in
-                        AppLog.log("key chosen from top keys")
-                        SpellingSettings.shared.choose(k, of: r)
-                    } })
+                    onChoose: state.result.map { r in { k in SpellingSettings.shared.choose(k, of: r, from: "top keys") } })
                 .padding(.top, 11)
             NoteKeyboard(scale: state.scale).frame(height: 44).padding(.top, 13)
             scaleLine.padding(.top, 7)
@@ -740,18 +743,35 @@ struct FactorChip: View {
     let enabled: Bool
     let action: () -> Void
     var body: some View {
+        LCDChip(title: factor.label ?? "×1", on: on, enabled: enabled,
+                label: factor == .one ? "Normal time" : factor == .double ? "Double time" : "Half time",
+                action: action)
+    }
+}
+
+/// A small amber segment on the LCD (the BPM's x0.5 / x1 / x2, Advanced mode's chord choices):
+/// filled when on, outlined when not, dim when there is nothing to act on.
+struct LCDChip: View {
+    let title: String
+    let on: Bool
+    var enabled = true
+    let label: String
+    var width: CGFloat = 26
+    let action: () -> Void
+    var body: some View {
         let shape = RoundedRectangle(cornerRadius: 3, style: .continuous)
         Button(action: { if enabled { action() } }) {
-            Text(factor.label ?? "×1").font(Theme.face(8).monospacedDigit())
+            Text(title).font(Theme.face(8).monospacedDigit()).tracking(title.count > 2 ? 0.8 : 0)
                 .foregroundColor(on && enabled ? Theme.hex(0x1a1206) : Theme.amber(enabled ? 0.5 : 0.2))
-                .frame(width: 26, height: 15)
+                .lineLimit(1)
+                .frame(width: width, height: 15)
                 .background(shape.fill(on && enabled ? Theme.amber : Theme.amber(0.06)))
                 .overlay(shape.stroke(Theme.amber(on && enabled ? 0 : 0.18), lineWidth: 1))
                 .contentShape(shape)
         }
         .buttonStyle(PlainButtonStyle())
         .pointingHand()
-        .accessibility(label: Text(factor == .one ? "Normal time" : factor == .double ? "Double time" : "Half time"))
+        .accessibility(label: Text(label))
         .accessibility(addTraits: on ? .isSelected : [])
     }
 }

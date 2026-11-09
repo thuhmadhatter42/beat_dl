@@ -67,7 +67,7 @@ extension Result {
         }
         if let spelling = spelling { ks = ks.map { (KeySpelling.respell($0.0, to: spelling), $0.1) } }
         return Result(file: file, name: name, bpm: bpm, keys: ks,
-                      readError: readError, bpmExact: bpmExact, tuningCents: tuningCents)
+                      readError: readError, bpmExact: bpmExact, tuningCents: tuningCents, chroma: chroma)
     }
 }
 
@@ -94,8 +94,9 @@ final class SpellingSettings: ObservableObject {
 
     /// `key` (any spelling) becomes THE key of `result`: a click on one of the top 3, a "Wrong,
     /// it's X" pick, or a key played on the computer keyboard. The one override path.
-    func choose(_ key: String, of result: Result) {
+    func choose(_ key: String, of result: Result, from place: String? = nil) {
         guard let k = AutoTuneSend.keyClass(key) else { return }
+        if let place { AppLog.log("key chosen from \(place)") }
         chosen = KeyChoice(file: result.file, name: result.name, pitchClass: k.pitchClass, minor: k.minor)
     }
 

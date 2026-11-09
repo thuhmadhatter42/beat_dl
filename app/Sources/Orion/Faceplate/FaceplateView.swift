@@ -60,8 +60,19 @@ struct FaceplateView: View {
 
     /// The content below the title bar (the window adds the 28 pt bar): the plate with the
     /// rail, the readout (dial, BPM, top keys, keyboard), the link / audio / listen rows, the
-    /// send caps and the footer links.
-    static let size = CGSize(width: 552, height: 732)
+    /// send caps and the footer links. Advanced mode adds the harmony column to the right: the
+    /// window grows wider, never taller (laptop screens have width to spare, not height).
+    static func size(advanced: Bool) -> CGSize {
+        CGSize(width: plateWidth(advanced: advanced) + 32, height: 732)
+    }
+    static let size = size(advanced: false)
+    /// The module column inside the plate's 12 pt padding (the default plate is 520).
+    static let moduleWidth: CGFloat = 520 - 24
+    static let columnGap: CGFloat = 12
+    /// The plate: the module, plus the gap and the harmony column in Advanced mode.
+    static func plateWidth(advanced: Bool) -> CGFloat {
+        advanced ? 520 + columnGap + HarmonyPanel.width : 520
+    }
     /// Every cap on the right of a field shares one width so the fields line up.
     static let capLegendWidth: CGFloat = 92
     /// The login cap's longer legend (8 pt) needs a wider cap.
@@ -78,10 +89,40 @@ struct FaceplateView: View {
         return s
     }
 
-    /// The shared wiring; the window runs the YouTube login itself (the popover sends it here).
+    /// The shared wiring; the window runs the YouTube login itself (the popover sends it here)
+    /// and owns Advanced mode's harmony column (the pocket has none).
     private var windowActions: PocketActions {
         var a = actions
         a.openLogin = openLogin
+        let (e, m, l, d) = (engine, model, live, display)
+        let shown = { PocketState.shown(e.state, live: l.state, page: m.pager) }
+        a.playChord = { chord in
+            let bpm = ChordClip.bpm(shown(), factor: m.tempoFactor)
+            AppLog.log("window: chord \(chord.asciiName) played (\(d.chordVoicing.rawValue), \(d.chordBars) bar)")
+            NoteSynth.shared.play(chord.notes(d.chordVoicing), seconds: ChordClip.hearSeconds(bars: d.chordBars, bpm: bpm))
+        }
+        a.chordFile = { chord in
+            let r = shown()
+            let bpm = ChordClip.bpm(r, factor: m.tempoFactor)
+            let url = ChordClip.write(chord, voicing: d.chordVoicing, bars: d.chordBars, bpm: bpm, key: r?.keys.first?.0)
+            if url != nil { AppLog.log("window: chord \(chord.asciiName) dragged as a MIDI clip") }
+            return url
+        }
+        a.setHarmony = { p in
+            AppLog.log("window: chords \(p.quality.rawValue) \(p.voicing.rawValue) \(p.bars) bar")
+            p.apply(to: d)
+        }
+        a.pickMatchKey = {
+            AppLog.log("window: match to menu")
+            let items = KeyChoice.allKeys.enumerated().flatMap { i, k -> [PopupMenu.Item] in
+                let item = PopupMenu.Item(title: k, checked: d.matchKey == k) {
+                    AppLog.log("window: match to \(k)")
+                    d.matchKey = k
+                }
+                return i == 12 ? [.separator, item] : [item]
+            }
+            PopupMenu.show(items + [.separator, PopupMenu.Item(title: "None", checked: d.matchKey == nil) { d.matchKey = nil }])
+        }
         return a
     }
 
@@ -198,11 +239,19 @@ struct FaceplateFace: View {
     }
 
     var body: some View {
+        let size = FaceplateView.size(advanced: state.advanced)
         VStack(spacing: 0) {
-            Plate {
+            Plate(width: FaceplateView.plateWidth(advanced: state.advanced)) {
                 VStack(spacing: 0) {
                     Rail(status: FaceplateFace.railStatus(state))
-                    module.padding(.top, 10)
+                    HStack(alignment: .top, spacing: FaceplateView.columnGap) {
+                        module.frame(width: FaceplateView.moduleWidth)
+                        if state.advanced {
+                            HarmonyPanel(state: state, actions: actions).frame(width: HarmonyPanel.width)
+                        }
+                    }
+                    .fixedSize(horizontal: false, vertical: true)
+                    .padding(.top, 10)
                     footer.padding(.top, 10)
                 }
             }
@@ -210,7 +259,7 @@ struct FaceplateFace: View {
             .padding(.horizontal, 16)
             .padding(.bottom, 16)
         }
-        .frame(width: FaceplateView.size.width, height: FaceplateView.size.height)
+        .frame(width: size.width, height: size.height)
         // the desk runs up under the hidden title bar; SwiftUI adds the bar's 28 pt to the window
         .background(Theme.desk.edgesIgnoringSafeArea(.all))
     }
@@ -292,10 +341,13 @@ struct FaceplateFace: View {
         .modulePanel()
     }
 
-    /// The popover's clipboard line; a quiet placeholder in its place so the rows never move.
+    /// The popover's clipboard line; with no link on the clipboard its slot stays (the rows never
+    /// move), blank in the default window, a quiet CLIPBOARD — placeholder in Advanced mode.
     @ViewBuilder private var clipboardSlot: some View {
         if ClipboardLine.shows(state, url: url) {
             ClipboardLine(state: state, actions: actions).padding(.horizontal, 2)
+        } else if !state.advanced {
+            Color.clear.accessibility(hidden: true)
         } else {
             HStack(spacing: 8) {
                 ClipboardLine.tag.opacity(0.6)
