@@ -1,6 +1,8 @@
 # PICKUP — beat_dl
 
-## CURRENT STATE — 2026-11-09 14:43
+## CURRENT STATE — 2026-11-09 15:36
+
+**0.1.55 installed + running (15:35:22, 386 tests pass, SIGN_OK): Manual Key Selection** (state SpellingSettings.manualKey via setManualKey/clearManualKey, ManualKeySelection.swift): wheel section white, hover card "Locked to this key because it was selected manually…", hovered name → reset icon, re-click clears; dial white ring + white MANUAL, % hidden, hover → reset icon + card "Click to reset manual selection", click clears; top-3 slot 1 = manual key labelled MANUAL, detected keys keep real %. Set/clear logged with source in beatkey.log. Known: wheel spells black-key majors F# (Auto-Tune spelling) while dial/top-3 say Gb; menu-bar lamp UNSURE when manual key undetected. 0.1.54 = BPM label row up 6 pt. Release = J runs publish.sh (ships 0.1.55).
 
 **0.1.53 installed + running (14:42:42, 371 tests pass, SIGN_OK):** footer = all FooterChip (RECENT ▾ / SETTINGS / COLOR / HELP; pocket RECENT / WINDOW / SETTINGS / HELP, pocket ADVANCED box only, no word: 389.5 pt needed vs 344); window readout BPM 68→80 pt, dial 128→152 (key 40), BPM on the top-keys left edge, dial on MANUAL right edge, group centred (gaps 16/15.5 pt), filename + SHOW IN FINDER under the BPM. Renders docs/research/footer-readout-2026-11-09/. Flaky timing test: MotionFrameTests.testMeterTickDoesNotRedrawTheFace (fails ~2/5 on unchanged main too).
 
