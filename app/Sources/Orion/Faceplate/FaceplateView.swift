@@ -73,10 +73,11 @@ struct FaceplateView: View {
     static func plateWidth(advanced: Bool) -> CGFloat {
         advanced ? 520 + columnGap + HarmonyPanel.width : 520
     }
-    /// Every cap on the right of a field shares one width so the fields line up.
-    static let capLegendWidth: CGFloat = 92
-    /// The login cap's longer legend (8 pt) needs a wider cap.
-    static let loginLegendWidth: CGFloat = 170
+    /// Every cap on the right of a field shares one width so the fields line up; it fits the
+    /// longest legend in that column (PASTE + DOWNLOAD).
+    static let capWidth: CGFloat = 152
+    /// The scale keyboard in the window's readout (J 2026-11-09: taller, same width).
+    static let keyboardHeight: CGFloat = 84
 
     // MARK: derived state
 
@@ -281,7 +282,7 @@ struct FaceplateFace: View {
     }
 
     private var findLit: Bool { Faceplate.isFindLit(picked, busy: state.busy) }
-    private var capWidth: CGFloat { FaceplateView.capLegendWidth + 36 }   // the legend + the cap's padding
+    private var capWidth: CGFloat { FaceplateView.capWidth }
 
     // MARK: module: readout + rows
 
@@ -293,41 +294,34 @@ struct FaceplateFace: View {
                 LinkField(text: $url, focused: $fieldFocused, onSubmit: { actions.downloadPressed(state) })
                 if state.needsLogin, let cap = Faceplate.loginCap(busy: state.busy) {
                     Button(action: actions.openLogin) {
-                        SSLCapStyle.label(cap.label, size: 8).lineLimit(1).fixedSize().frame(width: FaceplateView.loginLegendWidth)
+                        SSLCapStyle.label(cap.label).lineLimit(1).fixedSize().frame(minWidth: capWidth - SSLCapStyle.sidePadding * 2)
                     }
                     .buttonStyle(SSLCapStyle(lit: cap.lit))
                     .accessibility(label: Text(cap.label.capitalized))
                 } else {
-                    let lit = state.downloadLit || state.clipboardReady
-                    Button(action: { actions.downloadPressed(state) }) {
-                        SSLCapStyle.label("DOWNLOAD").frame(width: FaceplateView.capLegendWidth)
-                    }
-                    // not .disabled(): AppKit would grey the legend; an unlit cap only beeps
-                    .buttonStyle(SSLCapStyle(lit: lit))
-                    .accessibility(label: Text("Download"))
-                    .accessibility(hint: Text(lit ? "Downloads the link as an MP3 into Downloads" : "Paste a YouTube link first"))
+                    DownloadCap(state: state, action: { actions.downloadPressed(state) }).frame(width: capWidth)
                 }
             }
             .padding(.top, 14)
-            clipboardSlot.frame(height: 30)
             HStack(spacing: 12) {
                 AudioPickField(label: Faceplate.pickLabel(picked), focused: $pickFocused,
                                onOpen: files.openAudio, onSubmit: { findLit ? files.find() : files.openAudio() })
-                Button(action: files.find) { SSLCapStyle.label("FIND KEY/BPM").frame(width: FaceplateView.capLegendWidth) }
+                Button(action: files.find) { SSLCapStyle.label("FIND KEY/BPM").lineLimit(1).frame(maxWidth: .infinity) }
                     .buttonStyle(SSLCapStyle(lit: findLit))
+                    .frame(width: capWidth)
                     .accessibility(label: Text("Find key and BPM"))
                     .accessibility(hint: Text(findLit ? "Finds the BPM and key of the chosen audio" : "Open an audio file first"))
             }
-            HStack(spacing: 12) {
+            .padding(.top, 10)
+            // the window keeps its size: HOLD and the reset key stay put, dim until Listen is on
+            HStack(spacing: 10) {
                 SourceField(source: state.source, level: state.level, listening: state.listening,
                             action: actions.pickSource)
+                HStack(spacing: Pocket.transportGap) {
+                    HoldCap(state: state, action: actions.toggleHold).frame(width: 72)
+                    NewSongCap(lit: state.listening, keys: state.newSongKeys, action: actions.newSong)
+                }
                 ListenCap(state: state, action: actions.toggleListen).frame(width: capWidth)
-            }
-            .padding(.top, 10)
-            // the window keeps its size: NEW SONG and HOLD stay put, dim until Listen is on
-            HStack(spacing: 12) {
-                NewSongCap(lit: state.listening, action: actions.newSong)
-                HoldCap(state: state, action: actions.toggleHold).frame(width: capWidth)
             }
             .padding(.top, 10)
             ModuleRule().padding(.vertical, 14)
@@ -339,24 +333,6 @@ struct FaceplateFace: View {
         }
         .padding(EdgeInsets(top: 14, leading: 16, bottom: 16, trailing: 16))
         .modulePanel()
-    }
-
-    /// The popover's clipboard line; with no link on the clipboard its slot stays (the rows never
-    /// move), blank in the default window, a quiet CLIPBOARD — placeholder in Advanced mode.
-    @ViewBuilder private var clipboardSlot: some View {
-        if ClipboardLine.shows(state, url: url) {
-            ClipboardLine(state: state, actions: actions).padding(.horizontal, 2)
-        } else if !state.advanced {
-            Color.clear.accessibility(hidden: true)
-        } else {
-            HStack(spacing: 8) {
-                ClipboardLine.tag.opacity(0.6)
-                Text("—").font(Theme.face(9)).foregroundColor(Theme.textFaint)
-                Spacer(minLength: 0)
-            }
-            .padding(.horizontal, 2)
-            .accessibility(hidden: true)
-        }
     }
 
     // MARK: footer

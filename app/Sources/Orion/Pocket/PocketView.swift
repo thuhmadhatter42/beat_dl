@@ -16,7 +16,7 @@ struct PocketActions {
     var toggleHold: () -> Void = {}
     /// A click on the key: sharp <-> flat.
     var respellKey: () -> Void = {}
-    /// "Wrong, it's X": the 24-key menu; the pick becomes THE key and is saved as a teach record.
+    /// MANUAL ⌄: the 24-key menu; the pick becomes THE key and is saved as a teach record.
     var teachKey: () -> Void = {}
     var pickSource: () -> Void = {}
     var analyzeFile: () -> Void = {}
@@ -37,7 +37,14 @@ struct PocketActions {
 }
 
 enum Pocket {
-    static let width: CGFloat = 348
+    static let width: CGFloat = 376
+    /// The download cap fits its longer legend (PASTE + DOWNLOAD) so the field never jumps.
+    static let downloadCapWidth: CGFloat = 152
+    static let listenCapWidth: CGFloat = 112
+    /// HOLD and the square reset key: a tight pair.
+    static let transportGap: CGFloat = 8
+    /// The scale keyboard under the top keys (J 2026-11-09: taller, same width).
+    static let keyboardHeight: CGFloat = 64
     /// Offscreen renders (tests): AppKit-backed pieces (the link field) draw a stand-in.
     static var snapshot = false
 }
@@ -68,28 +75,24 @@ struct PocketView: View {
     private var module: some View {
         VStack(alignment: .leading, spacing: 0) {
             HStack(spacing: 10) {
-                LinkField(text: $url, focused: $fieldFocused, onSubmit: actions.download)
-                Button(action: { actions.downloadPressed(state) }) {
-                    SSLCapStyle.label(state.needsLogin ? "LOG IN…" : "DOWNLOAD").frame(width: 84)
-                }
-                .buttonStyle(SSLCapStyle(lit: state.downloadLit || state.clipboardReady || (state.needsLogin && !state.busy)))
-                .accessibility(label: Text(state.needsLogin ? "Log in to YouTube" : "Download"))
-                .accessibility(hint: Text("Downloads the link as an MP3 into Downloads and reads its BPM and key"))
-            }
-            if ClipboardLine.shows(state, url: url) {
-                ClipboardLine(state: state, actions: actions).padding(.top, 9)
+                LinkField(text: $url, focused: $fieldFocused, onSubmit: { actions.downloadPressed(state) })
+                DownloadCap(state: state, action: { actions.downloadPressed(state) })
+                    .frame(width: Pocket.downloadCapWidth)
             }
             HStack(spacing: 10) {
-                ListenCap(state: state, action: actions.toggleListen).frame(width: 62 + 36)
+                ListenCap(state: state, action: actions.toggleListen).frame(width: Pocket.listenCapWidth)
                 SourceField(source: state.source, level: state.level, listening: state.listening,
                             action: actions.pickSource)
             }
             .padding(.top, 10)
             if state.listening {
-                HStack(spacing: 10) {
-                    NewSongCap(lit: true, action: actions.newSong)
-                    HoldCap(state: state, action: actions.toggleHold).frame(width: 66 + 36)
+                // HOLD and the reset key sit under LISTEN, the pair as wide as LISTEN's cap
+                HStack(spacing: Pocket.transportGap) {
+                    HoldCap(state: state, action: actions.toggleHold)
+                    NewSongCap(lit: true, keys: state.newSongKeys, action: actions.newSong)
                 }
+                .frame(width: Pocket.listenCapWidth)
+                .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(.top, 10)
             }
             ModuleRule().padding(.vertical, 12)
@@ -124,11 +127,59 @@ struct PocketView: View {
 
 extension PocketActions {
     /// DOWNLOAD (both surfaces): a login waiting = the login; the link in the field; with the
-    /// field empty, the link on the clipboard (one click).
+    /// field empty, the link on the clipboard (one click: PASTE + DOWNLOAD).
     func downloadPressed(_ state: PocketState) {
         if state.needsLogin { openLogin(); return }
         if !state.downloadLit, state.clipboardReady, let link = state.clipboardLink { pasteAndDownload(link); return }
+        if !state.busy, state.fieldEmpty, state.clipboardLink == nil {
+            AppLog.log("paste + download: the field is empty and the clipboard holds no link")
+        }
         download()
+    }
+}
+
+extension PocketState {
+    /// The field holds nothing but spaces.
+    var fieldEmpty: Bool { url.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
+
+    /// The download cap's legend (both surfaces): LOG IN… while a login waits; PASTE + DOWNLOAD
+    /// with the field empty (the press takes the clipboard's link); DOWNLOAD once a link is
+    /// typed (the typed link wins over the clipboard).
+    static func downloadTitle(url: String, needsLogin: Bool = false) -> String {
+        if needsLogin { return "LOG IN…" }
+        return url.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? "PASTE + DOWNLOAD" : "DOWNLOAD"
+    }
+    var downloadTitle: String { PocketState.downloadTitle(url: url, needsLogin: needsLogin) }
+}
+
+/// DOWNLOAD / PASTE + DOWNLOAD: lit for a typed link or, with the field empty, a link on the
+/// clipboard; dim when there is neither (a press beeps and logs).
+struct DownloadCap: View {
+    let state: PocketState
+    let action: () -> Void
+    var body: some View {
+        let login = state.needsLogin
+        Button(action: action) {
+            SSLCapStyle.label(state.downloadTitle).lineLimit(1).frame(maxWidth: .infinity)
+        }
+        // not .disabled(): AppKit would grey the legend; an unlit cap only beeps
+        .buttonStyle(SSLCapStyle(lit: state.downloadLit || state.clipboardReady || (login && !state.busy)))
+        .help(help)
+        .accessibility(label: Text(login ? "Log in to YouTube" : state.fieldEmpty ? "Paste and download" : "Download"))
+        .accessibility(hint: Text(hint))
+    }
+
+    private var help: String {
+        if state.needsLogin { return "Log in to YouTube" }
+        if !state.fieldEmpty { return "Download the link as an MP3 and read its BPM and key" }
+        if let link = state.clipboardLink { return "Paste \(PocketText.shortLink(link)) and download it" }
+        return "Copy a YouTube link, or type one in the field"
+    }
+    private var hint: String {
+        if state.needsLogin { return "Opens the YouTube login" }
+        if !state.fieldEmpty { return "Downloads the link as an MP3 into Downloads and reads its BPM and key" }
+        return state.clipboardLink == nil ? "Copy a YouTube link first"
+                                          : "Pastes the link on the clipboard, downloads it and reads its BPM and key"
     }
 }
 
@@ -173,22 +224,23 @@ struct ListenCap: View {
     }
 }
 
-/// NEW SONG · RESET: Listen drops what it heard and its lock, and starts over.
+/// NEW SONG · RESET as a square key beside HOLD: Listen drops what it heard and its lock, and
+/// starts over. The icon is the legend; the words live in the tooltip and VoiceOver.
 struct NewSongCap: View {
     let lit: Bool
+    var keys: String? = nil
     let action: () -> Void
     var body: some View {
         Button(action: action) {
-            HStack(spacing: 7) {
-                Text("↺").font(Theme.face(12))
-                SSLCapStyle.label("NEW SONG · RESET").lineLimit(1).minimumScaleFactor(0.7)
-                Spacer(minLength: 0)
-            }
-            .frame(maxWidth: .infinity)
+            Image(systemName: "arrow.counterclockwise")
+                .font(.system(size: 12, weight: .bold))
+                .frame(width: SSLCapStyle.height)
         }
-        .buttonStyle(SSLCapStyle(lit: lit, height: 32))
+        .buttonStyle(SSLCapStyle(lit: false, ready: lit, padding: 0))
+        .help("New song · reset")
         .accessibility(label: Text("New song: reset listening"))
-        .accessibility(hint: Text("Drops what was heard and the lock, and listens again"))
+        .accessibility(hint: Text("Drops what was heard and the lock, and listens again"
+                                  + (keys.map { ". Shortcut \($0)" } ?? "")))
     }
 }
 
@@ -199,50 +251,16 @@ struct HoldCap: View {
     var body: some View {
         Button(action: action) {
             HStack(spacing: 6) {
-                Text("❚❚").font(Theme.face(9))
+                Image(systemName: "pause.fill").font(.system(size: 9, weight: .bold))
                 SSLCapStyle.label("HOLD").lineLimit(1)
             }
             .frame(maxWidth: .infinity)
         }
-        .buttonStyle(SSLCapStyle(lit: state.held, ready: state.canHold && !state.held, height: 32))
+        .buttonStyle(SSLCapStyle(lit: state.held, ready: state.canHold && !state.held))
+        .help(state.held ? "Release: follow the music again" : "Hold: freeze the reading on show")
         .accessibility(label: Text(state.held ? "Release hold" : "Hold reading"))
         .accessibility(hint: Text("Freezes the reading on show while listening carries on. Press again to follow the music"))
         .accessibility(addTraits: state.held ? .isSelected : [])
-    }
-}
-
-/// One click: the link on the clipboard goes into the field and downloads.
-struct ClipboardLine: View {
-    let state: PocketState
-    let actions: PocketActions
-
-    /// A link on the clipboard that is not the one in the field, and nothing running.
-    static func shows(_ state: PocketState, url: String) -> Bool {
-        guard let link = state.clipboardLink, !state.busy else { return false }
-        return link != url.trimmingCharacters(in: .whitespacesAndNewlines)
-    }
-
-    var body: some View {
-        let link = state.clipboardLink ?? ""
-        Button(action: { actions.pasteAndDownload(link) }) {
-            HStack(spacing: 8) {
-                ClipboardLine.tag
-                Text(PocketText.shortLink(link)).font(.custom("HelveticaNeue", size: 10))
-                    .foregroundColor(Theme.textHi).lineLimit(1).truncationMode(.middle)
-                Spacer(minLength: 4)
-                Text("PASTE + DOWNLOAD ›").font(Theme.face(9)).tracking(1.4)
-                    .foregroundColor(Theme.amber).shadow(color: Theme.highContrast ? .clear : Theme.amberGlow, radius: 2.5)
-                    .fixedSize()
-            }
-            .contentShape(Rectangle())
-        }
-        .buttonStyle(PlainButtonStyle())
-        .pointingHand()
-        .accessibility(label: Text("Paste the link on the clipboard and download it"))
-    }
-
-    static var tag: some View {
-        Text("CLIPBOARD").font(Theme.face(7.5)).tracking(1.4).foregroundColor(Theme.textLo).fixedSize()
     }
 }
 
@@ -254,10 +272,10 @@ struct ActionCap: View {
     let action: () -> Void
     var body: some View {
         Button(action: { if ready { action() } }) {
-            SSLCapStyle.label(title, size: 8.5).lineLimit(1).minimumScaleFactor(0.7)
+            SSLCapStyle.label(title).lineLimit(1).minimumScaleFactor(0.8)
                 .frame(maxWidth: .infinity)
         }
-        .buttonStyle(SSLCapStyle(lit: false, ready: ready, height: 30))
+        .buttonStyle(SSLCapStyle(lit: false, ready: ready))
         .accessibility(label: Text(label))
     }
 }
@@ -441,7 +459,7 @@ private struct PocketLCD: View {
                 right.frame(maxWidth: .infinity, alignment: .leading)
             }
             .frame(height: 118)
-            KeyStrip(state: state, onTeach: actions.teachKey).padding(.top, 12)
+            KeyStrip(state: state, onTeach: actions.teachKey, keyboardHeight: Pocket.keyboardHeight).padding(.top, 8)
         }
         .padding(EdgeInsets(top: 14, leading: 14, bottom: 12, trailing: 14))
         .background(Theme.highContrast ? Theme.vertical([(Theme.black, 0), (Theme.black, 1)])
@@ -529,37 +547,29 @@ private struct PocketLCD: View {
     }
 }
 
-/// The lower half of both readouts: a hairline, TOP KEYS (a click picks the key), the scale on
-/// a one-octave keyboard, and the scale line with the tuning.
+/// The lower half of both readouts: a hairline ending in the MANUAL key menu, TOP KEYS (a click
+/// picks the key), the scale on a one-octave keyboard, and the scale line with the tuning.
 struct KeyStrip: View {
     let state: PocketState
-    /// "Wrong, it's X" (nil = not shown).
+    /// MANUAL ⌄: the 24-key menu (nil = not shown).
     var onTeach: (() -> Void)? = nil
+    var keyboardHeight: CGFloat = Pocket.keyboardHeight
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            // the button sits just above the hairline, at its right end, so the strip's height
-            // (and both faces' layout) is unchanged
-            Rectangle().fill(Theme.amber(0.12)).frame(height: 1)
-                .overlay(teachButton.offset(y: -7), alignment: .trailing)
+            // the hairline runs into the menu at the strip's right edge (the % column's edge)
+            HStack(spacing: 10) {
+                Rectangle().fill(Theme.amber(0.12)).frame(height: 1)
+                if let teach = onTeach {
+                    ManualKeyMenu(enabled: state.result != nil, action: teach)
+                }
+            }
+            .frame(height: ManualKeyMenu.height)
             TopKeys(keys: state.result?.keys ?? [],
                     onChoose: state.result.map { r in { k in SpellingSettings.shared.choose(k, of: r, from: "top keys") } })
-                .padding(.top, 11)
-            NoteKeyboard(scale: state.scale).frame(height: 44).padding(.top, 13)
+                .padding(.top, 8)
+            NoteKeyboard(scale: state.scale).frame(height: keyboardHeight).padding(.top, 12)
             scaleLine.padding(.top, 7)
-        }
-    }
-
-    @ViewBuilder private var teachButton: some View {
-        if state.result != nil, let teach = onTeach {
-            Button(action: teach) {
-                Text("WRONG? IT'S…").font(Theme.face(7)).tracking(1.1)
-                    .foregroundColor(Theme.amber(0.55)).fixedSize().padding(.vertical, 2).contentShape(Rectangle())
-            }
-            .buttonStyle(PlainButtonStyle())
-            .pointingHand()
-            .help("Pick the right key: it becomes the key, and the reading is saved to teach Beat Key")
-            .accessibility(label: Text("Wrong key? Pick the right one"))
         }
     }
 
@@ -582,6 +592,37 @@ struct KeyStrip: View {
             }
         }
         .accessibilityElement(children: .combine)
+    }
+}
+
+/// MANUAL ⌄: set the key by hand. A bordered LCD menu button (the x0.5 / x1 / x2 chips'
+/// language) whose chevron says it drops a list: the 24 keys; the pick becomes THE key and the
+/// reading is saved to teach Beat Key. Dim with no reading.
+struct ManualKeyMenu: View {
+    let enabled: Bool
+    let action: () -> Void
+    static let height: CGFloat = 18
+
+    var body: some View {
+        let shape = RoundedRectangle(cornerRadius: 3, style: .continuous)
+        Button(action: { if enabled { action() } }) {
+            HStack(spacing: 5) {
+                Text("MANUAL").font(Theme.face(8.5)).tracking(1.1)
+                Image(systemName: "chevron.down").font(.system(size: 7, weight: .heavy))
+            }
+            .foregroundColor(Theme.amber(enabled ? 0.85 : 0.25))
+            .padding(.leading, 8).padding(.trailing, 7)
+            .frame(height: ManualKeyMenu.height)
+            .background(shape.fill(Theme.amber(enabled ? 0.08 : 0.03)))
+            .overlay(shape.stroke(Theme.amber(enabled ? 0.45 : 0.15), lineWidth: 1))
+            .contentShape(shape)
+            .fixedSize()
+        }
+        .buttonStyle(PlainButtonStyle())
+        .pointingHand()
+        .help("Set the key by hand: pick it from all 24 keys. It becomes the key, and the reading is saved to teach Beat Key")
+        .accessibility(label: Text("Manual key"))
+        .accessibility(hint: Text("Opens a menu of all 24 keys. The pick becomes the key and teaches Beat Key"))
     }
 }
 
@@ -893,11 +934,11 @@ struct SourceField: View {
         Button(action: action) {
             HStack(spacing: 8) {
                 VStack(alignment: .leading, spacing: 2) {
-                    Text("SOURCE").font(Theme.face(6.5)).tracking(1.3).foregroundColor(Theme.textLo)
+                    Text("SOURCE").font(Theme.face(6.5)).tracking(1.3).foregroundColor(Theme.textLo).lineLimit(1).fixedSize()
                     Text(source).font(.custom("HelveticaNeue", size: 11)).foregroundColor(Theme.textHi)
-                        .lineLimit(1).truncationMode(.middle)
+                        .lineLimit(1).truncationMode(.middle).layoutPriority(1)
                 }
-                Spacer(minLength: 4)
+                Spacer(minLength: 0)
                 meter
                 Text("▾").font(Theme.face(9)).foregroundColor(Theme.amber(0.6))
             }
