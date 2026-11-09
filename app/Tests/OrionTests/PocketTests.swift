@@ -194,9 +194,20 @@ final class PocketTests: XCTestCase {
         sharps.readout = .result(hs, page: nil, download: false, options: ResultOptions(
             factor: .one, tuning: nil, onCycleTempo: {}, live: (.locked, "LOCKED 86%", "System Audio")))
 
+        // J 2026-11-09 03:42: the reading he looked at, and a long one
+        var ab = locked
+        ab.readout = .result(result([("Ab", 85), ("Db", 9), ("Fm", 2)], exact: 139.02, cents: 0), page: nil,
+                             download: true, options: ResultOptions(factor: .one, tuning: Tuning.meter(0, reference: 440),
+                                                                    onCycleTempo: {}))
+        var long = locked
+        long.readout = .result(result([("C#m", 64), ("G#m", 18), ("Ebm", 9)], exact: 188.88, cents: 0), page: nil,
+                               download: true, options: ResultOptions(factor: .one, tuning: Tuning.meter(0, reference: 440),
+                                                                      onCycleTempo: {}))
+
         let states: [(String, PocketState)] = [("idle", idle), ("downloading", working), ("listening", listening),
                                                ("unsure", unsure), ("locked", locked), ("high-contrast", hc),
-                                               ("error", failed), ("held", held), ("sharps", sharps)]
+                                               ("error", failed), ("held", held), ("sharps", sharps),
+                                               ("ab", ab), ("long", long)]
         for (name, s) in states {
             Theme.highContrast = s.highContrast
             let view = PocketView(state: s, url: .constant(s.url))

@@ -37,8 +37,9 @@ struct LCD: View {
     let highlighted: Bool
     var actions = PocketActions()
 
-    /// The state area's height: the dial (112) beside the BPM, the file line under both.
-    static let topHeight: CGFloat = 136
+    /// The state area's height: the dial (128) beside the BPM, 4, the file line under both
+    /// (J 2026-11-09 03:42: the dial 112 -> 128, so 136 -> 148).
+    static let topHeight: CGFloat = 148
     private let r: CGFloat = Theme.R.well
 
     var body: some View {
@@ -278,17 +279,29 @@ struct ResultReadout: View {
     /// The BPM column's fixed width: "188.88" and, in Advanced, BPM + the x0.5 / x1 / x2 chips.
     /// Fixed so the dial never moves with the number.
     static let bpmWidth: CGFloat = 176
+    /// The window's dial (J 2026-11-09 03:42, "the key dial feels a little smaller than it could
+    /// be"): 112 -> 128, the pocket keeps 112.
+    static let dialSide: CGFloat = 128
+    /// The BPM + dial pair is one group centred in the glass (J 2026-11-09 03:42, "the BPM feels a
+    /// little too far to the left"): `inset` in from each side, the rest between them.
+    static let groupInset: CGFloat = 40
+    /// The readout's inner width (the module less the glass's padding).
+    static var innerWidth: CGFloat { FaceplateView.moduleWidth - Theme.S.lcd * 2 }
+    /// BPM column to dial: what the group leaves.
+    static var groupGap: CGFloat { innerWidth - groupInset * 2 - bpmWidth - dialSide }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            // J 2026-11-09 ("a lot of space between the BPM and the key"): the dial sits centred in
-            // the room right of the BPM column, as far from the BPM as from the glass's edge.
-            HStack(alignment: .top, spacing: 0) {
+            // J 2026-11-09: the BPM column and the dial as one centred group, the BPM centred on
+            // the dial's height; the file line keeps the glass's full width under both.
+            HStack(alignment: .center, spacing: ResultReadout.groupGap) {
                 bpmColumn.frame(width: ResultReadout.bpmWidth, alignment: .leading)
-                Dial(state: state, actions: actions).frame(width: Dial.side, height: Dial.side)
-                    .frame(maxWidth: .infinity)
+                Dial(state: state, actions: actions, side: ResultReadout.dialSide)
+                    .frame(width: ResultReadout.dialSide, height: ResultReadout.dialSide)
             }
-            .frame(height: Dial.side)
+            .padding(.horizontal, ResultReadout.groupInset)
+            .frame(maxWidth: .infinity)
+            .frame(height: ResultReadout.dialSide)
             Spacer(minLength: 0)
             fileRow
         }

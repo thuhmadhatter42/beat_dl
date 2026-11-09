@@ -43,6 +43,49 @@ final class FaceplateTests: XCTestCase {
     }
 
     // J 2026-11-09: "put that line in the middle of the tuning in the center" (of the panel)
+    // J 2026-11-09 03:42: "the certainty percent ... is closer to the next key than to the key it's
+    // talking about". Each percent sits nearer its own name than the next group, with room to spare.
+    func testTopKeysPercentSitsWithItsOwnKey() {
+        let window = ResultReadout.innerWidth
+        let pocket = Pocket.width - Theme.S.l * 4                    // plate padding + glass padding
+        let readings: [[(String, Int)]] = [[("Ab", 85), ("Db", 9), ("Fm", 2)],
+                                           [("C#m", 64), ("G#m", 18), ("Ebm", 9)],
+                                           [("Ebm", 100), ("Gb", 100), ("Bbm", 100)]]
+        for w in [window, pocket] {
+            for r in readings {
+                let g = TopKeys.gaps(width: w, keys: r)
+                XCTAssertEqual(g.count, 3)
+                for (i, x) in g.enumerated() {
+                    XCTAssertEqual(x.own, TopKeys.percentGap)
+                    if i < 2 {
+                        let next = try! XCTUnwrap(x.next)
+                        // the next group is at least twice as far as its own name (proximity)
+                        XCTAssertGreaterThanOrEqual(next, x.own * 2, "\(r[i].0) at width \(w)")
+                    } else {
+                        XCTAssertNil(x.next)
+                    }
+                }
+            }
+        }
+        XCTAssertGreaterThanOrEqual(TopKeys.groupGap, (TopKeys.rankGap + TopKeys.percentGap) * 2)
+    }
+
+    // J 2026-11-09 03:42: a bigger key dial, the BPM in from the left, the pair one centred group
+    func testReadoutGroupIsCentredWithABiggerDial() {
+        XCTAssertGreaterThan(ResultReadout.dialSide, Dial.side)
+        XCTAssertEqual(ResultReadout.groupInset * 2 + ResultReadout.bpmWidth + ResultReadout.groupGap
+                       + ResultReadout.dialSide, ResultReadout.innerWidth)
+        XCTAssertGreaterThan(ResultReadout.groupInset, 0)
+        // the gap BPM -> dial stays about the side margins: neither glued nor drifting apart
+        XCTAssertGreaterThanOrEqual(ResultReadout.groupGap, ResultReadout.groupInset * 0.75)
+        XCTAssertLessThanOrEqual(ResultReadout.groupGap, ResultReadout.groupInset * 1.5)
+        // nothing clipped: the dial, 4, the file line fit the state area
+        XCTAssertLessThanOrEqual(ResultReadout.dialSide + Theme.S.xs + Theme.H.xs, LCD.topHeight)
+        for v in [ResultReadout.dialSide, ResultReadout.groupInset, ResultReadout.groupGap, LCD.topHeight] {
+            XCTAssertEqual(v.truncatingRemainder(dividingBy: 4), 0, "\(v) is off the 4/8 grid")
+        }
+    }
+
     func testTuningTrackCentreIsThePanelCentre() {
         let strip = FaceplateView.moduleWidth - Theme.S.lcd * 2       // the window's LCD inside its padding
         let l = TuningMeterRow.layout(width: strip)

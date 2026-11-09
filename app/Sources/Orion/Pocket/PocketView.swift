@@ -746,7 +746,10 @@ struct Dial: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var spin = false
 
+    /// The pocket's dial; the window's is `ResultReadout.dialSide`.
     static let side: CGFloat = 112
+    /// The box the dial fills: the ticks sit on its edge, the ring 12 inside it.
+    var side: CGFloat = Dial.side
 
     var body: some View {
         let lamp = state.lamp
@@ -757,7 +760,7 @@ struct Dial: View {
             ForEach(0..<12, id: \.self) { i in
                 Capsule().fill(i % 3 == 0 ? Theme.A.a3 : Theme.A.a4)
                     .frame(width: i % 3 == 0 ? 2 : 1.5, height: i % 3 == 0 ? 7 : 5)
-                    .offset(y: -51.5)
+                    .offset(y: -(side / 2 - 4.5))
                     .rotationEffect(.degrees(Double(i) * 30))
             }
             Circle().stroke(Theme.A.a5, lineWidth: 5).padding(12)
@@ -796,7 +799,7 @@ struct Dial: View {
                     }
                 }
             }
-            .frame(width: 80)
+            .frame(width: side - 32)
         }
         .accessibilityElement(children: .ignore)
         .accessibility(label: Text(dialLabel))
@@ -1069,11 +1072,24 @@ struct PageArrow: View {
 /// Beat Key's headline: the three likeliest keys with their percentages and a bar each. A click
 /// on key 2 or 3 makes it THE key: it moves to the front, the dial and the sends use it.
 /// No reading = the row keeps its height but draws nothing (an empty state, not a skeleton).
+///
+/// J 2026-11-09 03:42 ("the certainty percent is so far away from its key; it's closer to the next
+/// key than to the key it's talking about"): each key is one group, `1 Ab 85%`, the percent right
+/// after its name on the same baseline, a size smaller and one amber step dimmer, the bar under
+/// the group. Groups sit `groupGap` apart, far more than anything inside a group (proximity).
 struct TopKeys: View {
     let keys: [(String, Int)]
     var onChoose: ((String) -> Void)? = nil
+
+    /// Between the three groups.
+    static let groupGap: CGFloat = Theme.S.xl
+    /// Rank to name, inside a group.
+    static let rankGap: CGFloat = Theme.S.xs
+    /// Name to its percent, inside a group.
+    static let percentGap: CGFloat = Theme.S.s
+
     var body: some View {
-        HStack(alignment: .top, spacing: Theme.S.m) {
+        HStack(alignment: .top, spacing: TopKeys.groupGap) {
             ForEach(0..<3, id: \.self) { i in
                 if i > 0, i < keys.count, let choose = onChoose {
                     let name = keys[i].0
@@ -1096,19 +1112,24 @@ struct TopKeys: View {
     private func cell(_ i: Int, _ k: (String, Int)?) -> some View {
         let first = i == 0
         return VStack(alignment: .leading, spacing: Theme.S.s) {
-            HStack(alignment: .firstTextBaseline, spacing: Theme.S.xs) {
+            HStack(alignment: .firstTextBaseline, spacing: 0) {
                 Text("\(i + 1)").font(Theme.T.caption.monospacedDigit()).foregroundColor(Theme.A.a3)
+                    .padding(.trailing, TopKeys.rankGap)
                 Crossfade(k?.0 ?? " ", alignment: .leading) { name in
                     Text(name).font(Theme.T.title)
                         .foregroundColor(first ? Theme.A.a1 : Theme.A.a2)
                         .lineLimit(1).minimumScaleFactor(0.7)
                 }
-                Spacer(minLength: 2)
+                .padding(.trailing, TopKeys.percentGap)
                 Color.clear.frame(width: 0, height: 0)
                     .modifier(CountingNumber(value: Double(k?.1 ?? 0), suffix: "%"))
                     .font(Theme.T.value.monospacedDigit())
-                    .foregroundColor(first ? Theme.A.a1 : Theme.A.a2)
+                    .foregroundColor(first ? Theme.A.a2 : Theme.A.a3)
+                    .fixedSize()
+                Spacer(minLength: 0)
             }
+            // a name of another width: its percent slides along with the crossfade (Motion.swap)
+            .animation(Theme.Motion.swap, value: k?.0)
             GeometryReader { g in
                 ZStack(alignment: .leading) {
                     Capsule().fill(Theme.A.a5)
@@ -1120,6 +1141,25 @@ struct TopKeys: View {
         }
         .frame(maxWidth: .infinity)
         .opacity(k == nil ? 0 : 1)   // keeps its height: the readout never jumps
+    }
+
+    // MARK: layout, measured (pure; the tests hold the proximity rule to it)
+
+    /// Where each group's pieces land in a strip `width` wide, measured with the row's own fonts:
+    /// `own` = the gap from a name's end to its percent, `next` = from that percent's end to the
+    /// next group's rank (nil for the last group).
+    static func gaps(width: CGFloat, keys: [(String, Int)]) -> [(own: CGFloat, next: CGFloat?)] {
+        let cell = (width - groupGap * 2) / 3
+        func w(_ s: String, _ size: CGFloat, _ face: String) -> CGFloat {
+            let f = NSFont(name: face, size: size) ?? NSFont.boldSystemFont(ofSize: size)
+            return ceil((s as NSString).size(withAttributes: [.font: f]).width)
+        }
+        return keys.prefix(3).enumerated().map { i, k in
+            let used = w("\(i + 1)", Theme.T.captionSize, "HelveticaNeue-Medium") + rankGap
+                + w(k.0, Theme.T.titleSize, "HelveticaNeue-Bold") + percentGap
+                + w("\(k.1)%", Theme.T.valueSize, "HelveticaNeue-Bold")
+            return (own: percentGap, next: i < 2 ? max(0, cell - used) + groupGap : nil)
+        }
     }
 }
 

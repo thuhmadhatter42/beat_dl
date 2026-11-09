@@ -401,7 +401,24 @@ final class HarmonyTests: XCTestCase {
                                    page: nil, download: false, options: ResultOptions())
         var empty = PocketState()
         empty.advanced = true
-        for (name, st) in [("default", s), ("advanced", adv), ("advanced-no-chroma", noChroma), ("advanced-idle", empty)] {
+        // J 2026-11-09 03:42: the live reading he looked at (Ab 85 / Db 9 / Fm 2) and a long one
+        func reading(_ keys: [(String, Int)], _ bpm: String, _ exact: Double, advanced: Bool) -> PocketState {
+            var st = s
+            st.advanced = advanced
+            if advanced { st.harmony = adv.harmony }
+            st.readout = .result(Result(file: r.file, name: r.name, bpm: bpm, keys: keys, bpmExact: exact,
+                                        tuningCents: -0.3, chroma: r.chroma),
+                                 page: nil, download: false, options: ResultOptions(
+                                    factor: .one, tuning: Tuning.meter(-0.3, reference: 440), onCycleTempo: {}))
+            return st
+        }
+        let ab: [(String, Int)] = [("Ab", 85), ("Db", 9), ("Fm", 2)]
+        let long: [(String, Int)] = [("C#m", 64), ("G#m", 18), ("Ebm", 9)]
+        for (name, st) in [("default", s), ("advanced", adv), ("advanced-no-chroma", noChroma), ("advanced-idle", empty),
+                           ("default-ab", reading(ab, "139.0", 139.02, advanced: false)),
+                           ("default-long", reading(long, "188.9", 188.88, advanced: false)),
+                           ("advanced-ab", reading(ab, "139.0", 139.02, advanced: true)),
+                           ("advanced-long", reading(long, "188.9", 188.88, advanced: true))] {
             let view = FaceplateFace(state: st, picked: [], url: .constant(""), fieldFocused: .constant(false),
                                      pickFocused: .constant(false))
                 .environment(\.colorScheme, .dark)

@@ -68,8 +68,9 @@ struct FaceplateView: View {
         CGSize(width: plateWidth(advanced: advanced) + 32, height: height)
     }
     static let size = size(advanced: false)
-    /// The window's content height, both modes (J 2026-11-09: 732 + 12 for the taller keyboard).
-    static let height: CGFloat = 744
+    /// The window's content height, both modes (J 2026-11-09: 732 + 12 for the taller keyboard,
+    /// + 12 for the bigger key dial).
+    static let height: CGFloat = 756
     /// The module column inside the plate's 12 pt padding (J 2026-11-09: "the whole left side is
     /// too wide": 496 -> 472, as narrow as SEND TO AUTO-TUNE and the source name allow at full size).
     static let moduleWidth: CGFloat = 472
