@@ -34,6 +34,8 @@ struct PocketActions {
     var openWindow: () -> Void = {}
     var settings: () -> Void = {}
     var quit: () -> Void = {}
+    /// HELP: help mode on / off (both surfaces).
+    var toggleHelp: () -> Void = {}
 }
 
 enum Pocket {
@@ -66,6 +68,8 @@ struct PocketView: View {
         }
         .padding(EdgeInsets(top: 12, leading: 14, bottom: 12, trailing: 14))
         .frame(width: Pocket.width)
+        .environment(\.helpMode, state.help)
+        .helpTipLayer()
         .background(PocketPlate())
         .id(state.highContrast)   // Theme.highContrast is read while drawing
     }
@@ -99,6 +103,7 @@ struct PocketView: View {
             VStack(spacing: 10) {
                 HStack(spacing: 10) {
                     ActionCap(title: "ANALYZE FILE", ready: !state.busy, label: "Analyze a file", action: actions.analyzeFile)
+                        .helpTip(HelpText.analyzeFile)
                     SendDAWCap(state: state, action: actions.sendDAW)
                 }
                 HStack(spacing: 10) {
@@ -117,9 +122,11 @@ struct PocketView: View {
         HStack(spacing: 16) {
             RecentLink(state: state, action: actions.showRecents)
             FooterLink(title: "WINDOW", label: "Show the Beat Key window", action: actions.openWindow)
-            FooterLink(title: "SETTINGS", label: "Settings", action: actions.settings)
+                .helpTip(HelpText.window)
+            FooterLink(title: "SETTINGS", label: "Settings", action: actions.settings).helpTip(HelpText.settings)
+            HelpChip(on: state.help, action: actions.toggleHelp)
             Spacer()
-            FooterLink(title: "QUIT", label: Brand.quit, action: actions.quit)
+            FooterLink(title: "QUIT", label: Brand.quit, action: actions.quit).helpTip(HelpText.quit)
         }
         .padding(.horizontal, 4)
     }
@@ -167,6 +174,7 @@ struct DownloadCap: View {
         .help(help)
         .accessibility(label: Text(login ? "Log in to YouTube" : state.fieldEmpty ? "Paste and download" : "Download"))
         .accessibility(hint: Text(hint))
+        .helpTip(HelpText.download)
     }
 
     private var help: String {
@@ -221,6 +229,7 @@ struct ListenCap: View {
         }
         .buttonStyle(SSLCapStyle(lit: !state.listening && !state.busy, ready: state.listening))
         .accessibility(label: Text(state.listening ? "Stop listening" : "Start listening to \(state.source)"))
+        .helpTip(HelpText.listen)
     }
 }
 
@@ -241,6 +250,7 @@ struct NewSongCap: View {
         .accessibility(label: Text("New song: reset listening"))
         .accessibility(hint: Text("Drops what was heard and the lock, and listens again"
                                   + (keys.map { ". Shortcut \($0)" } ?? "")))
+        .helpTip(HelpText.reset)
     }
 }
 
@@ -261,6 +271,7 @@ struct HoldCap: View {
         .accessibility(label: Text(state.held ? "Release hold" : "Hold reading"))
         .accessibility(hint: Text("Freezes the reading on show while listening carries on. Press again to follow the music"))
         .accessibility(addTraits: state.held ? .isSelected : [])
+        .helpTip(HelpText.hold)
     }
 }
 
@@ -287,6 +298,7 @@ struct SendDAWCap: View {
     var body: some View {
         let daw = state.daw.map { "SEND TO \($0.uppercased())" } ?? "SEND TO DAW"
         ActionCap(title: daw, ready: state.canSend, label: daw.capitalized, action: action)
+            .helpTip(HelpText.sendDAW)
     }
 }
 
@@ -301,6 +313,7 @@ struct AutoTuneCap: View {
             flash = ok ? "SENT TO AUTO-TUNE ✓" : "AUTO-TUNE: NO KEY"
             DispatchQueue.main.asyncAfter(deadline: .now() + 1.6) { flash = nil }
         }
+        .helpTip(HelpText.autoTune)
     }
 }
 
@@ -309,6 +322,7 @@ struct ExportMidiCap: View {
     let action: () -> Void
     var body: some View {
         ActionCap(title: "EXPORT MIDI", ready: state.canSend, label: "Export MIDI tempo and key file", action: action)
+            .helpTip(HelpText.exportMidi)
     }
 }
 
@@ -318,6 +332,7 @@ struct RecentLink: View {
     let action: () -> Void
     var body: some View {
         FooterLink(title: "RECENT ▾", label: "Recent readings", enabled: !state.recents.isEmpty, action: action)
+            .helpTip(HelpText.recent)
     }
 }
 
@@ -404,6 +419,7 @@ private struct PocketHeader: View {
         }
         .accessibilityElement(children: .ignore)
         .accessibility(label: Text("Status: \(word.lowercased())"))
+        .helpTip(HelpText.status)
     }
 }
 
@@ -561,14 +577,15 @@ struct KeyStrip: View {
             HStack(spacing: 10) {
                 Rectangle().fill(Theme.amber(0.12)).frame(height: 1)
                 if let teach = onTeach {
-                    ManualKeyMenu(enabled: state.result != nil, action: teach)
+                    ManualKeyMenu(enabled: state.result != nil, action: teach).helpTip(HelpText.manual)
                 }
             }
             .frame(height: ManualKeyMenu.height)
             TopKeys(keys: state.result?.keys ?? [],
                     onChoose: state.result.map { r in { k in SpellingSettings.shared.choose(k, of: r, from: "top keys") } })
+                .helpTip(HelpText.topKeys)
                 .padding(.top, 8)
-            NoteKeyboard(scale: state.scale).frame(height: keyboardHeight).padding(.top, 12)
+            NoteKeyboard(scale: state.scale).frame(height: keyboardHeight).helpTip(HelpText.keyboard).padding(.top, 12)
             scaleLine.padding(.top, 7)
         }
     }
@@ -576,19 +593,23 @@ struct KeyStrip: View {
     /// "E♭ MINOR · E♭ F G♭ A♭ B♭ B D♭" left, the tuning right.
     private var scaleLine: some View {
         HStack(spacing: 8) {
-            if let s = state.scale {
-                Text("\(s.tonicName) \(s.minor ? "MINOR" : "MAJOR")").font(Theme.face(8.5)).tracking(1.4)
-                    .foregroundColor(Theme.amber(0.85))
-                Text(s.spelled.joined(separator: "  ")).font(.custom("HelveticaNeue", size: 9)).tracking(0.4)
-                    .foregroundColor(Theme.amber(0.55)).lineLimit(1)
-            } else {
-                Text("SCALE").font(Theme.face(8.5)).tracking(1.4).foregroundColor(Theme.amber(0.25))
+            HStack(spacing: 8) {
+                if let s = state.scale {
+                    Text("\(s.tonicName) \(s.minor ? "MINOR" : "MAJOR")").font(Theme.face(8.5)).tracking(1.4)
+                        .foregroundColor(Theme.amber(0.85))
+                    Text(s.spelled.joined(separator: "  ")).font(.custom("HelveticaNeue", size: 9)).tracking(0.4)
+                        .foregroundColor(Theme.amber(0.55)).lineLimit(1)
+                } else {
+                    Text("SCALE").font(Theme.face(8.5)).tracking(1.4).foregroundColor(Theme.amber(0.25))
+                }
             }
+            .helpTip(HelpText.scale)
             Spacer(minLength: 4)
             if let t = state.options?.tuning {
                 Text(t.replacingOccurrences(of: "TUNING ", with: "")).font(Theme.face(8.5)).tracking(1)
                     .foregroundColor(Theme.amber(0.7)).lineLimit(1)
                     .accessibility(label: Text(t.lowercased()))
+                    .helpTip(HelpText.tuning)
             }
         }
         .accessibilityElement(children: .combine)
@@ -680,6 +701,7 @@ struct Dial: View {
         }
         .accessibilityElement(children: .ignore)
         .accessibility(label: Text(dialLabel))
+        .helpTip(HelpText.keyDial)
     }
 
     private var isWorking: Bool {
@@ -727,9 +749,12 @@ private struct ResultSide: View {
             HStack(spacing: 4) {
                 Text.cap("BPM")
                 Spacer(minLength: 4)
-                ForEach([TempoFactor.half, .one, .double], id: \.self) { f in
-                    FactorChip(factor: f, on: f == options.factor, enabled: bpm != nil) { actions.setFactor(f) }
+                HStack(spacing: 4) {
+                    ForEach([TempoFactor.half, .one, .double], id: \.self) { f in
+                        FactorChip(factor: f, on: f == options.factor, enabled: bpm != nil) { actions.setFactor(f) }
+                    }
                 }
+                .helpTip(HelpText.tempoFactor)
             }
             Button(action: { options.onCycleTempo?() }) {
                 Text(bpm ?? "---.--").font(Theme.face(bpm.map { $0.count > 6 ? 32 : 38 } ?? 38).monospacedDigit())
@@ -745,17 +770,20 @@ private struct ResultSide: View {
             .padding(.top, 6)
             .accessibility(label: Text(bpm.map { "BPM \($0)" } ?? "BPM not found"))
             .accessibility(hint: Text("Click to switch between normal, double and half time"))
+            .helpTip(HelpText.bpm)
             if let l = state.lamp, let w = state.lampWord {
                 HStack(spacing: 6) {
                     LampShape(lamp: l).fill(l.color).frame(width: 8, height: 8)
                         .shadow(color: Theme.highContrast ? .clear : l.color.opacity(0.8), radius: 3)
                     Text(w).font(Theme.face(8.5)).tracking(1.4).foregroundColor(l.textColor)
                 }
+                .helpTip(HelpText.confidence)
                 .padding(.top, 10)
             }
             HStack(spacing: 6) {
                 Text(lineText).font(Theme.face(7.5)).tracking(1.1).foregroundColor(Theme.amber(0.55))
                     .lineLimit(1).truncationMode(.middle)
+                    .helpTip(HelpText.fileLine)
                 if let p = page {
                     Spacer(minLength: 2)
                     Button(action: { actions.page(-1) }) { Text("‹").font(Theme.face(11)).foregroundColor(Theme.amber(0.7)) }
@@ -954,6 +982,7 @@ struct SourceField: View {
         .pointingHand()
         .accessibility(label: Text("Listen to: \(source)"))
         .accessibility(hint: Text("Choose System Audio or an input"))
+        .helpTip(HelpText.source)
     }
 
     /// Twelve LED segments: green, then amber, then red at the top.

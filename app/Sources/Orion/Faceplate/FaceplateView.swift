@@ -19,6 +19,7 @@ struct FaceplateView: View {
     let actions: PocketActions
     @ObservedObject private var spelling = SpellingSettings.shared
     @ObservedObject private var watcher = DAWWatcher.shared
+    @ObservedObject private var help = HelpSettings.shared
     @State private var keyMonitor: Any?
     @State private var pasteboardCount = NSPasteboard.general.changeCount
     private let clipboardTick = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
@@ -261,6 +262,8 @@ struct FaceplateFace: View {
             .padding(.bottom, 16)
         }
         .frame(width: size.width, height: size.height)
+        .environment(\.helpMode, state.help)
+        .helpTipLayer()
         // the desk runs up under the hidden title bar; SwiftUI adds the bar's 28 pt to the window
         .background(Theme.desk.edgesIgnoringSafeArea(.all))
     }
@@ -298,6 +301,7 @@ struct FaceplateFace: View {
                     }
                     .buttonStyle(SSLCapStyle(lit: cap.lit))
                     .accessibility(label: Text(cap.label.capitalized))
+                    .helpTip(HelpText.download)
                 } else {
                     DownloadCap(state: state, action: { actions.downloadPressed(state) }).frame(width: capWidth)
                 }
@@ -306,11 +310,13 @@ struct FaceplateFace: View {
             HStack(spacing: 12) {
                 AudioPickField(label: Faceplate.pickLabel(picked), focused: $pickFocused,
                                onOpen: files.openAudio, onSubmit: { findLit ? files.find() : files.openAudio() })
+                    .helpTip(HelpText.openAudio)
                 Button(action: files.find) { SSLCapStyle.label("FIND KEY/BPM").lineLimit(1).frame(maxWidth: .infinity) }
                     .buttonStyle(SSLCapStyle(lit: findLit))
                     .frame(width: capWidth)
                     .accessibility(label: Text("Find key and BPM"))
                     .accessibility(hint: Text(findLit ? "Finds the BPM and key of the chosen audio" : "Open an audio file first"))
+                    .helpTip(HelpText.findKey)
             }
             .padding(.top, 10)
             // the window keeps its size: HOLD and the reset key stay put, dim until Listen is on
@@ -340,7 +346,8 @@ struct FaceplateFace: View {
     private var footer: some View {
         HStack(spacing: 16) {
             RecentLink(state: state, action: actions.showRecents)
-            FooterLink(title: "SETTINGS", label: "Settings", action: actions.settings)
+            FooterLink(title: "SETTINGS", label: "Settings", action: actions.settings).helpTip(HelpText.settings)
+            HelpChip(on: state.help, action: actions.toggleHelp)
             Spacer()
         }
         .padding(.horizontal, 16)

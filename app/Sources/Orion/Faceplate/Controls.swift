@@ -20,6 +20,7 @@ struct LinkField: View {
             // the focus ring while the field waits for a link
             .overlay(shape.stroke(Theme.amber(0.55), lineWidth: 2).padding(-2)
                 .opacity(focused && text.isEmpty ? 1 : 0))
+            .helpTip(HelpText.linkField)
     }
 
     @ViewBuilder private var field: some View {

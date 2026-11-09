@@ -14,6 +14,7 @@ struct OrionApp: App {
     @StateObject private var loginItem = LoginItemSettings()
     @StateObject private var display = DisplaySettings()
     @StateObject private var spelling = SpellingSettings.shared
+    @StateObject private var help = HelpSettings.shared
     /// The clipboard link and the source name, shared by the window and the popover.
     @StateObject private var extras = PocketExtras()
     @StateObject private var live = LiveController(settings: LiveSettings(),
@@ -88,6 +89,8 @@ struct OrionApp: App {
                 Toggle("Advanced Mode", isOn: $display.advanced)
                     .keyboardShortcut("a", modifiers: [.option, .command])
                 Toggle("High Contrast Readout", isOn: $display.highContrast)
+                // the HELP chip's switch (no shortcut: ⌥⌘H is Hide Others, ⌘? is the Help menu's search)
+                Toggle("Help Mode", isOn: $help.isOn)
             }
             // The app menu says Beat Key whatever the process is called (swift run = "Orion").
             CommandGroup(replacing: .appInfo) {
@@ -177,6 +180,7 @@ struct OrionApp: App {
 
     private func launch() {
         live.songs.recents = recents   // each live song its own Recent Readings entry
+        HelpText.checkAtLaunch()
         let env = ProcessInfo.processInfo.environment
         if let fake = env["ORION_FAKE_STATE"], !fake.isEmpty {
             FakeState.apply(fake, engine: engine, model: model)

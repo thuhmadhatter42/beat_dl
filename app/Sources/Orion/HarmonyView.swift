@@ -85,7 +85,7 @@ struct HarmonyPanel: View {
     private var wheelAndNotes: some View {
         HStack(alignment: .top, spacing: 18) {
             VStack(alignment: .leading, spacing: 8) {
-                Text.cap("KEY WHEEL")
+                Text.cap("KEY WHEEL").helpTip(HelpText.keyWheel)
                 KeyWheel(keys: state.result?.keys ?? [],
                          onChoose: state.result.map { r in { k in SpellingSettings.shared.choose(k, of: r, from: "the key wheel") } })
                     .frame(width: KeyWheel.side, height: KeyWheel.side)
@@ -95,6 +95,7 @@ struct HarmonyPanel: View {
                     Text.cap("NOTES HEARD")
                     NotesHeard(chroma: chroma, scale: state.scale).frame(height: KeyWheel.side)
                 }
+                .helpTip(HelpText.notesHeard)
                 .frame(maxWidth: .infinity)
             } else {
                 Spacer(minLength: 0)
@@ -109,12 +110,9 @@ struct HarmonyPanel: View {
         let diatonic = key.map { Harmony.diatonic($0, quality: quality) } ?? []
         let borrowed = key.map { Harmony.borrowed($0, quality: quality) } ?? []
         return VStack(alignment: .leading, spacing: 0) {
-            HStack(spacing: 8) {
-                Text.cap(state.scale.map { "CHORDS · \($0.tonicName) \($0.minor ? "MINOR" : "MAJOR")" } ?? "CHORDS")
-                Spacer(minLength: 4)
-                Text("CLICK = HEAR · DRAG = MIDI").font(Theme.face(7)).tracking(1.1)
-                    .foregroundColor(Theme.amber(key == nil ? 0.2 : 0.45)).fixedSize()
-            }
+            // "click = hear, drag = MIDI" lives in the chords' help tip (J, 2026-11-09: less text by default)
+            Text.cap(state.scale.map { "CHORDS · \($0.tonicName) \($0.minor ? "MINOR" : "MAJOR")" } ?? "CHORDS")
+                .helpTip(HelpText.chords)
             chordControls.padding(.top, 10)
             if diatonic.isEmpty {
                 Text("NO KEY YET · PASTE, OPEN OR LISTEN").font(Theme.face(8)).tracking(1.4)
@@ -126,6 +124,7 @@ struct HarmonyPanel: View {
                         ChordCell(chord: c, tonic: i == 0, actions: actions)
                     }
                 }
+                .helpTip(HelpText.chords)
                 .padding(.top, 10)
                 HStack(spacing: 8) {
                     Text("BORROWED").font(Theme.face(7)).tracking(1.4).foregroundColor(Theme.amber(0.45))
@@ -136,6 +135,7 @@ struct HarmonyPanel: View {
                         }
                     }
                 }
+                .helpTip(HelpText.borrowed)
                 .padding(.top, 6)
             }
         }
@@ -151,6 +151,7 @@ struct HarmonyPanel: View {
                     }
                 }
             }
+            .helpTip(HelpText.quality)
             HStack(spacing: 3) {
                 ForEach(Voicing.allCases, id: \.self) { v in
                     LCDChip(title: v.label, on: prefs.voicing == v, label: "Voicing: \(v.spoken)", width: 32) {
@@ -158,6 +159,7 @@ struct HarmonyPanel: View {
                     }
                 }
             }
+            .helpTip(HelpText.voicing)
             Spacer(minLength: 0)
             HStack(spacing: 3) {
                 ForEach(ChordClip.barChoices, id: \.self) { b in
@@ -168,6 +170,7 @@ struct HarmonyPanel: View {
                 Text("BAR").font(Theme.face(7)).tracking(1.1).foregroundColor(Theme.amber(0.45)).padding(.leading, 2)
                     .accessibility(hidden: true)
             }
+            .helpTip(HelpText.bars)
         }
     }
 }
@@ -242,7 +245,7 @@ struct MatchToRow: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 9) {
             HStack(spacing: 8) {
-                Text.cap("MATCH TO")
+                Text.cap("MATCH TO").helpTip(HelpText.matchTo)
                 Button(action: pick) {
                     Text((target ?? "PICK KEY") + " ▾").font(Theme.face(8)).tracking(0.8)
                         .foregroundColor(Theme.amber(target == nil ? 0.6 : 1))
@@ -253,6 +256,7 @@ struct MatchToRow: View {
                 .buttonStyle(PlainButtonStyle())
                 .pointingHand()
                 .accessibility(label: Text(target.map { "Project key \($0). Change it" } ?? "Pick your project's key"))
+                .helpTip(HelpText.matchTo)
                 Spacer(minLength: 4)
                 Text(line).font(Theme.face(7.5)).tracking(1).foregroundColor(Theme.amber(shift == nil ? 0.35 : 0.75))
                     .lineLimit(1).minimumScaleFactor(0.8)
@@ -262,6 +266,7 @@ struct MatchToRow: View {
             }
             .accessibilityElement(children: .ignore)
             .accessibility(label: Text(spoken))
+            .helpTip(HelpText.matchShift)
         }
     }
 
@@ -352,17 +357,8 @@ struct KeyWheel: View {
         let s = KeyWheel.slot(i, minor: minor)
         let info = info(s.pc, minor: minor)
         let top = cos(Double(i) * .pi / 6) > 0
-        return VStack(alignment: .leading, spacing: 3) {
-            Text(info.title).font(Theme.face(11)).foregroundColor(Theme.amber)
-            Text(info.why).font(.system(size: 10)).foregroundColor(Theme.amber(0.8))
-                .fixedSize(horizontal: false, vertical: true)
-        }
-        .padding(.horizontal, 8).padding(.vertical, 6)
-        .frame(width: 176, alignment: .leading)
-        .background(RoundedRectangle(cornerRadius: 6).fill(Theme.hex(0x15100a).opacity(0.96)))
-        .overlay(RoundedRectangle(cornerRadius: 6).stroke(Theme.amber(0.45), lineWidth: 1))
-        .shadow(color: Color.black.opacity(0.5), radius: 6, y: 2)
-        .offset(y: top ? 52 : -52)
+        return HelpCard(title: info.title, text: info.why, width: 176)
+            .offset(y: top ? 52 : -52)
     }
 
     /// The name as the wheel spells it.

@@ -300,6 +300,7 @@ struct ResultReadout: View {
                 Text.cap("BPM")
                 if let r = Tempo.rounded(result, factor: options.factor) {
                     Text(r).font(Theme.face(8)).tracking(1.6).foregroundColor(Theme.amber(0.45))
+                        .helpTip(HelpText.bpmRounded)
                 }
                 if let period = Faceplate.tempoPeriod(bpmShown) {
                     TempoLight(period: period).padding(.leading, 2)
@@ -313,15 +314,18 @@ struct ResultReadout: View {
                             FactorChip(factor: f, on: f == options.factor, enabled: bpmShown != nil) { actions.setFactor(f) }
                         }
                     }
+                    .helpTip(HelpText.tempoFactor)
                 } else if let tag = options.factor.label, bpmShown != nil {
                     Text(tag).font(Theme.face(8).monospacedDigit()).foregroundColor(Theme.amber(0.7))
                         .accessibility(label: Text(options.factor == .double ? "Double time" : "Half time"))
+                        .helpTip(HelpText.tempoFactor)
                 }
             }
             .frame(height: 15)
             bpmNumber.padding(.top, 6)
                 .accessibilityElement(children: .ignore)
                 .accessibility(label: Text(bpmLabel))
+                .helpTip(HelpText.bpm)
             Spacer(minLength: 0)
             statusLine
         }
@@ -331,7 +335,8 @@ struct ResultReadout: View {
     /// the factor chips, clear of the BPM).
     @ViewBuilder private var camelot: some View {
         if state.advanced, let key = result.keys.first?.0, let code = Camelot.code(key) {
-            CamelotBadge(code: code, relative: Camelot.relative(key)).frame(width: 40).offset(x: -46, y: 6)
+            CamelotBadge(code: code, relative: Camelot.relative(key)).helpTip(HelpText.camelot)
+                .frame(width: 40).offset(x: -46, y: 6)
         }
     }
 
@@ -344,6 +349,7 @@ struct ResultReadout: View {
                 .lineLimit(1).truncationMode(.tail)
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .accessibility(label: Text(note ?? options.live.map { "Live, \($0.source)" } ?? result.name))
+                .helpTip(HelpText.fileLine)
             if let p = page {
                 HStack(spacing: 6) {
                     PageArrow(glyph: "‹", label: "Previous file") { actions.page(-1) }
@@ -375,6 +381,7 @@ struct ResultReadout: View {
         .buttonStyle(PlainButtonStyle())
         .pointingHand()
         .accessibility(label: Text("Show in Finder"))
+        .helpTip(HelpText.showInFinder)
     }
 
     /// The big BPM. A click cycles x1 / x2 / x0.5 when there is a BPM to cycle.
@@ -400,6 +407,7 @@ struct ResultReadout: View {
             StateLamp(lamp: lamp, text: c)
                 .accessibilityElement(children: .ignore)
                 .accessibility(label: Text(c.lowercased()))
+                .helpTip(HelpText.confidence)
         }
     }
 

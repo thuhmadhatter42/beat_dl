@@ -118,6 +118,8 @@ struct PocketState {
     var advanced = false
     /// Advanced mode's chord and MATCH TO choices.
     var harmony = HarmonyPrefs()
+    /// Help mode: hovering a control explains it (HelpSettings; the HELP chip lights).
+    var help = false
     /// A click on the key's name switches sharp / flat; nil = no action wired.
     var canRespell: Bool { result?.keys.first.map { KeySpelling.isBlack($0.0) } ?? false }
 

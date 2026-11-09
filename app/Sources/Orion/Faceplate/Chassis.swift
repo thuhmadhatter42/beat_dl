@@ -139,5 +139,6 @@ struct StatusLegend: View {
         }
         .accessibilityElement(children: .ignore)
         .accessibility(label: Text("Status: \(word.lowercased())"))
+        .helpTip(HelpText.status)
     }
 }

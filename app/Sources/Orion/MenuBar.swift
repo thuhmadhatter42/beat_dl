@@ -351,6 +351,7 @@ extension PocketActions {
         a.openWindow = { log("show window"); close(); StatusItemController.bringWindowForward() }
         a.settings = { log("settings"); close(); SettingsOpener.open() }
         a.quit = { log("quit"); NSApp.terminate(nil) }
+        a.toggleHelp = { HelpSettings.shared.toggle(from: surface) }
         return a
     }
 }
@@ -438,6 +439,7 @@ struct PocketContainer: View {
     @ObservedObject var extras: PocketExtras
     @ObservedObject private var spelling = SpellingSettings.shared
     @ObservedObject private var watcher = DAWWatcher.shared
+    @ObservedObject private var help = HelpSettings.shared
     let actions: PocketActions
     let onSize: (CGSize) -> Void
 
@@ -459,7 +461,7 @@ extension PocketState {
     /// the window (the window then puts its own readout in, for the drag-hover highlight).
     static func make(engine: Engine, model: FaceplateModel, live: LiveController, tuning: TuningSettings,
                      recents: RecentStore, display: DisplaySettings, shortcuts: ShortcutStore, extras: PocketExtras,
-                     spelling: SpellingSettings, daw: String?) -> PocketState {
+                     spelling: SpellingSettings, daw: String?, help: HelpSettings = .shared) -> PocketState {
         var s = PocketState()
         s.readout = Faceplate.readout(engine.state, live: live.state, liveSource: live.sourceName, page: model.pager,
                                       factor: model.tempoFactor, lastAction: model.lastAction, note: engine.note,
@@ -481,6 +483,7 @@ extension PocketState {
         s.holdKeys = shortcuts.shortcut(.hold)?.display
         s.advanced = display.advanced
         s.harmony = HarmonyPrefs(display)
+        s.help = help.isOn
         return s
     }
 }
