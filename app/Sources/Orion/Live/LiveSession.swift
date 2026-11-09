@@ -26,8 +26,10 @@ enum LiveEvent: Equatable {
         case "error": return .error((obj["message"] as? String) ?? "The analyzer stopped.")
         case "reading":
             guard let keys = Event.keyList(obj["keys"]) else { return nil }
+            // tuning_cents: vs A = 440, null while the key is under 50 % (bpm.py key_reading)
             return .reading(Result(file: LiveSession.placeholderFile, name: "LIVE", bpm: obj["bpm"] as? String,
-                                   keys: keys, bpmExact: (obj["bpm_exact"] as? NSNumber)?.doubleValue))
+                                   keys: keys, bpmExact: (obj["bpm_exact"] as? NSNumber)?.doubleValue,
+                                   tuningCents: (obj["tuning_cents"] as? NSNumber)?.doubleValue))
         default: return nil
         }
     }
@@ -149,10 +151,11 @@ extension Faceplate {
     static let liveRetryHint = "READING › START LISTENING TO TRY AGAIN"
 
     /// What the LCD shows while Listen is on (or just failed); nil = Listen is off, the engine's
-    /// readout stands.
+    /// readout stands. `reference` = the A the tuning line is measured against (Settings), as for files.
     static func liveReadout(_ s: LiveState, source: String, factor: TempoFactor,
                             onCycleTempo: (() -> Void)? = nil, held: Bool = false,
-                            spelling: KeySpelling? = nil, onToggleSpelling: (() -> Void)? = nil) -> Readout? {
+                            spelling: KeySpelling? = nil, onToggleSpelling: (() -> Void)? = nil,
+                            reference: Double = Tuning.defaultReference) -> Readout? {
         switch s {
         case .off:
             return nil
@@ -161,7 +164,8 @@ extension Faceplate {
         case .listening:
             return .listening(status: s.status(source: source) ?? "LISTENING")
         case .reading(let r), .locked(let r):
-            let opts = ResultOptions(factor: factor, tuning: nil, onCycleTempo: onCycleTempo,
+            let opts = ResultOptions(factor: factor, tuning: Tuning.line(r.tuningCents, reference: reference),
+                                     onCycleTempo: onCycleTempo,
                                      live: (s.lamp ?? .listening, s.status(source: source, held: held) ?? "", source),
                                      onToggleSpelling: onToggleSpelling)
             return .result(r.respelled(spelling), page: nil, download: false, options: opts)

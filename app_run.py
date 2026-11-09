@@ -60,7 +60,8 @@ def log_line(url, name):
 
 def analyze_file(path, timeout=120, extras=None):
     """Run bpm.py on a file. Returns (bpm_string | None, [(key, percent_int), ...]).
-    extras (a dict) receives bpm.py's "name: value" lines after the keys: bpm_exact, tuning_cents."""
+    extras (a dict) receives bpm.py's "name: value" lines after the keys: bpm_exact, tuning_cents,
+    chroma (a list of 12 floats)."""
     try:
         p = subprocess.run([sys.executable, str(HERE / "bpm.py"), str(path)],
                            capture_output=True, text=True, timeout=timeout)
@@ -89,6 +90,14 @@ def analyze_file(path, timeout=120, extras=None):
                     extras[name] = float(value)
                 except ValueError:
                     pass
+            elif sep and name == "chroma":              # 12 floats C..B, 0..1 (notes heard)
+                try:
+                    v = [float(x) for x in json.loads(value)]
+                    if len(v) != 12:
+                        raise ValueError("not 12 values")
+                    extras[name] = v
+                except (ValueError, TypeError):
+                    print(f"Warning: chroma line ignored: {value[:80]}", file=sys.stderr)
     return bpm, keys
 
 

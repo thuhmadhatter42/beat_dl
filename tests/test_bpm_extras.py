@@ -279,6 +279,30 @@ class TestExtrasLines(unittest.TestCase):
         _r, extras = self.run_with_stdout("1.0\nCm (80%)\nA (1%)\nB (1%)\nbpm_exact: abc\nwhat: 3\n")
         self.assertEqual(extras, {})
 
+    def test_chroma_parsed(self):
+        ch = [1.0, 0.0, 0.5, 0.25, 0.0, 0.7, 0.0, 0.9, 0.0, 0.6, 0.0, 0.3]
+        out = "140.0\nC (80.0%)\nAm (10.0%)\nG (5.0%)\nchroma: [" + ", ".join(map(str, ch)) + "]\n"
+        _r, extras = self.run_with_stdout(out)
+        self.assertEqual(extras, {"chroma": ch})
+
+    def test_junk_chroma_ignored(self):
+        for bad in ("chroma: [1, 2]", "chroma: nope", "chroma: [\"a\"" + ", 0" * 11 + "]"):
+            _r, extras = self.run_with_stdout("1.0\nCm (80%)\nA (1%)\nB (1%)\n" + bad + "\n")
+            self.assertEqual(extras, {}, bad)
+
+    @unittest.skipUnless(HAVE_ESSENTIA, "needs the bundled Python (essentia)")
+    def test_bpm_py_prints_chroma_and_tuning_app_run_reads_them(self):
+        with tempfile.TemporaryDirectory() as d:
+            p = Path(d) / "c.wav"
+            chord_wav(p, 20, seconds=14)
+            p_out = subprocess.run([sys.executable, str(ROOT / "bpm.py"), str(p)],
+                                   capture_output=True, text=True, timeout=120)
+        self.assertEqual(p_out.returncode, 0, p_out.stderr)
+        (_b, keys), extras = self.run_with_stdout(p_out.stdout)
+        self.assertEqual(len(keys), 3)
+        self.assertEqual(len(extras.get("chroma", [])), 12)
+        self.assertAlmostEqual(extras["tuning_cents"], 20, delta=3)
+
 
 class TestInputFormats(unittest.TestCase):
     """ffmpeg-decodable containers go through bpm.py unchanged (needs the bundled ffmpeg)."""

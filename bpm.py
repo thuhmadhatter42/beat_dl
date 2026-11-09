@@ -6,13 +6,14 @@ BPM: Essentia TempoCNN (models/deeptemp-k16-3.pb) on the whole track. Two back e
      - legacy essentia (no TensorFlow, no ffmpeg; old Macs): tempocnn_np.py (numpy port, weights in
        models/deeptemp-k16-3.npz) and decoding through the bundled ffmpeg CLI, set up to give the
        same samples AudioLoader gives (fixed-point mp3 decoder -> s16 -> /32768).
-Key: Essentia HPCP (36 bins, spectral whitening, detuning correction) on the whole track,
+Key: Essentia HPCP (36 bins, spectral whitening, rebuilt at the track's own A when it is 5+ cents
+     off 440: key_reading) on the whole track,
      correlated against Faraldo's 'bgate' EDM profiles for all 24 keys -> real top-3 with a
      confidence from segment agreement + margin (docs/research/key-detection-research.md).
 Fallback without essentia-tensorflow: librosa (tempo on the loudest 60 s; HPSS + CENS
 chroma + edma profiles for key). Warnings go to stderr only; stdout is the 4-line contract.
 Also reads MIDI files (midi_analyze.py). After the 4 lines it prints "bpm_exact: <0.01 BPM>" and,
-when the key is confident, "tuning_cents: <cents vs A=440>".
+when the key is confident, "tuning_cents: <cents vs A=440>", then "chroma: [12 floats C..B]".
 Live listening: `bpm.py --stream` reads raw float32 mono PCM on stdin and prints one JSON
 reading per line (LiveAnalyzer, stream_main); the app pipes the mic / system audio in, nothing
 is saved. A new song with no pause between is found by BoundaryDetector ({"event":"boundary"});
@@ -208,10 +209,21 @@ def detect_bpm_essentia(audio_11k):
     return round(float(global_bpm), 1)
 
 
+def _hpcp(reference=440.0):
+    """The KeyExtractor HPCP (36 bins, 25 Hz - 3.5 kHz, 4 harmonics) with A at `reference` Hz."""
+    import essentia.standard as es
+    return es.HPCP(bandPreset=False, harmonics=4, minFrequency=25, maxFrequency=3500,
+                   nonLinear=False, normalized='none', referenceFrequency=float(reference),
+                   sampleRate=KEY_SR, size=HPCP_SIZE, weightType='cosine', windowSize=1.0,
+                   maxShifted=False)
+
+
 def hpcp_frames(audio_44k, peaks_out=None):
     """essentia KeyExtractor front end, frame by frame: hann -> spectrum -> peaks -> spectral
     whitening -> 36-bin HPCP (bass kept: minFrequency 25 Hz). Returns (n_frames, 36).
-    peaks_out (a list) receives each frame's (frequencies, magnitudes) for the tuning estimate."""
+    peaks_out (a list) receives each frame's (frequencies, magnitudes, whitened magnitudes): the
+    first two feed the tuning estimate, the frequencies + whitened magnitudes rebuild the HPCP at
+    another reference (hpcp_from_peaks) without a second pass over the audio."""
     import numpy as np
     import essentia.standard as es
     win = es.Windowing(type='hann', size=FRAME)
@@ -219,18 +231,24 @@ def hpcp_frames(audio_44k, peaks_out=None):
     peaks = es.SpectralPeaks(orderBy='magnitude', magnitudeThreshold=1e-4, minFrequency=25,
                              maxFrequency=3500, maxPeaks=60, sampleRate=KEY_SR)
     white = es.SpectralWhitening(maxFrequency=3500, sampleRate=KEY_SR)
-    hpcp = es.HPCP(bandPreset=False, harmonics=4, minFrequency=25, maxFrequency=3500,
-                   nonLinear=False, normalized='none', referenceFrequency=440, sampleRate=KEY_SR,
-                   size=HPCP_SIZE, weightType='cosine', windowSize=1.0, maxShifted=False)
+    hpcp = _hpcp()
     out = []
     for fr in es.FrameGenerator(audio_44k, frameSize=FRAME, hopSize=HOP, startFromZero=True):
         s = spec(win(fr))
         f, m = peaks(s)
+        w = white(s, f, m)
         if peaks_out is not None:
-            peaks_out.append((f, m))
-        m = white(s, f, m)
-        out.append(hpcp(f, m))
+            peaks_out.append((f, m, w))
+        out.append(hpcp(f, w))
     return np.array(out)
+
+
+def hpcp_from_peaks(peaks, reference):
+    """The same HPCP frames hpcp_frames gave, rebuilt from its peaks_out with A at `reference` Hz
+    (whitening does not depend on the reference, so this equals a fresh pass at that reference)."""
+    import numpy as np
+    hpcp = _hpcp(reference)
+    return np.array([hpcp(f, w) for f, _m, w in peaks])
 
 
 def hpcp_to_pcp12(avg):
@@ -248,16 +266,27 @@ def hpcp_to_pcp12(avg):
 
 
 def detect_keys_essentia(audio_44k, peaks_out=None):
-    return keys_from_hpcp(hpcp_frames(audio_44k, peaks_out))
+    """Top-3 keys of a whole track (detune-robust: key_reading)."""
+    peaks = peaks_out if peaks_out is not None else []
+    return key_reading(hpcp_frames(audio_44k, peaks), peaks)["keys"]
+
+
+NO_KEYS = [('C', 0.0), ('Am', 0.0), ('G', 0.0)]
 
 
 def keys_from_hpcp(H):
     """Top-3 keys with confidence from HPCP frames (n, 36): the whole-track key plus agreement of
-    its 10 s windows. Shared by files (detect_keys_essentia) and live listening (LiveAnalyzer)."""
+    its 10 s windows. Shared by files and live listening through key_reading."""
+    return _keys_and_pcp(H)[0]
+
+
+def _keys_and_pcp(H):
+    """keys_from_hpcp plus the whole-window 12-bin profile (bin 0 = C) the key came from."""
     import numpy as np
     if len(H) == 0 or H.max() == 0:
-        return [('C', 0.0), ('Am', 0.0), ('G', 0.0)]
-    scores = key_scores(hpcp_to_pcp12(H.mean(axis=0)), BGATE)
+        return list(NO_KEYS), np.zeros(12)
+    pcp = hpcp_to_pcp12(H.mean(axis=0))
+    scores = key_scores(pcp, BGATE)
     winner = max(scores, key=scores.get)
     # segment agreement over 10 s windows (a partial last window counts if >= half a window)
     fr = int(SEGMENT_SECS * KEY_SR / HOP)
@@ -269,7 +298,36 @@ def keys_from_hpcp(H):
         s = key_scores(hpcp_to_pcp12(seg.mean(axis=0)), BGATE)
         wins.append(max(s, key=s.get) == winner)
     agree = float(np.mean(wins)) if wins else 1.0
-    return top3_with_confidence(scores, agree)
+    return top3_with_confidence(scores, agree), pcp
+
+
+TUNING_RETUNE_CENTS = 5   # |tuning| at or above which the key's HPCP is rebuilt at the track's A
+
+
+def key_reading(H, peaks=None):
+    """The key readout from HPCP frames H (n, 36) and their peaks (hpcp_frames' peaks_out, or None):
+      keys          top-3 [(name, %)], as keys_from_hpcp
+      tuning_cents  the audio's tuning against A = 440 (-50..+50, + = sharp), or None when the key
+                    is under TUNING_MIN_CONF (atonal / drum-only) or there are no peaks
+      chroma        12 floats C..B, 0..1: the profile the key came from (the app's "notes heard")
+    Detune-robust: the 440 Hz HPCP grid is 33 cents a bin, so audio 14 or 50 cents off smears over
+    two bins and the 10 s windows stop agreeing (J, 2026-11-08: Spotify pitched +7 / +14 / +50 ¢,
+    sureness dropped). When the tuning is TUNING_RETUNE_CENTS or more off, the HPCP is rebuilt with
+    A at 440 * 2^(c/1200), so the notes sit on their bins again and the key name agrees with the
+    tuning's sign (C at +50 ¢ reads C +50, never Db +50). One function for files and live."""
+    import numpy as np
+    tuning = estimate_tuning(peaks) if peaks else None
+    if tuning is not None and abs(tuning) >= TUNING_RETUNE_CENTS and len(peaks) == len(H):
+        try:
+            H = hpcp_from_peaks(peaks, 440.0 * 2 ** (tuning / 1200))
+        except Exception as exc:                   # the 440 Hz reading stands
+            _warn(f"retuned key skipped: {exc}")
+    keys, pcp = _keys_and_pcp(H)
+    top = pcp.max() if len(pcp) else 0.0
+    chroma = [round(float(v / top), 3) if top > 0 else 0.0 for v in pcp]
+    if keys[0][1] < TUNING_MIN_CONF:
+        tuning = None
+    return {"keys": keys, "tuning_cents": tuning, "chroma": chroma}
 
 
 # ---------------------------------------------------------------- decimal BPM and tuning
@@ -311,19 +369,43 @@ TUNING_MIN_CONF = 50   # key confidence (%) below which a tuning estimate is not
 
 def detect_tuning(peaks, conf):
     """Tuning of the track in cents against A = 440 Hz (+ = sharp), folded to the nearest semitone
-    grid (-50..+50), from essentia's TuningFrequency over every frame's spectral peaks. None when
-    the key readout is not confident (atonal / drum-only audio has no tuning to speak of)."""
+    grid (-50..+50), from every frame's spectral peaks (estimate_tuning). None when the key
+    readout is not confident (atonal / drum-only audio has no tuning to speak of)."""
+    if conf < TUNING_MIN_CONF:
+        return None
+    return estimate_tuning(peaks)
+
+
+TUNING_MIN_HZ = 200.0   # peaks below this are left out of the tuning estimate
+
+
+def estimate_tuning(peaks):
+    """detect_tuning without the confidence gate: cents against A = 440 (-50..+50) from peaks
+    (hpcp_frames' peaks_out), or None when there are none or the math fails (logged).
+    Each peak's distance from the 440 Hz semitone grid is a point on a 100-cent circle; the answer
+    is their magnitude-weighted circular mean. Peaks under TUNING_MIN_HZ are left out: a 4096-point
+    frame's bins are 10.8 Hz wide (90+ cents under 200 Hz), and a loud kick / 808 there pinned
+    essentia's TuningFrequency histogram at -21 cents whatever the music's tuning was (measured
+    2026-11-08 on 40 GiantSteps tracks pitched 0 / +7 / +14 / +25 / +50 / -30 cents: 82-98 % of
+    estimates moved by the true shift +-3 cents, TuningFrequency 32-55 %)."""
     import numpy as np
-    import essentia.standard as es
-    if conf < TUNING_MIN_CONF or not peaks:
+    if not peaks:
         return None
-    f = np.concatenate([p[0] for p in peaks]).astype(np.float32)
-    m = np.concatenate([p[1] for p in peaks]).astype(np.float32)
-    if len(f) == 0:
+    try:
+        f = np.concatenate([p[0] for p in peaks]).astype(np.float64)
+        m = np.concatenate([p[1] for p in peaks]).astype(np.float64)
+        keep = (f >= TUNING_MIN_HZ) & (m > 0)
+        if not keep.any():
+            return None
+        dev = 1200 * np.log2(f[keep] / 440.0)
+        z = np.sum(m[keep] * np.exp(2j * np.pi * dev / 100))
+        if abs(z) == 0:
+            return None
+        cents = float(np.angle(z) / (2 * np.pi) * 100)     # -50..+50
+    except Exception as exc:
+        _warn(f"tuning skipped: {exc}")
         return None
-    _hz, cents = es.TuningFrequency()(f, m)       # essentia reports -35..+65
-    cents = float(cents)
-    return round(cents - 100 if cents > 50 else cents, 1)
+    return round(cents, 1)
 
 
 # ---------------------------------------------------------------- librosa fallback
@@ -554,7 +636,9 @@ class LiveAnalyzer:
     same flush, said with a "boundary" event; the key window stays 30 s and rebuilds from scratch.
     Events are dicts, printed as one JSON line each:
       {"event": "reading", "bpm": "128.0" | null, "bpm_exact": 128.02 | null,
-       "keys": [["Ebm", 82], ...], "secs": <s of audio behind it>}
+       "keys": [["Ebm", 82], ...], "secs": <s of audio behind it>,
+       "tuning_cents": -12.0 | null (vs A = 440; null while the key is under 50 %),
+       "chroma": [12 floats C..B, 0..1]}   (key_reading: the same readout files get)
       {"event": "reset"}
       {"event": "boundary", "reason": "audio" | "title", "scores": {...} (audio only)}"""
 
@@ -578,6 +662,7 @@ class LiveAnalyzer:
         self.audio = np.zeros(0, np.float32)     # last `window` s at 44.1 kHz (tempo)
         self.carry = np.zeros(0, np.float32)     # samples not yet framed for HPCP
         self.frames = []                         # HPCP frames, last `key_window` s
+        self.peaks = []                          # their spectral peaks (tuning, retuned key)
         self.heard = 0.0                         # s of non-silent audio since the last reset
         self.silent_run = 0.0
         self.since_reading = 0.0
@@ -638,9 +723,12 @@ class LiveAnalyzer:
         buf = np.concatenate([self.carry, x])
         n = (len(buf) // FRAME) * FRAME
         if n:
-            self.frames.extend(hpcp_frames(buf[:n]))
+            pk = []
+            self.frames.extend(hpcp_frames(buf[:n], pk))
+            self.peaks.extend(pk)
             limit = max(1, int(self.key_window * KEY_SR / HOP))
             del self.frames[:-limit]
+            del self.peaks[:-limit]
         self.carry = buf[n:]
         if self.since_reading >= self.hop:
             r = self.reading()
@@ -654,9 +742,10 @@ class LiveAnalyzer:
         if self.heard < STREAM_MIN_KEY_SECS or not self.frames:
             return None
         self.since_reading = 0.0
-        keys = keys_from_hpcp(np.array(self.frames))
+        k = key_reading(np.array(self.frames), self.peaks)
         out = {"event": "reading", "bpm": None, "bpm_exact": None,
-               "keys": [[k, int(round(p))] for k, p in keys], "secs": round(self.heard, 1)}
+               "keys": [[name, int(round(p))] for name, p in k["keys"]], "secs": round(self.heard, 1),
+               "tuning_cents": k["tuning_cents"], "chroma": k["chroma"]}
         if len(self.audio) >= int(STREAM_TEMPO_SECS * KEY_SR):
             import essentia.standard as es
             a11 = es.Resample(inputSampleRate=KEY_SR, outputSampleRate=TEMPOCNN_SR)(self.audio)
@@ -779,9 +868,10 @@ MIDI_EXTENSIONS = {".mid", ".midi"}
 
 
 def analyze_full(filepath):
-    """-> (bpm rounded to 0.1, top-3 keys, extras). extras: 'bpm_exact' (0.01 BPM) and, for audio
-    with a confident key, 'tuning_cents' (against A = 440, -50..+50). The first two are what the
-    command line and the file names use; extras are for the app's readout."""
+    """-> (bpm rounded to 0.1, top-3 keys, extras). extras: 'bpm_exact' (0.01 BPM), 'chroma' (12
+    floats C..B, 0..1, the profile the key came from) and, for audio with a confident key,
+    'tuning_cents' (against A = 440, -50..+50). The first two are what the command line and the
+    file names use; extras are for the app's readout (key_reading: the same readout live gets)."""
     if Path(filepath).suffix.lower() in MIDI_EXTENSIONS:
         import midi_analyze
         return midi_analyze.analyze_midi(filepath)
@@ -789,10 +879,11 @@ def analyze_full(filepath):
     if _have_essentia():
         a_key, a_bpm = load_audio_essentia(filepath)
         peaks = []
-        keys = detect_keys_essentia(a_key, peaks)
-        tuning = detect_tuning(peaks, keys[0][1])
-        if tuning is not None:
-            extras["tuning_cents"] = tuning
+        k = key_reading(hpcp_frames(a_key, peaks), peaks)
+        keys = k["keys"]
+        if k["tuning_cents"] is not None:
+            extras["tuning_cents"] = k["tuning_cents"]
+        extras["chroma"] = k["chroma"]
         if _tempocnn_model_present():
             bpm = detect_bpm_essentia(a_bpm)
             try:
@@ -843,11 +934,14 @@ def main():
     bpm, keys, extras = analyze_full(path)
 
     # Output for bash parsing: BPM on line 1, then each key on its own line; the app's extras
-    # ("bpm_exact: 140.82", "tuning_cents: -12.0") follow, so lines 1-4 stay the contract
+    # ("bpm_exact: 140.82", "tuning_cents: -12.0", "chroma: [1.0, 0.0, ...]") follow, so lines
+    # 1-4 stay the contract
     print(bpm)
     for key, confidence in keys:
         print(f"{key} ({confidence}%)")
     for name, value in extras.items():
+        if isinstance(value, list):                # chroma: one JSON list on its line
+            value = "[" + ", ".join(str(v) for v in value) + "]"
         print(f"{name}: {value}")
 
 
