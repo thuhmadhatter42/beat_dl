@@ -26,6 +26,7 @@ Everything is under the menus or in Settings (Beat Key > Settings, ⌘,). The gl
 - **Menu-bar readout.** The coloured key and BPM (for example `Ebm 128`) sit in the menu bar; no key is shown until the reading has locked. Click it to start or stop listening, analyze a file, or open Settings.
 - **Confidence lights and shapes.** Green octagon = locked, amber triangle = unsure, red circle = listening or analyzing. The shape means colour is never the only signal. View > High Contrast Readout (also in Settings) makes the display brighter.
 - **Decimal BPM, half and double.** The BPM shows with two decimals (`140.82`). Reading > Half / Double Tempo, or clicking the BPM on the display, cycles between the reading, double and half.
+- **Advanced Mode.** View > Advanced Mode (⌥⌘A, or Settings > Display, off by default) widens the window with the Camelot code and relative key, a key wheel (click a key to choose it), the notes heard, a chord strip (click to hear, drag a chord into a DAW as a .mid) and a MATCH TO row (−6 to +6).
 - **Tuning.** The display shows how many cents sharp or flat the track sits against a reference pitch. Reading > Reference Pitch: A = 432, 436, 438, 440, 442, 444, 450, or Custom (400 to 480 Hz).
 - **Files.** MP3, WAV, AIFF, FLAC, M4A, AAC, OGG, CAF, MP4, M4V, MOV and MIDI (.mid). For video the audio track is read. The file isn't changed.
 - **Analyze a File.** File > Analyze a File… (⌃⌥⌘F, global), drop files on the window or the Dock icon, Open With, or in Finder right-click > Services > Analyze with Beat Key.

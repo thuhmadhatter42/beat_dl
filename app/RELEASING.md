@@ -28,7 +28,7 @@ release must carry an `appcast.xml`, or update checks fail with a 404.
    `app/build/Beat-Key-<ver>.dmg` (signed, notarized, stapled) and `app/build/appcast.xml` (one
    item for that DMG, EdDSA-signed, enclosure
    `https://github.com/thuhmadhatter42/beat_dl/releases/download/Beat-Key-<ver>/Beat-Key-<ver>.dmg`).
-3. Commit, tag and publish the GitHub release with both files (auto mode blocks public pushes, so J runs the publish script; as of 2026-11-02 0.1.31 is built but unpublished and 0.1.18 is the public release):
+3. Commit, tag and publish the GitHub release with both files (auto mode blocks public pushes, so J runs the publish script; as of 2026-11-08 0.1.34 is the latest public release and 0.1.38 is built and installed on the MBP but unpublished; J runs `bash tools/publish.sh`, which reads `VERSION`):
 
    ```sh
    gh release create Beat-Key-<ver> -R thuhmadhatter42/beat_dl --title "Beat Key <ver>" \
