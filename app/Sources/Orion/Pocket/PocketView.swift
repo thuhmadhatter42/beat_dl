@@ -481,8 +481,6 @@ private struct PocketLCD: View {
             VStack(alignment: .leading, spacing: 0) {
                 Text("LISTENING").font(Theme.face(18)).tracking(0.9).foregroundColor(Theme.amber).amberGlow()
                 RunningBar().padding(.top, 12)
-                Text("PLAY SOMETHING · KEY IN A FEW SECONDS, BPM IN 12").font(Theme.face(7.5)).tracking(1.2)
-                    .foregroundColor(Theme.amber(0.6)).fixedSize(horizontal: false, vertical: true).padding(.top, 10)
             }
             .accessibilityElement(children: .ignore)
             .accessibility(label: Text("Listening. \(status.lowercased())"))

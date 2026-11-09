@@ -31,3 +31,10 @@ The same model's weights as numpy arrays, for `tempocnn_np.py` (the TensorFlow-f
 with the legacy essentia build on old Macs). Generated from `deeptemp-k16-3.pb` by
 `tools/build-old-mac/extract-tempocnn-weights.py`, which also checks the layer graph. It is a
 format conversion of the model above, under the same CC BY-NC-SA 4.0 license and attribution.
+
+**Fine-tuned weights (2026-11-09, Beat Key 0.1.40):** `deeptemp-k16-3.npz` is now candidate ftC
+(tools/train-tempocnn/candidates/ftC-243rows.npz, sha1 eab4c96e…), fine-tuned on 243 of J's
+harvested Pro Tools sessions. Held-out Acc1 on J's music 66 → 86 %, public bpm-bench 87.5 → 82.5 %;
+leakage check clean (candidates/ftC-leakage.md). J's rule: "Ship if clean". The original weights are
+in archive/deeptemp-k16-3-pre-ftC.npz; the `.pb` (essentia-tensorflow path) is unchanged and is not
+what the bundled app uses.

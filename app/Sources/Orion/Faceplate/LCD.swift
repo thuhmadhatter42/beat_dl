@@ -184,7 +184,6 @@ struct ListeningReadout: View {
                 .foregroundColor(Theme.amber).amberGlow()
             RunningBar().padding(.top, 14)
             Spacer(minLength: 0)
-            Text.cap("PLAY SOMETHING · KEY IN A FEW SECONDS, BPM IN 12").padding(.bottom, 8)
             StateLamp(lamp: .listening, text: status)
         }
         .accessibilityElement(children: .ignore)
