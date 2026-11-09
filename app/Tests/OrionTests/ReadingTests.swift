@@ -80,15 +80,31 @@ final class ReadingTests: XCTestCase {
         XCTAssertNil(Tuning.line(nil, reference: 440))
     }
 
-    func testTuningHiddenFrom45Cents() {
-        XCTAssertNotNil(Tuning.line(44, reference: 440))
-        XCTAssertNotNil(Tuning.line(-44.4, reference: 440))
-        XCTAssertNil(Tuning.line(45, reference: 440))
-        XCTAssertNil(Tuning.line(-48, reference: 440))
-        XCTAssertNil(Tuning.line(50, reference: 440))
-        // the same track against another reference can come back into range
-        XCTAssertNil(Tuning.line(-45, reference: 440))
+    func testTuningShownUpTo50Cents() {
+        XCTAssertEqual(Tuning.line(44, reference: 440), "TUNING +44¢ · A=440")
+        XCTAssertEqual(Tuning.line(-48, reference: 440), "TUNING −48¢ · A=440")
+        XCTAssertNotNil(Tuning.line(50, reference: 440))      // exactly half a semitone: either sign
+        XCTAssertEqual(Tuning.line(-49.9, reference: 440), "TUNING −50¢ · A=440")
+        // against another reference the folded offset still gets a line
         XCTAssertNotNil(Tuning.line(-45, reference: 432))
+    }
+
+    func testLiveReadingShowsTuningAgainstTheReference() {
+        let r = Result(file: LiveSession.placeholderFile, name: "LIVE", bpm: nil, keys: [("C", 85)],
+                       tuningCents: 14)
+        guard case .result(_, _, _, _, let o)? = Faceplate.liveReadout(.reading(r), source: "x", factor: .one,
+                                                                    reference: 442)
+        else { return XCTFail("no result readout") }
+        XCTAssertEqual(o.tuning, Tuning.line(14, reference: 442))
+    }
+
+    func testLiveReadingParsesTuningAndChroma() {
+        let line = #"{"event": "reading", "bpm": null, "bpm_exact": null, "keys": [["C", 85], ["Am", 6], ["F", 5]], "#
+            + #""secs": 30.0, "tuning_cents": -49.9, "chroma": [1.0, 0, 0.5, 0, 0.8, 0.6, 0, 0.9, 0, 0.7, 0, 0.4]}"#
+        guard case .reading(let r)? = LiveEvent.parse(line: line) else { return XCTFail("not a reading") }
+        XCTAssertEqual(r.tuningCents, -49.9)
+        XCTAssertEqual(r.chroma?.count, 12)
+        XCTAssertEqual(r.chroma?.first, 1.0)
     }
 
     func testPresetsAndCustomRange() {

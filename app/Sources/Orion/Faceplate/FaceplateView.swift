@@ -380,7 +380,8 @@ extension Faceplate {
                         onCycleTempo: (() -> Void)?, held: Bool = false, spelling: KeySpelling? = nil,
                         onToggleSpelling: (() -> Void)? = nil) -> Readout {
         if let l = liveReadout(live, source: liveSource, factor: factor, onCycleTempo: onCycleTempo, held: held,
-                               spelling: spelling, onToggleSpelling: onToggleSpelling) { return l }
+                               spelling: spelling, onToggleSpelling: onToggleSpelling,
+                               reference: reference) { return l }
         let dl = lastAction == .download
         func options(_ r: Result) -> ResultOptions {
             ResultOptions(factor: factor, tuning: Tuning.line(r.tuningCents, reference: reference),

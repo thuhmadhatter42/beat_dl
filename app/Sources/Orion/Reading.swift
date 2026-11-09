@@ -53,9 +53,10 @@ enum Tuning {
     static let presets: [Double] = [432, 436, 438, 440, 442, 444, 450]
     static let range: ClosedRange<Double> = 400...480
     static let defaultReference = 440.0
-    /// Past this many cents from the reference the track is closer to another semitone grid and
-    /// the number means little: nothing is shown.
-    static let maxOffset = 45.0
+    /// The offset is folded to -50...+50, so every confident track gets a line: +50 and -50 are the
+    /// same tuning seen from either neighbouring semitone (J, 2026-11-08: Spotify pitched +50 ¢ live
+    /// showed no line under the old 45 ¢ cap). The analyzer names the key on the same side.
+    static let maxOffset = 50.0
 
     /// What a person typed in the Custom… box: a number inside `range`, else nil.
     static func parse(_ text: String) -> Double? {
@@ -73,12 +74,11 @@ enum Tuning {
         return raw - 100 * (raw / 100).rounded()
     }
 
-    /// The LCD line ("TUNING +12¢ · A=440"), or nil when there is no confident reading or the
-    /// offset is 45 cents or more.
+    /// The LCD line ("TUNING +12¢ · A=440"), or nil when there is no confident reading.
     static func line(_ trackCents: Double?, reference: Double) -> String? {
         guard let c = trackCents else { return nil }
         let o = offset(trackCents: c, reference: reference)
-        guard abs(o) < maxOffset else { return nil }
+        guard abs(o) <= maxOffset else { return nil }
         let n = Int(o.rounded())
         let signed = n > 0 ? "+\(n)" : (n < 0 ? "−\(-n)" : "0")
         return "TUNING \(signed)¢ · A=\(refText(reference))"

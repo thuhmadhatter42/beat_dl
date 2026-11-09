@@ -25,11 +25,8 @@ enum LiveEvent: Equatable {
         case "boundary": return .boundary(LiveBoundary(json: obj))
         case "error": return .error((obj["message"] as? String) ?? "The analyzer stopped.")
         case "reading":
-            guard let keys = Event.keyList(obj["keys"]) else { return nil }
-            // tuning_cents: vs A = 440, null while the key is under 50 % (bpm.py key_reading)
-            return .reading(Result(file: LiveSession.placeholderFile, name: "LIVE", bpm: obj["bpm"] as? String,
-                                   keys: keys, bpmExact: (obj["bpm_exact"] as? NSNumber)?.doubleValue,
-                                   tuningCents: (obj["tuning_cents"] as? NSNumber)?.doubleValue))
+            // keys, bpm, bpm_exact, tuning_cents (null under 50 %), chroma: the same parser as files
+            return Event.reading(obj, file: LiveSession.placeholderFile, name: "LIVE").map { .reading($0) }
         default: return nil
         }
     }
