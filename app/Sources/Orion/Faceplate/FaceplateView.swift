@@ -339,10 +339,11 @@ struct FaceplateFace: View {
 
     // MARK: footer
 
+    /// RECENT ▾ · SETTINGS · COLOR · HELP, one chip each (FooterChip), 16 apart; ADVANCED on the right.
     private var footer: some View {
         HStack(spacing: Theme.S.l) {
             RecentLink(state: state, action: actions.showRecents)
-            FooterLink(title: "SETTINGS", label: "Settings", action: actions.settings).helpTip(HelpText.settings)
+            FooterChip(title: "SETTINGS", label: "Settings", action: actions.settings).helpTip(HelpText.settings)
             ColorChip()
             HelpChip(on: state.help, action: actions.toggleHelp)
             Spacer(minLength: 0)

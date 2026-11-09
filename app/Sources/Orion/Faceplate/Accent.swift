@@ -283,27 +283,10 @@ struct ColorChip: View {
 
     var body: some View {
         let on = accent.panelOpen
-        let shape = RoundedRectangle(cornerRadius: Theme.R.cap, style: .continuous)
-        Button(action: action) {
-            HStack(spacing: Theme.S.xs) {
-                RoundedRectangle(cornerRadius: 1.5, style: .continuous)
-                    .fill(on ? Theme.A.ink : Theme.amber)
-                    .frame(width: 7, height: 7)
-                Text("COLOR").captionStyle()
-            }
-            .foregroundColor(on ? Theme.A.ink : Theme.textLo)
-            .padding(.horizontal, Theme.S.s)
-            .frame(height: Theme.H.xs)
-            .background(shape.fill(on ? Theme.amber : Color.clear))
-            .overlay(shape.stroke(on ? Color.clear : Theme.textFaint, lineWidth: 1))
-            .contentShape(shape)
-        }
-        .buttonStyle(PlainButtonStyle())
-        .pointingHand()
-        .nativeHelp("Pick the display colour")
-        .helpTip(HelpText.color)
-        .accessibility(label: Text("Display colour"))
-        .accessibility(hint: Text(on ? "Closes the colour wheel" : "Opens a colour wheel to change the display colour"))
-        .accessibility(addTraits: on ? .isSelected : [])
+        // the footer's one chip (FooterChip) with the swatch, lit while the wheel is open
+        FooterChip(title: "COLOR", label: "Display colour", on: on, swatch: true, action: action)
+            .nativeHelp("Pick the display colour")
+            .helpTip(HelpText.color)
+            .accessibility(hint: Text(on ? "Closes the colour wheel" : "Opens a colour wheel to change the display colour"))
     }
 }

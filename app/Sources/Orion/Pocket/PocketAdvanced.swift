@@ -99,8 +99,17 @@ struct PocketHarmony: View {
 /// footer's caption type and height, in the display colour so it follows COLOR.
 struct AdvancedBox: View {
     let on: Bool
+    /// The pocket's footer may show the box alone (PocketFooter.showsAdvancedLabel).
+    var showsLabel = true
     let action: () -> Void
     @State private var hover = false
+
+    static let boxSide: CGFloat = 10
+    static let label = "ADVANCED"
+    /// The box and the word 4 after it, or the bare box's 16 pt click square.
+    static func width(showsLabel: Bool) -> CGFloat {
+        showsLabel ? boxSide + Theme.S.xs + FooterChip.textWidth(label) : Theme.H.xs
+    }
 
     var body: some View {
         Button(action: action) {
@@ -115,12 +124,15 @@ struct AdvancedBox: View {
                             .padding(2)
                     }
                 }
-                .frame(width: 10, height: 10)
-                Text("ADVANCED").captionStyle()
-                    .foregroundColor(on || hover ? Theme.A.a1 : Theme.A.a2)
-                    .lineLimit(1).fixedSize()
+                .frame(width: AdvancedBox.boxSide, height: AdvancedBox.boxSide)
+                if showsLabel {
+                    Text(AdvancedBox.label).captionStyle()
+                        .foregroundColor(on || hover ? Theme.A.a1 : Theme.A.a2)
+                        .lineLimit(1).fixedSize()
+                }
             }
-            .frame(height: Theme.H.xs)
+            // the bare box keeps a 16 pt square to click
+            .frame(minWidth: showsLabel ? nil : Theme.H.xs, minHeight: Theme.H.xs, maxHeight: Theme.H.xs)
             .contentShape(Rectangle())
         }
         .buttonStyle(PlainButtonStyle())

@@ -123,25 +123,55 @@ struct PocketView: View {
 
     // MARK: footer
 
-    /// RECENT · WINDOW · SETTINGS · HELP, then ADVANCED and QUIT on the right. With ADVANCED in
-    /// the line the 344 pt row is full: the links sit 8 apart and QUIT is its power symbol.
+    /// RECENT ▾ · WINDOW · SETTINGS · HELP chips (FooterChip, the window's chip), then ADVANCED and
+    /// QUIT (its power symbol) on the right. The 344 pt row holds the four chips 8 apart; the
+    /// ADVANCED box keeps its word only when it fits (PocketFooter.showsAdvancedLabel).
     private var footer: some View {
         HStack(spacing: 0) {
-            HStack(spacing: Theme.S.s) {
+            HStack(spacing: PocketFooter.gap) {
                 RecentLink(state: state, action: actions.showRecents)
-                FooterLink(title: "WINDOW", label: "Show the Beat Key window", action: actions.openWindow)
+                FooterChip(title: "WINDOW", label: "Show the Beat Key window", action: actions.openWindow)
                     .helpTip(HelpText.window)
-                FooterLink(title: "SETTINGS", label: "Settings", action: actions.settings).helpTip(HelpText.settings)
+                FooterChip(title: "SETTINGS", label: "Settings", action: actions.settings).helpTip(HelpText.settings)
                 HelpChip(on: state.help, action: actions.toggleHelp)
             }
-            Spacer(minLength: Theme.S.s)
-            HStack(spacing: Theme.S.s) {
-                AdvancedBox(on: state.advanced, action: actions.toggleAdvanced)
+            Spacer(minLength: PocketFooter.gap)
+            HStack(spacing: PocketFooter.gap) {
+                AdvancedBox(on: state.advanced, showsLabel: PocketFooter.showsAdvancedLabel,
+                            action: actions.toggleAdvanced)
                 QuitLink(action: actions.quit).helpTip(HelpText.quit)
             }
         }
         .frame(height: Theme.H.xs)
     }
+}
+
+/// The pocket footer's fit (J 2026-11-09 14:23, every action one chip): measured in the caption
+/// type, not guessed. The four chips at the window's size leave no room for ADVANCED's word, so
+/// the pocket shows the box alone (its native tip, help card and VoiceOver label still say
+/// Advanced mode); the drop, or a row that cannot fit at all, is logged once.
+enum PocketFooter {
+    static let gap: CGFloat = Theme.S.s
+    /// The plate's width less its padding.
+    static let usable: CGFloat = Pocket.width - Theme.S.l * 2
+    static let chipTitles = [RecentLink.title, "WINDOW", "SETTINGS", "HELP"]
+    static var chipsWidth: CGFloat {
+        chipTitles.map { FooterChip.width($0) }.reduce(0, +) + gap * CGFloat(chipTitles.count - 1)
+    }
+    /// Chips, the spacer's minimum, ADVANCED (box, or box and word), the gap, QUIT.
+    static func width(advancedLabel: Bool) -> CGFloat {
+        chipsWidth + gap + AdvancedBox.width(showsLabel: advancedLabel) + gap + QuitLink.width
+    }
+    static let showsAdvancedLabel: Bool = {
+        let full = width(advancedLabel: true), bare = width(advancedLabel: false)
+        if full <= usable { return true }
+        if bare > usable {
+            AppLog.log("pocket footer: fit failure: chips + ADVANCED box + quit need \(bare) pt of \(usable)")
+        } else {
+            AppLog.log("pocket footer: ADVANCED shows its box only (with the word it needs \(full) pt of \(usable))")
+        }
+        return false
+    }()
 }
 
 extension PocketActions {
@@ -339,10 +369,11 @@ struct ExportMidiCap: View {
 
 /// RECENT ▾: the recent readings as a menu (File › Recent Readings' list).
 struct RecentLink: View {
+    static let title = "RECENT ▾"
     let state: PocketState
     let action: () -> Void
     var body: some View {
-        FooterLink(title: "RECENT ▾", label: "Recent readings", enabled: !state.recents.isEmpty, action: action)
+        FooterChip(title: RecentLink.title, label: "Recent readings", enabled: !state.recents.isEmpty, action: action)
             .helpTip(HelpText.recent)
     }
 }
@@ -358,13 +389,14 @@ enum PocketText {
 
 /// QUIT as the power symbol (the pocket's footer has no room for the word next to ADVANCED).
 struct QuitLink: View {
+    static let width: CGFloat = 16
     let action: () -> Void
     @State private var hover = false
     var body: some View {
         Button(action: action) {
             Image(systemName: "power").font(.system(size: 11, weight: .semibold))
                 .foregroundColor(hover ? Theme.textHi : Theme.textLo)
-                .frame(width: 16, height: Theme.H.xs)
+                .frame(width: QuitLink.width, height: Theme.H.xs)
                 .contentShape(Rectangle())
         }
         .buttonStyle(PlainButtonStyle())
@@ -375,24 +407,75 @@ struct QuitLink: View {
     }
 }
 
-struct FooterLink: View {
+/// Every footer action, both surfaces (J 2026-11-09 14:23: "two of them look like buttons and two
+/// of them look like words... why don't they all look the same?"): RECENT ▾, WINDOW, SETTINGS,
+/// COLOR and HELP are one outlined chip. H.xs high, R.cap corners, the caption type, S.s each
+/// side. Dim outline at rest, brighter on hover, a faint fill while pressed, lit in the display
+/// colour while on (HELP, the open colour wheel), faint when there is nothing to do (no recents).
+struct FooterChip: View {
     let title: String
     let label: String
     var enabled = true
+    var on = false
+    /// COLOR's square of the colour in use, before the legend.
+    var swatch = false
     let action: () -> Void
+    @State private var hover = false
+
+    /// The chip's side padding.
+    static let padding: CGFloat = Theme.S.s
+    /// The chip's width for `title` (the caption type and tracking, both paddings, the swatch).
+    static func width(_ title: String, swatch: Bool = false) -> CGFloat {
+        textWidth(title) + padding * 2 + (swatch ? swatchSide + Theme.S.xs : 0)
+    }
+    /// `s` in the caption type and tracking (T.caption), rounded up.
+    static func textWidth(_ s: String) -> CGFloat {
+        let font = NSFont(name: "HelveticaNeue-Medium", size: Theme.T.captionSize) ?? .systemFont(ofSize: Theme.T.captionSize)
+        return ceil((s as NSString).size(withAttributes: [.font: font, .kern: Theme.T.captionTracking]).width)
+    }
+    static let swatchSide: CGFloat = 7
+
     var body: some View {
+        let shape = RoundedRectangle(cornerRadius: Theme.R.cap, style: .continuous)
         Button(action: { if enabled { action() } }) {
-            Text(title).captionStyle()
-                .foregroundColor(!enabled ? Theme.textFaint : hover ? Theme.textHi : Theme.textLo)
-                .frame(height: Theme.H.xs)
-                .contentShape(Rectangle())
+            HStack(spacing: Theme.S.xs) {
+                if swatch {
+                    RoundedRectangle(cornerRadius: 1.5, style: .continuous)
+                        .fill(on ? Theme.A.ink : Theme.amber)
+                        .frame(width: FooterChip.swatchSide, height: FooterChip.swatchSide)
+                }
+                Text(title).captionStyle().lineLimit(1).fixedSize()
+            }
+            .padding(.horizontal, FooterChip.padding)
+            .frame(height: Theme.H.xs)
+            .contentShape(shape)
         }
-        .buttonStyle(PlainButtonStyle())
+        .buttonStyle(FooterChipStyle(on: on, enabled: enabled, hover: hover))
         .onHover { hover = $0 }
+        .animation(Theme.Motion.hover, value: hover)
         .pointingHand()
         .accessibility(label: Text(label))
+        .accessibility(addTraits: on ? .isSelected : [])
     }
-    @State private var hover = false
+}
+
+/// The footer chip's look in each state (FooterChip): the outline, the fill and the legend.
+struct FooterChipStyle: ButtonStyle {
+    let on: Bool
+    let enabled: Bool
+    let hover: Bool
+
+    func makeBody(configuration: Configuration) -> some View {
+        let shape = RoundedRectangle(cornerRadius: Theme.R.cap, style: .continuous)
+        let pressed = configuration.isPressed && enabled
+        let text: Color = on ? Theme.A.ink : !enabled ? Theme.textFaint : (hover || pressed) ? Theme.textHi : Theme.textLo
+        let stroke: Color = on ? .clear : !enabled ? Theme.textFaint.opacity(0.5) : (hover || pressed) ? Theme.textLo : Theme.textFaint
+        let fill: Color = on ? (pressed ? Theme.A.a2 : Theme.amber) : pressed ? Theme.textFaint.opacity(0.4) : .clear
+        return configuration.label
+            .foregroundColor(text)
+            .background(shape.fill(fill))
+            .overlay(shape.stroke(stroke, lineWidth: 1))
+    }
 }
 
 // MARK: plate + header
@@ -594,6 +677,8 @@ struct KeyStrip: View {
     /// MANUAL ⌄: the 24-key menu (nil = not shown).
     var onTeach: (() -> Void)? = nil
     var keyboardHeight: CGFloat = Pocket.keyboardHeight
+    /// The hairline's row (MANUAL's height); the line runs through its middle.
+    static let ruleRowHeight: CGFloat = Theme.H.sm
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -604,7 +689,7 @@ struct KeyStrip: View {
                     ManualKeyMenu(enabled: state.result != nil, action: teach).helpTip(HelpText.manual)
                 }
             }
-            .frame(height: Theme.H.sm)
+            .frame(height: KeyStrip.ruleRowHeight)
             TopKeys(keys: state.result?.keys ?? [],
                     onChoose: state.result.map { r in { k in SpellingSettings.shared.choose(k, of: r, from: "top keys") } })
                 .helpTip(HelpText.topKeys)
@@ -781,6 +866,8 @@ struct Dial: View {
     static let side: CGFloat = 112
     /// The box the dial fills: the ticks sit on its edge, the ring 12 inside it.
     var side: CGFloat = Dial.side
+    /// The key name's size (the window's bigger dial passes ResultReadout.dialKeySize).
+    var keySize: CGFloat = Theme.T.keySize
     /// The pocket's dial has no room for a word under the %.
     private var compact: Bool { side < 120 }
 
@@ -866,7 +953,7 @@ struct Dial: View {
     @ViewBuilder private func keyButton(_ key: String?) -> some View {
         // a new key crossfades over the old one in the same spot (Motion.swap)
         let text = Crossfade(key ?? "--") { k in
-            Text(k).font(Theme.T.key)
+            Text(k).font(Theme.face(keySize))
                 .foregroundColor(key == nil ? Theme.A.a4 : Theme.A.a1)
                 .lineLimit(1).minimumScaleFactor(0.6)
                 .modifier(PocketGlow(on: key != nil))

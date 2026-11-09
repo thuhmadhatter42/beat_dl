@@ -37,21 +37,24 @@ struct LCD: View {
     let highlighted: Bool
     var actions = PocketActions()
 
-    /// The state area's height: the dial (128) beside the BPM, 4, the file line under both
-    /// (J 2026-11-09 03:42: the dial 112 -> 128, so 136 -> 148).
+    /// The other states' box (idle, working, error, Doctor, login...): 16 in from the glass's top,
+    /// this high, then 8 to the KeyStrip's hairline row.
     static let topHeight: CGFloat = 148
+    /// The band a reading is centred in (J 2026-11-09 14:23, "center them between the line above
+    /// them and the line below them"): from the glass's top edge to the KeyStrip's hairline. The
+    /// same 182 pt the old layout spent there, so the window keeps its height.
+    static let bandHeight: CGFloat = Theme.S.l + topHeight + Theme.S.s + KeyStrip.ruleRowHeight / 2
     private let r: CGFloat = Theme.R.well
 
     var body: some View {
         let shape = RoundedRectangle(cornerRadius: r, style: .continuous)
         VStack(alignment: .leading, spacing: 0) {
-            content
-                .frame(maxWidth: .infinity, alignment: .topLeading)
-                .frame(height: LCD.topHeight, alignment: .topLeading)
+            top.frame(maxWidth: .infinity).frame(height: LCD.bandHeight, alignment: .topLeading)
+            // the hairline sits mid-row: pull the strip up half a row so the line ends the band
             KeyStrip(state: state, onTeach: actions.teachKey, keyboardHeight: FaceplateView.keyboardHeight)
-                .padding(.top, Theme.S.s)
+                .padding(.top, -KeyStrip.ruleRowHeight / 2)
         }
-        .padding(.vertical, Theme.S.l)
+        .padding(.bottom, Theme.S.l)
         .padding(.horizontal, Theme.S.lcd)
         .lcdGlass(radius: r)
         .background(highlighted ? AnyView(dropRing(shape)) : AnyView(EmptyView()))
@@ -63,6 +66,18 @@ struct LCD: View {
             RoundedRectangle(cornerRadius: r + 2, style: .continuous).fill(Theme.amber(0.35))
                 .padding(-2).blur(radius: 11)
             RoundedRectangle(cornerRadius: r + 2, style: .continuous).fill(Theme.amber).padding(-2)
+        }
+    }
+
+    /// A reading fills the band and centres itself in it; every other state keeps its box.
+    @ViewBuilder private var top: some View {
+        if case .result = state.readout {
+            content.frame(maxWidth: .infinity, maxHeight: .infinity)
+        } else {
+            content
+                .frame(maxWidth: .infinity, alignment: .topLeading)
+                .frame(height: LCD.topHeight, alignment: .topLeading)
+                .padding(.top, Theme.S.l)
         }
     }
 
@@ -276,35 +291,34 @@ struct ResultReadout: View {
 
     private var bpmShown: String? { Tempo.text(result, factor: options.factor) }
 
-    /// The BPM column's fixed width: "188.88" and, in Advanced, BPM + the x0.5 / x1 / x2 chips.
-    /// Fixed so the dial never moves with the number.
-    static let bpmWidth: CGFloat = 176
-    /// The window's dial (J 2026-11-09 03:42, "the key dial feels a little smaller than it could
-    /// be"): 112 -> 128, the pocket keeps 112.
-    static let dialSide: CGFloat = 128
-    /// The BPM + dial pair is one group centred in the glass (J 2026-11-09 03:42, "the BPM feels a
-    /// little too far to the left"): `inset` in from each side, the rest between them.
-    static let groupInset: CGFloat = 40
+    /// The window's dial (J 2026-11-09 14:23, "make them both bigger"): 128 -> 152, the pocket
+    /// keeps 112. With the 182 pt band that leaves 15 above and 15 below.
+    static let dialSide: CGFloat = 152
+    /// The key name in the window's dial, grown with it (34 * 152 / 128, on the 4 grid). The one
+    /// size off the type scale besides `bpmSize`, both for this readout only.
+    static let dialKeySize: CGFloat = 40
+    /// The window's BPM, whole number (J 2026-11-09 14:23, "bigger"): 68 -> 80; the decimals
+    /// stay T.keySize. Off the six-size scale for this readout only.
+    static let bpmSize: CGFloat = 80
+    /// BPM column to dial.
+    static let groupGap: CGFloat = Theme.S.l
     /// The readout's inner width (the module less the glass's padding).
     static var innerWidth: CGFloat { FaceplateView.moduleWidth - Theme.S.lcd * 2 }
-    /// BPM column to dial: what the group leaves.
-    static var groupGap: CGFloat { innerWidth - groupInset * 2 - bpmWidth - dialSide }
+    /// The BPM column: from the glass's text edge (the top keys' left edge, J 2026-11-09 14:23
+    /// "move BPM slightly to the left") to the dial, which ends on the right text edge (MANUAL's).
+    static var bpmWidth: CGFloat { innerWidth - groupGap - dialSide }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            // J 2026-11-09: the BPM column and the dial as one centred group, the BPM centred on
-            // the dial's height; the file line keeps the glass's full width under both.
-            HStack(alignment: .center, spacing: ResultReadout.groupGap) {
-                bpmColumn.frame(width: ResultReadout.bpmWidth, alignment: .leading)
-                Dial(state: state, actions: actions, side: ResultReadout.dialSide)
-                    .frame(width: ResultReadout.dialSide, height: ResultReadout.dialSide)
-            }
-            .padding(.horizontal, ResultReadout.groupInset)
-            .frame(maxWidth: .infinity)
-            .frame(height: ResultReadout.dialSide)
-            Spacer(minLength: 0)
-            fileRow
+        // J 2026-11-09 14:23: the BPM column and the dial as one group, the BPM centred on the
+        // dial's height, the group centred in the band (LCD.bandHeight) from the glass's top edge
+        // to the hairline. The file line folds into the BPM column, so a file and Listen (no
+        // file) sit the group in the same place and neither leaves an empty strip.
+        HStack(alignment: .center, spacing: ResultReadout.groupGap) {
+            bpmColumn.frame(width: ResultReadout.bpmWidth, alignment: .leading)
+            Dial(state: state, actions: actions, side: ResultReadout.dialSide, keySize: ResultReadout.dialKeySize)
+                .frame(width: ResultReadout.dialSide, height: ResultReadout.dialSide)
         }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
     /// BPM, the beat light and the x0.5 / x1 / x2 chips, then the number: the whole BPM big,
@@ -328,33 +342,40 @@ struct ResultReadout: View {
                 }
             }
             .frame(height: Theme.H.sm)
-            bpmNumber.padding(.top, Theme.S.m)
+            bpmNumber.padding(.top, Theme.S.s)
                 .accessibilityElement(children: .ignore)
                 .accessibility(label: Text(bpmLabel))
                 .helpTip(HelpText.bpm)
+            fileLines.padding(.top, Theme.S.m)
         }
     }
 
-    /// The file (yours, in its own case: name warm white, folder dimmer) or the note; paging;
-    /// Show in Finder. Nothing while listening: the rail already says LIVE and the source.
-    @ViewBuilder private var fileRow: some View {
+    /// Under the BPM: the file (yours, in its own case: name warm white, folder dimmer) or the
+    /// note, then paging and Show in Finder. Nothing while listening: the rail already says LIVE
+    /// and the source. Tallest case: 20 + 8 + 72 + 12 + 16 + 4 + 16 = 148, inside the 152 dial.
+    @ViewBuilder private var fileLines: some View {
         if note != nil || options.live == nil {
-            HStack(spacing: Theme.S.m) {
+            VStack(alignment: .leading, spacing: Theme.S.xs) {
                 fileText
                     .lineLimit(1).truncationMode(.middle)
                     .frame(maxWidth: .infinity, alignment: .leading)
+                    .frame(height: Theme.H.xs)
                     .accessibility(label: Text(note ?? result.name))
                     .helpTip(HelpText.fileLine)
-                if let p = page {
-                    HStack(spacing: Theme.S.xs) {
-                        PageArrow(glyph: "‹", label: "Previous file") { actions.page(-1) }
-                        Text(p).captionStyle().foregroundColor(Theme.A.a2).accessibility(label: Text(p.lowercased()))
-                        PageArrow(glyph: "›", label: "Next file") { actions.page(1) }
+                if page != nil || options.live == nil {
+                    HStack(spacing: Theme.S.m) {
+                        if let p = page {
+                            HStack(spacing: Theme.S.xs) {
+                                PageArrow(glyph: "‹", label: "Previous file") { actions.page(-1) }
+                                Text(p).captionStyle().foregroundColor(Theme.A.a2).accessibility(label: Text(p.lowercased()))
+                                PageArrow(glyph: "›", label: "Next file") { actions.page(1) }
+                            }
+                        }
+                        if options.live == nil { FinderLink(file: result.file) }
                     }
+                    .frame(height: Theme.H.xs)
                 }
-                if options.live == nil { FinderLink(file: result.file) }
             }
-            .frame(height: Theme.H.xs)
         }
     }
 
@@ -367,8 +388,8 @@ struct ResultReadout: View {
 
     /// The big BPM. A click cycles x1 / x2 / x0.5 when there is a BPM to cycle.
     @ViewBuilder private var bpmNumber: some View {
-        let number = BPMNumber(text: bpmShown, whole: Theme.T.heroSize, fraction: Theme.T.keySize)
-            .lineBox(Theme.T.heroSize, 0.9)
+        let number = BPMNumber(text: bpmShown, whole: ResultReadout.bpmSize, fraction: Theme.T.keySize)
+            .lineBox(ResultReadout.bpmSize, 0.9)
         if bpmShown != nil, let cycle = options.onCycleTempo {
             Button(action: cycle) { number.contentShape(Rectangle()) }
                 .buttonStyle(PlainButtonStyle())

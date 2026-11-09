@@ -368,22 +368,10 @@ struct HelpChip: View {
     let action: () -> Void
 
     var body: some View {
-        let shape = RoundedRectangle(cornerRadius: Theme.R.cap, style: .continuous)
-        Button(action: action) {
-            Text("HELP").captionStyle()
-                .foregroundColor(on ? Theme.A.ink : Theme.textLo)
-                .padding(.horizontal, Theme.S.s)
-                .frame(height: Theme.H.xs)
-                .background(shape.fill(on ? Theme.amber : Color.clear))
-                .overlay(shape.stroke(on ? Color.clear : Theme.textFaint, lineWidth: 1))
-                .contentShape(shape)
-        }
-        .buttonStyle(PlainButtonStyle())
-        .pointingHand()
-        .nativeHelp("Help mode: hover anything to see what it does")
-        .helpTip(HelpText.help)
-        .accessibility(label: Text("Help mode"))
-        .accessibility(hint: Text(on ? "Turns help mode off" : "Turns help mode on: hover anything to see what it does"))
-        .accessibility(addTraits: on ? .isSelected : [])
+        // the footer's one chip (FooterChip), lit while help mode is on
+        FooterChip(title: "HELP", label: "Help mode", on: on, action: action)
+            .nativeHelp("Help mode: hover anything to see what it does")
+            .helpTip(HelpText.help)
+            .accessibility(hint: Text(on ? "Turns help mode off" : "Turns help mode on: hover anything to see what it does"))
     }
 }

@@ -70,20 +70,46 @@ final class FaceplateTests: XCTestCase {
         XCTAssertGreaterThanOrEqual(TopKeys.groupGap, (TopKeys.rankGap + TopKeys.percentGap) * 2)
     }
 
-    // J 2026-11-09 03:42: a bigger key dial, the BPM in from the left, the pair one centred group
-    func testReadoutGroupIsCentredWithABiggerDial() {
-        XCTAssertGreaterThan(ResultReadout.dialSide, Dial.side)
-        XCTAssertEqual(ResultReadout.groupInset * 2 + ResultReadout.bpmWidth + ResultReadout.groupGap
-                       + ResultReadout.dialSide, ResultReadout.innerWidth)
-        XCTAssertGreaterThan(ResultReadout.groupInset, 0)
-        // the gap BPM -> dial stays about the side margins: neither glued nor drifting apart
-        XCTAssertGreaterThanOrEqual(ResultReadout.groupGap, ResultReadout.groupInset * 0.75)
-        XCTAssertLessThanOrEqual(ResultReadout.groupGap, ResultReadout.groupInset * 1.5)
-        // nothing clipped: the dial, 4, the file line fit the state area
-        XCTAssertLessThanOrEqual(ResultReadout.dialSide + Theme.S.xs + Theme.H.xs, LCD.topHeight)
-        for v in [ResultReadout.dialSide, ResultReadout.groupInset, ResultReadout.groupGap, LCD.topHeight] {
+    // J 2026-11-09 14:23: the BPM and the dial bigger, the BPM on the glass's left text edge, the
+    // pair centred between the glass's top edge and the hairline
+    func testReadoutGroupIsBiggerAndCentredInItsBand() {
+        XCTAssertGreaterThan(ResultReadout.dialSide, 128)            // 0.1.52's dial
+        XCTAssertGreaterThan(ResultReadout.dialSide, Dial.side)      // the pocket keeps its own
+        XCTAssertGreaterThan(ResultReadout.bpmSize, Theme.T.heroSize)
+        XCTAssertGreaterThan(ResultReadout.dialKeySize, Theme.T.keySize)
+        // the BPM column starts on the text edge and the dial ends on the other one
+        XCTAssertEqual(ResultReadout.bpmWidth + ResultReadout.groupGap + ResultReadout.dialSide, ResultReadout.innerWidth)
+        // the window keeps its height: the band is what the old layout spent above the hairline
+        XCTAssertEqual(LCD.bandHeight, Theme.S.l + 148 + Theme.S.s + Theme.H.sm / 2)
+        // the dial centred in the band: the same room above and below, and some of it
+        let gap = (LCD.bandHeight - ResultReadout.dialSide) / 2
+        XCTAssertGreaterThanOrEqual(gap, Theme.S.m)
+        // the tallest BPM column (label, number, the file's two lines) fits beside the dial
+        let column = Theme.H.sm + Theme.S.s + ResultReadout.bpmSize * 0.9 + Theme.S.m + Theme.H.xs * 2 + Theme.S.xs
+        XCTAssertLessThanOrEqual(column, ResultReadout.dialSide)
+        // "188.88" at the bigger size and the Advanced chips fit the column
+        let whole = NSFont(name: "HelveticaNeue-Bold", size: ResultReadout.bpmSize)!
+        let frac = NSFont(name: "HelveticaNeue-Bold", size: Theme.T.keySize)!
+        let w = ("188" as NSString).size(withAttributes: [.font: whole, .kern: ResultReadout.bpmSize * 0.02]).width
+            + (".88" as NSString).size(withAttributes: [.font: frac]).width
+        XCTAssertLessThan(w, ResultReadout.bpmWidth)
+        for v in [ResultReadout.dialSide, ResultReadout.groupGap, ResultReadout.bpmSize, ResultReadout.dialKeySize,
+                  LCD.topHeight] {
             XCTAssertEqual(v.truncatingRemainder(dividingBy: 4), 0, "\(v) is off the 4/8 grid")
         }
+    }
+
+    // J 2026-11-09 14:23: every footer action one chip; the pocket's row fits its 344 pt
+    func testFooterChipsFitThePocket() {
+        XCTAssertLessThanOrEqual(PocketFooter.width(advancedLabel: PocketFooter.showsAdvancedLabel), PocketFooter.usable)
+        XCTAssertEqual(PocketFooter.usable, 344)
+        for t in PocketFooter.chipTitles {
+            XCTAssertEqual(FooterChip.width(t), FooterChip.textWidth(t) + FooterChip.padding * 2, t)
+        }
+        // the window's row: four chips 16 apart, ADVANCED with its word, inside the plate's text edges
+        let window = ["RECENT ▾", "SETTINGS", "HELP"].map { FooterChip.width($0) }.reduce(0, +)
+            + FooterChip.width("COLOR", swatch: true) + Theme.S.l * 4 + AdvancedBox.width(showsLabel: true)
+        XCTAssertLessThanOrEqual(window, FaceplateView.plateWidth(advanced: false) - Theme.S.lcd * 2)
     }
 
     func testTuningTrackCentreIsThePanelCentre() {
