@@ -5,7 +5,9 @@ import XCTest
 final class FakeRunner: CommandRunner {
     var answers: [String: [(Int32, String)]] = [:]
     var calls: [String] = []
+    var invocations: [(exe: String, args: [String])] = []
     func run(_ exe: URL, _ args: [String], environment: [String: String]?, timeout: TimeInterval) -> (status: Int32, output: String) {
+        invocations.append((exe.path, args))
         let key = "\(exe.lastPathComponent) \(args.first ?? "")"
         calls.append(key)
         guard var q = answers[key], !q.isEmpty else { return (0, "") }
@@ -105,7 +107,9 @@ final class BeatKeyTests: XCTestCase {
         XCTAssertEqual(stages, Doctor.stages)
         XCTAssertEqual(rep, DoctorReport(outcome: .ok, title: "DOCTOR OK", line: "YT-DLP 2026.10.26 · ALL CHECKS PASSED"))
         XCTAssertEqual(r.calls, ["yt-dlp --version", "yt-dlp -U", "yt-dlp --version",
-                                 "ffmpeg -version", "ffprobe -version", "deno --version", "python3 -c"])
+                                 "ffmpeg -version", "ffprobe -version", "deno --version", "python3 /R/runtime/scripts/bpm.py"])
+        XCTAssertEqual(r.invocations.last!.exe, "/R/runtime/arm64/python/bin/python3")
+        XCTAssertEqual(r.invocations.last!.args, ["/R/runtime/scripts/bpm.py", "--check"])
     }
 
     func testDoctorJsRuntimeWontRun() {
@@ -161,8 +165,13 @@ final class BeatKeyTests: XCTestCase {
     func testDoctorFfmpegPythonAndDownloadsFailures() {
         let ff = FakeRunner(); ff.answers["yt-dlp --version"] = [(0, "1")]; ff.answers["ffprobe -version"] = [(1, "")]
         XCTAssertEqual(doctor(ff).run { _ in }.line, "FFPROBE WON'T RUN · REINSTALL BEAT KEY")
-        let py = FakeRunner(); py.answers["yt-dlp --version"] = [(0, "1")]; py.answers["python3 -c"] = [(1, "ImportError")]
+        let py = FakeRunner(); py.answers["yt-dlp --version"] = [(0, "1")]; py.answers["python3 /R/runtime/scripts/bpm.py"] = [(1, "Traceback")]
         XCTAssertEqual(doctor(py).run { _ in }.line, "PYTHON WON'T START · REINSTALL BEAT KEY")
+        let inc = FakeRunner(); inc.answers["yt-dlp --version"] = [(0, "1")]
+        inc.answers["python3 /R/runtime/scripts/bpm.py"] = [(2, "The analyzer is incomplete. Run Doctor.\n")]
+        let rep2 = doctor(inc).run { _ in }
+        XCTAssertEqual(rep2.outcome, .failed)
+        XCTAssertEqual(rep2.line, "ANALYZER IS INCOMPLETE · REINSTALL BEAT KEY")
         let dl = FakeRunner(); dl.answers["yt-dlp --version"] = [(0, "1")]
         let rep = doctor(dl, writable: false).run { _ in }
         XCTAssertEqual(rep.outcome, .failed)
