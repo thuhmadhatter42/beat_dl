@@ -1,6 +1,42 @@
 # PICKUP — beat_dl
 
-## CURRENT STATE — 2026-11-10 00:15
+## CURRENT STATE — 2026-11-10 04:10
+
+**Public release is still 0.1.59. Local main is 0.1.66 (f08f8e0), NOT pushed, NOT built, NOT installed.** Tonight: symphony review of the whole repo (5 read-only agents; reports copied to `docs/research/symphony-review-2026-11-10/`: 1-swift-core.md, 2-swift-ui-daw.md, 3-python.md, 4-build-tests.md, 5-inventory.md), J ruled on decide sheets D-1075669f3f and D-b492369132, fixes merged one branch at a time, full suite green after each (last: 418 Swift tests 0 failures; tests.test_bpm_stream 22 OK; tests.test_publish_sh 18 OK).
+
+**Merged to local main (each reviewed, nothing run in the real app):**
+- 0.1.60 Listen hears every app, always (J's pick): players-only filter, exclusion list, widen-after-silence and the "NO SOUND FROM PLAYERS · HEARING ALL APPS" notice removed. A mic monitored through Artemis or a DAW is now heard; isolation = Input in Settings.
+- 0.1.61 each live song has its own identity (`LiveSession.songFile(n)` = `/live-song-n`); a picked key and ×2/×0.5 clear on any song change (`FaceplateModel.follow`). If Listen fails to start the tempo factor is no longer reset.
+- 0.1.62 `tools/publish.sh`: all checks first, GitHub release last, PUBLISHED only after the download page answers 303 and beat-key-latest.json names the version; log `app/build/publish-<V>.log`; an existing tag (local or origin) is a hard stop; needs HEAD on main with tracked files clean. Never run for real yet. Live-checked: page answers 303, `gh release view` on a missing release says "release not found".
+- 0.1.63 one yt-dlp repair (`Runtime.repairYtDlp`), used by the weekly upgrade and Doctor. Stamp written only on success; ad-hoc sign runs on the update before the bundled copy is restored; Doctor gets the sign step.
+- 0.1.64 MotionFrameTests no longer use timed frame grabs (flake reproduced under load, gone); `Theme.Motion.valueProgress`, test hook `Theme.Motion.onResolve`; `flatInsetForCapture` removed.
+- 0.1.65 click-to-respell removed whole (`KeySpelling` enum, `SpellingSettings.preference`, `respellKey`, `canRespell`, the dial's dead button in pocket AND window, the help sentence). 24 key names pinned by `KeyChoiceTests.testDisplayedNamesForAll24KeysArePinned`.
+- 0.1.66 silence has one owner: `bpm.py --stream` emits `{"event":"silence","db":…}` / `{"event":"sound","db":…,"after":…}`; Swift `SilenceGuard` and the -70 dB peak rule are gone; NO SOUND now appears with the analyzer's reset (3 s under -50 dB RMS at the default gap; about 4.5 s when no samples arrive) and clears at -50 dB RMS.
+
+**Still running when this was written (worktrees under `.claude/worktrees/`):**
+- Tuning correction (agent a447dc963e2a0b416, worktree agent-a447dc963e2a0b416, base 036793b): measures key accuracy, removes the older detune corrector in `bpm.py` (~259-265), measures again; commits branch `detune-one-owner` only if accuracy holds, else reverts. Bench output in the session scratchpad `detune/before.txt`, `after.txt`. J said yes on instinct, gated on the numbers.
+- Colour via environment (agent a5c5a4966a2922f64, branch `colour-environment`): `Theme.accent` / `Theme.highContrast` statics → SwiftUI environment; removes the three `.id(accent.effective)` rebuilds.
+
+**Queued, J approved, not started:**
+1. Delete the backup tempo method (`bpm.py` ~888-903 librosa fallback when the TempoCNN model is missing; refuse like `--stream` does). Waits on the tuning-correction agent (same file).
+2. Pocket and window share one display code (status legend twice: `PocketView` vs `Chassis.swift`/`FaceplateView`; two readout renderers `PocketView` vs `LCD.swift`). Waits on the colour agent (same files).
+
+**J's standing order 03:51: "once the rest of it finishes do the full build, test, install on mbp and mp and publish to github and website etc".** So when the two running and two queued fixes are merged and the suite is green: `app/build.sh` (notarized), tests, install on the MBP (process is Orion: `pgrep -x Orion` first) and the Mac Pro (never restart it), then `tools/publish.sh`, then verify GitHub release + appcast + FLR download + version file. publish.sh's header says J runs it because auto mode blocks public pushes: if blocked, hand J `! bash ~/dev/beat_dl/tools/publish.sh`. The FLR /beat-key page text mentions hearing only players and may need an update handoff after release.
+
+**J said no (do not re-raise):** New Song button keeps its full restart (D-b492369132 item 4).
+**Review findings J has not ruled on (not part of this release):** tests that cannot fail (ten always-skipping `testRender*` generators, constant-asserting tests); `app/build.sh` runtime cached by "directory exists"; stale 0.1.16 in THIRD-PARTY-LICENSES.md:20; `tools/pt-harvest/step.py:46` calls `hlib.edl_tempos` which does not exist; `app_run.py:284` would rename with a "0.0" BPM; the rest are in the five reports.
+**Also done:** `~/artemis/handoff/FROM-BEAT-DL-2026-11-10-symphony-review-blueprint.md` written at J's request (the review method, nothing else touched there). Loops triage LP-A82A97E607 (decide cards cannot carry a reply), Claude's side.
+**Method notes that bit tonight:** agent worktrees come up at the session's first commit (036793b), so every fix brief must say `git switch -c <branch> main`; decide cards must ask what the app does, never the fix.
+
+**Owed by J (hands-on), unchanged:**
+1. Studio D: Beat Key › Check for Updates, YouTube in Chrome → LISTEN; meter should move; if not, beatkey.log shows what it heard. Studio D Tailscale node key expired (offline since ~11-06): log in at Studio D + disable key expiry in admin console so I can read logs.
+2. Studio D: System Settings › Privacy & Security › Accessibility → Beat Key on (Send to DAW sent nothing there 11-09 20:06).
+3. Older hand tests still untried: MINI MIDI into a DAW, live tuning with pitched Spotify, chord drag, MATCH TO, Send to DAW Pro Tools, ⇧⌘A, unplugged-interface fallback, ftC tempo on known beats.
+4. After the next release: Listen with a quiet passage (NO SOUND timing), a song change with a picked key and ×2 set, a black-key reading in the pocket (no hand cursor), a colour change with a Mini pad held.
+
+**Git:** main = f08f8e0 plus this save's commit, 15 commits ahead of origin/main (036793b) before the save, untracked `docs/research/pt-ground-truth/verify-labels.sqlite3` left as found. Sofia harvest still paused at 333/795 (not touched tonight).
+
+## (previous) 2026-11-10 00:15 (superseded by the block above)
 
 **Beat Key 0.1.59 is PUBLIC (J published 00:12; verified: GitHub release Beat-Key-0.1.59 with DMG + appcast, latest appcast shortVersionString 0.1.59, DMG HTTP 200, Sofia beat-key-latest.json 0.1.59 — that file is read from disk by flr-store.py, never served over HTTP; a 404 on it is by design).** Installed + running on the MBP (notarized). 0.1.59 = Listen logging (start/filter, 1 s level, reading changes, stop reason) + SilenceGuard (players silent 5 s → all apps + LCD note; all silent → "NO SOUND · CHECK SOURCE") + analyzer/app_run.py stderr to analyzer.log + failure lines on every path. 0.1.58 = Studio D fix: SCContentFilter excludes non-players instead of including players (Chrome audio helper wasn't listed → silence); 0.1.58 was never released on its own (GitHub releases: 0.1.57, 0.1.59; tags Beat-Key-0.1.57, Beat-Key-0.1.59).
 **FLR /beat-key page LIVE 2026-11-10 00:08** (J approved preview; Sofia eedb5b7; report handoff/FROM-FLR-SITE-2026-11-09-beat-key-page.md). Screenshots handoff/flr-assets/ (MarketingRenderTests.swift).
