@@ -1,37 +1,6 @@
 import Combine
 import Foundation
 
-/// Enharmonic spelling of key names: Ebm <-> D#m, Gb <-> F#, ... A click on the big key flips
-/// it; the choice is remembered. nil = the analyzer's own spelling (Eb, Bb, Ab, Db, F#, C#, G#).
-enum KeySpelling: String {
-    case sharps, flats
-
-    var opposite: KeySpelling { self == .sharps ? .flats : .sharps }
-
-    private static let sharpRoots = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"]
-    private static let flatRoots = ["C", "Db", "D", "Eb", "E", "F", "Gb", "G", "Ab", "A", "Bb", "B"]
-
-    /// The key name in this spelling ("Ebm" > "D#m"). Natural keys and non-keys come back as given.
-    static func respell(_ name: String, to spelling: KeySpelling?) -> String {
-        guard let spelling = spelling, let k = AutoTuneSend.keyClass(name), isBlack(name) else { return name }
-        let roots = spelling == .sharps ? sharpRoots : flatRoots
-        return roots[k.pitchClass] + (k.minor ? "m" : "")
-    }
-
-    /// A black-key tonic (the only ones that have two spellings).
-    static func isBlack(_ name: String) -> Bool {
-        guard let k = AutoTuneSend.keyClass(name) else { return false }
-        return [1, 3, 6, 8, 10].contains(k.pitchClass)
-    }
-
-    /// What a click on this key name should switch to; nil = a natural key, nothing to switch.
-    static func clickTarget(for name: String) -> KeySpelling? {
-        guard isBlack(name) else { return nil }
-        let t = name.trimmingCharacters(in: .whitespaces).replacingOccurrences(of: "♭", with: "b")
-        return t.dropFirst().hasPrefix("b") ? .sharps : .flats
-    }
-}
-
 /// One of the top 3 keys the user clicked to make it THE key (shown big, sent to Auto-Tune, the
 /// DAW and the MIDI file) for one reading. Matched by the reading's file + name, so the next file
 /// or song shows the analyzer's own order again.
@@ -66,10 +35,11 @@ struct KeyChoice: Equatable {
 }
 
 extension Result {
-    /// The reading as shown: the chosen key (if any) moved to the front, then every key name in
-    /// `spelling` (nil = untouched). A chosen key the analyzer did not list (taught with "Wrong,
-    /// it's X" or played on the keyboard) goes in front at 0 %, and the list keeps its length.
-    func respelled(_ spelling: KeySpelling?, choice: KeyChoice? = SpellingSettings.shared.manualKey) -> Result {
+    /// The reading as shown: the chosen key (if any) moved to the front, then every key name as
+    /// Auto-Tune's Key menu spells it (J 2026-11-09), so readings saved before that rule match too.
+    /// A chosen key the analyzer did not list (taught with "Wrong, it's X" or played on the
+    /// keyboard) goes in front at 0 %, and the list keeps its length.
+    func respelled(choice: KeyChoice? = SpellingSettings.shared.manualKey) -> Result {
         var ks = keys
         if let c = choice, c.matches(self) {
             if let i = ks.firstIndex(where: { AutoTuneSend.keyClass($0.0).map { $0.pitchClass == c.pitchClass && $0.minor == c.minor } ?? false }) {
@@ -79,46 +49,20 @@ extension Result {
                 ks = Array(ks.prefix(max(3, keys.count)))
             }
         }
-        if let spelling = spelling { ks = ks.map { (KeySpelling.respell($0.0, to: spelling), $0.1) } }
-        // No spelling (always, in the app): every name as Auto-Tune's Key menu spells it
-        // (J 2026-11-09), so readings saved before that rule match too.
-        else { ks = ks.map { (KeyChoice.autoTuneName($0.0), $0.1) } }
+        ks = ks.map { (KeyChoice.autoTuneName($0.0), $0.1) }
         return Result(file: file, name: name, bpm: bpm, keys: ks,
                       readError: readError, bpmExact: bpmExact, tuningCents: tuningCents, chroma: chroma)
     }
 }
 
-/// The remembered choice (Reading > Spell Keys with Sharps, or a click on the key).
+/// Manual Key Selection's one state (ManualKeySelection.swift sets and clears it). Key names
+/// themselves have one rule and no setting: Auto-Tune's Key menu (KeyChoice.keyName; J's
+/// rock-solid rule, 2026-11-09 16:15: "We go off of what Auto-Tune shows. That's it.").
 final class SpellingSettings: ObservableObject {
-    static let key = "keySpelling"
     static let shared = SpellingSettings()
-    private let defaults: UserDefaults
-
-    /// Always nil: key names are spelled exactly as Auto-Tune's Key menu shows them, everywhere
-    /// (J's rock-solid rule, 2026-11-09 16:15: "We go off of what Auto-Tune shows. That's it.").
-    /// The old sharps/flats switch is gone; a stored "keySpelling" is wiped at launch.
-    /// Nothing in the app sets it any more (tests only).
-    @Published var preference: KeySpelling? = nil
 
     /// Manual Key Selection: the key the user forced for the reading on show (a key wheel click,
     /// a top-3 click, the MANUAL menu, play-to-find on the keyboard). The one state every path
     /// sets and clears (ManualKeySelection.swift); nil = Beat Key's own detection.
     @Published var manualKey: KeyChoice?
-
-    /// Fires on a spelling change or a Manual Key Selection (both change what every readout shows).
-    var changes: AnyPublisher<KeySpelling?, Never> {
-        $preference.combineLatest($manualKey).map { $0.0 }.eraseToAnyPublisher()
-    }
-
-    init(defaults: UserDefaults = .standard) {
-        self.defaults = defaults
-        if let stale = defaults.string(forKey: SpellingSettings.key) {
-            defaults.removeObject(forKey: SpellingSettings.key)
-            AppLog.log("key spelling: removed stored preference \(stale); names follow Auto-Tune's Key menu")
-        }
-    }
-
-    /// A click on the key used to flip sharps/flats; Auto-Tune's spelling is fixed now.
-    @discardableResult
-    func click(on name: String) -> Bool { false }
 }

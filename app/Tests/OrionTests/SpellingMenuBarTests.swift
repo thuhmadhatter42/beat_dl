@@ -11,19 +11,13 @@ final class SpellingMenuBarTests: XCTestCase {
     let raw = Result(file: URL(fileURLWithPath: "/x/Beats/Beat A.wav"), name: "Beat A.wav", bpm: "141.98",
                      keys: [("Ebm", 80), ("F#", 12), ("Bbm", 8)], bpmExact: 141.98, tuningCents: 12)
 
-    private func settings(_ pref: KeySpelling? = nil) -> SpellingSettings {
-        let d = UserDefaults(suiteName: "SpellingMenuBarTests")!
-        d.removePersistentDomain(forName: "SpellingMenuBarTests")
-        let s = SpellingSettings(defaults: d)
-        s.preference = pref
-        return s
-    }
+    private func settings() -> SpellingSettings { SpellingSettings() }
 
-    /// What PocketState.make draws for `raw` under `s` (spelling and selection).
+    /// What PocketState.make draws for `raw` under `s`'s selection.
     private func state(_ s: SpellingSettings, raw r: Result? = nil, advanced: Bool = false) -> PocketState {
         let raw = r ?? self.raw
         var p = PocketState()
-        let shown = raw.respelled(s.preference, choice: s.manualKey)
+        let shown = raw.respelled(choice: s.manualKey)
         p.readout = .result(shown, page: nil, download: true, options: ResultOptions(
             factor: .one, tuning: Tuning.meter(12, reference: 440), onCycleTempo: {}))
         p.manualKey = ManualKey.of(s.manualKey, raw: raw)
@@ -33,37 +27,34 @@ final class SpellingMenuBarTests: XCTestCase {
 
     // MARK: the wheel spells like the dial
 
-    func testWheelMatchesTheDialForAll24KeysInBothSpellings() {
-        for pref in [KeySpelling.sharps, .flats] {
-            for key in KeyChoice.allKeys {
-                let s = settings(pref)
-                XCTAssertTrue(s.setManualKey(key, of: raw, from: .wheel))
-                let q = state(s)
-                let w = HarmonyPanel.wheel(q, settings: s)
-                let dial = try! XCTUnwrap(q.result?.keys.first?.0)
-                let k = AutoTuneSend.keyClass(key)!
-                XCTAssertEqual(w.name(k.pitchClass, minor: k.minor), dial, "\(key) \(pref)")
-                // the hover card names it the same way
-                let tip = w.tip(for: try! XCTUnwrap(w.manualSection))
-                XCTAssertTrue(tip.title == dial || tip.title.hasPrefix(dial + " · "), "\(tip.title) vs \(dial)")
-                // every top-3 key is named on the wheel as in the top-3 row
-                for (name, _) in q.result?.keys.prefix(3) ?? [] {
-                    let c = AutoTuneSend.keyClass(name)!
-                    XCTAssertEqual(w.name(c.pitchClass, minor: c.minor), name, "\(key) \(pref) top-3")
-                }
-                // and every one of the 24 labels follows the chosen spelling
-                for (pc, minor) in (0..<12).flatMap({ pc in [(pc, false), (pc, true)] }) {
-                    XCTAssertEqual(w.name(pc, minor: minor),
-                                   KeySpelling.respell(KeyChoice.keyName(pc, minor: minor), to: pref), "\(pc) \(minor) \(pref)")
-                }
+    func testWheelMatchesTheDialForAll24Keys() {
+        for key in KeyChoice.allKeys {
+            let s = settings()
+            XCTAssertTrue(s.setManualKey(key, of: raw, from: .wheel))
+            let q = state(s)
+            let w = HarmonyPanel.wheel(q, settings: s)
+            let dial = try! XCTUnwrap(q.result?.keys.first?.0)
+            let k = AutoTuneSend.keyClass(key)!
+            XCTAssertEqual(w.name(k.pitchClass, minor: k.minor), dial, key)
+            // the hover card names it the same way
+            let tip = w.tip(for: try! XCTUnwrap(w.manualSection))
+            XCTAssertTrue(tip.title == dial || tip.title.hasPrefix(dial + " · "), "\(tip.title) vs \(dial)")
+            // every top-3 key is named on the wheel as in the top-3 row
+            for (name, _) in q.result?.keys.prefix(3) ?? [] {
+                let c = AutoTuneSend.keyClass(name)!
+                XCTAssertEqual(w.name(c.pitchClass, minor: c.minor), name, "\(key) top-3")
+            }
+            // and every one of the 24 labels is Auto-Tune's name
+            for (pc, minor) in (0..<12).flatMap({ pc in [(pc, false), (pc, true)] }) {
+                XCTAssertEqual(w.name(pc, minor: minor), KeyChoice.keyName(pc, minor: minor), "\(pc) \(minor)")
             }
         }
     }
 
-    /// The renders' case (dial Gb, wheel F#): the analyzer's own spelling (no preference) and a
-    /// reading that spells its key Gb. The wheel says Gb too, in its label, card and click.
-    func testWheelUsesTheReadingsOwnSpellingWithNoPreference() {
-        let s = settings(nil)
+    /// The renders' case (dial Gb, wheel F#): a reading that spells its key Gb shows Auto-Tune's
+    /// F#, and the wheel says F# too, in its label, card and click.
+    func testWheelUsesTheReadingsOwnSpelling() {
+        let s = settings()
         s.setManualKey("F#", of: raw, from: .topKeys)
         let q = state(s)
         XCTAssertEqual(q.result?.keys.first?.0, "F#")
@@ -71,7 +62,7 @@ final class SpellingMenuBarTests: XCTestCase {
         XCTAssertEqual(w.name(6, minor: false), "F#")
         XCTAssertTrue(w.tip(for: w.manualSection!).title.hasPrefix("F# · "))
         // not manual either: the runner-up Gb is Gb on the wheel
-        let n = settings(nil)
+        let n = settings()
         let w2 = HarmonyPanel.wheel(state(n), settings: n)
         XCTAssertEqual(w2.name(6, minor: false), "F#")
         XCTAssertTrue(w2.tip(for: 2 * 6).title.hasPrefix("F# · "), w2.tip(for: 12).title)   // slot 6 = Gb/F#
@@ -82,9 +73,9 @@ final class SpellingMenuBarTests: XCTestCase {
 
     func testAReadingKeyThatDoesNotResolveFallsBack() {
         let odd = Result(file: raw.file, name: raw.name, bpm: "120", keys: [("H", 50), ("F#", 30)], bpmExact: 120)
-        XCTAssertEqual(KeyWheel.name(6, minor: false, keys: odd.keys, spelling: nil), "F#")
-        XCTAssertEqual(KeyWheel.name(11, minor: false, keys: odd.keys, spelling: .flats), "B")
-        XCTAssertEqual(KeyWheel.name(1, minor: false, keys: odd.keys, spelling: .sharps), "C#")
+        XCTAssertEqual(KeyWheel.name(6, minor: false, keys: odd.keys), "F#")
+        XCTAssertEqual(KeyWheel.name(11, minor: false, keys: odd.keys), "B")
+        XCTAssertEqual(KeyWheel.name(1, minor: false, keys: odd.keys), "Db")
     }
 
     /// Auto-Tune still gets its own spelling, whatever the wheel shows.
@@ -105,8 +96,6 @@ final class SpellingMenuBarTests: XCTestCase {
         XCTAssertTrue(m.detail.hasSuffix("Manual"), m.detail)
         XCTAssertFalse(m.detail.uppercased().contains("UNSURE"))
         XCTAssertTrue(m.accessibilityLabel.hasSuffix(", selected manually"), m.accessibilityLabel)
-        // in the chosen spelling
-        XCTAssertEqual(MenuBarReadout.of(raw, spelling: .sharps, choice: s.manualKey).text, "F# 142.0")
     }
 
     func testMenuBarManualUndetectedKey() {
@@ -173,11 +162,11 @@ final class SpellingMenuBarTests: XCTestCase {
         }
         guard #available(macOS 13.0, *) else { throw XCTSkip("ImageRenderer is macOS 13+") }
         let shared = SpellingSettings.shared
-        let (savedPref, savedManual) = (shared.preference, shared.manualKey)
+        let savedManual = shared.manualKey
         Pocket.snapshot = true
         defer {
             Pocket.snapshot = false; Theme.accent = .amber
-            shared.preference = savedPref; shared.manualKey = savedManual
+            shared.manualKey = savedManual
         }
         Theme.accent = .amber
         let out = URL(fileURLWithPath: dir)
@@ -194,17 +183,15 @@ final class SpellingMenuBarTests: XCTestCase {
                           pickFocused: .constant(false))
                 .environment(\.manualHoverForced, hover)
         }
-        // the window, Advanced, manual Gb (a black-key major), in each spelling
-        for (pref, tag) in [(KeySpelling?.none, "own"), (.flats, "flats"), (.sharps, "sharps")] {
-            shared.preference = pref
-            let s = settings(pref)
+        // the window, Advanced, manual Gb (a black-key major): Auto-Tune's F# on the dial and wheel
+        do {
+            let s = settings()
             s.setManualKey("F#", of: raw, from: .topKeys)
             var q = state(s, advanced: true)
             q.source = "System Audio"
-            try write(window(q), "window-advanced-manual-Gb-\(tag)")
-            try write(window(q, hover: "wheel"), "window-advanced-manual-Gb-\(tag)-wheel-hover")
+            try write(window(q), "window-advanced-manual-Gb-own")
+            try write(window(q, hover: "wheel"), "window-advanced-manual-Gb-own-wheel-hover")
         }
-        shared.preference = savedPref
 
         // the menu-bar item: not manual, manual (detected), manual (never detected), on a dark and a light bar
         let s = settings()

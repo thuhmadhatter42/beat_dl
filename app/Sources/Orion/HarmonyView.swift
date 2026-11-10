@@ -67,7 +67,7 @@ struct HarmonyPanel: View {
     /// The wheel: a click sets Manual Key Selection; a click on the white (manual) section clears it.
     static func wheel(_ state: PocketState, settings: SpellingSettings = .shared) -> KeyWheel {
         let r = state.result
-        return KeyWheel(keys: r?.keys ?? [], manual: state.manualKey, spelling: settings.preference,
+        return KeyWheel(keys: r?.keys ?? [], manual: state.manualKey,
                         onChoose: r.map { r in { k in _ = settings.setManualKey(k, of: r, from: .wheel) } },
                         onClear: r.map { r in { _ = settings.clearManualKey(of: r, from: .wheelReset) } })
     }
@@ -362,9 +362,6 @@ struct KeyWheel: View {
     /// Manual Key Selection on show: its section is lit white (not the display colour), hovering
     /// it swaps its name for the reset arrow, and a click there clears it (`onClear`).
     var manual: ManualKey? = nil
-    /// Reading > Spell Keys with Sharps (nil = the analyzer's own): the dial's and the top 3's
-    /// spelling, for the keys the reading does not list (see `name`).
-    var spelling: KeySpelling? = nil
     var onChoose: ((String) -> Void)? = nil
     var onClear: (() -> Void)? = nil
 
@@ -477,19 +474,19 @@ struct KeyWheel: View {
     /// The name as the wheel spells it: exactly as the dial and the top 3 do (one key, one name
     /// across the window and the pocket). Labels, hover cards and VoiceOver all read this.
     func name(_ pc: Int, minor: Bool) -> String {
-        KeyWheel.name(pc, minor: minor, keys: keys, spelling: spelling)
+        KeyWheel.name(pc, minor: minor, keys: keys)
     }
 
     /// Key (`pc`, `minor`) as reading `keys` (already respelled, the chosen key in front: what the
-    /// dial and the top 3 draw) names it; a key the reading does not list gets the analyzer's
-    /// name in `spelling` (KeySpelling.respell, the same rule the reading went through). A reading
-    /// key whose name does not resolve is skipped and logged once (the fallback spelling stands).
-    static func name(_ pc: Int, minor: Bool, keys: [(String, Int)], spelling: KeySpelling?) -> String {
+    /// dial and the top 3 draw) names it; a key the reading does not list gets Auto-Tune's name
+    /// (KeyChoice.keyName, the same rule the reading went through). A reading key whose name does
+    /// not resolve is skipped and logged once (the fallback spelling stands).
+    static func name(_ pc: Int, minor: Bool, keys: [(String, Int)]) -> String {
         for k in keys {
             guard let c = AutoTuneSend.keyClass(k.0) else { logUnresolved(k.0); continue }
             if c.pitchClass == pc && c.minor == minor { return k.0.trimmingCharacters(in: .whitespaces) }
         }
-        return KeySpelling.respell(KeyChoice.keyName(pc, minor: minor), to: spelling)
+        return KeyChoice.keyName(pc, minor: minor)
     }
 
     /// Names already logged as unresolved (one line per name, not one per redraw).

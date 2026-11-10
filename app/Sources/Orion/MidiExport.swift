@@ -83,10 +83,10 @@ enum MidiExport {
     }
 
     /// The reading the window is showing: a finished download, or the first analysed file.
-    static func current(_ state: ViewState, spelling: KeySpelling? = SpellingSettings.shared.preference) -> Result? {
+    static func current(_ state: ViewState) -> Result? {
         switch state {
-        case .done(let r): return r.respelled(spelling)
-        case .analyzed(let rs): return rs.first?.respelled(spelling)
+        case .done(let r): return r.respelled()
+        case .analyzed(let rs): return rs.first?.respelled()
         default: return nil
         }
     }

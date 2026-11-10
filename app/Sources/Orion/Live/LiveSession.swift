@@ -177,7 +177,6 @@ extension Faceplate {
     /// readout stands. `reference` = the A the tuning line is measured against (Settings), as for files.
     static func liveReadout(_ s: LiveState, source: String, factor: TempoFactor,
                             onCycleTempo: (() -> Void)? = nil, held: Bool = false,
-                            spelling: KeySpelling? = nil, onToggleSpelling: (() -> Void)? = nil,
                             reference: Double = Tuning.defaultReference, notice: String? = nil) -> Readout? {
         switch s {
         case .off:
@@ -189,9 +188,8 @@ extension Faceplate {
         case .reading(let r), .locked(let r):
             let opts = ResultOptions(factor: factor, tuning: Tuning.meter(r.tuningCents, reference: reference),
                                      onCycleTempo: onCycleTempo,
-                                     live: (s.lamp ?? .listening, notice ?? s.status(source: source, held: held) ?? "", source),
-                                     onToggleSpelling: onToggleSpelling)
-            return .result(r.respelled(spelling), page: nil, download: false, options: opts)
+                                     live: (s.lamp ?? .listening, notice ?? s.status(source: source, held: held) ?? "", source))
+            return .result(r.respelled(), page: nil, download: false, options: opts)
         }
     }
 }

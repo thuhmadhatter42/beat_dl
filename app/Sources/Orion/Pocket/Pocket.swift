@@ -125,8 +125,6 @@ struct PocketState {
     var help = false
     /// Manual Key Selection on the reading shown (it is `result`'s first key); nil = detection.
     var manualKey: ManualKey? = nil
-    /// A click on the key's name switches sharp / flat; nil = no action wired.
-    var canRespell: Bool { result?.keys.first.map { KeySpelling.isBlack($0.0) } ?? false }
 
     /// The reading on the readout, if there is one.
     var result: Result? {
@@ -175,12 +173,11 @@ struct PocketState {
 extension PocketState {
     /// The reading the popover acts on (send, export, Auto-Tune): Listen's while it is on, else
     /// the finished download or the file paged to (what the readout shows).
-    static func shown(_ state: ViewState, live: LiveState, page: Pager,
-                      spelling: KeySpelling? = SpellingSettings.shared.preference) -> Result? {
-        if live.isActive, let r = live.result { return r.respelled(spelling) }
+    static func shown(_ state: ViewState, live: LiveState, page: Pager) -> Result? {
+        if live.isActive, let r = live.result { return r.respelled() }
         switch state {
-        case .done(let r): return r.respelled(spelling)
-        case .analyzed(let rs) where !rs.isEmpty: return rs[min(max(page.index, 0), rs.count - 1)].respelled(spelling)
+        case .done(let r): return r.respelled()
+        case .analyzed(let rs) where !rs.isEmpty: return rs[min(max(page.index, 0), rs.count - 1)].respelled()
         default: return nil
         }
     }

@@ -107,6 +107,15 @@ final class HelpTests: XCTestCase {
         XCTAssertEqual(HelpText.problems(bad).count, 3)
     }
 
+    /// Click-to-respell is gone (2026-11-10): the KEY tip promises no click on the key.
+    func testKeyTipDoesNotOfferRespelling() {
+        XCTAssertEqual(HelpText.keyDial.body, "The key Beat Key hears; the ring and the % under it show how sure it is.")
+        for t in HelpText.all {
+            XCTAssertFalse(t.body.lowercased().contains("respell"), t.title)
+            XCTAssertFalse(t.body.lowercased().contains("sharp or flat"), t.title)
+        }
+    }
+
     func testChordsTipCarriesTheClickDragLine() {
         // the always-on "CLICK = HEAR · DRAG = MIDI" moved into the tip
         XCTAssertTrue(HelpText.chords.body.contains("Click one to hear it"))
