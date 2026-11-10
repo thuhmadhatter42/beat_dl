@@ -19,3 +19,14 @@ match is meant for helpers, but the helpers never reach it. So the filter may in
 Test: YouTube in Chrome (and Brave, Safari) with Pro Tools closed, Listen, and see whether the meter moves. If it
 stays silent, either capture everything and exclude the DAWs (excludingApplications), or fall back to all apps
 when the player stream stays silent.
+
+## 23:22 J's order: Listen must log (owed by the Beat Key session)
+J: logs on everything, every project; a missing log is a failure. Studio D's dead meter left no trace of what Listen heard.
+1. Every Listen session logs to beatkey.log: the capture filter chosen (done in 0.1.58), the input level about once a second
+   (peak/RMS, or "silent"), each reading change (BPM, key, %, lamp), and why it stopped.
+2. Silence guard: if System Audio is silent for ~5 s, log "listen: no signal for 5 s from <filter>", fall back to all apps,
+   log the fallback, and say so on the display.
+3. Same audit for every other path that can fail silently (download, Send to DAW, Auto-Tune, MINI MIDI out):
+   each failure must log a line.
+4. Then build, test, notarize as usual. J runs publish.sh. Studio D updates through Check for Updates.
+Proof J needs: a test (YouTube in Brave/Chrome → Listen) and the beatkey.log lines showing level + readings.
