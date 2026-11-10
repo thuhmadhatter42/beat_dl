@@ -10,8 +10,9 @@ Key: Essentia HPCP (36 bins, spectral whitening, rebuilt at the track's own A wh
      off 440: key_reading) on the whole track,
      correlated against Faraldo's 'bgate' EDM profiles for all 24 keys -> real top-3 with a
      confidence from segment agreement + margin (docs/research/key-detection-research.md).
-Fallback without essentia-tensorflow: librosa (tempo on the loudest 60 s; HPSS + CENS
-chroma + edma profiles for key). Warnings go to stderr only; stdout is the 4-line contract.
+One method, no fallback: a damaged install (essentia or its tempo model missing) is refused at
+bring-up with ANALYZER_INCOMPLETE on stderr and exit 2, never a worse BPM from another method.
+Warnings go to stderr only; stdout is the 4-line contract.
 Also reads MIDI files (midi_analyze.py). After the 4 lines it prints "bpm_exact: <0.01 BPM>" and,
 when the key is confident, "tuning_cents: <cents vs A=440>", then "chroma: [12 floats C..B]".
 Live listening: `bpm.py --stream` reads raw float32 mono PCM on stdin and prints one JSON
@@ -36,6 +37,7 @@ MINOR_NOTES = ['C', 'C#', 'D', 'Eb', 'E', 'F', 'F#', 'G', 'G#', 'A', 'Bb', 'B']
 # Key profiles (index 0 = tonic). bgate/edma: Faraldo et al., essentia src/algorithms/tonal/key.cpp
 BGATE = ([1.00, 0.00, 0.42, 0.00, 0.53, 0.37, 0.00, 0.77, 0.00, 0.38, 0.21, 0.30],
          [1.00, 0.00, 0.36, 0.39, 0.00, 0.38, 0.00, 0.74, 0.27, 0.00, 0.42, 0.23])
+# EDMA is not used by the analyzer; tools/train-tempocnn/key_baseline.py scores against it as a baseline.
 EDMA = ([1.00, 0.29, 0.50, 0.40, 0.60, 0.56, 0.32, 0.80, 0.31, 0.45, 0.42, 0.39],
         [1.00, 0.31, 0.44, 0.58, 0.33, 0.49, 0.29, 0.78, 0.43, 0.29, 0.53, 0.32])
 
@@ -43,6 +45,12 @@ EDMA = ([1.00, 0.29, 0.50, 0.40, 0.60, 0.56, 0.32, 0.80, 0.31, 0.45, 0.42, 0.39]
 KEY_SR, FRAME, HOP, HPCP_SIZE, PCP_THRESHOLD = 44100, 4096, 4096, 36, 0.2
 TEMPOCNN_SR = 11025
 SEGMENT_SECS = 10
+
+
+# The one refusal, for files (stderr, exit EXIT_INCOMPLETE) and live listening (an "error" event).
+# app_run.py reads both, so the app shows this exact sentence.
+ANALYZER_INCOMPLETE = "The analyzer is incomplete. Run Doctor."
+EXIT_INCOMPLETE = 2
 
 
 def _warn(msg):
@@ -55,18 +63,7 @@ def check_deps():
     except ImportError:
         print("Missing: numpy — install with:  pip3 install numpy --break-system-packages", file=sys.stderr)
         return False
-    try:
-        import essentia  # noqa
-        return True
-    except ImportError:
-        pass
-    try:
-        import librosa  # noqa
-        return True
-    except ImportError:
-        print("Missing: essentia-tensorflow (or librosa as fallback) — install with:  "
-              "pip3 install essentia-tensorflow --break-system-packages --prefer-binary", file=sys.stderr)
-        return False
+    return True
 
 
 def _have_essentia():
@@ -198,7 +195,7 @@ def load_audio_essentia(filepath):
 def detect_bpm_essentia(audio_11k):
     """
     Essentia TempoCNN (deeptemp-k16-3) on the whole track. Benchmarked at 87.5% Acc1
-    vs 30% for librosa beat_track (docs/research/bpm-detection-research.md).
+    vs 30% for the old beat_track method (docs/research/bpm-detection-research.md).
     """
     import essentia.standard as es
     if hasattr(es, 'TempoCNN'):
@@ -406,45 +403,6 @@ def estimate_tuning(peaks):
         _warn(f"tuning skipped: {exc}")
         return None
     return round(cents, 1)
-
-
-# ---------------------------------------------------------------- librosa fallback
-
-def get_loud_section(y, sr):
-    """Return 60s of audio starting at the loudest 10s chunk."""
-    import numpy as np
-    chunk_size = sr * 10
-    chunks = [y[i:i + chunk_size] for i in range(0, len(y), chunk_size)]
-    rms_scores = [np.sqrt(np.mean(chunk ** 2)) for chunk in chunks]
-    loudest_idx = int(np.argmax(rms_scores))
-    start = loudest_idx * chunk_size
-    end = min(start + sr * 60, len(y))
-    return y[start:end]
-
-
-def detect_bpm_librosa(section, sr):
-    """Fallback: librosa tempo on the loudest 60 s (the pre-TempoCNN method).
-    librosa.feature.tempo is the same estimate beat_track returns as its first value; beat_track
-    itself segfaults on py3.14 + numba 0.67 (numba.guvectorize in librosa/beat.py), so avoid it."""
-    import librosa
-    tempo = librosa.feature.tempo(y=section, sr=sr)
-    try:
-        bpm = float(tempo[0]) if hasattr(tempo, '__len__') else float(tempo)
-    except Exception:
-        bpm = float(tempo)
-    return round(bpm, 1)
-
-
-def detect_keys_librosa(y, sr):
-    """Fallback: HPSS harmonic -> chroma_cens (tuning-corrected) -> edma profiles, whole track.
-    81.0 weighted / 76.9 % exact on the benchmark (~3 s per 2-min clip). Confidence = softmax."""
-    import librosa
-    yh = librosa.effects.harmonic(y, margin=4.0)
-    tun = librosa.estimate_tuning(y=yh, sr=sr)
-    C = librosa.feature.chroma_cens(y=yh, sr=sr, tuning=tun)
-    ranked = sorted(key_scores(C.mean(axis=1), EDMA).items(), key=lambda kv: -kv[1])
-    p = softmax_probs(ranked)
-    return [(fmt_key(*ranked[i][0]), round(100 * float(p[i]), 1)) for i in range(3)]
 
 
 # ---------------------------------------------------------------- live listening (--stream)
@@ -816,9 +774,9 @@ def stream_main(argv, inp=None, out=None):
         out.write(json.dumps(ev) + "\n")
         out.flush()
 
-    if not _have_essentia() or not _tempocnn_model_present():
-        emit({"event": "error", "message": "The analyzer is incomplete. Run Doctor."})
-        return 2
+    if not analyzer_ready():
+        emit({"event": "error", "message": ANALYZER_INCOMPLETE})
+        return EXIT_INCOMPLETE
     live = LiveAnalyzer(rate=a.rate, window=a.window, hop=a.hop, gap=a.gap,
                         key_window=a.key_window, silence_db=a.silence_db)
     chunk_bytes = max(1, int(a.rate * STREAM_CHUNK_SECS)) * 4
@@ -875,6 +833,13 @@ def _tempocnn_model_present():
     return (TEMPOCNN_MODEL if hasattr(es, 'TempoCNN') else TEMPOCNN_WEIGHTS).is_file()
 
 
+def analyzer_ready():
+    """The one bring-up check, for files and live listening alike: essentia imports and the tempo
+    model for its back end is on disk. False = a damaged install; callers refuse with
+    ANALYZER_INCOMPLETE, there is no other method to fall back to."""
+    return _have_essentia() and _tempocnn_model_present()
+
+
 MIDI_EXTENSIONS = {".mid", ".midi"}
 
 
@@ -887,31 +852,19 @@ def analyze_full(filepath):
         import midi_analyze
         return midi_analyze.analyze_midi(filepath)
     extras = {}
-    if _have_essentia():
-        a_key, a_bpm = load_audio_essentia(filepath)
-        peaks = []
-        k = key_reading(hpcp_frames(a_key, peaks), peaks)
-        keys = k["keys"]
-        if k["tuning_cents"] is not None:
-            extras["tuning_cents"] = k["tuning_cents"]
-        extras["chroma"] = k["chroma"]
-        if _tempocnn_model_present():
-            bpm = detect_bpm_essentia(a_bpm)
-            try:
-                extras["bpm_exact"] = refine_bpm(a_bpm, bpm)
-            except Exception as exc:               # the whole number stands
-                _warn(f"decimal BPM skipped: {exc}")
-            return bpm, keys, extras
-        _warn("TempoCNN model missing in models/; BPM via librosa fallback")
-        import librosa
-        y, sr = librosa.load(str(filepath), mono=True)
-        return detect_bpm_librosa(get_loud_section(y, sr), sr), keys, extras
-    _warn("essentia-tensorflow not installed; BPM + key via librosa fallback (less accurate) — "
-          "pip3 install essentia-tensorflow --break-system-packages --prefer-binary")
-    import librosa
-    y, sr = librosa.load(str(filepath), mono=True)
-    bpm = detect_bpm_librosa(get_loud_section(y, sr), sr)
-    return bpm, detect_keys_librosa(y, sr), extras
+    a_key, a_bpm = load_audio_essentia(filepath)
+    peaks = []
+    k = key_reading(hpcp_frames(a_key, peaks), peaks)
+    keys = k["keys"]
+    if k["tuning_cents"] is not None:
+        extras["tuning_cents"] = k["tuning_cents"]
+    extras["chroma"] = k["chroma"]
+    bpm = detect_bpm_essentia(a_bpm)
+    try:
+        extras["bpm_exact"] = refine_bpm(a_bpm, bpm)
+    except Exception as exc:               # the whole number stands
+        _warn(f"decimal BPM skipped: {exc}")
+    return bpm, keys, extras
 
 
 def analyze(filepath):
@@ -927,6 +880,10 @@ def main():
 
     if len(sys.argv) > 1 and sys.argv[1] == "--stream":
         sys.exit(stream_main(sys.argv[2:]))
+
+    if not analyzer_ready():
+        print(ANALYZER_INCOMPLETE, file=sys.stderr)
+        sys.exit(EXIT_INCOMPLETE)
 
     if len(sys.argv) > 1:
         path = Path(sys.argv[1])

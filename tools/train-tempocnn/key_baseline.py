@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """Key-detection baseline: Beat Key's shipping key detector (bpm.py: essentia HPCP -> 'bgate' profiles,
 the same keys_from_hpcp the app's analyzer and live listener use) scored against the harvested keys
-in the PT ground-truth DB. Also scores the 'edma' profile on the same HPCP frames (the variant bpm.py
-keeps for its librosa fallback) so a trained model has two numbers to beat.
+in the PT ground-truth DB. Also scores the 'edma' profile on the same HPCP frames (the profile
+bpm.py keeps as EDMA, for this comparison only) so a trained model has two numbers to beat.
 
 Scoring per file, top-1 vs truth (pitch class + mode, enharmonics equal):
   exact | relative (C <-> Am) | fifth (same mode, +-7 semitones) | parallel (C <-> Cm) | other
