@@ -1,0 +1,75 @@
+036793bf02cf3a7c08603a55bc374c81f64f9a5a
+bpm.py = /Users/jshriver/dev/beat_dl/.claude/worktrees/agent-a447dc963e2a0b416/bpm.py
+101069.LOFI done (29 s)
+1041574.LOFI done (59 s)
+1103512.LOFI done (77 s)
+1140027.LOFI done (98 s)
+1161234.LOFI done (119 s)
+1356281.LOFI done (136 s)
+1568217.LOFI done (159 s)
+1652412.LOFI done (179 s)
+1669939.LOFI done (202 s)
+1706844.LOFI done (224 s)
+1922470.LOFI done (240 s)
+2014445.LOFI done (259 s)
+2048054.LOFI done (280 s)
+2048940.LOFI done (298 s)
+2069519.LOFI done (313 s)
+2725290.LOFI done (328 s)
+3076768.LOFI done (350 s)
+3233653.LOFI done (372 s)
+3361909.LOFI done (389 s)
+3390952.LOFI done (422 s)
+3397932.LOFI done (460 s)
+3443052.LOFI done (496 s)
+3625299.LOFI done (514 s)
+3740062.LOFI done (528 s)
+3789117.LOFI done (542 s)
+3935095.LOFI done (557 s)
+3949799.LOFI done (582 s)
+3958755.LOFI done (599 s)
+4088665.LOFI done (613 s)
+4293025.LOFI done (628 s)
+4302974.LOFI done (648 s)
+4328388.LOFI done (670 s)
+4596347.LOFI done (695 s)
+4857650.LOFI done (718 s)
+4868146.LOFI done (736 s)
+4873286.LOFI done (754 s)
+4983645.LOFI done (776 s)
+5103693.LOFI done (795 s)
+781373.LOFI done (816 s)
+846900.LOFI done (848 s)
+
+rows=240 errors=0 secs=848
+
+== FILE (key_reading on the whole track)
+ cents    n   exact  exact≈   GS+ex   MIREX    top3   conf1
+    +0   40    60.0    60.0    79.5    66.2    82.5    81.7
+    +7   40    60.0    60.0    79.5    65.5    80.0    81.7
+   +14   40    57.5    57.5    76.9    63.0    82.5    81.8
+   +25   40    60.0    60.0    76.9    65.5    85.0    80.2
+   +50   40    42.5    60.0    76.9    66.0    87.5    82.5
+   -30   40    55.0    55.0    74.4    63.0    82.5    82.4
+   all  240            58.8   (exact≈ pooled over all shifts)
+
+== LIVE (LiveAnalyzer readings, 30 s key window, one per 30 s)
+ cents    n   exact  exact≈   GS+ex   MIREX    top3   conf1
+    +0  163    53.4    53.4    69.2    61.2    81.0    81.5
+    +7  160    52.5    52.5    67.9    60.1    81.2    78.9
+   +14  160    51.9    51.9    66.0    59.4    78.1    81.0
+   +25  160    54.4    54.4    67.3    62.2    83.1    79.6
+   +50  160    36.9    54.4    64.7    63.0    87.5    81.4
+   -30  200    50.0    50.0    64.1    58.1    79.5    79.6
+   all 1003            52.6   (exact≈ pooled over all shifts)
+
+== roll activity on the HPCP key_reading scores (peak not on a semitone bin -> hpcp_to_pcp12 rolls)
+    +0 whole-track roll non-zero 0/40; 10 s windows rolled 31/480
+    +7 whole-track roll non-zero 0/40; 10 s windows rolled 27/480
+   +14 whole-track roll non-zero 1/40; 10 s windows rolled 31/480
+   +25 whole-track roll non-zero 0/40; 10 s windows rolled 32/480
+   +50 whole-track roll non-zero 1/40; 10 s windows rolled 28/480
+   -30 whole-track roll non-zero 2/40; 10 s windows rolled 29/480
+
+errors: none
+EXIT 0
