@@ -30,6 +30,7 @@ from pathlib import Path
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
 
+import bpm as analyzer  # noqa: E402  (only its two constants: the refusal sentence and exit code)
 import downloader  # noqa: E402
 
 _KEY_RE = re.compile(r"^(.*?)\s*\((\d+(?:\.\d+)?)%\)\s*$")
@@ -66,8 +67,14 @@ def log_line(url, name):
     return f"Input URL: {url}\nDownloaded: {name}\n\n"
 
 
+class AnalyzerIncomplete(Exception):
+    """bpm.py refused: essentia or its tempo model is missing (a damaged install). str() is the
+    sentence the app shows. Not a failed file: callers report it as the one error, never as 'no BPM'."""
+
+
 def analyze_file(path, timeout=120, extras=None):
     """Run bpm.py on a file. Returns (bpm_string | None, [(key, percent_int), ...]).
+    Raises AnalyzerIncomplete when bpm.py refuses because the install is damaged.
     extras (a dict) receives bpm.py's "name: value" lines after the keys: bpm_exact, tuning_cents,
     chroma (a list of 12 floats)."""
     name = Path(path).name
@@ -82,9 +89,12 @@ def analyze_file(path, timeout=120, extras=None):
         return None, []
     stderr = (getattr(p, "stderr", "") or "").strip()
     if stderr:
-        # warnings (librosa fallback, decimal BPM skipped) and tracebacks, kept
+        # warnings (decimal BPM skipped) and tracebacks, kept
         for line in stderr.splitlines()[-20:]:
             log(f"bpm.py [{name}]: {line}")
+    if p.returncode == analyzer.EXIT_INCOMPLETE and analyzer.ANALYZER_INCOMPLETE in stderr:
+        log(f"bpm.py refused {name}: {analyzer.ANALYZER_INCOMPLETE}")
+        raise AnalyzerIncomplete(analyzer.ANALYZER_INCOMPLETE)
     if p.returncode != 0:
         log(f"bpm.py exit {p.returncode} on {name}")
         return None, []
@@ -232,6 +242,15 @@ def cmd_download(url, cookies_file=None):
         write_last_run_log(url, cookies_file, outcome[0])
 
 
+def append_links_log(url, name):
+    try:
+        downloads_dir().mkdir(parents=True, exist_ok=True)
+        with open(log_path(), "a", encoding="utf-8") as f:
+            f.write(log_line(url, name))
+    except Exception as exc:
+        log(f"could not append to the links log {log_path()}: {exc}")  # must not lose the final event
+
+
 def _cmd_download(url, cookies_file, outcome):
     emit(stage="downloading")
     raw = []
@@ -275,6 +294,12 @@ def _cmd_download(url, cookies_file, outcome):
     extras = {}
     try:
         bpm, keys = analyze_file(path, extras=extras)
+    except AnalyzerIncomplete as exc:
+        # a damaged install: the download stands under its own name, and the user is told what to do
+        outcome[0] = f"error: {exc}"
+        append_links_log(url, path.name)
+        emit(stage="error", message=str(exc))
+        return
     except Exception as exc:
         log(f"analysis crashed on {path.name}: {exc!r}")
         bpm, keys = None, []
@@ -297,12 +322,7 @@ def _cmd_download(url, cookies_file, outcome):
     else:
         keys = []
 
-    try:
-        downloads_dir().mkdir(parents=True, exist_ok=True)
-        with open(log_path(), "a", encoding="utf-8") as f:
-            f.write(log_line(url, final.name))
-    except Exception as exc:
-        log(f"could not append to the links log {log_path()}: {exc}")  # must not lose the done event
+    append_links_log(url, final.name)
     outcome[0] = "done"
     emit(stage="done", file=str(final), name=final.name, bpm=bpm or None,
          keys=[[k, p] for k, p in keys], **(extras if bpm else {}))
@@ -327,6 +347,9 @@ def cmd_analyze(files):
         extras = {}
         try:
             bpm, keys = analyze_file(path, extras=extras)
+        except AnalyzerIncomplete as exc:
+            emit(stage="error", message=str(exc))      # one error for the whole drop, not a row per file
+            return
         except Exception as exc:
             log(f"analysis crashed on {path.name}: {exc!r}")
             bpm, keys = None, []
