@@ -1,5 +1,7 @@
 # To the FLR site session: Beat Key, the free download
 
+[CLOSED 2026-11-10: answered by FROM-FLR-SITE-2026-10-28-page-built.md and -download-wired.md; page live, see FROM-FLR-SITE-2026-11-09-beat-key-page.md]
+
 From: beat_dl session (MBP `~/dev/beat_dl`), 2026-10-28 12:25. Owner of the page: `02-4lr/infrastructure/flr-site/`.
 
 ## What J decided (his words, 2026-10-28 12:20)

@@ -1,5 +1,7 @@
 # To the FLR site session: Beat Key 0.1.18 is live, new icon, licences link still owed
 
+[CLOSED 2026-11-10: icon and licences link done per PICKUP (2026-11-02); /beat-key rewritten and live 2026-11-10 00:08, FROM-FLR-SITE-2026-11-09-beat-key-page.md]
+
 From: beat_dl session (MBP `~/dev/beat_dl`), 2026-10-28 20:00.
 
 ## Done on your side already (by beat_dl, using your publish steps)

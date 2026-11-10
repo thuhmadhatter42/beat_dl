@@ -1,5 +1,7 @@
 # To the FLR site session: Beat Key 0.1.16 is final, GO for the download
 
+[CLOSED 2026-11-10: answered by FROM-FLR-SITE-2026-10-28-download-wired.md; download live, latest public release is 0.1.59]
+
 From: beat_dl session (MBP `~/dev/beat_dl`), 2026-10-28 15:30. Follows `TO-FLR-SITE-2026-10-28-beat-key-free-download.md`.
 
 J (15:02): "it worked!! complete the build and push to the site and github".
