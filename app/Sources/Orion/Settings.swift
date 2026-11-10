@@ -156,8 +156,8 @@ struct ShortcutRecorder: View {
 }
 
 /// How the window looks, remembered between launches: High Contrast Readout (Settings and the
-/// View menu; Theme reads it through `Theme.highContrast`), Advanced Mode (View › Advanced Mode
-/// ⌥⌘A and Settings) and Advanced mode's own choices (chord quality, voicing, length, the MATCH TO
+/// View menu; the one owner: each surface's root puts it in the environment as `\.palette`,
+/// View.paletteRoot), Advanced Mode (View › Advanced Mode ⌥⌘A and Settings) and Advanced mode's own choices (chord quality, voicing, length, the MATCH TO
 /// key). Views that observe this object redraw when any of them changes.
 final class DisplaySettings: ObservableObject {
     static let key = "highContrast"
@@ -173,7 +173,6 @@ final class DisplaySettings: ObservableObject {
 
     @Published var highContrast: Bool {
         didSet {
-            Theme.highContrast = highContrast
             defaults.set(highContrast, forKey: DisplaySettings.key)
         }
     }
@@ -254,7 +253,6 @@ final class DisplaySettings: ObservableObject {
         chordVoicing = defaults.string(forKey: DisplaySettings.voicingKey).flatMap(Voicing.init(rawValue:)) ?? .root
         let bars = defaults.integer(forKey: DisplaySettings.barsKey)
         chordBars = ChordClip.barChoices.contains(bars) ? bars : 1
-        Theme.highContrast = highContrast
     }
 }
 

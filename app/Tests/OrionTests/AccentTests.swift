@@ -16,8 +16,6 @@ final class AccentTests: XCTestCase {
 
     override func tearDown() {
         defaults.removePersistentDomain(forName: suite)
-        Theme.accent = .amber
-        Theme.highContrast = false
         super.tearDown()
     }
 
@@ -28,11 +26,10 @@ final class AccentTests: XCTestCase {
         XCTAssertEqual(a.picked, .amber)
         XCTAssertEqual(a.effective, .amber)
         XCTAssertFalse(a.clamped)
-        XCTAssertEqual(Theme.accent, .amber)
         // the design numbers: amber reads 10.8:1 on the LCD, its ink is #1a1206
         XCTAssertEqual(Accent.amber.contrast(with: .lcd), 10.8, accuracy: 0.1)
         XCTAssertEqual(Accent.amber.ink, Accent.amberInk)
-        XCTAssertEqual(Theme.amberRGB.0, 255); XCTAssertEqual(Theme.amberRGB.1, 176); XCTAssertEqual(Theme.amberRGB.2, 32)
+        XCTAssertEqual(Palette().accent.r, 255); XCTAssertEqual(Palette().accent.g, 176); XCTAssertEqual(Palette().accent.b, 32)
     }
 
     func testPersistenceRoundTrip() {
@@ -40,12 +37,10 @@ final class AccentTests: XCTestCase {
         let blue = Accent(80, 170, 255)
         a.set(blue)
         XCTAssertEqual(defaults.array(forKey: AccentSettings.key) as? [Double], [80, 170, 255])
-        XCTAssertEqual(Theme.accent, blue)
-        Theme.accent = .amber
+        XCTAssertEqual(a.effective, blue)
         let b = AccentSettings(defaults: defaults)      // the next launch
         XCTAssertEqual(b.picked, blue)
         XCTAssertEqual(b.effective, blue)
-        XCTAssertEqual(Theme.accent, blue)
     }
 
     func testUnreadableStoredValueFallsBackToAmber() {
@@ -61,7 +56,6 @@ final class AccentTests: XCTestCase {
         a.reset()
         XCTAssertEqual(a.picked, .amber)
         XCTAssertEqual(a.effective, .amber)
-        XCTAssertEqual(Theme.accent, .amber)
         XCTAssertNil(defaults.object(forKey: AccentSettings.key))
         XCTAssertEqual(AccentSettings(defaults: defaults).picked, .amber)
     }
@@ -76,8 +70,7 @@ final class AccentTests: XCTestCase {
             XCTAssertEqual(dark.ink, Accent.lightInk, "\(dark.described)")
         }
         // every step derives from the accent; ink too
-        Theme.accent = Accent(255, 255, 120)
-        XCTAssertEqual(NSColor(Theme.A.ink).usingColorSpace(.sRGB)!.redComponent, 25.5 / 255, accuracy: 0.01)
+        XCTAssertEqual(NSColor(Palette(accent: Accent(255, 255, 120)).ink).usingColorSpace(.sRGB)!.redComponent, 25.5 / 255, accuracy: 0.01)
     }
 
     func testDarkPickIsLiftedToReadOnTheLCD() {
@@ -88,7 +81,6 @@ final class AccentTests: XCTestCase {
         XCTAssertEqual(a.picked, navy, "the wheel keeps what J picked")
         XCTAssertGreaterThanOrEqual(a.effective.contrast(with: .lcd), Accent.minContrast - 0.01)
         XCTAssertLessThan(a.effective.contrast(with: .lcd), Accent.minContrast + 0.2, "lifted just enough")
-        XCTAssertEqual(Theme.accent, a.effective)
         // the hue survives the lift
         XCTAssertEqual(a.effective.hsb.0, navy.hsb.0, accuracy: 0.01)
         // pure blue cannot get there on brightness alone: it goes paler instead
@@ -105,13 +97,13 @@ final class AccentTests: XCTestCase {
     }
 
     func testStepsAndHighContrastFollowTheAccent() {
-        Theme.accent = Accent(60, 220, 120)
-        let a2 = NSColor(Theme.A.a2).usingColorSpace(.sRGB)!
+        var p = Palette(accent: Accent(60, 220, 120))
+        let a2 = NSColor(p.a2).usingColorSpace(.sRGB)!
         XCTAssertEqual(a2.greenComponent, 220 / 255, accuracy: 0.01)
         XCTAssertEqual(a2.alphaComponent, 0.75, accuracy: 0.01)
-        Theme.highContrast = true
-        XCTAssertEqual(NSColor(Theme.A.a2).usingColorSpace(.sRGB)!.alphaComponent, 1, accuracy: 0.01)
-        XCTAssertEqual(NSColor(Theme.amber(0.62)).usingColorSpace(.sRGB)!.alphaComponent, 1, accuracy: 0.01)
+        p.highContrast = true
+        XCTAssertEqual(NSColor(p.a2).usingColorSpace(.sRGB)!.alphaComponent, 1, accuracy: 0.01)
+        XCTAssertEqual(NSColor(p.amber(0.62)).usingColorSpace(.sRGB)!.alphaComponent, 1, accuracy: 0.01)
     }
 
     func testDragIsCoalescedAndTheLastPickLands() {
@@ -196,11 +188,12 @@ final class AccentTests: XCTestCase {
         }
         guard #available(macOS 13.0, *) else { throw XCTSkip("ImageRenderer is macOS 13+") }
         Pocket.snapshot = true
-        defer { Pocket.snapshot = false; Theme.accent = .amber }
+        defer { Pocket.snapshot = false }
         let out = URL(fileURLWithPath: dir)
         try FileManager.default.createDirectory(at: out, withIntermediateDirectories: true)
+        var palette = Palette()
         func write<V: View>(_ v: V, _ name: String, crop bottom: CGFloat? = nil) throws {
-            let r = ImageRenderer(content: v.environment(\.colorScheme, .dark))
+            let r = ImageRenderer(content: v.environment(\.palette, palette).environment(\.colorScheme, .dark))
             r.scale = 2
             guard var cg = r.cgImage else { return XCTFail("no image for \(name)") }
             if let b = bottom, let c = cg.cropping(to: CGRect(x: 0, y: CGFloat(cg.height) - b * 2,
@@ -224,12 +217,12 @@ final class AccentTests: XCTestCase {
 
         let picks: [(String, Accent)] = [("amber", .amber), ("blue", Accent(70, 150, 255)), ("green", Accent(60, 225, 120))]
         for (name, a) in picks {
-            Theme.accent = a.readable().accent
+            palette.accent = a.readable().accent
             try write(FaceplateFace(state: s, picked: [], url: .constant(""), fieldFocused: .constant(false),
                                     pickFocused: .constant(false)), "window-\(name)")
             try write(PocketView(state: s, url: .constant("")), "pocket-\(name)")
         }
-        Theme.accent = .amber
+        palette.accent = .amber
         try write(FaceplateFace(state: adv, picked: [], url: .constant(""), fieldFocused: .constant(false),
                                 pickFocused: .constant(false)), "window-advanced-amber")
         try write(FaceplateFace(state: s, picked: [], url: .constant(""), fieldFocused: .constant(false),
@@ -237,10 +230,10 @@ final class AccentTests: XCTestCase {
         try write(PocketView(state: s, url: .constant("")), "pocket-advanced-off")
         try write(PocketView(state: adv, url: .constant("")), "pocket-advanced-on")
         try write(PocketView(state: s, url: .constant("")), "pocket-footer", crop: 40)
-        Theme.accent = Accent(70, 150, 255).readable().accent
+        palette.accent = Accent(70, 150, 255).readable().accent
         try write(PocketView(state: adv, url: .constant("")), "pocket-advanced-on-blue")
         // a too-dark pick as shown (navy, lifted)
-        Theme.accent = Accent(10, 20, 90).readable().accent
+        palette.accent = Accent(10, 20, 90).readable().accent
         try write(FaceplateFace(state: s, picked: [], url: .constant(""), fieldFocused: .constant(false),
                                 pickFocused: .constant(false)), "window-navy-lifted")
     }

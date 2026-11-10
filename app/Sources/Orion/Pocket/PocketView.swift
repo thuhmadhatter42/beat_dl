@@ -75,7 +75,6 @@ struct PocketView: View {
         .environment(\.helpMode, state.help)
         .helpTipLayer()
         .background(PocketPlate())
-        .id(state.highContrast)   // Theme.highContrast is read while drawing
     }
 
     // MARK: module: download, listen, send (on the plate itself: no extra panel box)
@@ -244,6 +243,7 @@ struct ModuleRule: View {
 
 /// LISTEN / STOP: the red lamp while on.
 struct ListenCap: View {
+    @Environment(\.palette) private var palette
     let state: PocketState
     var height: CGFloat = Theme.H.lg
     let action: () -> Void
@@ -251,8 +251,8 @@ struct ListenCap: View {
         Button(action: action) {
             HStack(spacing: 6) {
                 if state.listening {
-                    LampShape(lamp: .listening).fill(Lamp.listening.color).frame(width: 7, height: 7)
-                        .shadow(color: Theme.highContrast ? .clear : Theme.red.opacity(0.9), radius: 3)
+                    LampShape(lamp: .listening).fill(Lamp.listening.color(palette.accent)).frame(width: 7, height: 7)
+                        .shadow(color: palette.highContrast ? .clear : Theme.red.opacity(0.9), radius: 3)
                 }
                 SSLCapStyle.label(state.listening ? "STOP" : "LISTEN")
             }
@@ -411,6 +411,7 @@ struct QuitLink: View {
 /// side. Dim outline at rest, brighter on hover, a faint fill while pressed, lit in the display
 /// colour while on (HELP, the open colour wheel), faint when there is nothing to do (no recents).
 struct FooterChip: View {
+    @Environment(\.palette) private var palette
     let title: String
     let label: String
     var enabled = true
@@ -439,7 +440,7 @@ struct FooterChip: View {
             HStack(spacing: Theme.S.xs) {
                 if swatch {
                     RoundedRectangle(cornerRadius: 1.5, style: .continuous)
-                        .fill(on ? Theme.A.ink : Theme.amber)
+                        .fill(on ? palette.ink : palette.amber)
                         .frame(width: FooterChip.swatchSide, height: FooterChip.swatchSide)
                 }
                 Text(title).captionStyle().lineLimit(1).fixedSize()
@@ -459,6 +460,7 @@ struct FooterChip: View {
 
 /// The footer chip's look in each state (FooterChip): the outline, the fill and the legend.
 struct FooterChipStyle: ButtonStyle {
+    @Environment(\.palette) private var palette
     let on: Bool
     let enabled: Bool
     let hover: Bool
@@ -466,9 +468,9 @@ struct FooterChipStyle: ButtonStyle {
     func makeBody(configuration: Configuration) -> some View {
         let shape = RoundedRectangle(cornerRadius: Theme.R.cap, style: .continuous)
         let pressed = configuration.isPressed && enabled
-        let text: Color = on ? Theme.A.ink : !enabled ? Theme.textFaint : (hover || pressed) ? Theme.textHi : Theme.textLo
+        let text: Color = on ? palette.ink : !enabled ? Theme.textFaint : (hover || pressed) ? Theme.textHi : Theme.textLo
         let stroke: Color = on ? .clear : !enabled ? Theme.textFaint.opacity(0.5) : (hover || pressed) ? Theme.textLo : Theme.textFaint
-        let fill: Color = on ? (pressed ? Theme.A.a2 : Theme.amber) : pressed ? Theme.textFaint.opacity(0.4) : .clear
+        let fill: Color = on ? (pressed ? palette.a2 : palette.amber) : pressed ? Theme.textFaint.opacity(0.4) : .clear
         return configuration.label
             .foregroundColor(text)
             .background(shape.fill(fill))
@@ -494,6 +496,7 @@ private struct PocketPlate: View {
 }
 
 private struct PocketHeader: View {
+    @Environment(\.palette) private var palette
     let state: PocketState
 
     var body: some View {
@@ -514,15 +517,15 @@ private struct PocketHeader: View {
         let (word, lamp, color): (String, Lamp?, Color) = {
             if state.listening { return ("LIVE · \(state.source.uppercased())", .listening, Theme.redText) }
             switch state.readout {
-            case .working: return ("WORKING", .listening, Theme.amber)
+            case .working: return ("WORKING", .listening, palette.amber)
             case .error: return ("FAILED", nil, Theme.redText)
             default: return ("READY", .locked, Theme.greenText)
             }
         }()
         return HStack(spacing: 6) {
             if let l = lamp {
-                LampShape(lamp: l).fill(l == .listening && !state.listening ? Theme.amber : l.color).frame(width: 7, height: 7)
-                    .shadow(color: Theme.highContrast ? .clear : l.color.opacity(0.7), radius: 3)
+                LampShape(lamp: l).fill(l == .listening && !state.listening ? palette.amber : l.color(palette.accent)).frame(width: 7, height: 7)
+                    .shadow(color: palette.highContrast ? .clear : l.color(palette.accent).opacity(0.7), radius: 3)
             } else {
                 Circle().fill(Theme.red).frame(width: 7, height: 7)
             }
@@ -538,9 +541,11 @@ private struct PocketHeader: View {
 /// Beat Key's key, drawn: the dial head of the app icon (ring, hub), the shaft and its teeth.
 /// The status item draws the same path (MenuBarImage.key).
 struct KeyGlyph: View {
-    var color: Color = Theme.amber
+    @Environment(\.palette) private var palette
+    /// nil = the display colour.
+    var color: Color? = nil
     var body: some View {
-        KeyGlyphShape().fill(color, style: FillStyle(eoFill: true))
+        KeyGlyphShape().fill(color ?? palette.amber, style: FillStyle(eoFill: true))
     }
 }
 
@@ -576,6 +581,7 @@ struct KeyGlyphShape: Shape {
 // MARK: the readout
 
 private struct PocketLCD: View {
+    @Environment(\.palette) private var palette
     let state: PocketState
     let actions: PocketActions
 
@@ -603,14 +609,14 @@ private struct PocketLCD: View {
         case .working(let stage, let download):
             VStack(alignment: .leading, spacing: 0) {
                 Text(Faceplate.stageText(stage)).font(Theme.T.title).tracking(Theme.T.titleTracking)
-                    .foregroundColor(Theme.A.a1).lineLimit(2)
+                    .foregroundColor(palette.a1).lineLimit(2)
                     .fixedSize(horizontal: false, vertical: true)
                 RunningBar().padding(.top, Theme.S.m)
                 HStack(spacing: Theme.S.s) {
                     ForEach(steps(stage, download), id: \.0) { name, step in
                         Text(step == .done ? "✓ \(name)" : name).captionStyle()
                             .lineLimit(1).fixedSize()
-                            .foregroundColor(step == .on ? Theme.A.a1 : step == .done ? Theme.A.a2 : Theme.A.a3)
+                            .foregroundColor(step == .on ? palette.a1 : step == .done ? palette.a2 : palette.a3)
                     }
                 }
                 .padding(.top, Theme.S.m)
@@ -619,7 +625,7 @@ private struct PocketLCD: View {
             .accessibility(label: Text(Faceplate.stageText(stage).capitalized))
         case .listening(let status):
             VStack(alignment: .leading, spacing: 0) {
-                Text("LISTENING").font(Theme.T.title).tracking(Theme.T.titleTracking).foregroundColor(Theme.A.a1)
+                Text("LISTENING").font(Theme.T.title).tracking(Theme.T.titleTracking).foregroundColor(palette.a1)
                 RunningBar().padding(.top, Theme.S.m)
             }
             .accessibilityElement(children: .ignore)
@@ -630,7 +636,7 @@ private struct PocketLCD: View {
                     .foregroundColor(Theme.redText)
                     .lineLimit(4).fixedSize(horizontal: false, vertical: true)
                 Text(hint ?? Faceplate.failureHint(download: download)).captionStyle()
-                    .foregroundColor(Theme.rgb(255, 106, 92, Theme.highContrast ? 1 : 0.75)).lineLimit(2)
+                    .foregroundColor(Theme.rgb(255, 106, 92, palette.highContrast ? 1 : 0.75)).lineLimit(2)
                     .fixedSize(horizontal: false, vertical: true)
             }
             .accessibilityElement(children: .ignore)
@@ -642,9 +648,9 @@ private struct PocketLCD: View {
         case .idle, .drop:
             // the empty state: an invitation, not a skeleton of missing numbers (F11)
             VStack(alignment: .leading, spacing: Theme.S.s) {
-                Text("Drop a beat").font(Theme.T.title).foregroundColor(Theme.A.a2)
+                Text("Drop a beat").font(Theme.T.title).foregroundColor(palette.a2)
                 Text("or paste a YouTube link, open a file or listen").font(Theme.T.caption)
-                    .foregroundColor(Theme.A.a3).fixedSize(horizontal: false, vertical: true)
+                    .foregroundColor(palette.a3).fixedSize(horizontal: false, vertical: true)
             }
             .accessibilityElement(children: .ignore)
             .accessibility(label: Text("No reading yet. Paste a link, analyze a file or listen."))
@@ -653,9 +659,9 @@ private struct PocketLCD: View {
 
     private func message(_ a: String, _ b: String, red: Bool = false) -> some View {
         VStack(alignment: .leading, spacing: Theme.S.s) {
-            Text(a).font(Theme.T.value).foregroundColor(red ? Theme.redText : Theme.A.a1)
+            Text(a).font(Theme.T.value).foregroundColor(red ? Theme.redText : palette.a1)
                 .lineLimit(3).fixedSize(horizontal: false, vertical: true)
-            Text(b).captionStyle().foregroundColor(red ? Theme.redText : Theme.A.a2)
+            Text(b).captionStyle().foregroundColor(red ? Theme.redText : palette.a2)
                 .lineLimit(3).fixedSize(horizontal: false, vertical: true)
         }
         .accessibilityElement(children: .ignore)
@@ -671,6 +677,7 @@ private struct PocketLCD: View {
 /// The lower half of both readouts: a hairline ending in the MANUAL key menu, TOP KEYS (a click
 /// picks the key), the scale on a one-octave keyboard, and the scale line with the tuning.
 struct KeyStrip: View {
+    @Environment(\.palette) private var palette
     let state: PocketState
     /// MANUAL ⌄: the 24-key menu (nil = not shown).
     var onTeach: (() -> Void)? = nil
@@ -682,7 +689,7 @@ struct KeyStrip: View {
         VStack(alignment: .leading, spacing: 0) {
             // the hairline runs into the menu at the strip's right edge (the % column's edge)
             HStack(spacing: Theme.S.m) {
-                Rectangle().fill(Theme.A.a4).frame(height: 1)
+                Rectangle().fill(palette.a4).frame(height: 1)
                 if let teach = onTeach {
                     ManualKeyMenu(enabled: state.result != nil, action: teach).helpTip(HelpText.manual)
                 }
@@ -711,9 +718,9 @@ struct KeyStrip: View {
             HStack(alignment: .firstTextBaseline, spacing: Theme.S.m) {
                 if let s = state.scale {
                     Text("\(s.tonicName) \(s.minor ? "minor" : "major")").font(Theme.T.value)
-                        .foregroundColor(Theme.A.a2)
+                        .foregroundColor(palette.a2)
                     Text(s.spelled.joined(separator: "  ")).font(Theme.T.body)
-                        .foregroundColor(Theme.A.a3).lineLimit(1)
+                        .foregroundColor(palette.a3).lineLimit(1)
                 }
                 Spacer(minLength: 0)
             }
@@ -730,6 +737,7 @@ struct KeyStrip: View {
 /// J 2026-11-09: the track's centre tick (0 ct) sits on the panel's centre line; TUNING ends 12 pt
 /// left of the track, the reading starts 12 pt right of it (so the row as a whole sits left of centre).
 struct TuningMeterRow: View {
+    @Environment(\.palette) private var palette
     let meter: TuningMeter?
 
     static let height: CGFloat = 12
@@ -764,11 +772,11 @@ struct TuningMeterRow: View {
             let l = TuningMeterRow.layout(width: g.size.width)
             let h = TuningMeterRow.height
             ZStack(alignment: .topLeading) {
-                Text("TUNING").captionStyle().foregroundColor(Theme.A.a3).lineLimit(1).fixedSize()
+                Text("TUNING").captionStyle().foregroundColor(palette.a3).lineLimit(1).fixedSize()
                     .frame(width: max(0, l.labelRight), height: h, alignment: .trailing)
                 track.frame(width: l.trackWidth, height: h).offset(x: l.trackX)
                 Text(meter?.text ?? "—").font(Theme.T.caption.monospacedDigit())
-                    .foregroundColor(meter == nil ? Theme.A.a3 : Theme.A.a2).lineLimit(1).fixedSize()
+                    .foregroundColor(meter == nil ? palette.a3 : palette.a2).lineLimit(1).fixedSize()
                     .frame(height: h).offset(x: l.textX)
             }
         }
@@ -782,15 +790,15 @@ struct TuningMeterRow: View {
         GeometryReader { g in
             let w = g.size.width, mid = g.size.height / 2
             ZStack(alignment: .topLeading) {
-                Capsule().fill(Theme.A.a4).frame(width: w, height: 2).offset(y: mid - 1)
+                Capsule().fill(palette.a4).frame(width: w, height: 2).offset(y: mid - 1)
                 // −25 / +25 ticks faint, the centre brighter
                 ForEach([0.25, 0.5, 0.75], id: \.self) { f in
-                    Rectangle().fill(f == 0.5 ? Theme.A.a3 : Theme.A.a4)
+                    Rectangle().fill(f == 0.5 ? palette.a3 : palette.a4)
                         .frame(width: 1, height: f == 0.5 ? 8 : 4)
                         .offset(x: (w * CGFloat(f)).rounded() - 0.5, y: mid - (f == 0.5 ? 4 : 2))
                 }
                 if let m = meter {
-                    RoundedRectangle(cornerRadius: 1.5, style: .continuous).fill(m.inTune ? Theme.green : Theme.amber)
+                    RoundedRectangle(cornerRadius: 1.5, style: .continuous).fill(m.inTune ? Theme.green : palette.amber)
                         .frame(width: TuningMeterRow.markerWidth, height: g.size.height)
                         .offset(x: TuningMeterRow.markerX(m.fraction, width: w))
                         .animation(Theme.Motion.value, value: m.cents)
@@ -825,6 +833,7 @@ struct ManualKeyMenu: View {
 /// A chip that opens a menu (MANUAL ⌄, MATCH TO's key): the segmented chips' recipe, one segment,
 /// a chevron 4 pt after the text.
 struct ChipMenuButton: View {
+    @Environment(\.palette) private var palette
     let title: String
     var enabled = true
     /// UPPERCASE legends are tracked; a key name ("Am") is not.
@@ -839,11 +848,11 @@ struct ChipMenuButton: View {
                 Text(title).font(Theme.T.caption).tracking(tracked ? Theme.T.captionTracking : 0)
                 Image(systemName: "chevron.down").font(.system(size: 8, weight: .bold))
             }
-            .foregroundColor(enabled ? Theme.A.a2 : Theme.A.a3)
+            .foregroundColor(enabled ? palette.a2 : palette.a3)
             .padding(.horizontal, Theme.S.s)
             .frame(height: Theme.H.sm)
-            .background(shape.fill(hover && enabled ? Theme.A.a4 : Theme.A.a5))
-            .overlay(shape.stroke(Theme.A.a4, lineWidth: 1))
+            .background(shape.fill(hover && enabled ? palette.a4 : palette.a5))
+            .overlay(shape.stroke(palette.a4, lineWidth: 1))
             .contentShape(shape)
             .fixedSize()
         }
@@ -860,6 +869,7 @@ struct ChipMenuButton: View {
 /// (J 2026-11-09: "bring the confidence % back"; 0.1.46 had swapped it for the word), counting to
 /// each new reading with Motion.value; the lamp's word is the small label under it.
 struct Dial: View {
+    @Environment(\.palette) private var palette
     let state: PocketState
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var spin = false
@@ -888,17 +898,17 @@ struct Dial: View {
     var body: some View {
         let lamp = state.lamp
         let manual = self.manual
-        let color = manual ? ManualLook.white : isWorking ? Theme.amber : (lamp.map { $0.color } ?? Theme.amber)
+        let color = manual ? palette.manualWhite : isWorking ? palette.amber : (lamp.map { $0.color(palette.accent) } ?? palette.amber)
         let key = state.result?.keys.first?.0
         ZStack {
             // ticks
             ForEach(0..<12, id: \.self) { i in
-                Capsule().fill(i % 3 == 0 ? Theme.A.a3 : Theme.A.a4)
+                Capsule().fill(i % 3 == 0 ? palette.a3 : palette.a4)
                     .frame(width: i % 3 == 0 ? 2 : 1.5, height: i % 3 == 0 ? 7 : 5)
                     .offset(y: -(side / 2 - 4.5))
                     .rotationEffect(.degrees(Double(i) * 30))
             }
-            Circle().stroke(Theme.A.a5, lineWidth: 5).padding(12)
+            Circle().stroke(palette.a5, lineWidth: 5).padding(12)
             if let c = state.confidence {
                 // the arc eases to each new confidence; its colour crossfades with the lamp. Manual
                 // Key Selection: a closed white ring (locked by the user, not a confidence)
@@ -908,7 +918,7 @@ struct Dial: View {
                     .animation(Theme.Motion.swap, value: manual)
                     .rotationEffect(.degrees(-90))
                     .padding(12)
-                    .shadow(color: Theme.highContrast ? .clear : color.opacity(manual ? 0.45 : 0.7), radius: 4)
+                    .shadow(color: palette.highContrast ? .clear : color.opacity(manual ? 0.45 : 0.7), radius: 4)
                     .animation(Theme.Motion.value, value: c)
             } else if lamp == .listening {
                 // listening / working with no key yet: a short arc going round
@@ -917,14 +927,14 @@ struct Dial: View {
                     .rotationEffect(.degrees(spin ? 270 : -90))
                     .animation(spin ? Animation.linear(duration: 1.6).repeatForever(autoreverses: false) : nil, value: spin)
                     .padding(12)
-                    .shadow(color: Theme.highContrast ? .clear : color.opacity(0.7), radius: 4)
+                    .shadow(color: palette.highContrast ? .clear : color.opacity(0.7), radius: 4)
                     .onAppear { if !reduceMotion && !Pocket.snapshot { DispatchQueue.main.async { spin = true } } }
             }
             VStack(spacing: Theme.S.xs) {
                 keyName(key)
                 if manual {
                     // MANUAL in white where LOCKED / UNSURE / the % would be, no lamp glyph
-                    Text(ManualLook.word).captionStyle().foregroundColor(ManualLook.white)
+                    Text(ManualLook.word).captionStyle().foregroundColor(palette.manualWhite)
                         .lineLimit(1).fixedSize()
                         .transition(.opacity)
                 } else if let c = state.confidence, key != nil {
@@ -932,12 +942,12 @@ struct Dial: View {
                     // beside the number instead (the word stays in the VoiceOver label)
                     HStack(spacing: Theme.S.xs) {
                         if compact, let l = lamp {
-                            LampShape(lamp: l).fill(l.color).frame(width: 7, height: 7)
+                            LampShape(lamp: l).fill(l.color(palette.accent)).frame(width: 7, height: 7)
                         }
                         Color.clear.frame(width: 0, height: 0)
                             .modifier(CountingNumber(value: (c * 100).rounded(), suffix: "%"))
                             .font(Theme.T.value.monospacedDigit())
-                            .foregroundColor(lamp.map { $0.textColor } ?? Theme.A.a2)
+                            .foregroundColor(lamp.map { $0.textColor(palette.accent) } ?? palette.a2)
                             .fixedSize()
                             .liveAnimation(Theme.Motion.value, value: Int((c * 100).rounded()), live: true)
                     }
@@ -948,13 +958,13 @@ struct Dial: View {
                     Crossfade(key != nil ? lamp.map { state.held ? "HELD" : $0.spoken.uppercased() } ?? "KEY" : "KEY") { _ in
                         if let l = lamp, key != nil {
                             HStack(spacing: Theme.S.xs) {
-                                LampShape(lamp: l).fill(l.color).frame(width: 7, height: 7)
+                                LampShape(lamp: l).fill(l.color(palette.accent)).frame(width: 7, height: 7)
                                 Text(state.held ? "HELD" : l.spoken.uppercased()).captionStyle()
-                                    .foregroundColor(l.textColor).lineLimit(1).fixedSize()
+                                    .foregroundColor(l.textColor(palette.accent)).lineLimit(1).fixedSize()
                             }
                             .helpTip(HelpText.confidence)
                         } else {
-                            Text("KEY").captionStyle().foregroundColor(Theme.A.a3)
+                            Text("KEY").captionStyle().foregroundColor(palette.a3)
                         }
                     }
                 }
@@ -999,10 +1009,10 @@ struct Dial: View {
         let manual = self.manual
         let text = Crossfade(key ?? "--") { k in
             Text(k).font(Theme.face(keySize))
-                .foregroundColor(key == nil ? Theme.A.a4 : manual ? ManualLook.white : Theme.A.a1)
+                .foregroundColor(key == nil ? palette.a4 : manual ? palette.manualWhite : palette.a1)
                 .lineLimit(1).minimumScaleFactor(0.6)
                 .modifier(PocketGlow(on: key != nil && !manual))
-                .shadow(color: manual ? ManualLook.glow : .clear, radius: 3)
+                .shadow(color: manual ? palette.manualGlow : .clear, radius: 3)
         }
         if manual {
             // hovered: the name crossfades to the reset arrow (Motion.hover); the dial takes the click
@@ -1010,8 +1020,8 @@ struct Dial: View {
                 text.opacity(resetting ? 0 : 1)
                 Image(systemName: ManualLook.resetSymbol)
                     .font(.system(size: keySize * 0.7, weight: .bold))
-                    .foregroundColor(ManualLook.white)
-                    .shadow(color: ManualLook.glow, radius: 3)
+                    .foregroundColor(palette.manualWhite)
+                    .shadow(color: palette.manualGlow, radius: 3)
                     .opacity(resetting ? 1 : 0)
             }
             .animation(Theme.Motion.hover, value: resetting)
@@ -1032,6 +1042,7 @@ struct Dial: View {
 /// The BPM as the readout draws it (J 2026-11-09, "decimals small"): the whole number big and
 /// glowing, the decimals smaller and one step dimmer, on one baseline. No BPM = dim dashes.
 struct BPMNumber: View {
+    @Environment(\.palette) private var palette
     let text: String?
     let whole: CGFloat
     let fraction: CGFloat
@@ -1045,19 +1056,19 @@ struct BPMNumber: View {
                 HStack(alignment: .firstTextBaseline, spacing: 0) {
                     Crossfade(p.whole, alignment: .trailing) { w in
                         Text(w).font(Theme.face(whole).monospacedDigit()).tracking(whole * 0.02)
-                            .foregroundColor(Theme.A.a1).amberGlow()
+                            .foregroundColor(palette.a1).amberGlow()
                     }
                     if let f = p.fraction {
                         Crossfade(f, alignment: .leading) { f in
                             Text(f).font(Theme.face(fraction).monospacedDigit())
-                                .foregroundColor(Theme.A.a2)
+                                .foregroundColor(palette.a2)
                         }
                     }
                 }
                 .lineLimit(1)
                 .fixedSize()
             } else {
-                Text("---").font(Theme.face(whole).monospacedDigit()).foregroundColor(Theme.A.a4)
+                Text("---").font(Theme.face(whole).monospacedDigit()).foregroundColor(palette.a4)
                     .lineLimit(1).fixedSize()
             }
         }
@@ -1066,6 +1077,7 @@ struct BPMNumber: View {
 
 /// BPM (clickable, x0.5 / x1 / x2 chips) and the file line beside the dial.
 private struct ResultSide: View {
+    @Environment(\.palette) private var palette
     let result: Result
     let page: String?
     let note: String?
@@ -1077,7 +1089,7 @@ private struct ResultSide: View {
         let bpm = Tempo.text(result, factor: options.factor)
         VStack(alignment: .leading, spacing: 0) {
             HStack(spacing: Theme.S.s) {
-                Text.cap("BPM")
+                Text.cap("BPM", palette)
                 Spacer(minLength: Theme.S.xs)
                 FactorChips(factor: options.factor, enabled: bpm != nil, set: actions.setFactor)
             }
@@ -1110,13 +1122,13 @@ private struct ResultSide: View {
             HStack(spacing: Theme.S.xs) {
                 Text(note ?? (result.name as NSString).deletingPathExtension)
                     .font(note == nil ? Theme.T.body : Theme.T.caption)
-                    .foregroundColor(note == nil ? Theme.textHi : Theme.A.a2)
+                    .foregroundColor(note == nil ? Theme.textHi : palette.a2)
                     .lineLimit(1).truncationMode(.middle)
                     .helpTip(HelpText.fileLine)
                 if let p = page {
                     Spacer(minLength: 2)
                     PageArrow(glyph: "‹", label: "Previous file") { actions.page(-1) }
-                    Text(p).captionStyle().foregroundColor(Theme.A.a2).fixedSize()
+                    Text(p).captionStyle().foregroundColor(palette.a2).fixedSize()
                     PageArrow(glyph: "›", label: "Next file") { actions.page(1) }
                 }
             }
@@ -1155,6 +1167,7 @@ enum ChipWidth: Equatable {
 /// fill with dark ink; hover = an A4 wash. The BPM factor, the chord choices, the transpose
 /// strip and every single chip (MINI, SOUND) are this control.
 struct SegmentedChips<V: Hashable>: View {
+    @Environment(\.palette) private var palette
     struct Option {
         let value: V
         let title: String
@@ -1176,21 +1189,22 @@ struct SegmentedChips<V: Hashable>: View {
         let shape = RoundedRectangle(cornerRadius: Theme.R.cap, style: .continuous)
         HStack(spacing: 0) {
             ForEach(Array(options.enumerated()), id: \.offset) { i, o in
-                if i > 0 { Rectangle().fill(Theme.A.a4).frame(width: 1) }
+                if i > 0 { Rectangle().fill(palette.a4).frame(width: 1) }
                 ChipSegment(title: o.title, spoken: o.spoken, on: lit?.contains(o.value) ?? (o.value == selected), enabled: enabled,
                             marked: marked == o.value, width: width,
                             action: onSelect.map { f in { f(o.value) } })
             }
         }
         .frame(height: Theme.H.sm)
-        .background(Theme.A.a5)
+        .background(palette.a5)
         .clipShape(shape)
-        .overlay(shape.stroke(Theme.A.a4, lineWidth: 1))
+        .overlay(shape.stroke(palette.a4, lineWidth: 1))
         .fixedSize(horizontal: width != .fill, vertical: false)
     }
 }
 
 private struct ChipSegment: View {
+    @Environment(\.palette) private var palette
     let title: String
     let spoken: String
     let on: Bool
@@ -1204,13 +1218,13 @@ private struct ChipSegment: View {
         let lit = on && enabled
         let face = Text(title).font(Theme.T.caption.monospacedDigit())
             .tracking(title.count > 2 && title.uppercased() == title ? Theme.T.captionTracking : 0)
-            .foregroundColor(lit ? Theme.A.ink : enabled ? Theme.A.a2 : Theme.A.a3)
+            .foregroundColor(lit ? palette.ink : enabled ? palette.a2 : palette.a3)
             .lineLimit(1)
             .padding(.horizontal, width == .fit ? Theme.S.s : 0)
             .frame(width: fixed, height: Theme.H.sm)
             .frame(maxWidth: width == .fill ? .infinity : nil)
-            .background(lit ? Theme.A.a1 : on ? Theme.A.a4 : (hover && enabled && action != nil ? Theme.A.a4 : Color.clear))
-            .overlay(marked ? Rectangle().fill(lit ? Theme.A.ink : Theme.A.a3).frame(width: 10, height: 2)
+            .background(lit ? palette.a1 : on ? palette.a4 : (hover && enabled && action != nil ? palette.a4 : Color.clear))
+            .overlay(marked ? Rectangle().fill(lit ? palette.ink : palette.a3).frame(width: 10, height: 2)
                                 .padding(.bottom, 2) : nil, alignment: .bottom)
         if let act = action {
             Button(action: { if enabled { act() } }) { face.contentShape(Rectangle()) }
@@ -1247,12 +1261,13 @@ struct LCDChip: View {
 
 /// A small amber chevron that pages through dropped files (the arrow keys do the same).
 struct PageArrow: View {
+    @Environment(\.palette) private var palette
     let glyph: String
     let label: String
     let action: () -> Void
     var body: some View {
         Button(action: action) {
-            Text(glyph).font(Theme.T.value).foregroundColor(Theme.A.a2)
+            Text(glyph).font(Theme.T.value).foregroundColor(palette.a2)
                 .frame(width: 16, height: 16).contentShape(Rectangle())
         }
         .buttonStyle(PlainButtonStyle())
@@ -1270,6 +1285,7 @@ struct PageArrow: View {
 /// after its name on the same baseline, a size smaller and one amber step dimmer, the bar under
 /// the group. Groups sit `groupGap` apart, far more than anything inside a group (proximity).
 struct TopKeys: View {
+    @Environment(\.palette) private var palette
     let keys: [(String, Int)]
     /// Manual Key Selection (J 2026-11-09 15:19): it sits first, its name white and MANUAL where
     /// the % would be (no made-up number, an empty bar); the detected keys after it keep the
@@ -1328,24 +1344,24 @@ struct TopKeys: View {
         let isManual = TopKeys.isManual(i, keys: keys, manual: manual)
         return VStack(alignment: .leading, spacing: Theme.S.s) {
             HStack(alignment: .firstTextBaseline, spacing: 0) {
-                Text("\(i + 1)").font(Theme.T.caption.monospacedDigit()).foregroundColor(Theme.A.a3)
+                Text("\(i + 1)").font(Theme.T.caption.monospacedDigit()).foregroundColor(palette.a3)
                     .padding(.trailing, TopKeys.rankGap)
                 Crossfade(k?.0 ?? " ", alignment: .leading) { name in
                     Text(name).font(Theme.T.title)
-                        .foregroundColor(isManual ? ManualLook.white : first ? Theme.A.a1 : Theme.A.a2)
+                        .foregroundColor(isManual ? palette.manualWhite : first ? palette.a1 : palette.a2)
                         .lineLimit(1).minimumScaleFactor(0.7)
                 }
                 .padding(.trailing, TopKeys.percentGap)
                 // MANUAL in place of the manual key's % (crossfades with Motion.swap)
                 Crossfade(isManual, alignment: .leading) { m in
                     if m {
-                        Text(ManualLook.word).captionStyle().foregroundColor(ManualLook.white)
+                        Text(ManualLook.word).captionStyle().foregroundColor(palette.manualWhite)
                             .lineLimit(1).fixedSize()
                     } else {
                         Color.clear.frame(width: 0, height: 0)
                             .modifier(CountingNumber(value: Double(k?.1 ?? 0), suffix: "%"))
                             .font(Theme.T.value.monospacedDigit())
-                            .foregroundColor(first ? Theme.A.a2 : Theme.A.a3)
+                            .foregroundColor(first ? palette.a2 : palette.a3)
                             .fixedSize()
                     }
                 }
@@ -1355,9 +1371,9 @@ struct TopKeys: View {
             .animation(Theme.Motion.swap, value: k?.0)
             GeometryReader { g in
                 ZStack(alignment: .leading) {
-                    Capsule().fill(Theme.A.a5)
+                    Capsule().fill(palette.a5)
                     // the manual key has no detection % to draw: an empty track
-                    Capsule().fill(first ? Theme.A.a1 : Theme.A.a3)
+                    Capsule().fill(first ? palette.a1 : palette.a3)
                         .frame(width: isManual ? 0 : g.size.width * CGFloat(min(100, max(0, k?.1 ?? 0))) / 100)
                 }
             }
@@ -1389,6 +1405,7 @@ struct TopKeys: View {
 
 /// One octave, C to B. The scale's notes are lit; the tonic is brightest and carries a dot.
 struct NoteKeyboard: View {
+    @Environment(\.palette) private var palette
     let scale: Scale?
     static let whites = [0, 2, 4, 5, 7, 9, 11]
     /// Black keys: pitch class and the white-key gap (1...6) they sit over.
@@ -1423,16 +1440,16 @@ struct NoteKeyboard: View {
         let tonic = scale?.tonic == pc
         let shape = RoundedRectangle(cornerRadius: Theme.R.cap, style: .continuous)
         // tonic A1, the scale's other notes A3, the rest an A5 body with an A4 edge
-        let fill: Color = tonic ? Theme.A.a1 : on ? Theme.A.a3 : (black ? Theme.hex(0x070806) : Theme.A.a5)
+        let fill: Color = tonic ? palette.a1 : on ? palette.a3 : (black ? Theme.hex(0x070806) : palette.a5)
         return ZStack(alignment: .bottom) {
             shape.fill(fill)
-            shape.stroke(on ? Color.clear : Theme.A.a4, lineWidth: 1)
+            shape.stroke(on ? Color.clear : palette.a4, lineWidth: 1)
             if !black, let s = scale, on {
-                Text(s.name(pc)).font(Theme.T.caption).foregroundColor(Theme.A.ink)
+                Text(s.name(pc)).font(Theme.T.caption).foregroundColor(palette.ink)
                     .padding(.bottom, Theme.S.xs)
             }
             if tonic {
-                Circle().fill(Theme.A.ink).frame(width: 4, height: 4)
+                Circle().fill(palette.ink).frame(width: 4, height: 4)
                     .padding(.bottom, black ? 6 : 18)
             }
         }
@@ -1443,6 +1460,7 @@ struct NoteKeyboard: View {
 
 /// The source picker as a recessed field: the source's name, a ▾, and the input meter.
 struct SourceField: View {
+    @Environment(\.palette) private var palette
     let source: String
     let level: Float
     let listening: Bool
@@ -1464,7 +1482,7 @@ struct SourceField: View {
                 }
                 Spacer(minLength: Theme.S.s)
                 meter
-                Image(systemName: "chevron.down").font(.system(size: 8, weight: .bold)).foregroundColor(Theme.A.a2)
+                Image(systemName: "chevron.down").font(.system(size: 8, weight: .bold)).foregroundColor(palette.a2)
                     .padding(.leading, Theme.S.s)
             }
             .padding(.horizontal, Theme.S.m)
@@ -1518,6 +1536,7 @@ extension EnvironmentValues {
 
 /// Twelve LED segments: green, then amber, then red at the top.
 private struct MeterSegments: View {
+    @Environment(\.palette) private var palette
     let level: Float
     let listening: Bool
     let gap: CGFloat
@@ -1526,9 +1545,9 @@ private struct MeterSegments: View {
         let n = LevelMeter.lit(listening ? level : 0, count: SourceField.segments)
         return HStack(spacing: gap) {
             ForEach(0..<SourceField.segments, id: \.self) { i in
-                let c: Color = i >= 10 ? Theme.red : i >= 7 ? Theme.amber : Theme.green
+                let c: Color = i >= 10 ? Theme.red : i >= 7 ? palette.amber : Theme.green
                 RoundedRectangle(cornerRadius: 1)
-                    .fill(i < n ? c : c.opacity(Theme.highContrast ? 0.22 : 0.12))
+                    .fill(i < n ? c : c.opacity(palette.highContrast ? 0.22 : 0.12))
                     .frame(width: 3, height: 6 + CGFloat(i) * 0.9)
             }
         }

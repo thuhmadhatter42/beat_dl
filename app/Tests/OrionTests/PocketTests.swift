@@ -120,7 +120,7 @@ final class PocketTests: XCTestCase {
     }
 
     func testKeyImageAndGlyph() {
-        let img = MenuBarImage.key()
+        let img = MenuBarImage.key(palette: Palette())
         XCTAssertEqual(img.size.height, 12)
         XCTAssertFalse(img.isTemplate)
         XCTAssertFalse(KeyGlyphShape().path(in: CGRect(x: 0, y: 0, width: 22, height: 12)).isEmpty)
@@ -135,7 +135,7 @@ final class PocketTests: XCTestCase {
         }
         guard #available(macOS 13.0, *) else { throw XCTSkip("ImageRenderer is macOS 13+") }
         Pocket.snapshot = true
-        defer { Pocket.snapshot = false; Theme.highContrast = false }
+        defer { Pocket.snapshot = false }
         let out = URL(fileURLWithPath: dir)
         try FileManager.default.createDirectory(at: out, withIntermediateDirectories: true)
 
@@ -170,8 +170,7 @@ final class PocketTests: XCTestCase {
             factor: .one, tuning: Tuning.meter(12, reference: 440), onCycleTempo: {}))
         locked.clipboardLink = nil
 
-        var hc = locked
-        hc.highContrast = true
+        let hc = locked   // drawn with High Contrast (the palette below)
 
         var failed = idle
         failed.readout = .error("That video is private or was removed.", download: true)
@@ -202,8 +201,8 @@ final class PocketTests: XCTestCase {
                                                ("error", failed), ("held", held),
                                                ("ab", ab), ("long", long)]
         for (name, s) in states {
-            Theme.highContrast = s.highContrast
             let view = PocketView(state: s, url: .constant(s.url))
+                .environment(\.palette, Palette(highContrast: name == "high-contrast"))
                 .environment(\.colorScheme, .dark)
             let r = ImageRenderer(content: view)
             r.scale = 2

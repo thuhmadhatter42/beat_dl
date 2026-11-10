@@ -124,14 +124,15 @@ struct Accent: Hashable {
 }
 
 /// The chosen colour, remembered between launches (UserDefaults `accentColor`: [r, g, b] sRGB 0...255).
-/// Theme reads the colour in use through `Theme.accent`; the window, the pocket and the Mini observe
-/// this object and redraw their face when it changes (nothing else does: Listen's meter, ticking at
+/// The one owner of the colour in use (`effective`): the window's, the pocket's and the Mini's root
+/// put it in the environment as `\.palette` (View.paletteRoot), and the menu-bar key takes it from
+/// `$effective`. A change redraws the views that read it, nothing more (Listen's meter, ticking at
 /// 20 Hz, never touches it).
 final class AccentSettings: ObservableObject {
     static let key = "accentColor"
     static let shared = AccentSettings()
     private let defaults: UserDefaults
-    /// While the colour wheel drags, updates are drawn at most this often (the face redraws whole).
+    /// While the colour wheel drags, updates are drawn at most this often.
     static let minInterval = 1.0 / 30
 
     /// What J picked (the wheel shows this).
@@ -145,10 +146,10 @@ final class AccentSettings: ObservableObject {
     private var pending: Accent?
     private var lastApply = Date.distantPast
 
-    init(defaults: UserDefaults = .standard, applyToTheme: Bool = true) {
+    init(defaults: UserDefaults = .standard) {
         self.defaults = defaults
         let stored = AccentSettings.load(defaults)
-        apply(stored ?? .amber, persist: false, applyToTheme: applyToTheme)
+        apply(stored ?? .amber, persist: false)
     }
 
     static func load(_ d: UserDefaults) -> Accent? {
@@ -161,12 +162,12 @@ final class AccentSettings: ObservableObject {
     }
 
     /// A new colour, now (Reset, tests, launch).
-    func set(_ a: Accent) { pending = nil; apply(a, persist: true, applyToTheme: true) }
+    func set(_ a: Accent) { pending = nil; apply(a, persist: true) }
 
     /// Back to amber; the stored pick is removed.
     func reset() {
         pending = nil
-        apply(.amber, persist: false, applyToTheme: true)
+        apply(.amber, persist: false)
         defaults.removeObject(forKey: AccentSettings.key)
         AppLog.log("accent: reset to amber")
     }
@@ -185,7 +186,7 @@ final class AccentSettings: ObservableObject {
         }
     }
 
-    private func apply(_ a: Accent, persist: Bool, applyToTheme: Bool) {
+    private func apply(_ a: Accent, persist: Bool) {
         let (shown, wasClamped) = a.readable()
         // logged once each time a pick crosses into too-dark (not on every drag step); the
         // panel's close line names the final pick and what is shown
@@ -194,7 +195,6 @@ final class AccentSettings: ObservableObject {
         }
         clamped = wasClamped
         lastApply = Date()
-        if applyToTheme { Theme.accent = shown }
         if picked != a { picked = a }
         if effective != shown { effective = shown }
         if persist {

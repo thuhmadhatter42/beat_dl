@@ -115,13 +115,14 @@ struct Wordmark: View {
 }
 
 struct StatusLegend: View {
+    @Environment(\.palette) private var palette
     let status: Rail.Status
 
     var body: some View {
         let (word, text, lamp, glow): (String, Color, Color, Color) = {
             switch status {
             case .ready: return ("READY", Theme.greenText, Theme.green, Theme.greenGlow)
-            case .working: return ("WORKING", Theme.amber, Theme.amber, Theme.amberGlow)
+            case .working: return ("WORKING", palette.amber, palette.amber, palette.amberGlow)
             case .failed: return ("FAILED", Theme.redText, Theme.red, Theme.red.opacity(0.7))
             case .live(let source): return ("LIVE · \(source)", Theme.redText, Theme.red, Theme.red.opacity(0.7))
             }

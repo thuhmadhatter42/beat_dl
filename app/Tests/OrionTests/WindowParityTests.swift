@@ -88,7 +88,7 @@ final class WindowParityTests: XCTestCase {
         }
         guard #available(macOS 13.0, *) else { throw XCTSkip("ImageRenderer is macOS 13+") }
         Pocket.snapshot = true
-        defer { Pocket.snapshot = false; Theme.highContrast = false }
+        defer { Pocket.snapshot = false }
         let out = URL(fileURLWithPath: dir)
         try FileManager.default.createDirectory(at: out, withIntermediateDirectories: true)
 
@@ -137,7 +137,6 @@ final class WindowParityTests: XCTestCase {
             ("idle", idle, []), ("locked", locked, []), ("multi", multi, []), ("listening", listening, []),
             ("held", held, []), ("login", login, []), ("drop", drop, [URL(fileURLWithPath: "/x/Beat A.wav")])]
         for (name, s, picked) in states {
-            Theme.highContrast = s.highContrast
             let view = FaceplateFace(state: s, picked: picked, url: .constant(s.url), fieldFocused: .constant(false),
                                      pickFocused: .constant(false))
                 .environment(\.colorScheme, .dark)

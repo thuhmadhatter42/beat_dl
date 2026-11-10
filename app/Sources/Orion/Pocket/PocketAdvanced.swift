@@ -35,7 +35,7 @@ extension PocketActions {
                 .eraseToAnyPublisher()
             MiniController.shared.toggle(source: {
                 MiniFeed(key: shown()?.keys.first?.0, quality: d.chordQuality, voicing: d.chordVoicing)
-            }, changes: changes)
+            }, changes: changes, display: d)
         }
         setHarmony = { p in
             AppLog.log("\(surface): chords \(p.quality.rawValue) \(p.voicing.rawValue) \(p.bars) bar")
@@ -98,6 +98,7 @@ struct PocketHarmony: View {
 /// ADVANCED at the right end of the footer: a small square box (ticked when on) and its label, the
 /// footer's caption type and height, in the display colour so it follows COLOR.
 struct AdvancedBox: View {
+    @Environment(\.palette) private var palette
     let on: Bool
     /// The pocket's footer may show the box alone (PocketFooter.showsAdvancedLabel).
     var showsLabel = true
@@ -116,18 +117,18 @@ struct AdvancedBox: View {
             HStack(spacing: Theme.S.xs) {
                 ZStack {
                     RoundedRectangle(cornerRadius: 2, style: .continuous)
-                        .fill(on ? Theme.amber : Color.clear)
+                        .fill(on ? palette.amber : Color.clear)
                     RoundedRectangle(cornerRadius: 2, style: .continuous)
-                        .stroke(on ? Color.clear : hover ? Theme.A.a1 : Theme.A.a2, lineWidth: 1)
+                        .stroke(on ? Color.clear : hover ? palette.a1 : palette.a2, lineWidth: 1)
                     if on {
-                        CheckMark().stroke(Theme.A.ink, style: StrokeStyle(lineWidth: 1.6, lineCap: .round, lineJoin: .round))
+                        CheckMark().stroke(palette.ink, style: StrokeStyle(lineWidth: 1.6, lineCap: .round, lineJoin: .round))
                             .padding(2)
                     }
                 }
                 .frame(width: AdvancedBox.boxSide, height: AdvancedBox.boxSide)
                 if showsLabel {
                     Text(AdvancedBox.label).captionStyle()
-                        .foregroundColor(on || hover ? Theme.A.a1 : Theme.A.a2)
+                        .foregroundColor(on || hover ? palette.a1 : palette.a2)
                         .lineLimit(1).fixedSize()
                 }
             }

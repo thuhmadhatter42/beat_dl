@@ -15,24 +15,28 @@ enum Lamp: Equatable {
         }
     }
 
-    /// sRGB 0...255, shared by the SwiftUI and AppKit colours.
-    var rgb: (Double, Double, Double) {
+    /// sRGB 0...255, shared by the SwiftUI and AppKit colours. UNSURE is the display colour in use
+    /// (`accent`: the view's `\.palette`, or the menu bar's own copy of it).
+    func rgb(_ accent: Accent) -> (Double, Double, Double) {
         switch self {
         case .locked: return (61, 220, 122)       // Theme.green
-        case .unsure: return Theme.amberRGB
+        case .unsure: return accent.rgb
         case .listening: return (226, 55, 44)     // Theme.red
         }
     }
 
-    var color: Color { Theme.rgb(rgb.0, rgb.1, rgb.2) }
-    var textColor: Color {
+    func color(_ accent: Accent) -> Color { let c = rgb(accent); return Theme.rgb(c.0, c.1, c.2) }
+    func textColor(_ accent: Accent) -> Color {
         switch self {
         case .locked: return Theme.greenText
-        case .unsure: return Theme.A.a1
+        case .unsure: return accent.color
         case .listening: return Theme.redText
         }
     }
-    var nsColor: NSColor { NSColor(srgbRed: rgb.0 / 255, green: rgb.1 / 255, blue: rgb.2 / 255, alpha: 1) }
+    func nsColor(_ accent: Accent) -> NSColor {
+        let c = rgb(accent)
+        return NSColor(srgbRed: c.0 / 255, green: c.1 / 255, blue: c.2 / 255, alpha: 1)
+    }
 
     /// Colour-blind safe: each state has its own shape as well as its colour (plan 5.1).
     /// locked = octagon (a stop sign: settled), unsure = triangle (a caution sign),

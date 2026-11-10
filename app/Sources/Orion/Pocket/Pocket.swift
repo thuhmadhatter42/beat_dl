@@ -107,7 +107,6 @@ struct PocketState {
     /// The DAW Send to DAW would go to; nil = none open.
     var daw: String? = nil
     var recents: [Reading] = []
-    var highContrast = false
     /// New Song's global shortcut as printed ("⌃⌥⌘R"); nil = none set.
     var newSongKeys: String? = nil
     /// Hold is on: the reading is frozen (a button, never automatic).

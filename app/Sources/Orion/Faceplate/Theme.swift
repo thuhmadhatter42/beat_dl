@@ -4,27 +4,8 @@ import SwiftUI
 /// Artemis's tokens (artemis/app/src/faceplate/shared.css), as used by orion-v1-mockup.html.
 /// CSS sizes are in points; `em` letter-spacing becomes tracking = em * font size.
 enum Theme {
-    /// The display colour in use (amber unless J picked another with COLOR; AccentSettings sets it,
-    /// already lifted to read on the LCD). Everything "amber" below derives from it.
-    static var accent = Accent.amber
-    static var amberRGB: (Double, Double, Double) { accent.rgb }
-    static var amber: Color { accent.color }
-    static func amber(_ a: Double) -> Color { rgb(accent.r, accent.g, accent.b, contrast(a)) }
-    /// The accent for AppKit (the link field's caret).
-    static var amberNS: NSColor { accent.nsColor }
-
-    /// View › High Contrast Readout (DisplaySettings sets it; the faceplate redraws when it
-    /// changes). Dimmed amber text goes full strength, the faint placeholders brighten, glows go.
-    static var highContrast = false
-
-    /// An amber alpha under High Contrast: text (0.4 and up) full, faint (under 0.2) to 0.3.
-    static func contrast(_ a: Double) -> Double {
-        guard highContrast else { return a }
-        if a >= 0.4 { return 1 }
-        if a < 0.2 { return 0.3 }
-        return a
-    }
-    static var amberGlow: Color { rgb(accent.r, accent.g, accent.b, 0.6) }   // a glow, not text: High Contrast leaves it
+    // The display colour ("amber") and High Contrast are not here: they come through the
+    // environment as a `Palette` (below), so the views that use them redraw when they change.
     static let green = rgb(61, 220, 122)
     static let greenGlow = rgb(61, 220, 122, 0.7)
     static let greenText = rgb(89, 225, 141)           // #59e18d
@@ -104,19 +85,10 @@ enum Theme {
     /// A1 the reading (10.8:1), A2 labels and secondary values (~6.3:1), A3 tertiary text and the
     /// floor for any text (~4.6:1), A4 structure (rules, outlines, unlit bars), A5 fills.
     /// High Contrast: A2 and A3 go full, A4 to 0.3, A5 to 0.12.
+    /// The colours themselves are the palette's (`palette.a1` ... `palette.a5`, `palette.ink`).
     enum A {
         static let alphas: [Double] = [1, 0.75, 0.62, 0.16, 0.06]
-        static var a1: Color { Theme.amber }
-        static var a2: Color { step(0.75, hc: 1) }
-        static var a3: Color { step(0.62, hc: 1) }
-        static var a4: Color { step(0.16, hc: 0.3) }
-        static var a5: Color { step(0.06, hc: 0.12) }
-        /// Ink on a lit amber fill (selected chip, lit section, lit key): dark or light by the
-        /// accent's luminance (#1a1206 on amber).
-        static var ink: Color { accent.ink.color }
-        private static func step(_ a: Double, hc: Double) -> Color {
-            rgb(accent.r, accent.g, accent.b, highContrast ? hc : a)
-        }
+        static let highContrastAlphas: [Double] = [1, 1, 1, 0.3, 0.12]
     }
 
     /// The 4/8 spacing grid: 8 within a group, 16 between groups.
@@ -228,6 +200,82 @@ enum Theme {
     }
 }
 
+/// The display colour and High Contrast Readout as one value: everything "amber" on the faceplate
+/// derives from it. Views read it from the SwiftUI environment (`@Environment(\.palette)`), which
+/// each surface's root fills from the one owner of each setting (AccentSettings.effective,
+/// DisplaySettings.highContrast; see `View.paletteRoot(_:display:)`), so a change redraws exactly the
+/// views that read it. Non-view code (the menu-bar key, the link field's caret) is handed the value
+/// by its caller.
+struct Palette: Equatable {
+    /// The display colour in use (amber unless J picked another with COLOR), already lifted to
+    /// read on the LCD.
+    var accent: Accent = .amber
+    /// View › High Contrast Readout: dimmed amber text goes full strength, the faint placeholders
+    /// brighten, glows go.
+    var highContrast = false
+
+    var amber: Color { accent.color }
+    func amber(_ a: Double) -> Color { Theme.rgb(accent.r, accent.g, accent.b, contrast(a)) }
+    /// The accent for AppKit (the link field's caret).
+    var amberNS: NSColor { accent.nsColor }
+    var amberGlow: Color { Theme.rgb(accent.r, accent.g, accent.b, 0.6) }   // a glow, not text: High Contrast leaves it
+
+    /// An amber alpha under High Contrast: text (0.4 and up) full, faint (under 0.2) to 0.3.
+    func contrast(_ a: Double) -> Double {
+        guard highContrast else { return a }
+        if a >= 0.4 { return 1 }
+        if a < 0.2 { return 0.3 }
+        return a
+    }
+
+    // The five amber steps (Theme.A): A1 the reading, A2 labels and secondary values, A3 tertiary
+    // text, A4 structure, A5 fills. High Contrast: A2 and A3 go full, A4 to 0.3, A5 to 0.12.
+    var a1: Color { amber }
+    var a2: Color { step(1) }
+    var a3: Color { step(2) }
+    var a4: Color { step(3) }
+    var a5: Color { step(4) }
+    /// Ink on a lit amber fill (selected chip, lit section, lit key): dark or light by the
+    /// accent's luminance (#1a1206 on amber).
+    var ink: Color { accent.ink.color }
+    private func step(_ i: Int) -> Color {
+        Theme.rgb(accent.r, accent.g, accent.b, (highContrast ? Theme.A.highContrastAlphas : Theme.A.alphas)[i])
+    }
+
+    /// A Manual Key Selection's white (ManualLook): High Contrast pure white, no glow.
+    var manualWhite: Color { highContrast ? Theme.rgb(255, 255, 255) : Theme.rgb(244, 244, 247) }
+    var manualGlow: Color { highContrast ? .clear : Theme.rgb(255, 255, 255, 0.55) }
+}
+
+private struct PaletteKey: EnvironmentKey { static let defaultValue = Palette() }
+
+extension EnvironmentValues {
+    /// The display colour and High Contrast in use (amber, off unless a surface's root says else).
+    var palette: Palette {
+        get { self[PaletteKey.self] }
+        set { self[PaletteKey.self] = newValue }
+    }
+}
+
+/// A surface's root (the window, the pocket, the Mini): the one place the two settings enter.
+/// Observing them here means a new colour re-runs only this modifier; SwiftUI then redraws the
+/// views that read `\.palette`, keeping every view's identity and state.
+struct PaletteRoot: ViewModifier {
+    @ObservedObject var accent: AccentSettings
+    @ObservedObject var display: DisplaySettings
+
+    func body(content: Content) -> some View {
+        content.environment(\.palette, Palette(accent: accent.effective, highContrast: display.highContrast))
+    }
+}
+
+extension View {
+    /// Fills `\.palette` for everything below from the two settings objects.
+    func paletteRoot(_ accent: AccentSettings = .shared, display: DisplaySettings) -> some View {
+        modifier(PaletteRoot(accent: accent, display: display))
+    }
+}
+
 /// The two textures from app/tools/textures.py. Looked up without Bundle.module (which
 /// fatalErrors when its bundle is missing): loose PNGs in Contents/Resources, then the SwiftPM
 /// resource bundle in Contents/Resources (.app) or next to the executable (`swift run`).
@@ -288,18 +336,24 @@ extension View {
     }
 
     /// The amber glow: `0 0 6px amber-glow, 0 0 16px rgba(amber,.4)`.
-    func amberGlow() -> some View {
-        // High Contrast: crisp edges, no halo
-        shadow(color: Theme.highContrast ? .clear : Theme.amberGlow, radius: 3)
-            .shadow(color: Theme.highContrast ? .clear : Theme.amber(0.4), radius: 8)
+    func amberGlow() -> some View { modifier(AmberGlow()) }
+}
+
+/// The amber glow in the palette's colour; High Contrast: crisp edges, no halo.
+private struct AmberGlow: ViewModifier {
+    @Environment(\.palette) private var palette
+
+    func body(content: Content) -> some View {
+        content.shadow(color: palette.highContrast ? .clear : palette.amberGlow, radius: 3)
+            .shadow(color: palette.highContrast ? .clear : palette.amber(0.4), radius: 8)
     }
 }
 
 extension Text {
     /// A section head / label on the LCD: T.label (11 Bold, +0.08em) in A2. No glow: the glow is
     /// kept for the reading (BPM, key, the lit wheel section).
-    static func cap(_ s: String) -> Text {
-        Text(s).labelStyle().foregroundColor(Theme.A.a2)
+    static func cap(_ s: String, _ palette: Palette) -> Text {
+        Text(s).labelStyle().foregroundColor(palette.a2)
     }
 
     /// T.label: 11 Bold, +0.08em (UPPERCASE, 1-3 words).

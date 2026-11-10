@@ -179,7 +179,7 @@ struct OrionApp: App {
         live.songs.recents = recents   // each live song its own Recent Readings entry
         model.follow(live)             // each live song reads at x1
         HelpText.checkAtLaunch()
-        let accent = AccentSettings.shared   // the saved display colour, before anything draws again
+        let accent = AccentSettings.shared   // the saved display colour (its one owner loads it once)
         if accent.picked != .amber { AppLog.log("accent: \(accent.picked.described) restored") }
         let env = ProcessInfo.processInfo.environment
         if let fake = env["ORION_FAKE_STATE"], !fake.isEmpty {

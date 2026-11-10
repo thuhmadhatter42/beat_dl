@@ -193,15 +193,12 @@ final class ManualKeySelectionTests: XCTestCase {
     }
 
     func testManualWhiteReadsInHighContrast() {
-        defer { Theme.highContrast = false }
         for hc in [false, true] {
-            Theme.highContrast = hc
-            let c = NSColor(ManualLook.white).usingColorSpace(.sRGB)!
+            let c = NSColor(Palette(highContrast: hc).manualWhite).usingColorSpace(.sRGB)!
             XCTAssertGreaterThan(c.redComponent, 0.94)
             XCTAssertEqual(c.alphaComponent, 1, accuracy: 0.001)
         }
-        Theme.highContrast = true
-        XCTAssertEqual(NSColor(ManualLook.glow).alphaComponent, 0, accuracy: 0.001)   // no halo in High Contrast
+        XCTAssertEqual(NSColor(Palette(highContrast: true).manualGlow).alphaComponent, 0, accuracy: 0.001)   // no halo in High Contrast
     }
 
     // MARK: offscreen renders (ORION_SNAPSHOT_DIR=<dir> swift test --filter ManualKeySelectionTests/testRender)
@@ -213,8 +210,7 @@ final class ManualKeySelectionTests: XCTestCase {
         }
         guard #available(macOS 13.0, *) else { throw XCTSkip("ImageRenderer is macOS 13+") }
         Pocket.snapshot = true
-        defer { Pocket.snapshot = false; Theme.accent = .amber; Theme.highContrast = false }
-        Theme.accent = .amber
+        defer { Pocket.snapshot = false }
         let out = URL(fileURLWithPath: dir)
         try FileManager.default.createDirectory(at: out, withIntermediateDirectories: true)
         func write<V: View>(_ v: V, _ name: String) throws {
@@ -247,9 +243,6 @@ final class ManualKeySelectionTests: XCTestCase {
         try write(PocketView(state: pocket, url: .constant("")).environment(\.manualHoverForced, "dial"),
                   "pocket-manual-dial-hover")
 
-        Theme.highContrast = true
-        var hc = manual
-        hc.highContrast = true
-        try write(window(hc), "window-advanced-manual-high-contrast")
+        try write(window(manual).environment(\.palette, Palette(highContrast: true)), "window-advanced-manual-high-contrast")
     }
 }

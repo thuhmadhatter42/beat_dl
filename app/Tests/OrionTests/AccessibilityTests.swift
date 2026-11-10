@@ -11,8 +11,6 @@ final class AccessibilityTests: XCTestCase {
         return d
     }
 
-    override func tearDown() { Theme.highContrast = false }
-
     // MARK: 5.1 a shape per state
 
     /// The corners of a polygon path (nil for curves).
@@ -63,7 +61,7 @@ final class AccessibilityTests: XCTestCase {
     /// The menu-bar status is the key glyph in the lamp's colour (gold with no reading).
     func testMenuBarKeyTakesTheLampColour() {
         for lamp in [Lamp.locked, .unsure, .listening] {
-            let img = MenuBarImage.make(lamp, side: 40)!
+            let img = MenuBarImage.make(lamp, side: 40, palette: Palette())!
             let rep = NSBitmapImageRep(bitmapDataPlanes: nil, pixelsWide: Int(img.size.width), pixelsHigh: Int(img.size.height),
                                        bitsPerSample: 8, samplesPerPixel: 4, hasAlpha: true, isPlanar: false,
                                        colorSpaceName: .deviceRGB, bytesPerRow: 0, bitsPerPixel: 0)!
@@ -75,7 +73,7 @@ final class AccessibilityTests: XCTestCase {
             outer: for y in 0..<rep.pixelsHigh { for x in 0..<rep.pixelsWide {
                 if let c = rep.colorAt(x: x, y: y), c.alphaComponent > 0.95 { hit = c; break outer }
             } }
-            let want = lamp.nsColor.usingColorSpace(.deviceRGB)!, got = hit!.usingColorSpace(.deviceRGB)!
+            let want = lamp.nsColor(.amber).usingColorSpace(.deviceRGB)!, got = hit!.usingColorSpace(.deviceRGB)!
             XCTAssertEqual(got.redComponent, want.redComponent, accuracy: 0.08, "\(lamp)")
             XCTAssertEqual(got.greenComponent, want.greenComponent, accuracy: 0.08, "\(lamp)")
         }
@@ -87,19 +85,16 @@ final class AccessibilityTests: XCTestCase {
         let d = defaults()
         let s = DisplaySettings(defaults: d)
         XCTAssertFalse(s.highContrast)
-        XCTAssertFalse(Theme.highContrast)
         s.highContrast = true
-        XCTAssertTrue(Theme.highContrast)
         XCTAssertTrue(DisplaySettings(defaults: d).highContrast)
     }
 
     func testHighContrastRaisesDimText() {
-        Theme.highContrast = false
-        XCTAssertEqual(Theme.contrast(0.55), 0.55)
-        Theme.highContrast = true
-        XCTAssertEqual(Theme.contrast(0.55), 1)
-        XCTAssertEqual(Theme.contrast(0.7), 1)
-        XCTAssertEqual(Theme.contrast(0.12), 0.3)            // placeholders: still dim, now visible
-        XCTAssertEqual(Theme.contrast(0.35), 0.35)
+        XCTAssertEqual(Palette(highContrast: false).contrast(0.55), 0.55)
+        let hc = Palette(highContrast: true)
+        XCTAssertEqual(hc.contrast(0.55), 1)
+        XCTAssertEqual(hc.contrast(0.7), 1)
+        XCTAssertEqual(hc.contrast(0.12), 0.3)            // placeholders: still dim, now visible
+        XCTAssertEqual(hc.contrast(0.35), 0.35)
     }
 }
