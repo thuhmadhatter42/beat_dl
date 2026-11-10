@@ -8,19 +8,8 @@ struct DoctorReport: Equatable {
     let line: String      // one line: the yt-dlp version, what it fixed, or the one thing to do
 }
 
-/// Runs a command and returns (status, output). Injected so tests never spawn anything.
-protocol CommandRunner {
-    func run(_ exe: URL, _ args: [String], environment: [String: String]?, timeout: TimeInterval) -> (status: Int32, output: String)
-}
-
-struct RealRunner: CommandRunner {
-    func run(_ exe: URL, _ args: [String], environment: [String: String]?, timeout: TimeInterval) -> (status: Int32, output: String) {
-        Runtime.run(exe, args, environment: environment, timeout: timeout)
-    }
-}
-
 /// Beat Key › Run Doctor: re-checks and repairs the bundled tools, one step at a time.
-///   1 yt-dlp: force `-U` (ignores the weekly stamp), re-seed from the bundle if it won't run
+///   1 yt-dlp: Runtime.repairYtDlp now (ignores the weekly stamp); the LCD line comes from its result
 ///   2 ffmpeg / ffprobe: `-version` from the bin dir the Runtime picks
 ///   3 JS: `deno --version`, the JavaScript runtime yt-dlp needs for YouTube (none on macOS 11)
 ///   4 python: `import essentia, numpy` in the bundled python
@@ -57,15 +46,6 @@ struct Doctor {
         return true
     }
 
-    /// The version line of `yt-dlp --version`, or nil when it does not run.
-    private func ytdlpVersion() -> String? {
-        let r = runner.run(runtime.ytdlp, ["--version"], environment: nil, timeout: 120)
-        guard r.status == 0 else { return nil }
-        let v = r.output.split(whereSeparator: \.isNewline).last.map(String.init)?
-            .trimmingCharacters(in: .whitespaces) ?? ""
-        return v.isEmpty ? nil : v
-    }
-
     /// Runs every step, calling `progress` with each stage name first. Blocking: call off main.
     func run(progress: (String) -> Void) -> DoctorReport {
         var fixed: [String] = []
@@ -74,20 +54,12 @@ struct Doctor {
 
         // 1 yt-dlp
         progress(Doctor.stages[0])
-        let before = ytdlpVersion()
-        if before == nil {
-            if (try? reseed()) != nil { fixed.append("RESTORED YT-DLP") }
-        }
-        _ = runner.run(runtime.ytdlp, ["-U"], environment: nil, timeout: 300)
-        var after = ytdlpVersion()
-        if after == nil {
-            if (try? reseed()) != nil, !fixed.contains("RESTORED YT-DLP") { fixed.append("RESTORED YT-DLP") }
-            after = ytdlpVersion()
-        }
-        if let v = after {
-            if let b = before, b != v { note = "YT-DLP UPDATED TO \(v)" } else { note = "YT-DLP \(v)" }
-            Doctor.touchStamp(runtime)
-        } else {
+        do {
+            let r = try runtime.repairYtDlp(runner: runner, reseed: reseed)
+            if r.restored { fixed.append("RESTORED YT-DLP") }
+            if let b = r.before, b != r.after { note = "YT-DLP UPDATED TO \(r.after)" } else { note = "YT-DLP \(r.after)" }
+        } catch {
+            // repairYtDlp logged the step that failed (.reseedFailed or .wontRun)
             problem = "YT-DLP WON'T RUN · REINSTALL \(Brand.wordmark)"
         }
 
@@ -121,12 +93,5 @@ struct Doctor {
             return DoctorReport(outcome: .fixed, title: "DOCTOR FIXED IT", line: fixed.joined(separator: " · ") + v)
         }
         return DoctorReport(outcome: .ok, title: "DOCTOR OK", line: (note ?? "YT-DLP OK") + " · ALL CHECKS PASSED")
-    }
-
-    static func touchStamp(_ rt: Runtime) {
-        let fm = FileManager.default
-        try? fm.createDirectory(at: rt.support, withIntermediateDirectories: true)
-        if !fm.fileExists(atPath: rt.stamp.path) { fm.createFile(atPath: rt.stamp.path, contents: Data()) }
-        try? fm.setAttributes([.modificationDate: Date()], ofItemAtPath: rt.stamp.path)
     }
 }
