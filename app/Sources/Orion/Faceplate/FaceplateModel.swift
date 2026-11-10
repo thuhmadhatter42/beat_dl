@@ -1,3 +1,4 @@
+import Combine
 import Foundation
 import UniformTypeIdentifiers
 
@@ -180,6 +181,29 @@ final class FaceplateModel: ObservableObject {
     @Published var tempoFactor: TempoFactor = .one
     /// ORION_FAKE_STATE=drop pins the drag highlight for screenshots.
     @Published var pinnedDrop = false
+
+    private var songWatch: AnyCancellable?
+
+    /// Listen's songs: every song change (Listen on or off, New Song, a gap, a boundary, the
+    /// player's title) puts the tempo factor back to x1. The one place a live song resets it.
+    func follow(_ live: LiveController) {
+        songWatch = live.$songChange.dropFirst().sink { [weak self] c in self?.songChanged(c) }
+    }
+
+    /// One log line per song change: what changed it, and what it cleared. A key picked for the
+    /// song that ended no longer applies (KeyChoice.matches: it holds that song's identity).
+    func songChanged(_ c: LiveSongChange, choice: KeyChoice? = SpellingSettings.shared.manualKey) {
+        func name(_ u: URL?) -> String { u.map { $0.lastPathComponent } ?? "off" }
+        var line = "listen: song \(name(c.from)) -> \(name(c.to)) (\(c.why))"
+        if let k = choice, let from = c.from, k.file == from {
+            line += " · manual key \(KeyChoice.keyName(k.pitchClass, minor: k.minor)) cleared"
+        }
+        if tempoFactor != .one {
+            line += " · tempo factor \(tempoFactor.label ?? "") back to x1"
+            tempoFactor = .one
+        }
+        AppLog.log(line)
+    }
 }
 
 /// ORION_FAKE_STATE=needs-login|needs-login-off|idle|working|done|drop|error|lit|multi|picked|picked-multi|eperm|

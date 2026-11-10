@@ -61,7 +61,7 @@ final class MarketingRenderTests: XCTestCase {
         var listening = PocketState()
         listening.source = "System Audio"
         listening.daw = "Pro Tools"
-        let live = Result(file: LiveSession.placeholderFile, name: "LIVE", bpm: "140.00",
+        let live = Result(file: LiveSession.songFile(1), name: "LIVE", bpm: "140.00",
                           keys: [("Cm", 88), ("Eb", 7), ("Gm", 3)], bpmExact: 140.00)
         listening.readout = .result(live, page: nil, download: false, options: ResultOptions(
             factor: .one, tuning: nil, onCycleTempo: {}, live: (.locked, "LOCKED 88%", "System Audio")))

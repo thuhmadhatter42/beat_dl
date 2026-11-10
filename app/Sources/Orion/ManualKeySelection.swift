@@ -21,8 +21,7 @@ enum ManualKeySource: String, CaseIterable {
     case wheelReset = "key wheel re-click"
     /// A click on the dial while manual: clears.
     case dialReset = "dial reset"
-    /// Listen's NEW SONG: everything heard is dropped, the selection with it.
-    case newSong = "new song"
+    // A new live song needs no clear: the selection holds the song's identity (LiveSession.song).
 }
 
 extension SpellingSettings {

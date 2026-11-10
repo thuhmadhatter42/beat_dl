@@ -15,7 +15,9 @@ enum LiveEvent: Equatable {
     case boundary(LiveBoundary)
     case error(String)
 
-    static func parse(line: String) -> LiveEvent? {
+    /// `song` = the identity of the song being heard when this line arrives (LiveSession.songFile):
+    /// a reading carries it as its file, so each song's readings are told apart from the next's.
+    static func parse(line: String, song: URL) -> LiveEvent? {
         guard let data = line.data(using: .utf8),
               let obj = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any],
               let kind = obj["event"] as? String else { return nil }
@@ -25,8 +27,9 @@ enum LiveEvent: Equatable {
         case "boundary": return .boundary(LiveBoundary(json: obj))
         case "error": return .error((obj["message"] as? String) ?? "The analyzer stopped.")
         case "reading":
-            // keys, bpm, bpm_exact, tuning_cents (null under 50 %), chroma: the same parser as files
-            return Event.reading(obj, file: LiveSession.placeholderFile, name: "LIVE").map { .reading($0) }
+            // keys, bpm, bpm_exact, tuning_cents (null under 50 %), chroma: the same parser as files.
+            // "LIVE" is the label (the DAW track's and the MIDI file's name), not the identity.
+            return Event.reading(obj, file: song, name: "LIVE").map { .reading($0) }
         default: return nil
         }
     }
@@ -84,8 +87,22 @@ enum LiveState: Equatable {
 /// The readings as they come in: green-and-steady after `lockAfter` s of the same confident key
 /// (with a BPM), always following the audio, and start over after a gap. Pure logic; the clock is passed in.
 struct LiveSession {
-    static let placeholderFile = URL(fileURLWithPath: "/")
     static let lockAfter: TimeInterval = 6
+
+    /// The song being heard: a new number at every `begin` (Listen started, New Song, a gap, a
+    /// boundary). Every reading heard in it carries `songFile` as its file, so whatever was set
+    /// for one reading (a picked key: KeyChoice.matches; the keyboard's root: PlayState.show)
+    /// belongs to that song and no other, and the tempo factor follows it (FaceplateModel.follow).
+    private(set) var song = 0
+    /// What began or ended the song, for the log: "listen started", "new song", "gap reset", ...
+    private(set) var songWhy = ""
+
+    /// Song `n`'s identity, "/live-song-n": its folder is "/" (what the MIDI panel opens, the file
+    /// line's folder), as before songs had one.
+    static func songFile(_ n: Int) -> URL { URL(fileURLWithPath: "/live-song-\(n)") }
+    var songFile: URL { LiveSession.songFile(song) }
+    /// The song on show while listening; nil = off or failed.
+    var hearing: URL? { current.isActive ? songFile : nil }
 
     /// What the audio says right now (it keeps following while Hold is on).
     private(set) var current: LiveState = .off
@@ -102,9 +119,16 @@ struct LiveSession {
     /// Hold can go on only with a reading to hold.
     var canHold: Bool { frozen != nil || current.result != nil }
 
-    mutating func begin() { current = .listening; frozen = nil; greenKey = nil; greenSince = nil }
-    mutating func end() { current = .off; frozen = nil; greenKey = nil; greenSince = nil }
-    mutating func fail(_ message: String) { current = .failed(message); frozen = nil; greenKey = nil; greenSince = nil }
+    /// A new song: everything heard is dropped. `why` = what began it (the log's word).
+    mutating func begin(why: String) {
+        song += 1; songWhy = why
+        current = .listening; frozen = nil; greenKey = nil; greenSince = nil
+    }
+    mutating func end(why: String) { songWhy = why; current = .off; frozen = nil; greenKey = nil; greenSince = nil }
+    mutating func fail(_ message: String) {
+        songWhy = "error: \(message)"
+        current = .failed(message); frozen = nil; greenKey = nil; greenSince = nil
+    }
 
     /// Hold on: freeze the reading on show. Hold off: jump to the current reading. False = nothing
     /// to hold (no reading yet, or not listening).
@@ -124,8 +148,10 @@ struct LiveSession {
         switch e {
         case .ready:
             break
-        case .reset, .boundary:
-            begin()
+        case .reset:
+            begin(why: "gap reset")
+        case .boundary(let b):
+            begin(why: b.reason == .title ? "player title changed" : "audio boundary")
         case .error(let m):
             fail(m)
         case .reading(let r):
@@ -391,9 +417,20 @@ final class LiveLevel: ObservableObject {
     @Published var value: Float = 0
 }
 
+/// The song Listen hears changed: started, ended, or another song began (LiveSession.song).
+struct LiveSongChange: Equatable {
+    /// The song that ended (nil = Listen was off) and the one heard now (nil = Listen is off).
+    let from: URL?
+    let to: URL?
+    /// What changed it: "listen started", "new song", "gap reset", "audio boundary", a stop reason.
+    let why: String
+}
+
 final class LiveController: ObservableObject {
     /// What is shown: the frozen reading while Hold is on.
     @Published private(set) var state: LiveState = .off
+    /// The latest song change; per-song state follows it (FaceplateModel.follow).
+    @Published private(set) var songChange = LiveSongChange(from: nil, to: nil, why: "launch")
     /// Hold is on (a button, never automatic).
     @Published private(set) var isHeld = false
     @Published private(set) var sourceName = ""
@@ -477,6 +514,7 @@ final class LiveController: ObservableObject {
     /// `why` = why a running Listen is being started over (new song, source changed); it is
     /// logged as the old session's stop reason.
     func start(why: String = "restarted") {
+        let songWhy = state.isActive ? why : "listen started"
         stop(reason: why)
         generation += 1
         let gen = generation
@@ -497,8 +535,7 @@ final class LiveController: ObservableObject {
             fail("SYSTEM AUDIO NEEDS MACOS 13 OR NEWER", gen: gen); return
         }
         let onLine: (String) -> Void = { [weak self] line in
-            guard let e = LiveEvent.parse(line: line) else { return }
-            DispatchQueue.main.async { self?.handle(e, gen: gen) }
+            DispatchQueue.main.async { self?.receive(line, gen: gen) }
         }
         let onExit: (Int32) -> Void = { [weak self] code in
             DispatchQueue.main.async {
@@ -516,7 +553,7 @@ final class LiveController: ObservableObject {
                 DispatchQueue.main.async { self?.filterChosen(filter, gen: gen) }
             }
         }
-        session.begin()
+        session.begin(why: songWhy)
         publish()
         songs.begin(signal: p as? SongSignal)
         fillLock.lock(); filler = SilenceFiller(now: now()); clip.clear()
@@ -599,7 +636,7 @@ final class LiveController: ObservableObject {
     func stop(reason: String = "user stop") {
         if state.isActive { AppLog.log("listen: stopped (\(reason))") }
         teardown()
-        session.end()
+        session.end(why: reason)
         publish()
     }
 
@@ -607,6 +644,9 @@ final class LiveController: ObservableObject {
     private func publish() {
         let d = LiveController.summary(session.state) + (session.isHeld ? " (held)" : "")
         if let line = stateLine.next(d) { AppLog.log("listen: \(line) · source \(sourceName)") }
+        if session.hearing != songChange.to {
+            songChange = LiveSongChange(from: songChange.to, to: session.hearing, why: session.songWhy)
+        }
         state = session.state
         if isHeld != session.isHeld { isHeld = session.isHeld }
     }
@@ -686,6 +726,13 @@ final class LiveController: ObservableObject {
         teardown()
         session.fail(message)
         publish()
+    }
+
+    /// One analyzer line, on the main queue in the order it was printed: a reading is given the
+    /// song heard now, so a reset / boundary line before it has already begun the next song.
+    func receive(_ line: String, gen: Int? = nil) {
+        guard let e = LiveEvent.parse(line: line, song: session.songFile) else { return }
+        handle(e, gen: gen)
     }
 
     func handle(_ e: LiveEvent, gen: Int? = nil) {

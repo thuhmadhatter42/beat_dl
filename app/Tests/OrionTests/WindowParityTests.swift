@@ -116,7 +116,7 @@ final class WindowParityTests: XCTestCase {
         listening.clipboardLink = nil
 
         var held = listening
-        let h = Result(file: LiveSession.placeholderFile, name: "LIVE", bpm: "93.0",
+        let h = Result(file: LiveSession.songFile(1), name: "LIVE", bpm: "93.0",
                        keys: [("Cm", 78), ("Eb", 14), ("Gm", 8)], bpmExact: 92.97)
         held.readout = .result(h, page: nil, download: false, options: ResultOptions(
             factor: .one, tuning: nil, onCycleTempo: {}, live: (.locked, "HELD · LOCKED 78%", "System Audio")))

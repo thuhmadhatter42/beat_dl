@@ -6,7 +6,7 @@ final class HoldSpellingTests: XCTestCase {
     let t0 = Date(timeIntervalSince1970: 1_000_000)
 
     func reading(_ key: String = "Ebm", _ pct: Int = 85) -> Result {
-        Result(file: LiveSession.placeholderFile, name: "LIVE", bpm: "128.0",
+        Result(file: LiveSession.songFile(1), name: "LIVE", bpm: "128.0",
                keys: [(key, pct), ("F#", 8), ("Bbm", 4)], bpmExact: 128.02)
     }
 
@@ -14,7 +14,7 @@ final class HoldSpellingTests: XCTestCase {
 
     func testHoldFreezesTheShownReadingAndReleaseJumpsToTheLiveOne() {
         var s = LiveSession()
-        s.begin()
+        s.begin(why: "test")
         s.feed(.reading(reading("Ebm")), now: t0)
         XCTAssertTrue(s.setHold(true))
         XCTAssertTrue(s.isHeld)
@@ -30,7 +30,7 @@ final class HoldSpellingTests: XCTestCase {
     func testHoldIsNeverAutomaticAndNeedsAReading() {
         var s = LiveSession()
         XCTAssertFalse(s.setHold(true))                        // not listening
-        s.begin()
+        s.begin(why: "test")
         XCTAssertFalse(s.setHold(true))                        // nothing to hold yet
         XCTAssertFalse(s.isHeld)
         for i in 0..<5 { s.feed(.reading(reading()), now: t0 + Double(i) * 2) }
@@ -43,7 +43,7 @@ final class HoldSpellingTests: XCTestCase {
 
     func testNewSongStopAndFailureTurnHoldOff() {
         var s = LiveSession()
-        s.begin()
+        s.begin(why: "test")
         s.feed(.reading(reading()), now: t0)
         s.setHold(true)
         s.feed(.reset, now: t0 + 1)                            // silence gap: new song
@@ -52,16 +52,16 @@ final class HoldSpellingTests: XCTestCase {
 
         s.feed(.reading(reading()), now: t0 + 2)
         s.setHold(true)
-        s.begin()                                              // New Song · Reset restarts the session
+        s.begin(why: "test")                                              // New Song · Reset restarts the session
         XCTAssertFalse(s.isHeld)
 
         s.feed(.reading(reading()), now: t0 + 3)
         s.setHold(true)
-        s.end()                                                // Stop Listening
+        s.end(why: "test")                                                // Stop Listening
         XCTAssertFalse(s.isHeld)
         XCTAssertEqual(s.state, .off)
 
-        s.begin()
+        s.begin(why: "test")
         s.feed(.reading(reading()), now: t0 + 4)
         s.setHold(true)
         s.fail("x")

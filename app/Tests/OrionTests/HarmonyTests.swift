@@ -208,7 +208,7 @@ final class HarmonyTests: XCTestCase {
         // bpm.py --stream's reading line, through the parser LiveEvent.parse uses
         let line = #"{"event":"reading","bpm":"128.0","bpm_exact":128.02,"keys":[["F#m",77]],"tuning_cents":-30.0,"chroma":[0,1,0,0,0.2,0,0.9,0,0.1,0.6,0,0]}"#
         let obj = try XCTUnwrap(try JSONSerialization.jsonObject(with: Data(line.utf8)) as? [String: Any])
-        let r = try XCTUnwrap(Event.reading(obj, file: LiveSession.placeholderFile, name: "LIVE"))
+        let r = try XCTUnwrap(Event.reading(obj, file: LiveSession.songFile(1), name: "LIVE"))
         XCTAssertEqual(r.tuningCents, -30)
         XCTAssertEqual(r.bpmExact, 128.02)
         XCTAssertEqual(r.chroma?[6], 0.9)

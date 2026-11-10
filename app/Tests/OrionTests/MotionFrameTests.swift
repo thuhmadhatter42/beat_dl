@@ -75,7 +75,7 @@ final class MotionFrameTests: XCTestCase {
     static let chromaA: [Double] = [0.3, 0.05, 0.62, 0.2, 0.08, 0.4, 0.1, 1.0, 0.1, 0.45, 0.85, 0.1]
     static let chromaB: [Double] = [0.7, 0.05, 0.3, 0.55, 0.08, 0.2, 0.1, 0.8, 0.1, 0.25, 1.0, 0.1]
     static func reading(_ keys: [(String, Int)], bpm: String?, cents: Double, chroma: [Double]) -> Result {
-        Result(file: LiveSession.placeholderFile, name: "LIVE", bpm: bpm, keys: keys,
+        Result(file: LiveSession.songFile(1), name: "LIVE", bpm: bpm, keys: keys,
                bpmExact: bpm.flatMap(Double.init), tuningCents: cents, chroma: chroma)
     }
     static let a = reading([("Gm", 90), ("Cm", 4), ("C", 1)], bpm: "90.0", cents: -4, chroma: chromaA)

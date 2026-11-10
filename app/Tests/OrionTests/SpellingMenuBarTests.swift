@@ -135,7 +135,7 @@ final class SpellingMenuBarTests: XCTestCase {
     }
 
     func testMenuBarManualWhileListeningShowsTheKeyAtOnce() {
-        let live = Result(file: LiveSession.placeholderFile, name: "LIVE", bpm: "128.0",
+        let live = Result(file: LiveSession.songFile(1), name: "LIVE", bpm: "128.0",
                           keys: [("Cm", 41), ("Eb", 20)], bpmExact: 128.02)
         // unsure, not manual: no key yet
         XCTAssertNil(MenuBarReadout.of(live: .reading(live), source: "Mic", factor: .one, choice: nil)?.text)
