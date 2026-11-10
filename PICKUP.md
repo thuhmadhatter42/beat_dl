@@ -1,6 +1,25 @@
 # PICKUP — beat_dl
 
-## CURRENT STATE — 2026-11-10 04:10
+## CURRENT STATE — 2026-11-10 04:46
+
+**Beat Key 0.1.70 is PUBLIC (published 04:44 by `tools/publish.sh`, run by the agent on J's 03:51 order; log `app/build/publish-0.1.70.log` ends `PUBLISHED 0.1.70`).** Verified after: GitHub release Beat-Key-0.1.70 (not a draft) with `Beat-Key-0.1.70.dmg` + `appcast.xml`; latest appcast shortVersionString 0.1.70; DMG URL HTTP 200; Sofia `~/fourletterrecords/beat-key-latest.json` = 0.1.70 and the DMG there has the same sha256 prefix b16358d7a85d7d74 as the build; download page answers 303; main = origin/main = b31cff2 at publish, tag Beat-Key-0.1.70.
+**Installed, not launched:** MBP `/Applications/Beat Key.app` 0.1.70 (old 0.1.59 in Trash) and Mac Pro `/Applications/Beat Key.app` 0.1.70 (old 0.1.17 in its Trash); on both: spctl "Notarized Developer ID", `codesign --verify --deep --strict` ok, bundled `bpm.py --check` exit 0. MBP smoke: installed analyzer on `tests/fixtures/click120.wav` → 120.0. Build log `app/build/build-0.1.70.log`. Nothing has been opened or listened to in the real app yet.
+
+**What 0.1.60 → 0.1.70 changed (all from the symphony review, reports in `docs/research/symphony-review-2026-11-10/`):** the 04:10 block below lists 0.1.60-0.1.66; after it: 0.1.67 display colour and High Contrast through the SwiftUI environment (`\.palette`), no forced rebuilds, Mini follows High Contrast live; 0.1.68 analyzer refuses when essentia or the tempo model is missing ("The analyzer is incomplete. Run Doctor."), librosa removed entirely, MIDI also refused on a damaged install; 0.1.69 one status legend for pocket and window (`AppStatus` in `Faceplate/Chassis.swift`): pocket shows FAILED for a failed Doctor; window READY lamp is now an octagon; no lamp glow in High Contrast; pocket lamp gets the white rim, amber WORKING glow, red FAILED glow; 0.1.70 Run Doctor step 4 runs `bpm.py --check` ("ANALYZER IS INCOMPLETE · REINSTALL BEAT KEY").
+**Tuning correction: NOT changed.** Bench (`docs/research/detune-bench-2026-11-10/`, 40 GiantSteps clips × 6 detunes): removing the older peak roll left file mode equal or better but moved a few live readings both ways; the roll still re-centres each 10 s window, so both correctors stay. J's own beats not measured (full-rate bounces not on the MBP).
+**Readout NOT merged** (pocket and window readouts are built too differently; drift table in the one-display agent's report, summarised: duplicated step list, three red-hint opacities, idle VoiceOver label, dead `.drop` branch are safe cleanups; whether the pocket gets the DOCTOR cap, ANALYZING/LISTENING lamp, TempoLight, Show in Finder is J's call).
+
+**Owed by J (hands-on):**
+1. Open 0.1.70 and look: Listen with a quiet passage (NO SOUND comes with the restart, about 3 s); a song change with a picked key and ×2 set (both clear); a black-key reading in the pocket (no hand cursor); drag the COLOR wheel with window, pocket and Mini open, and with a Mini pad held (note keeps sounding); High Contrast (no lamp glow); READY lamp is an octagon in the window (say if you want the circle back: one line, but then the pocket's is a circle too).
+2. Studio D: Beat Key › Check for Updates → 0.1.70, YouTube in Chrome → LISTEN. 0.1.70 hears every app, so the Chrome-helper problem should be gone; Tailscale key there still expired (log in at Studio D so logs can be read).
+3. Studio D: System Settings › Privacy & Security › Accessibility → Beat Key on.
+4. Older hand tests still untried: MINI MIDI into a DAW, live tuning with pitched Spotify, chord drag, MATCH TO, Send to DAW Pro Tools, ⇧⌘A, unplugged-interface fallback, ftC tempo on known beats.
+**Owed by the agent:** nothing running. `handoff/TO-FLR-SITE-2026-11-10-beat-key-0.1.70.md` waits for the FLR site session (page text still says Listen hears only the players).
+**Review findings J has not ruled on:** three download retry layers (`downloader.py:302-346`, `app_run.py`); key spelling typed out ~6 times in Python; key tables in ~8 places in Swift; tests that cannot fail (ten always-skipping `testRender*`, constant-asserting tests); `app/build.sh:44` runtime cached by "directory exists"; `THIRD-PARTY-LICENSES.md:20` says 0.1.16; `tools/pt-harvest/step.py:46` calls a function that does not exist; `app_run.py` would rename with a "0.0" BPM; `run.sh` discards analyzer stderr; the readout cleanups above.
+**J said no (do not re-raise):** New Song keeps its full restart.
+**Git:** main = b31cff2 pushed + local-only doc/state commits after it; no branches or worktrees besides main; untracked `docs/research/pt-ground-truth/verify-labels.sqlite3` left as found. Sofia harvest still paused at 333/795.
+
+## (previous) 2026-11-10 04:10 (superseded by the block above: everything listed as running or queued here is finished)
 
 **Public release is still 0.1.59. Local main is 0.1.66 (f08f8e0), NOT pushed, NOT built, NOT installed.** Tonight: symphony review of the whole repo (5 read-only agents; reports copied to `docs/research/symphony-review-2026-11-10/`: 1-swift-core.md, 2-swift-ui-daw.md, 3-python.md, 4-build-tests.md, 5-inventory.md), J ruled on decide sheets D-1075669f3f and D-b492369132, fixes merged one branch at a time, full suite green after each (last: 418 Swift tests 0 failures; tests.test_bpm_stream 22 OK; tests.test_publish_sh 18 OK).
 
