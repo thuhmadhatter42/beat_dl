@@ -1,6 +1,8 @@
 # PICKUP — beat_dl
 
-## CURRENT STATE — 2026-11-09 15:45
+## CURRENT STATE — 2026-11-09 16:32
+
+**0.1.57 NOTARIZED, installed + running (16:31:14), ready to publish: J runs `! bash ~/dev/beat_dl/tools/publish.sh`.** Key names = Auto-Tune's Key menu spelling everywhere, always (J 16:15, standing rule; major C Db D Eb E F F# G Ab A Bb B, minor C C# D Eb E F F# G G# A Bb B). Sharps/flats switch removed (Reading menu toggle gone, dial click no longer flips); stored keySpelling wiped at launch (J's Mac had "flats" = why he saw Gb; log confirmed removal 16:31:15); old saved readings normalised on display (KeyChoice.autoTuneName). 397 tests; MotionFrameTests value-curve + meter-tick tests flake only under load. After publish: fresh FLR screenshots into handoff/flr-assets/.
 
 **0.1.56 installed + running (15:44:50, 397 tests pass, SIGN_OK):** key wheel names keys exactly as the reading/dial/top-3 do (sharps/flats choice respected; Auto-Tune sends unchanged); menu-bar item in Manual Key Selection = key glyph white (near-black on light bar), no lamp, menu row ends "Manual", shows at once while listening. Renders docs/research/spelling-menubar-2026-11-09/. Release = J runs publish.sh (ships 0.1.56).
 
