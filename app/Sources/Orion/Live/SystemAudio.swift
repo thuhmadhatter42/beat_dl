@@ -61,11 +61,16 @@ final class SystemAudioCapture: NSObject, AudioCapture, SCStreamOutput, SCStream
             }
             // A music player open (Spotify, a browser, Music...) = hear only the players, so a mic
             // monitored through Artemis or a DAW never mixes into the key. None open = everything.
-            let players = (content?.applications ?? []).filter { SystemAudioCapture.isPlayer($0.bundleIdentifier) }
-            AppLog.log("system audio: " + (players.isEmpty ? "all apps" : "players only: " + players.map { $0.bundleIdentifier }.joined(separator: ", ")))
-            let filter = players.isEmpty
-                ? SCContentFilter(display: display, excludingApplications: [], exceptingWindows: [])
-                : SCContentFilter(display: display, including: players, exceptingWindows: [])
+            // Done by LEAVING OUT every listed non-player, never by including the players: a
+            // browser plays from helper processes SCK may not list (Studio D 2026-11-09: Chrome
+            // listed alone, its audio helper absent, the stream heard silence).
+            let apps = content?.applications ?? []
+            let players = apps.filter { SystemAudioCapture.isPlayer($0.bundleIdentifier) }
+            let others = players.isEmpty ? [] : apps.filter { !SystemAudioCapture.isPlayer($0.bundleIdentifier) }
+            AppLog.log("system audio: " + (players.isEmpty ? "all apps"
+                : "players open (\(players.map { $0.bundleIdentifier }.joined(separator: ", "))); leaving out \(others.count) other apps: "
+                  + others.map { $0.bundleIdentifier }.filter { !$0.isEmpty }.prefix(12).joined(separator: ", ")))
+            let filter = SCContentFilter(display: display, excludingApplications: others, exceptingWindows: [])
             let cfg = SCStreamConfiguration()
             cfg.capturesAudio = true
             cfg.excludesCurrentProcessAudio = true
