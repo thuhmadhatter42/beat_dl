@@ -158,7 +158,7 @@ final class PocketTests: XCTestCase {
         listening.newSongKeys = "⌃⌥⌘R"
 
         var unsure = listening
-        let u = Result(file: LiveSession.placeholderFile, name: "LIVE", bpm: "93.0",
+        let u = Result(file: LiveSession.songFile(1), name: "LIVE", bpm: "93.0",
                        keys: [("Cm", 48), ("Eb", 31), ("Gm", 14)], bpmExact: 92.97)
         unsure.readout = .result(u, page: nil, download: false, options: ResultOptions(
             factor: .one, tuning: nil, onCycleTempo: {}, live: (.unsure, "UNSURE · Cm 48 · Eb 31 · Gm 14", "System Audio")))
@@ -179,7 +179,7 @@ final class PocketTests: XCTestCase {
 
         // live, locked and HELD (the caption and the lit HOLD key)
         var held = listening
-        let h = Result(file: LiveSession.placeholderFile, name: "LIVE", bpm: "128.0",
+        let h = Result(file: LiveSession.songFile(1), name: "LIVE", bpm: "128.0",
                        keys: [("Ebm", 86), ("F#", 9), ("Bbm", 5)], bpmExact: 128.04)
         held.readout = .result(h, page: nil, download: false, options: ResultOptions(
             factor: .one, tuning: nil, onCycleTempo: {}, live: (.locked, "HELD · LOCKED 86%", "System Audio")))

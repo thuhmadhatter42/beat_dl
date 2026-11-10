@@ -112,7 +112,7 @@ final class ListenLogTests: XCTestCase {
     }
 
     func testSummaryCarriesKeyBpmAndLamp() {
-        let r = Result(file: LiveSession.placeholderFile, name: "LIVE", bpm: "128.0",
+        let r = Result(file: LiveSession.songFile(1), name: "LIVE", bpm: "128.0",
                        keys: [("Ebm", 85), ("F#", 8), ("Bbm", 4)])
         XCTAssertEqual(LiveController.summary(.reading(r)), "reading Ebm 85%, F# 8%, Bbm 4% · bpm 128.0 · lamp green")
         XCTAssertEqual(LiveController.summary(.locked(r)), "locked Ebm 85%, F# 8%, Bbm 4% · bpm 128.0 · lamp green")
@@ -120,7 +120,7 @@ final class ListenLogTests: XCTestCase {
     }
 
     func testControllerLogsReadingsOnlyWhenTheyChangeAndWhyItStopped() {
-        let r = Result(file: LiveSession.placeholderFile, name: "LIVE", bpm: "128.0",
+        let r = Result(file: LiveSession.songFile(1), name: "LIVE", bpm: "128.0",
                        keys: [("Cm", 41), ("Eb", 30), ("Gm", 10)])
         let c = LiveController(settings: LiveSettings(defaults: defaults(), systemAvailable: false),
                                launch: { _, _, _ in FakePipe() }, makeCapture: { _ in FakeCapture() },

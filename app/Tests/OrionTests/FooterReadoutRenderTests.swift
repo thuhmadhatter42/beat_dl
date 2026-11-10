@@ -49,7 +49,7 @@ final class FooterReadoutRenderTests: XCTestCase {
 
         // live, a reading in: no file line under the readout
         var listening = idle
-        let h = Result(file: LiveSession.placeholderFile, name: "LIVE", bpm: "141.98",
+        let h = Result(file: LiveSession.songFile(1), name: "LIVE", bpm: "141.98",
                        keys: [("Ebm", 86), ("Gb", 9), ("Bbm", 5)], bpmExact: 141.98)
         listening.readout = .result(h, page: nil, download: false, options: ResultOptions(
             factor: .one, tuning: nil, onCycleTempo: {}, live: (.locked, "LOCKED 86%", "System Audio")))

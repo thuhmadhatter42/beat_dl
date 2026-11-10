@@ -5,7 +5,7 @@ final class SongBoundaryTests: XCTestCase {
     let t0 = Date(timeIntervalSince1970: 1_000_000)
 
     func reading(_ key: String = "Ebm", _ pct: Int = 85, bpm: String? = "128.0") -> Result {
-        Result(file: LiveSession.placeholderFile, name: "LIVE", bpm: bpm,
+        Result(file: LiveSession.songFile(1), name: "LIVE", bpm: bpm,
                keys: [(key, pct), ("Gb", 8), ("Bbm", 4)], bpmExact: bpm == nil ? nil : 128.02)
     }
     func store() -> RecentStore {
@@ -29,16 +29,16 @@ final class SongBoundaryTests: XCTestCase {
     // MARK: the analyzer's line
 
     func testParsesBoundaryLines() {
-        XCTAssertEqual(LiveEvent.parse(line: #"{"event":"boundary","reason":"audio","scores":{"disappeared":0.8,"grid":"phase"}}"#),
+        XCTAssertEqual(LiveEvent.parse(line: #"{"event":"boundary","reason":"audio","scores":{"disappeared":0.8,"grid":"phase"}}"#, song: LiveSession.songFile(1)),
                        .boundary(LiveBoundary(reason: .audio)))
-        XCTAssertEqual(LiveEvent.parse(line: #"{"event":"boundary","reason":"title"}"#),
+        XCTAssertEqual(LiveEvent.parse(line: #"{"event":"boundary","reason":"title"}"#, song: LiveSession.songFile(1)),
                        .boundary(LiveBoundary(reason: .title)))
-        XCTAssertEqual(LiveEvent.parse(line: #"{"event":"boundary"}"#), .boundary(LiveBoundary(reason: .audio)))
+        XCTAssertEqual(LiveEvent.parse(line: #"{"event":"boundary"}"#, song: LiveSession.songFile(1)), .boundary(LiveBoundary(reason: .audio)))
     }
 
     func testBoundaryStartsTheReadingOver() {
         var s = LiveSession()
-        s.begin()
+        s.begin(why: "test")
         s.feed(.reading(reading()), now: t0)
         s.feed(.boundary(LiveBoundary(reason: .audio)), now: t0 + 2)
         XCTAssertEqual(s.state, .listening)

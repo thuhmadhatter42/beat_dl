@@ -123,8 +123,7 @@ struct OrionApp: App {
     /// download or an analysis is running (the LCD belongs to it).
     private static func toggleListening(live: LiveController, engine: Engine, model: FaceplateModel) {
         if !live.state.isActive && engine.state.isBusy { NSSound.beep(); return }
-        model.tempoFactor = .one
-        live.toggle()
+        live.toggle()   // the song starts or ends: the tempo factor follows it (FaceplateModel.follow)
     }
 
     /// The objects themselves, captured (not the App struct's wrappers), for callers outside a view update.
@@ -134,13 +133,12 @@ struct OrionApp: App {
     }
 
     /// Reading › New Song, its global shortcut, the menu-bar menu and the popover: Listen drops
-    /// what it heard and its lock, and starts over on the same source (tempo back to x1).
+    /// what it heard and its lock, and starts over on the same source. A new song: a picked key
+    /// and the tempo factor belong to the old one (LiveSession.song).
     private var newSong: () -> Void {
-        let (l, m) = (live, model)
+        let l = live
         return {
             guard l.state.isActive else { NSSound.beep(); return }
-            m.tempoFactor = .one
-            if SpellingSettings.shared.manualKey != nil { SpellingSettings.shared.clearManualKey(of: nil, from: .newSong) }
             l.reset()
         }
     }
@@ -179,6 +177,7 @@ struct OrionApp: App {
 
     private func launch() {
         live.songs.recents = recents   // each live song its own Recent Readings entry
+        model.follow(live)             // each live song reads at x1
         HelpText.checkAtLaunch()
         let accent = AccentSettings.shared   // the saved display colour, before anything draws again
         if accent.picked != .amber { AppLog.log("accent: \(accent.picked.described) restored") }

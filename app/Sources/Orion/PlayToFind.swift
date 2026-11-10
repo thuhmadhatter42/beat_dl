@@ -68,8 +68,18 @@ struct PlayState: Equatable {
     var octaveC = 60
     var root: Int?
     var minor = false
+    /// The reading the root was played over (file + name: a file, or one live song).
+    private(set) var readingFile: URL?
+    private(set) var readingName: String?
 
     static let lowestC = 24, highestC = 96
+
+    /// The reading on show: another one (another file, the next live song) starts the root over;
+    /// the octave stays.
+    mutating func show(_ r: Result) {
+        guard r.file != readingFile || r.name != readingName else { return }
+        readingFile = r.file; readingName = r.name; root = nil
+    }
 
     /// A note pressed: returns its MIDI number, and the root (pitch class) and mode it sets.
     mutating func press(_ semitone: Int, keys: [(String, Int)]) -> Int {
@@ -107,7 +117,6 @@ final class PlayToFind {
     /// The reading on show (respelled, with any choice), and Send to Auto-Tune's own action.
     private var shown: () -> Result? = { nil }
     private var sendAutoTune: () -> Bool = { false }
-    private var lastReading: (URL, String)?
 
     func install(shown: @escaping () -> Result?, sendAutoTune: @escaping () -> Bool) {
         self.shown = shown
@@ -172,10 +181,7 @@ final class PlayToFind {
         }
         lastIgnore = nil
         let r = shown()
-        // a new reading starts the keyboard's root over (the octave stays)
-        if let r, lastReading.map({ $0.0 != r.file || $0.1 != r.name }) ?? true {
-            lastReading = (r.file, r.name); state.root = nil
-        }
+        if let r { state.show(r) }
         switch act {
         case .sendAutoTune:
             AppLog.log("play-to-find: ⇧⌘A send to auto-tune")

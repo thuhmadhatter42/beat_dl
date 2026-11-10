@@ -5,7 +5,7 @@ import XCTest
 
 final class LiveTests: XCTestCase {
     func reading(_ key: String = "Ebm", _ pct: Int = 85, bpm: String? = "128.0") -> Result {
-        Result(file: LiveSession.placeholderFile, name: "LIVE", bpm: bpm,
+        Result(file: LiveSession.songFile(1), name: "LIVE", bpm: bpm,
                keys: [(key, pct), ("F#", 8), ("Bbm", 4)], bpmExact: bpm == nil ? nil : 128.02)
     }
     func defaults() -> UserDefaults {
@@ -19,24 +19,24 @@ final class LiveTests: XCTestCase {
     // MARK: 3.3 the analyzer's lines
 
     func testParsesStreamLines() {
-        XCTAssertEqual(LiveEvent.parse(line: #"{"event":"ready"}"#), .ready)
-        XCTAssertEqual(LiveEvent.parse(line: #"{"event":"reset"}"#), .reset)
-        XCTAssertEqual(LiveEvent.parse(line: #"{"event":"error","message":"x"}"#), .error("x"))
+        XCTAssertEqual(LiveEvent.parse(line: #"{"event":"ready"}"#, song: LiveSession.songFile(1)), .ready)
+        XCTAssertEqual(LiveEvent.parse(line: #"{"event":"reset"}"#, song: LiveSession.songFile(1)), .reset)
+        XCTAssertEqual(LiveEvent.parse(line: #"{"event":"error","message":"x"}"#, song: LiveSession.songFile(1)), .error("x"))
         let line = #"{"event":"reading","bpm":"128.0","bpm_exact":128.02,"keys":[["Ebm",85],["F#",8],["Bbm",4]],"secs":14.0}"#
-        XCTAssertEqual(LiveEvent.parse(line: line), .reading(reading()))
+        XCTAssertEqual(LiveEvent.parse(line: line, song: LiveSession.songFile(1)), .reading(reading()))
         let early = #"{"event":"reading","bpm":null,"bpm_exact":null,"keys":[["Ebm",85],["F#",8],["Bbm",4]],"secs":4.0}"#
-        guard case .reading(let r)? = LiveEvent.parse(line: early) else { return XCTFail() }
+        guard case .reading(let r)? = LiveEvent.parse(line: early, song: LiveSession.songFile(1)) else { return XCTFail() }
         XCTAssertNil(r.bpm)
-        XCTAssertNil(LiveEvent.parse(line: "garbage"))
-        XCTAssertNil(LiveEvent.parse(line: #"{"event":"reading","keys":[["Ebm"]]}"#))
-        XCTAssertNil(LiveEvent.parse(line: #"{"stage":"done"}"#))
+        XCTAssertNil(LiveEvent.parse(line: "garbage", song: LiveSession.songFile(1)))
+        XCTAssertNil(LiveEvent.parse(line: #"{"event":"reading","keys":[["Ebm"]]}"#, song: LiveSession.songFile(1)))
+        XCTAssertNil(LiveEvent.parse(line: #"{"stage":"done"}"#, song: LiveSession.songFile(1)))
     }
 
     // MARK: 3.3 auto-lock and start over
 
     func testAutoLocksAfterSixSecondsOfTheSameConfidentKey() {
         var s = LiveSession()
-        s.begin()
+        s.begin(why: "test")
         XCTAssertEqual(s.state, .listening)
         s.feed(.reading(reading()), now: t0)
         XCTAssertEqual(s.state, .reading(reading()))
@@ -52,7 +52,7 @@ final class LiveTests: XCTestCase {
 
     func testUnsureOrChangedKeyRestartsTheClock() {
         var s = LiveSession()
-        s.begin()
+        s.begin(why: "test")
         s.feed(.reading(reading()), now: t0)
         s.feed(.reading(reading("Ebm", 50)), now: t0 + 2)  // amber
         XCTAssertEqual(s.state.lamp, .unsure)
@@ -68,7 +68,7 @@ final class LiveTests: XCTestCase {
 
     func testNoLockWithoutABpm() {
         var s = LiveSession()
-        s.begin()
+        s.begin(why: "test")
         s.feed(.reading(reading(bpm: nil)), now: t0)
         s.feed(.reading(reading(bpm: nil)), now: t0 + 10)
         guard case .reading = s.state else { return XCTFail() }
@@ -76,7 +76,7 @@ final class LiveTests: XCTestCase {
 
     func testGapStartsOver() {
         var s = LiveSession()
-        s.begin()
+        s.begin(why: "test")
         s.feed(.reading(reading()), now: t0)
         s.feed(.reading(reading()), now: t0 + 6)
         XCTAssertEqual(s.state, .locked(reading()))
@@ -90,7 +90,7 @@ final class LiveTests: XCTestCase {
         var s = LiveSession()
         s.feed(.reading(reading()), now: t0)
         XCTAssertEqual(s.state, .off)
-        s.begin()
+        s.begin(why: "test")
         s.feed(.error("boom"), now: t0)
         XCTAssertEqual(s.state, .failed("boom"))
         s.feed(.reading(reading()), now: t0)
@@ -412,7 +412,7 @@ final class LiveTests: XCTestCase {
         p.close(grace: 100)   // let it finish the backlog (the app's Stop gives it 2 s)
         wait(for: [exited], timeout: 120)
         lock.lock(); let got = lines; lock.unlock()
-        let events = got.compactMap(LiveEvent.parse)
+        let events = got.compactMap { LiveEvent.parse(line: $0, song: LiveSession.songFile(1)) }
         XCTAssertEqual(events.first, .ready)
         let readings = events.compactMap { e -> Result? in if case .reading(let r) = e { return r } else { return nil } }
         XCTAssertFalse(readings.isEmpty, got.joined(separator: "\n"))

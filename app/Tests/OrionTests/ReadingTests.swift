@@ -107,7 +107,7 @@ final class ReadingTests: XCTestCase {
     }
 
     func testLiveReadingShowsTuningAgainstTheReference() {
-        let r = Result(file: LiveSession.placeholderFile, name: "LIVE", bpm: nil, keys: [("C", 85)],
+        let r = Result(file: LiveSession.songFile(1), name: "LIVE", bpm: nil, keys: [("C", 85)],
                        tuningCents: 14)
         guard case .result(_, _, _, _, let o)? = Faceplate.liveReadout(.reading(r), source: "x", factor: .one,
                                                                     reference: 442)
@@ -118,7 +118,7 @@ final class ReadingTests: XCTestCase {
     func testLiveReadingParsesTuningAndChroma() {
         let line = #"{"event": "reading", "bpm": null, "bpm_exact": null, "keys": [["C", 85], ["Am", 6], ["F", 5]], "#
             + #""secs": 30.0, "tuning_cents": -49.9, "chroma": [1.0, 0, 0.5, 0, 0.8, 0.6, 0, 0.9, 0, 0.7, 0, 0.4]}"#
-        guard case .reading(let r)? = LiveEvent.parse(line: line) else { return XCTFail("not a reading") }
+        guard case .reading(let r)? = LiveEvent.parse(line: line, song: LiveSession.songFile(1)) else { return XCTFail("not a reading") }
         XCTAssertEqual(r.tuningCents, -49.9)
         XCTAssertEqual(r.chroma?.count, 12)
         XCTAssertEqual(r.chroma?.first, 1.0)
