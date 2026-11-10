@@ -20,6 +20,7 @@ reading per line (LiveAnalyzer, stream_main); the app pipes the mic / system aud
 is saved. A new song with no pause between is found by BoundaryDetector ({"event":"boundary"});
 SIGUSR1 from the app (the player's title changed) forces one.
 Usage: python3 bpm.py <filepath>
+       python3 bpm.py --check          (exit 0 = the analyzer is complete; Beat Key's Run Doctor asks this)
        python3 bpm.py --stream [--rate 44100] [--hop 2] [--gap 3]
        python3 bpm.py          (prompts for a path)
 """
@@ -873,6 +874,12 @@ def analyze(filepath):
 
 
 def main():
+    if len(sys.argv) > 1 and sys.argv[1] == "--check":
+        # Beat Key's Run Doctor asks "are you complete?" here: exactly analyzer_ready(), no file.
+        if analyzer_ready():
+            sys.exit(0)
+        print(ANALYZER_INCOMPLETE, file=sys.stderr)
+        sys.exit(EXIT_INCOMPLETE)
     if len(sys.argv) > 1 and sys.argv[1] == "--stream":
         _listen_for_new_song()
     if not check_deps():

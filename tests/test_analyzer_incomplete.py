@@ -34,6 +34,10 @@ _NO_ESSENTIA = (
     "sys.argv = ['bpm.py', {wav!r}]; bpm.main()"
 )
 
+# bpm.py --check, the same two damages
+_CHECK_NO_MODEL = _NO_MODEL.replace("sys.argv = ['bpm.py', {wav!r}]", "sys.argv = ['bpm.py', '--check']")
+_CHECK_NO_ESSENTIA = _NO_ESSENTIA.replace("sys.argv = ['bpm.py', {wav!r}]", "sys.argv = ['bpm.py', '--check']")
+
 
 def run_bpm(template):
     code = template.format(root=str(ROOT), wav=str(WAV))
@@ -56,6 +60,26 @@ class TestBpmRefuses(unittest.TestCase):
     def test_the_analyzer_has_no_second_method(self):
         text = (ROOT / "bpm.py").read_text().lower()
         self.assertNotIn("librosa", text)
+
+
+class TestBpmCheck(unittest.TestCase):
+    """`bpm.py --check` is Doctor's question: exactly analyzer_ready(), no file, nothing on stdout."""
+
+    def test_complete_install_exits_zero(self):
+        p = subprocess.run([sys.executable, str(ROOT / "bpm.py"), "--check"],
+                           capture_output=True, text=True, timeout=120)
+        self.assertEqual((p.returncode, p.stdout, p.stderr), (0, "", ""))
+
+    def test_missing_model_gives_the_sentence_and_the_incomplete_code(self):
+        p = run_bpm(_CHECK_NO_MODEL)
+        self.assertEqual(p.returncode, 2, (p.stdout, p.stderr))
+        self.assertEqual(p.stdout, "")
+        self.assertEqual(p.stderr.strip(), MESSAGE)
+
+    def test_no_essentia_gives_the_sentence_and_the_incomplete_code(self):
+        p = run_bpm(_CHECK_NO_ESSENTIA)
+        self.assertEqual(p.returncode, 2, (p.stdout, p.stderr))
+        self.assertEqual(p.stderr.strip(), MESSAGE)
 
 
 class TestAppRunReportsIt(unittest.TestCase):
