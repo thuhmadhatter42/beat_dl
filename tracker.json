@@ -172,7 +172,7 @@
       "status": "done",
       "title": "Orion spec",
       "size": "",
-      "detail": "b804057 + a1046d6, Sep 12: menu-bar app that listens to the interface main outs, shows \"140 · A min\" live, opens a panel with Camelot code and a playable piano roll; loading state until confident, collapsed history list persisted. Draft; feature 2 of the Beat Key app, not started as of 2026-10-28.",
+      "detail": "b804057 + a1046d6, Sep 12: menu-bar app that listens to the interface main outs, shows \"140 · A min\" live, opens a panel with Camelot code and a playable piano roll; loading state until confident, collapsed history list persisted. Draft; feature 2 of the Beat Key app, not started as of 2026-10-28. [SUPERSEDED 2026-11-10: built and public in the app (Listen, menu-bar readout, Advanced mode)]",
       "weight": 4
     },
     {
@@ -200,21 +200,21 @@
       "status": "done",
       "title": "Beat Key (internal Orion) 0.1.18 released",
       "size": "0.1.0 to 0.1.18",
-      "detail": "beat_dl as a signed, notarized Mac app, free on fourletterrecords.com behind an FLR account. 0.1.16 released 2026-10-28 (tag Beat-Key-0.1.16), 0.1.18 (tag Beat-Key-0.1.18): Sparkle auto-update, golden key icon, in-app YouTube login (since 0.1.15), repo AGPL-3.0 (f9e0031), orion-v1 merged to main. Friends link beatkey.jshriver.com (friends-page/). Owed: J backs up the Sparkle private key; FLR site page update (icon, licences link).",
+      "detail": "beat_dl as a signed, notarized Mac app, free on fourletterrecords.com behind an FLR account. 0.1.16 released 2026-10-28 (tag Beat-Key-0.1.16), 0.1.18 (tag Beat-Key-0.1.18): Sparkle auto-update, golden key icon, in-app YouTube login (since 0.1.15), repo AGPL-3.0 (f9e0031), orion-v1 merged to main. Friends link beatkey.jshriver.com (friends-page/). Owed: J backs up the Sparkle private key; FLR site page update (icon, licences link). [CLOSED 2026-11-10: Sparkle key backed up to Sofia 2026-10-29, signing keys in Passwords 2026-11-09, FLR /beat-key page live 2026-11-10 00:08; latest public release is 0.1.59]",
       "weight": 6
     },
     {
       "status": "plan",
       "title": "Harvest the PT catalog",
       "size": "thousands of sessions",
-      "detail": "Paused 2026-10-09: 101 sessions run, 78 usable, on Sofia ~/pt-harvest. Resume when the iLok is back in Sofia (~120 more usable rows). Run-A model not shipped (bench -1 clip); decision with J.",
+      "detail": "Paused 2026-10-09: 101 sessions run, 78 usable, on Sofia ~/pt-harvest. Resume when the iLok is back in Sofia (~120 more usable rows). Run-A model not shipped (bench -1 clip); decision with J. [UPDATE 2026-11-10: harvest resumed 2026-11-02 and paused again 2026-11-05 at 333/795 (243 usable, 91 keyed), iLok out of Sofia; the ftC retrain on 243 rows shipped in 0.1.40]",
       "weight": 5
     },
     {
       "status": "idea",
       "title": "Menu-bar BPM/key listener (Beat Key feature 2)",
       "size": "",
-      "detail": "Spec 2026-09-12; not started. Waits for J to say go; open question: phase 1 uses the global system-output tap, per-app taps in phase 4.",
+      "detail": "Spec 2026-09-12; not started. Waits for J to say go; open question: phase 1 uses the global system-output tap, per-app taps in phase 4. [SUPERSEDED 2026-11-10: built and public; from 0.1.60 (local main, unreleased) Listen hears every app except Beat Key]",
       "weight": 4
     }
   ]

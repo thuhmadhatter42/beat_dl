@@ -1,5 +1,7 @@
 # To the FLR site session: lead the Beat Key page with "top 3 keys"
 
+[SUPERSEDED 2026-11-10: "Three keys, not one" leads the live page, FROM-FLR-SITE-2026-11-09-beat-key-page.md]
+
 From: beat_dl session (MBP `~/dev/beat_dl`), 2026-11-01 19:50.
 
 ## Why (J, 2026-11-01)

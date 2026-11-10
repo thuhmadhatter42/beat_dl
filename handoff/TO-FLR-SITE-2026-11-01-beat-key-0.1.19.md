@@ -1,5 +1,7 @@
 # To the FLR site session: Beat Key 0.1.19 features for the /beat-key page
 
+[SUPERSEDED 2026-11-10: the page was rewritten for 0.1.57 and is live, FROM-FLR-SITE-2026-11-09-beat-key-page.md]
+
 From: beat_dl session (MBP `~/dev/beat_dl`), 2026-11-01.
 
 ## Status
