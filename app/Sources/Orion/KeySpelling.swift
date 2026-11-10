@@ -47,6 +47,12 @@ struct KeyChoice: Equatable {
         AXKeyNames.roots(pitchClass, minor: minor)[0] + (minor ? "m" : "")
     }
 
+    /// Any spelling of a key ("Gb", "D#m", "E♭") as Auto-Tune names it; a non-key comes back as given.
+    static func autoTuneName(_ name: String) -> String {
+        guard let k = AutoTuneSend.keyClass(name) else { return name }
+        return keyName(k.pitchClass, minor: k.minor)
+    }
+
     /// All 24 keys in that spelling: the 12 majors from C, then the 12 minors from C.
     static let allKeys: [String] = (0..<12).map { keyName($0, minor: false) } + (0..<12).map { keyName($0, minor: true) }
 
@@ -74,6 +80,9 @@ extension Result {
             }
         }
         if let spelling = spelling { ks = ks.map { (KeySpelling.respell($0.0, to: spelling), $0.1) } }
+        // No spelling (always, in the app): every name as Auto-Tune's Key menu spells it
+        // (J 2026-11-09), so readings saved before that rule match too.
+        else { ks = ks.map { (KeyChoice.autoTuneName($0.0), $0.1) } }
         return Result(file: file, name: name, bpm: bpm, keys: ks,
                       readError: readError, bpmExact: bpmExact, tuningCents: tuningCents, chroma: chroma)
     }
@@ -85,12 +94,11 @@ final class SpellingSettings: ObservableObject {
     static let shared = SpellingSettings()
     private let defaults: UserDefaults
 
-    @Published var preference: KeySpelling? {
-        didSet {
-            if let p = preference { defaults.set(p.rawValue, forKey: SpellingSettings.key) }
-            else { defaults.removeObject(forKey: SpellingSettings.key) }
-        }
-    }
+    /// Always nil: key names are spelled exactly as Auto-Tune's Key menu shows them, everywhere
+    /// (J's rock-solid rule, 2026-11-09 16:15: "We go off of what Auto-Tune shows. That's it.").
+    /// The old sharps/flats switch is gone; a stored "keySpelling" is wiped at launch.
+    /// Nothing in the app sets it any more (tests only).
+    @Published var preference: KeySpelling? = nil
 
     /// Manual Key Selection: the key the user forced for the reading on show (a key wheel click,
     /// a top-3 click, the MANUAL menu, play-to-find on the keyboard). The one state every path
@@ -104,20 +112,13 @@ final class SpellingSettings: ObservableObject {
 
     init(defaults: UserDefaults = .standard) {
         self.defaults = defaults
-        preference = defaults.string(forKey: SpellingSettings.key).flatMap(KeySpelling.init(rawValue:))
+        if let stale = defaults.string(forKey: SpellingSettings.key) {
+            defaults.removeObject(forKey: SpellingSettings.key)
+            AppLog.log("key spelling: removed stored preference \(stale); names follow Auto-Tune's Key menu")
+        }
     }
 
-    /// A click on the key as shown (`name`): switch to the other spelling. False = natural key.
+    /// A click on the key used to flip sharps/flats; Auto-Tune's spelling is fixed now.
     @discardableResult
-    func click(on name: String) -> Bool {
-        guard let t = KeySpelling.clickTarget(for: name) else { return false }
-        preference = t
-        return true
-    }
-
-    /// The menu checkbox: on = sharps, off = flats.
-    var sharps: Bool {
-        get { preference == .sharps }
-        set { preference = newValue ? .sharps : .flats }
-    }
+    func click(on name: String) -> Bool { false }
 }

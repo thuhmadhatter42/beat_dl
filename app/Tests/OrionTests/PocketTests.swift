@@ -4,7 +4,7 @@ import XCTest
 @testable import Orion
 
 final class PocketTests: XCTestCase {
-    func result(_ keys: [(String, Int)] = [("Ebm", 85), ("Gb", 8), ("Bbm", 4)], bpm: String? = "128.0",
+    func result(_ keys: [(String, Int)] = [("Ebm", 85), ("F#", 8), ("Bbm", 4)], bpm: String? = "128.0",
                 exact: Double? = 128.04, cents: Double? = nil) -> Result {
         Result(file: URL(fileURLWithPath: "/x/Night Drive.wav"), name: "Night Drive.wav", bpm: bpm, keys: keys,
                bpmExact: exact, tuningCents: cents)
@@ -165,7 +165,7 @@ final class PocketTests: XCTestCase {
         unsure.level = 0.78
 
         var locked = idle
-        let l = result([("Ebm", 86), ("Gb", 9), ("Bbm", 5)], exact: 128.04, cents: 12)
+        let l = result([("Ebm", 86), ("F#", 9), ("Bbm", 5)], exact: 128.04, cents: 12)
         locked.readout = .result(l, page: nil, download: true, options: ResultOptions(
             factor: .one, tuning: Tuning.meter(12, reference: 440), onCycleTempo: {}))
         locked.clipboardLink = nil
@@ -180,7 +180,7 @@ final class PocketTests: XCTestCase {
         // live, locked and HELD (the caption and the lit HOLD key)
         var held = listening
         let h = Result(file: LiveSession.placeholderFile, name: "LIVE", bpm: "128.0",
-                       keys: [("Ebm", 86), ("Gb", 9), ("Bbm", 5)], bpmExact: 128.04)
+                       keys: [("Ebm", 86), ("F#", 9), ("Bbm", 5)], bpmExact: 128.04)
         held.readout = .result(h, page: nil, download: false, options: ResultOptions(
             factor: .one, tuning: nil, onCycleTempo: {}, live: (.locked, "HELD · LOCKED 86%", "System Audio")))
         held.held = true

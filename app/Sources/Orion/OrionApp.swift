@@ -69,7 +69,6 @@ struct OrionApp: App {
                     .optionalShortcut(shortcuts.shortcut(.hold)?.menuShortcut)
                     .disabled(!live.isHeld && !(live.state.isActive && live.state.result != nil))
                 Divider()
-                Toggle("Spell Keys with Sharps", isOn: Binding(get: { spelling.sharps }, set: { spelling.sharps = $0 }))
                 Menu("Reference Pitch") {
                     ForEach(Tuning.presets, id: \.self) { hz in
                         Toggle("A = \(Tuning.refText(hz)) Hz", isOn: referenceBinding(hz))

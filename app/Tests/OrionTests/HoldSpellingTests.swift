@@ -7,7 +7,7 @@ final class HoldSpellingTests: XCTestCase {
 
     func reading(_ key: String = "Ebm", _ pct: Int = 85) -> Result {
         Result(file: LiveSession.placeholderFile, name: "LIVE", bpm: "128.0",
-               keys: [(key, pct), ("Gb", 8), ("Bbm", 4)], bpmExact: 128.02)
+               keys: [(key, pct), ("F#", 8), ("Bbm", 4)], bpmExact: 128.02)
     }
 
     // MARK: hold
@@ -131,20 +131,18 @@ final class HoldSpellingTests: XCTestCase {
         XCTAssertEqual(r.respelled(.flats).keys.map { $0.0 }, ["Ebm", "Gb", "Bbm"])
     }
 
-    func testPreferencePersistsAndClickFlipsIt() {
+    func testSpellingIsAlwaysAutoTunes() {
+        // J 2026-11-09: names follow Auto-Tune's Key menu, no sharps/flats switch.
         let d = UserDefaults(suiteName: "spell-\(UUID())")!
+        d.set("flats", forKey: SpellingSettings.key)              // left over from the old switch
         let s = SpellingSettings(defaults: d)
         XCTAssertNil(s.preference)
-        XCTAssertFalse(s.click(on: "Am"))                       // natural: nothing
+        XCTAssertNil(d.string(forKey: SpellingSettings.key))      // wiped at launch
+        XCTAssertFalse(s.click(on: "Ebm"))
         XCTAssertNil(s.preference)
-        XCTAssertTrue(s.click(on: "Ebm"))
-        XCTAssertEqual(s.preference, .sharps)
-        XCTAssertEqual(SpellingSettings(defaults: d).preference, .sharps)
-        XCTAssertTrue(s.click(on: "D#m"))
-        XCTAssertEqual(s.preference, .flats)
-        s.sharps = true
-        XCTAssertEqual(s.preference, .sharps)
-        XCTAssertTrue(s.sharps)
+        for (old, at) in [("Gb", "F#"), ("D#m", "Ebm"), ("Abm", "G#m"), ("C#", "Db"), ("A#m", "Bbm")] {
+            XCTAssertEqual(reading(old).respelled(nil, choice: nil).keys.first?.0, at)
+        }
     }
 
     func testScaleSpellingFollowsTheKeyName() {

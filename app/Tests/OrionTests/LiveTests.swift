@@ -6,7 +6,7 @@ import XCTest
 final class LiveTests: XCTestCase {
     func reading(_ key: String = "Ebm", _ pct: Int = 85, bpm: String? = "128.0") -> Result {
         Result(file: LiveSession.placeholderFile, name: "LIVE", bpm: bpm,
-               keys: [(key, pct), ("Gb", 8), ("Bbm", 4)], bpmExact: bpm == nil ? nil : 128.02)
+               keys: [(key, pct), ("F#", 8), ("Bbm", 4)], bpmExact: bpm == nil ? nil : 128.02)
     }
     func defaults() -> UserDefaults {
         let name = "orion-tests-\(UUID().uuidString)"
@@ -22,9 +22,9 @@ final class LiveTests: XCTestCase {
         XCTAssertEqual(LiveEvent.parse(line: #"{"event":"ready"}"#), .ready)
         XCTAssertEqual(LiveEvent.parse(line: #"{"event":"reset"}"#), .reset)
         XCTAssertEqual(LiveEvent.parse(line: #"{"event":"error","message":"x"}"#), .error("x"))
-        let line = #"{"event":"reading","bpm":"128.0","bpm_exact":128.02,"keys":[["Ebm",85],["Gb",8],["Bbm",4]],"secs":14.0}"#
+        let line = #"{"event":"reading","bpm":"128.0","bpm_exact":128.02,"keys":[["Ebm",85],["F#",8],["Bbm",4]],"secs":14.0}"#
         XCTAssertEqual(LiveEvent.parse(line: line), .reading(reading()))
-        let early = #"{"event":"reading","bpm":null,"bpm_exact":null,"keys":[["Ebm",85],["Gb",8],["Bbm",4]],"secs":4.0}"#
+        let early = #"{"event":"reading","bpm":null,"bpm_exact":null,"keys":[["Ebm",85],["F#",8],["Bbm",4]],"secs":4.0}"#
         guard case .reading(let r)? = LiveEvent.parse(line: early) else { return XCTFail() }
         XCTAssertNil(r.bpm)
         XCTAssertNil(LiveEvent.parse(line: "garbage"))
@@ -59,11 +59,11 @@ final class LiveTests: XCTestCase {
         s.feed(.reading(reading()), now: t0 + 4)
         s.feed(.reading(reading()), now: t0 + 8)
         guard case .reading = s.state else { return XCTFail("locked too early") }
-        s.feed(.reading(reading("Gb", 80)), now: t0 + 10)  // another key
-        s.feed(.reading(reading("Gb", 80)), now: t0 + 14)
+        s.feed(.reading(reading("F#", 80)), now: t0 + 10)  // another key
+        s.feed(.reading(reading("F#", 80)), now: t0 + 14)
         guard case .reading = s.state else { return XCTFail("locked on a fresh key too early") }
-        s.feed(.reading(reading("Gb", 80)), now: t0 + 16)
-        XCTAssertEqual(s.state, .locked(reading("Gb", 80)))
+        s.feed(.reading(reading("F#", 80)), now: t0 + 16)
+        XCTAssertEqual(s.state, .locked(reading("F#", 80)))
     }
 
     func testNoLockWithoutABpm() {
@@ -286,7 +286,7 @@ final class LiveTests: XCTestCase {
         XCTAssertEqual(gapAsked, 3)
         cap.onSamples?([0, 0, 0])
         XCTAssertEqual(pipe.written, 3)
-        lineOut?(#"{"event":"reading","bpm":"128.0","bpm_exact":128.02,"keys":[["Ebm",85],["Gb",8],["Bbm",4]]}"#)
+        lineOut?(#"{"event":"reading","bpm":"128.0","bpm_exact":128.02,"keys":[["Ebm",85],["F#",8],["Bbm",4]]}"#)
         let exp = expectation(description: "main hop")
         DispatchQueue.main.async { exp.fulfill() }
         wait(for: [exp], timeout: 1)

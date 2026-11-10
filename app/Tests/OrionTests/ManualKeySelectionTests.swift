@@ -6,9 +6,9 @@ import XCTest
 /// Manual Key Selection (J 2026-11-09 15:19): one state (SpellingSettings.manualKey) that every
 /// path sets and clears; white instead of the display colour on the wheel, the top 3 and the dial.
 final class ManualKeySelectionTests: XCTestCase {
-    /// The analyzer's own reading: Ebm 80 %, Gb, Bbm.
+    /// The analyzer's own reading: Ebm 80 %, F#, Bbm.
     let raw = Result(file: URL(fileURLWithPath: "/x/Beats/Beat A.wav"), name: "Beat A.wav", bpm: "141.98",
-                     keys: [("Ebm", 80), ("Gb", 12), ("Bbm", 8)], bpmExact: 141.98, tuningCents: 12)
+                     keys: [("Ebm", 80), ("F#", 12), ("Bbm", 8)], bpmExact: 141.98, tuningCents: 12)
 
     private func settings() -> SpellingSettings {
         let d = UserDefaults(suiteName: "ManualKeySelectionTests")!
@@ -54,7 +54,7 @@ final class ManualKeySelectionTests: XCTestCase {
     func testTopThreeClickSets() {
         let s = settings()
         let t = KeyStrip.topKeys(state(s), settings: s)
-        t.onChoose?("Gb")
+        t.onChoose?("F#")
         XCTAssertEqual(s.manualKey?.pitchClass, 6)
         XCTAssertEqual(s.manualKey?.minor, false)
     }
@@ -117,7 +117,7 @@ final class ManualKeySelectionTests: XCTestCase {
     func testManualKeyForTheViews() {
         let s = settings()
         XCTAssertNil(ManualKey.of(nil, raw: raw))
-        s.setManualKey("Gb", of: raw, from: .topKeys)
+        s.setManualKey("F#", of: raw, from: .topKeys)
         XCTAssertEqual(ManualKey.of(s.manualKey, raw: raw), ManualKey(pitchClass: 6, minor: false, detected: 12))
         s.setManualKey("Am", of: raw, from: .wheel)                      // not detected: no %
         XCTAssertEqual(ManualKey.of(s.manualKey, raw: raw), ManualKey(pitchClass: 9, minor: true, detected: nil))
@@ -131,15 +131,15 @@ final class ManualKeySelectionTests: XCTestCase {
         s.setManualKey("Am", of: raw, from: .wheel)
         let p = state(s)
         let keys = p.result?.keys ?? []
-        XCTAssertEqual(keys.map { $0.0 }, ["Am", "Ebm", "Gb"])
+        XCTAssertEqual(keys.map { $0.0 }, ["Am", "Ebm", "F#"])
         XCTAssertEqual((0..<3).map { TopKeys.label($0, keys: keys, manual: p.manualKey) }, ["MANUAL", "80%", "12%"])
         XCTAssertEqual(TopKeys.spoken(keys: keys, manual: p.manualKey),
-                       "Top keys: Am, selected manually, Ebm 80 percent, Gb 12 percent")
+                       "Top keys: Am, selected manually, Ebm 80 percent, F# 12 percent")
         // a detected key picked: it moves first as MANUAL, the 80 % key sits second with its %
-        s.setManualKey("Gb", of: raw, from: .topKeys)
+        s.setManualKey("F#", of: raw, from: .topKeys)
         let q = state(s)
         let k2 = q.result?.keys ?? []
-        XCTAssertEqual(k2.map { $0.0 }, ["Gb", "Ebm", "Bbm"])
+        XCTAssertEqual(k2.map { $0.0 }, ["F#", "Ebm", "Bbm"])
         XCTAssertEqual((0..<3).map { TopKeys.label($0, keys: k2, manual: q.manualKey) }, ["MANUAL", "80%", "8%"])
         // not manual: the % as always
         let n = state(settings())
@@ -149,7 +149,7 @@ final class ManualKeySelectionTests: XCTestCase {
 
     func testWheelHoverCardOnTheManualKey() {
         let s = settings()
-        s.setManualKey("Gb", of: raw, from: .topKeys)
+        s.setManualKey("F#", of: raw, from: .topKeys)
         let w = HarmonyPanel.wheel(state(s), settings: s)
         let id = try! XCTUnwrap(w.manualSection)
         let tip = w.tip(for: id)
@@ -214,7 +214,7 @@ final class ManualKeySelectionTests: XCTestCase {
         detect.source = "System Audio"
         try write(window(detect), "window-advanced-not-manual")
 
-        s.setManualKey("Gb", of: raw, from: .topKeys)
+        s.setManualKey("F#", of: raw, from: .topKeys)
         var manual = state(s, advanced: true)
         manual.source = "System Audio"
         try write(window(manual), "window-advanced-manual")

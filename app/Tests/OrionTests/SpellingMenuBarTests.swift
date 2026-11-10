@@ -9,7 +9,7 @@ import XCTest
 final class SpellingMenuBarTests: XCTestCase {
     /// The analyzer's own reading: Ebm 80 %, Gb, Bbm.
     let raw = Result(file: URL(fileURLWithPath: "/x/Beats/Beat A.wav"), name: "Beat A.wav", bpm: "141.98",
-                     keys: [("Ebm", 80), ("Gb", 12), ("Bbm", 8)], bpmExact: 141.98, tuningCents: 12)
+                     keys: [("Ebm", 80), ("F#", 12), ("Bbm", 8)], bpmExact: 141.98, tuningCents: 12)
 
     private func settings(_ pref: KeySpelling? = nil) -> SpellingSettings {
         let d = UserDefaults(suiteName: "SpellingMenuBarTests")!
@@ -64,25 +64,25 @@ final class SpellingMenuBarTests: XCTestCase {
     /// reading that spells its key Gb. The wheel says Gb too, in its label, card and click.
     func testWheelUsesTheReadingsOwnSpellingWithNoPreference() {
         let s = settings(nil)
-        s.setManualKey("Gb", of: raw, from: .topKeys)
+        s.setManualKey("F#", of: raw, from: .topKeys)
         let q = state(s)
-        XCTAssertEqual(q.result?.keys.first?.0, "Gb")
+        XCTAssertEqual(q.result?.keys.first?.0, "F#")
         let w = HarmonyPanel.wheel(q, settings: s)
-        XCTAssertEqual(w.name(6, minor: false), "Gb")
-        XCTAssertTrue(w.tip(for: w.manualSection!).title.hasPrefix("Gb · "))
+        XCTAssertEqual(w.name(6, minor: false), "F#")
+        XCTAssertTrue(w.tip(for: w.manualSection!).title.hasPrefix("F# · "))
         // not manual either: the runner-up Gb is Gb on the wheel
         let n = settings(nil)
         let w2 = HarmonyPanel.wheel(state(n), settings: n)
-        XCTAssertEqual(w2.name(6, minor: false), "Gb")
-        XCTAssertTrue(w2.tip(for: 2 * 6).title.hasPrefix("Gb · "), w2.tip(for: 12).title)   // slot 6 = Gb/F#
+        XCTAssertEqual(w2.name(6, minor: false), "F#")
+        XCTAssertTrue(w2.tip(for: 2 * 6).title.hasPrefix("F# · "), w2.tip(for: 12).title)   // slot 6 = Gb/F#
         XCTAssertTrue(w2.info(3, minor: true).title.hasPrefix("Ebm"))
         // a key the reading does not list: the analyzer's own (Auto-Tune's) name
         XCTAssertEqual(w2.name(1, minor: true), "C#m")
     }
 
     func testAReadingKeyThatDoesNotResolveFallsBack() {
-        let odd = Result(file: raw.file, name: raw.name, bpm: "120", keys: [("H", 50), ("Gb", 30)], bpmExact: 120)
-        XCTAssertEqual(KeyWheel.name(6, minor: false, keys: odd.keys, spelling: nil), "Gb")
+        let odd = Result(file: raw.file, name: raw.name, bpm: "120", keys: [("H", 50), ("F#", 30)], bpmExact: 120)
+        XCTAssertEqual(KeyWheel.name(6, minor: false, keys: odd.keys, spelling: nil), "F#")
         XCTAssertEqual(KeyWheel.name(11, minor: false, keys: odd.keys, spelling: .flats), "B")
         XCTAssertEqual(KeyWheel.name(1, minor: false, keys: odd.keys, spelling: .sharps), "C#")
     }
@@ -97,9 +97,9 @@ final class SpellingMenuBarTests: XCTestCase {
 
     func testMenuBarManualDetectedKey() {
         let s = settings()
-        s.setManualKey("Gb", of: raw, from: .topKeys)
+        s.setManualKey("F#", of: raw, from: .topKeys)
         let m = MenuBarReadout.of(raw, choice: s.manualKey)
-        XCTAssertEqual(m.text, "Gb 142.0")
+        XCTAssertEqual(m.text, "F# 142.0")
         XCTAssertTrue(m.manual)
         XCTAssertNil(m.lamp)                                       // no UNSURE (12 %) lamp
         XCTAssertTrue(m.detail.hasSuffix("Manual"), m.detail)
@@ -128,7 +128,7 @@ final class SpellingMenuBarTests: XCTestCase {
         // a selection that belongs to another reading: not manual here
         let other = Result(file: URL(fileURLWithPath: "/x/other.wav"), name: "other.wav", bpm: "90", keys: [("Am", 70)], bpmExact: 90)
         let s = settings()
-        s.setManualKey("Gb", of: other, from: .wheel)
+        s.setManualKey("F#", of: other, from: .wheel)
         let n = MenuBarReadout.of(raw, choice: s.manualKey)
         XCTAssertFalse(n.manual)
         XCTAssertEqual(n.text, "Ebm 142.0")
@@ -140,7 +140,7 @@ final class SpellingMenuBarTests: XCTestCase {
         // unsure, not manual: no key yet
         XCTAssertNil(MenuBarReadout.of(live: .reading(live), source: "Mic", factor: .one, choice: nil)?.text)
         let s = settings()
-        s.setManualKey("Gb", of: live, from: .keyboard)
+        s.setManualKey("F#", of: live, from: .keyboard)
         let m = MenuBarReadout.of(live: .reading(live), source: "Mic", factor: .one, choice: s.manualKey)
         XCTAssertEqual(m?.text, "F# 128.0")   // not in the reading: the analyzer's own name, as the dial
         XCTAssertEqual(m?.manual, true)
@@ -149,9 +149,9 @@ final class SpellingMenuBarTests: XCTestCase {
 
     func testMenuBarManualSwitchLogLines() {
         let s = settings()
-        s.setManualKey("Gb", of: raw, from: .topKeys)
+        s.setManualKey("F#", of: raw, from: .topKeys)
         XCTAssertEqual(StatusItemController.manualSwitchLine(MenuBarReadout.of(raw, choice: s.manualKey)),
-                       "menu-bar item: manual key Gb 142.0 (white key, no lamp)")
+                       "menu-bar item: manual key F# 142.0 (white key, no lamp)")
         XCTAssertTrue(StatusItemController.manualSwitchLine(MenuBarReadout.of(raw, choice: nil))
             .hasPrefix("menu-bar item: manual off; showing Ebm 142.0"))
     }
@@ -198,7 +198,7 @@ final class SpellingMenuBarTests: XCTestCase {
         for (pref, tag) in [(KeySpelling?.none, "own"), (.flats, "flats"), (.sharps, "sharps")] {
             shared.preference = pref
             let s = settings(pref)
-            s.setManualKey("Gb", of: raw, from: .topKeys)
+            s.setManualKey("F#", of: raw, from: .topKeys)
             var q = state(s, advanced: true)
             q.source = "System Audio"
             try write(window(q), "window-advanced-manual-Gb-\(tag)")
@@ -210,7 +210,7 @@ final class SpellingMenuBarTests: XCTestCase {
         let s = settings()
         let rows: [(String, MenuBarReadout)] = [
             ("not-manual", MenuBarReadout.of(raw, choice: nil)),
-            ("manual-detected", { s.setManualKey("Gb", of: raw, from: .topKeys); return MenuBarReadout.of(raw, choice: s.manualKey) }()),
+            ("manual-detected", { s.setManualKey("F#", of: raw, from: .topKeys); return MenuBarReadout.of(raw, choice: s.manualKey) }()),
             ("manual-undetected", { s.setManualKey("Am", of: raw, from: .wheel); return MenuBarReadout.of(raw, choice: s.manualKey) }()),
         ]
         for dark in [true, false] {
