@@ -640,7 +640,12 @@ class LiveAnalyzer:
        "tuning_cents": -12.0 | null (vs A = 440; null while the key is under 50 %),
        "chroma": [12 floats C..B, 0..1]}   (key_reading: the same readout files get)
       {"event": "reset"}
-      {"event": "boundary", "reason": "audio" | "title", "scores": {...} (audio only)}"""
+      {"event": "boundary", "reason": "audio" | "title", "scores": {...} (audio only)}
+      {"event": "silence", "db": -61.3}   (the silence rule tripped: `gap` s under `silence_db`;
+          db = that chunk's RMS level. Said once per silent run, with the reset if there was one.
+          This analyzer is the one judge of silence: the app shows NO SOUND from this event alone.)
+      {"event": "sound", "db": -14.2, "after": 4.5}   (the first chunk at or over `silence_db`
+          after a "silence"; after = s of silence it ended)"""
 
     def __init__(self, rate=None, window=STREAM_TEMPO_SECS, hop=2.0, gap=3.0, key_window=30.0,
                  silence_db=-50.0, boundaries=True, keep_after=2.0):
@@ -655,6 +660,7 @@ class LiveAnalyzer:
         if self.rate != KEY_SR:
             import essentia.standard as es
             self._resample = es.Resample(inputSampleRate=self.rate, outputSampleRate=KEY_SR)
+        self.silent_run = 0.0                    # s of the current silence; a song flush keeps it
         self.clear()
 
     def clear(self):
@@ -664,7 +670,6 @@ class LiveAnalyzer:
         self.frames = []                         # HPCP frames, last `key_window` s
         self.peaks = []                          # their spectral peaks (tuning, retuned key)
         self.heard = 0.0                         # s of non-silent audio since the last reset
-        self.silent_run = 0.0
         self.since_reading = 0.0
         if self.detector is not None:
             self.detector.reset()
@@ -686,8 +691,12 @@ class LiveAnalyzer:
             x = self._resample(x)
         secs = len(x) / KEY_SR
         events = []
-        if self.level_db(x) < self.silence_db:
+        db = self.level_db(x)
+        if db < self.silence_db:
+            was = self.silent_run
             self.silent_run += secs
+            if was < self.gap <= self.silent_run:
+                events.append({"event": "silence", "db": round(db, 1)})
             if self.silent_run >= self.gap and self.heard > 0:
                 if self.since_reading > 0:
                     r = self.reading()
@@ -696,6 +705,8 @@ class LiveAnalyzer:
                 self.clear()
                 events.append({"event": "reset"})
             return events
+        if self.silent_run >= self.gap:
+            events.append({"event": "sound", "db": round(db, 1), "after": round(self.silent_run, 1)})
         self.silent_run = 0.0
         found = self.detector.push(x) if self.detector is not None else None
         if found is not None:

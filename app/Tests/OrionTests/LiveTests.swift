@@ -21,6 +21,11 @@ final class LiveTests: XCTestCase {
     func testParsesStreamLines() {
         XCTAssertEqual(LiveEvent.parse(line: #"{"event":"ready"}"#), .ready)
         XCTAssertEqual(LiveEvent.parse(line: #"{"event":"reset"}"#), .reset)
+        XCTAssertEqual(LiveEvent.parse(line: #"{"event": "silence", "db": -61.3}"#), .silence(db: -61.3))
+        XCTAssertEqual(LiveEvent.parse(line: #"{"event": "sound", "db": -14.2, "after": 4.5}"#),
+                       .sound(db: -14.2, after: 4.5))
+        XCTAssertNil(LiveEvent.parse(line: #"{"event": "silence"}"#))             // no level: not the analyzer's
+        XCTAssertNil(LiveEvent.parse(line: #"{"event": "sound", "db": -14.2}"#))
         XCTAssertEqual(LiveEvent.parse(line: #"{"event":"error","message":"x"}"#), .error("x"))
         let line = #"{"event":"reading","bpm":"128.0","bpm_exact":128.02,"keys":[["Ebm",85],["F#",8],["Bbm",4]],"secs":14.0}"#
         XCTAssertEqual(LiveEvent.parse(line: line), .reading(reading()))

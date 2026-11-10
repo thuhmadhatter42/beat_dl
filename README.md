@@ -42,7 +42,7 @@ Everything is under the menus or in Settings (Beat Key > Settings, ⌘,). The gl
 - **Export MIDI Tempo/Key file.** File > Export MIDI Tempo/Key File… (⌃⌥⌘E) saves a small `.mid` with the tempo and key, for any DAW.
 - **Open at login.** Settings > General > Open at Login.
 - **Log.** `~/Library/Logs/Beat Key/beatkey.log` records launches, quits and crashes, and every Listen session: what it hears, the input level once a second, each reading change, and why it stopped. Analyzer and helper stderr go to `analyzer.log`, the last download's yt-dlp runs to `last-run.log`; send them with a bug report.
-- **Silent Listen.** 5 s of no signal from the source and the LCD says NO SOUND · CHECK SOURCE until sound returns.
+- **Silent Listen.** When the source goes quiet for the gap (Settings, 3 s by default: under -50 dB, or nothing arriving) the reading starts over and the LCD says NO SOUND · CHECK SOURCE until sound returns.
 
 Permissions macOS may ask for, each only when you use the feature:
 
