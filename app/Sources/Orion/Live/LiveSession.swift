@@ -397,6 +397,8 @@ final class LiveController: ObservableObject {
     /// Hold is on (a button, never automatic).
     @Published private(set) var isHeld = false
     @Published private(set) var sourceName = ""
+    /// What this Listen hears ("all apps except Beat Key", "input Scarlett 4i4 · Ch 3"), for the log.
+    private var hearingLabel = ""
     /// A short non-error line that stands in for the lamp's caption for a few seconds (the saved
     /// input is missing, Mac audio is used instead). nil = none.
     @Published private(set) var notice: String?
@@ -485,6 +487,8 @@ final class LiveController: ObservableObject {
                                        systemAvailable: settings.systemAvailable)
         sourceName = LiveSettings.name(of: plan.source, devices: devs)
         AppLog.log("listen: start · source \(sourceName) (\(plan.source.stored)) · gap \(settings.gap) s")
+        hearingLabel = LiveController.hearing(plan.source, name: sourceName)
+        AppLog.log("listen: hearing \(hearingLabel)")
         silence = SilenceGuard()
         if case .fallback(_, let uid, let ch) = plan {
             AppLog.log("listen: saved input missing (uid \(uid), ch \(ch); connected: "
@@ -511,17 +515,11 @@ final class LiveController: ObservableObject {
         }
         pipe = p
         capture = cap
-        if let f = cap as? FilteredCapture {
-            f.onFilter = { [weak self] filter in
-                DispatchQueue.main.async { self?.filterChosen(filter, gen: gen) }
-            }
-        }
         session.begin()
         publish()
         songs.begin(signal: p as? SongSignal)
         fillLock.lock(); filler = SilenceFiller(now: now()); clip.clear()
         window = LevelWindow(); windowSince = now(); fillLock.unlock()
-        if !(cap is FilteredCapture) { filterChosen(.input(sourceName), gen: gen) }
         cap.start(onSamples: { [weak self, weak p] samples in
             guard let self = self else { return }
             let pk = samples.reduce(Float(0)) { max($0, abs($1)) }
@@ -560,13 +558,8 @@ final class LiveController: ObservableObject {
         switch silence.second(s) {
         case .none:
             break
-        case .hearAllApps(let from):
-            AppLog.log("listen: no signal for \(SilenceGuard.seconds) s from \(from)")
-            AppLog.log("listen: falling back to all apps (no exclusions) for the rest of this Listen")
-            (capture as? FilteredCapture)?.hearAllApps()
-            showNotice(SilenceGuard.wideningNotice, gen: generation)
-        case .noSound(let from):
-            AppLog.log("listen: no signal for \(SilenceGuard.seconds) s from \(from); LCD says \"\(SilenceGuard.noSoundNotice)\"")
+        case .noSound:
+            AppLog.log("listen: no signal for \(SilenceGuard.seconds) s from \(hearingLabel); LCD says \"\(SilenceGuard.noSoundNotice)\"")
             showNotice(SilenceGuard.noSoundNotice, gen: generation, seconds: nil)
         case .soundBack(let after):
             AppLog.log("listen: signal back after \(after) s silent")
@@ -574,11 +567,12 @@ final class LiveController: ObservableObject {
         }
     }
 
-    /// The capture said what it hears (System Audio: after it lists the apps, and again on each reopen).
-    private func filterChosen(_ f: CaptureFilter, gen: Int) {
-        guard gen == generation, state.isActive else { return }
-        AppLog.log("listen: hearing \(f.label)")
-        silence.filterChosen(f)
+    /// What a source hears, for the log: System Audio is every app but Beat Key itself.
+    static func hearing(_ source: LiveSource, name: String) -> String {
+        switch source {
+        case .system: return "all apps except Beat Key"
+        case .input: return "input \(name)"
+        }
     }
 
     /// Up to the last minute of audio heard since Listen (or New Song) started.
