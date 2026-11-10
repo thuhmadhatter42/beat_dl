@@ -197,15 +197,32 @@ enum Theme {
             // the first 45 ms and then crawled, so each reading read as a click (0.1.50, J
             // 2026-11-09). A spring also picks up from its current speed if a reading lands
             // mid-move instead of restarting from rest.
-            case .value: return .spring(response: d, dampingFraction: 1, blendDuration: 0)
+            case .value: return .spring(response: d, dampingFraction: valueDamping, blendDuration: 0)
             case .swap: return .easeInOut(duration: d)
             case .hover: return .easeOut(duration: d)
             }
         }
 
-        static var value: Animation? { animation(.value, reduce: reduceMotion, snapshot: Pocket.snapshot) }
-        static var swap: Animation? { animation(.swap, reduce: reduceMotion, snapshot: Pocket.snapshot) }
-        static var hover: Animation? { animation(.hover, reduce: reduceMotion, snapshot: Pocket.snapshot) }
+        /// Damping of the value spring (1 = critically damped). Shared by `animation(.value)` and
+        /// `valueProgress`, so the curve the tests sample is the curve the views are given.
+        static let valueDamping = 1.0
+
+        /// How far (0...1) a value has got `elapsed` seconds after its reading lands: the closed
+        /// form of the critically damped spring `animation(.value)` hands SwiftUI (response =
+        /// valueDuration, so omega = 2 pi / response): 1 - (1 + w t) e^(-w t). Pure: time is passed in.
+        static func valueProgress(elapsed t: Double) -> Double {
+            guard t > 0 else { return 0 }
+            let w = 2 * Double.pi / valueDuration
+            return 1 - (1 + w * t) * exp(-w * t)
+        }
+
+        /// Tests only (MotionFrameTests): called with the kind each time a view's body asks for
+        /// a token, to assert which views attach which motion.
+        static var onResolve: ((Kind) -> Void)?
+
+        static var value: Animation? { onResolve?(.value); return animation(.value, reduce: reduceMotion, snapshot: Pocket.snapshot) }
+        static var swap: Animation? { onResolve?(.swap); return animation(.swap, reduce: reduceMotion, snapshot: Pocket.snapshot) }
+        static var hover: Animation? { onResolve?(.hover); return animation(.hover, reduce: reduceMotion, snapshot: Pocket.snapshot) }
     }
 
     static func nsFace(_ size: CGFloat, bold: Bool = false) -> NSFont {
