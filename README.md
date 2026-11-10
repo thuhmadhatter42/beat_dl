@@ -34,7 +34,7 @@ Everything is under the menus or in Settings (Beat Key > Settings, ⌘,). The gl
 - **Send to DAW.** Reading > Send to DAW (⌃⌥⌘S) sends the decimal BPM and top key to the DAW you used last; Send to All DAWs (⌃⌥⌘D) sends to every open one. What each gets:
   - Ableton Live 12: tempo and key. Live 11: tempo only. Through a small Remote Script Beat Key offers to install (then pick BeatKey as a Control Surface once, in Live > Settings > Link, Tempo & MIDI).
   - REAPER: tempo (REAPER has no project key). Bitwig Studio: tempo (no project key). Each through a script Beat Key offers to install (REAPER: a ReaScript you start once; Bitwig: a controller you add once).
-  - Pro Tools, Logic Pro, Studio One: tempo and key, typed into the DAW's own tempo and key controls through Accessibility. If that fails, Beat Key hands you a MIDI file with tempo and key to import instead.
+  - Pro Tools, Logic Pro, Studio One: tempo and key, typed into the DAW's own tempo and key controls through Accessibility. If a value can't be confirmed, nothing is sent (Export MIDI makes a file for any DAW).
   - FL Studio, Reason, Cubase: a MIDI file with tempo and key to import (they can't be told a tempo from outside).
 - **Analyze Selection.** Reading > Analyze Selection (no shortcut by default; give it one in Settings › Shortcuts, works in any app) reads the clip you have selected in Pro Tools, Ableton Live or REAPER. Other DAWs: export the clip and drop it on Beat Key.
 - **Choose the key.** The top 3 keys are clickable: click key 2 or 3 and that becomes THE key for every send (New Song clears it).
@@ -47,7 +47,7 @@ Permissions macOS may ask for, each only when you use the feature:
 
 - **Microphone**: listening to a microphone or audio interface.
 - **Screen & System Audio Recording**: listening to everything the Mac plays. Beat Key takes only the sound; it doesn't capture or keep your screen.
-- **Accessibility**: Send to DAW for Pro Tools, Logic Pro and Studio One (Beat Key fills in their tempo and key controls). Without it you get the MIDI file instead.
+- **Accessibility**: Send to DAW for Pro Tools, Logic Pro and Studio One (Beat Key fills in their tempo and key controls). Without it, Beat Key asks once and sends nothing.
 
 The sections below are for the command-line version.
 
