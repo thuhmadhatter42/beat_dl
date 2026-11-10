@@ -353,19 +353,20 @@ extension PocketActions {
             Intake.analyzeAFile()
         }
         a.sendDAW = {
-            guard let r = shown() else { NSSound.beep(); return }
+            guard let r = shown() else { log("send to DAW: no reading on show (beep)"); NSSound.beep(); return }
             log("send to DAW")
             close()
             DAWSendController.send(r, toAll: false)
         }
         a.sendAutoTune = {
             log("send to auto-tune")
-            guard let key = shown()?.keys.first?.0, AutoTuneSend.sendAll(key: key, referencePitch: tuning.reference)
-            else { NSSound.beep(); return false }
+            guard let key = shown()?.keys.first?.0 else { log("send to auto-tune: no key on show (beep)"); NSSound.beep(); return false }
+            guard AutoTuneSend.sendAll(key: key, referencePitch: tuning.reference)
+            else { log("send to auto-tune \(key): nothing took it (beep)"); NSSound.beep(); return false }
             return true
         }
         a.exportMidi = {
-            guard let r = shown() else { NSSound.beep(); return }
+            guard let r = shown() else { log("export MIDI: no reading on show (beep)"); NSSound.beep(); return }
             log("export MIDI")
             close()
             NSApp.activate(ignoringOtherApps: true)
@@ -393,7 +394,7 @@ enum SourceMenu {
             AppLog.log("listen source picked")
             s.source = src
             extras.refresh(live: live)
-            if live.state.isActive { live.start() }
+            if live.state.isActive { live.start(why: "source changed") }
         }
         var items: [PopupMenu.Item] = []
         if LiveSource.systemAvailable {

@@ -290,7 +290,10 @@ final class MiniController: NSObject, ObservableObject, NSWindowDelegate {
     // MARK: playing
 
     func press(_ pad: MiniPad, via how: String) {
-        guard let c = view.layout.chord(pad) else { return }
+        guard let c = view.layout.chord(pad) else {
+            AppLog.log("mini: pad pressed (\(how)) with no chord to play (key \(feed.key ?? "none"))")
+            return
+        }
         emit(held.press(pad, notes: c.notes(feed.voicing)))
         view.lit = Set(held.pads.keys)
         AppLog.log("mini: \(c.asciiName) down (\(how))")

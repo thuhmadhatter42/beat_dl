@@ -40,7 +40,10 @@ enum AutoTuneSend {
     /// Writes temp + rename in the same folder (the watcher never sees a half file).
     @discardableResult
     static func write(key: String, referencePitch: Double, to url: URL = handoffURL) -> Bool {
-        guard let k = keyClass(key) else { return false }
+        guard let k = keyClass(key) else {
+            AppLog.log("auto-tune hand-off: \"\(key)\" is not a key it can take; nothing written")
+            return false
+        }
         let text = contents(pitchClass: k.pitchClass, minor: k.minor, referencePitch: referencePitch)
         let dir = url.deletingLastPathComponent()
         let tmp = dir.appendingPathComponent(".Auto-Key.handoff.\(ProcessInfo.processInfo.processIdentifier).tmp")
@@ -54,6 +57,7 @@ enum AutoTuneSend {
             }
             return true
         } catch {
+            AppLog.log("auto-tune hand-off write failed (\(url.path)): \(error)")
             try? FileManager.default.removeItem(at: tmp)
             return false
         }
@@ -78,7 +82,10 @@ struct SendToAutoTuneMenuItem: View {
     var body: some View {
         let key = MidiExport.current(engine.state)?.keys.first?.0
         Button("Send Key to Auto-Tune") {
-            if let key, !AutoTuneSend.sendAll(key: key, referencePitch: tuning.reference) { NSSound.beep() }
+            if let key, !AutoTuneSend.sendAll(key: key, referencePitch: tuning.reference) {
+                AppLog.log("send to auto-tune \(key): nothing took it (beep)")
+                NSSound.beep()
+            }
         }
         .keyboardShortcut("a", modifiers: [.control, .option, .command])
         .disabled(key.flatMap(AutoTuneSend.keyClass) == nil)

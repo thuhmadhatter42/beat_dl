@@ -307,7 +307,7 @@ final class LiveProcess: LivePipe {
         let out = Pipe()
         process.standardInput = stdin
         process.standardOutput = out
-        process.standardError = AppLog.analyzerHandle() ?? FileHandle.nullDevice
+        process.standardError = AppLog.analyzerHandle(header: "bpm.py --stream") ?? FileHandle.nullDevice
         AppLog.log("analyzer start: \(arguments.dropFirst().joined(separator: " "))")
         do { try process.run() } catch { AppLog.log("analyzer failed to start: \(error)"); return nil }
         DispatchQueue.global(qos: .userInitiated).async {
@@ -324,7 +324,7 @@ final class LiveProcess: LivePipe {
             }
             // exit only after every line is out
             self.process.waitUntilExit()
-            AppLog.log("analyzer exited: status \(self.process.terminationStatus) reason \(self.process.terminationReason.rawValue)")
+            AppLog.log("analyzer exited: status \(self.process.terminationStatus) reason \(self.process.terminationReason.rawValue)" + (self.process.terminationStatus == 0 ? "" : "; its stderr: analyzer.log"))
             onExit(self.process.terminationStatus)
         }
     }
@@ -334,7 +334,10 @@ final class LiveProcess: LivePipe {
         let data = samples.withUnsafeBufferPointer { Data(buffer: $0) }   // little-endian on every Mac
         writes.async { [self] in
             guard !closed else { return }
-            do { try stdin.fileHandleForWriting.write(contentsOf: data) } catch { closed = true }
+            do { try stdin.fileHandleForWriting.write(contentsOf: data) } catch {
+                closed = true
+                AppLog.log("analyzer pipe write failed (the analyzer is gone?): \(error)")
+            }
         }
     }
 
@@ -419,6 +422,12 @@ final class LiveController: ObservableObject {
     private var fillTimer: Timer?
     private var levelTimer: Timer?
     private var peak: Float = 0
+    /// This second's input, for the log's level line and the silence guard (fillLock guards it).
+    private var window = LevelWindow()
+    private var windowSince = Date.distantPast
+    private var silence = SilenceGuard()
+    private var stateLine = ChangeLine(last: LiveController.summary(.off))   // off at launch: nothing to say
+    private var quitObserver: NSObjectProtocol?
     private let fillLock = NSLock()
     private var generation = 0
     /// The last minute heard, for a "Wrong, it's X" teach record (fillLock guards it).
@@ -434,7 +443,16 @@ final class LiveController: ObservableObject {
         self.makeCapture = makeCapture
         self.now = now
         self.devices = devices
+        // App quit: say Listen stopped because of it (the log's last word on the session).
+        quitObserver = NotificationCenter.default.addObserver(
+            forName: NSApplication.willTerminateNotification, object: nil, queue: nil) { [weak self] _ in
+            guard let self = self, self.state.isActive else { return }
+            self.stop(reason: "app quit")
+            AppLog.flush()
+        }
     }
+
+    deinit { if let o = quitObserver { NotificationCenter.default.removeObserver(o) } }
 
     static func realCapture(_ s: LiveSource) -> AudioCapture? {
         switch s {
@@ -446,24 +464,28 @@ final class LiveController: ObservableObject {
         }
     }
 
-    func toggle() { state.isActive ? stop() : start() }
+    func toggle() { state.isActive ? stop(reason: "user stop") : start() }
 
     /// New Song: drop everything heard and any lock, now, and keep listening to the same source.
     /// The analyzer's stdin carries only samples (no control channel), so the stream is started
     /// over: a fresh analyzer and capture, the lamp back to red LISTENING. Off = nothing to do.
     func reset() {
         guard state.isActive else { return }
-        start()
+        start(why: "new song")
     }
 
-    func start() {
-        stop()
+    /// `why` = why a running Listen is being started over (new song, source changed); it is
+    /// logged as the old session's stop reason.
+    func start(why: String = "restarted") {
+        stop(reason: why)
         generation += 1
         let gen = generation
         let devs = devices()
         let plan = LiveSourcePlan.plan(saved: settings.source, connectedUIDs: Set(devs.map(\.uid)),
                                        systemAvailable: settings.systemAvailable)
         sourceName = LiveSettings.name(of: plan.source, devices: devs)
+        AppLog.log("listen: start · source \(sourceName) (\(plan.source.stored)) · gap \(settings.gap) s")
+        silence = SilenceGuard()
         if case .fallback(_, let uid, let ch) = plan {
             AppLog.log("listen: saved input missing (uid \(uid), ch \(ch); connected: "
                        + (devs.isEmpty ? "none" : devs.map { "\($0.name) [\($0.uid)]" }.joined(separator: ", "))
@@ -489,14 +511,22 @@ final class LiveController: ObservableObject {
         }
         pipe = p
         capture = cap
+        if let f = cap as? FilteredCapture {
+            f.onFilter = { [weak self] filter in
+                DispatchQueue.main.async { self?.filterChosen(filter, gen: gen) }
+            }
+        }
         session.begin()
         publish()
         songs.begin(signal: p as? SongSignal)
-        fillLock.lock(); filler = SilenceFiller(now: now()); clip.clear(); fillLock.unlock()
+        fillLock.lock(); filler = SilenceFiller(now: now()); clip.clear()
+        window = LevelWindow(); windowSince = now(); fillLock.unlock()
+        if !(cap is FilteredCapture) { filterChosen(.input(sourceName), gen: gen) }
         cap.start(onSamples: { [weak self, weak p] samples in
             guard let self = self else { return }
             let pk = samples.reduce(Float(0)) { max($0, abs($1)) }
             self.fillLock.lock(); self.filler?.heard(at: self.now()); self.peak = max(self.peak, pk)
+            self.window.add(samples, peak: pk)
             self.clip.append(samples); self.fillLock.unlock()
             p?.write(samples)
         }, onError: { [weak self] message in
@@ -505,16 +535,50 @@ final class LiveController: ObservableObject {
         let t = Timer(timeInterval: 0.25, repeats: true) { [weak self] _ in self?.fillSilence() }
         RunLoop.main.add(t, forMode: .common)
         fillTimer = t
-        let lt = Timer(timeInterval: 1.0 / 20, repeats: true) { [weak self] _ in self?.updateLevel() }
+        let lt = Timer(timeInterval: 1.0 / 20, repeats: true) { [weak self] _ in self?.tickLevel() }
         RunLoop.main.add(lt, forMode: .common)
         levelTimer = lt
     }
 
-    /// The meter: the loudest sample since the last tick, falling back at most 20 % per tick.
-    private func updateLevel() {
-        fillLock.lock(); let pk = peak; peak = 0; fillLock.unlock()
+    /// The meter (20 Hz): the loudest sample since the last tick, falling back at most 20 % per
+    /// tick. Once a second it also logs the level and runs the silence guard; never per tick.
+    func tickLevel() {
+        let t = now()
+        fillLock.lock()
+        let pk = peak; peak = 0
+        var second: LevelSecond?
+        if t.timeIntervalSince(windowSince) >= 1 { second = window.take(); windowSince = t }
+        fillLock.unlock()
         let next = max(LevelMeter.scale(pk), level * 0.8)
         if abs(next - level) > 0.004 { meter.value = next < 0.01 ? 0 : next }
+        if let s = second { levelSecond(s) }
+    }
+
+    private func levelSecond(_ s: LevelSecond) {
+        guard state.isActive else { return }
+        AppLog.log("listen: " + s.text)
+        switch silence.second(s) {
+        case .none:
+            break
+        case .hearAllApps(let from):
+            AppLog.log("listen: no signal for \(SilenceGuard.seconds) s from \(from)")
+            AppLog.log("listen: falling back to all apps (no exclusions) for the rest of this Listen")
+            (capture as? FilteredCapture)?.hearAllApps()
+            showNotice(SilenceGuard.wideningNotice, gen: generation)
+        case .noSound(let from):
+            AppLog.log("listen: no signal for \(SilenceGuard.seconds) s from \(from); LCD says \"\(SilenceGuard.noSoundNotice)\"")
+            showNotice(SilenceGuard.noSoundNotice, gen: generation, seconds: nil)
+        case .soundBack(let after):
+            AppLog.log("listen: signal back after \(after) s silent")
+            if notice == SilenceGuard.noSoundNotice { noticeWork?.cancel(); noticeWork = nil; notice = nil }
+        }
+    }
+
+    /// The capture said what it hears (System Audio: after it lists the apps, and again on each reopen).
+    private func filterChosen(_ f: CaptureFilter, gen: Int) {
+        guard gen == generation, state.isActive else { return }
+        AppLog.log("listen: hearing \(f.label)")
+        silence.filterChosen(f)
     }
 
     /// Up to the last minute of audio heard since Listen (or New Song) started.
@@ -530,15 +594,19 @@ final class LiveController: ObservableObject {
         if n > 0 { pipe?.write([Float](repeating: 0, count: n)) }
     }
 
-    func stop() {
+    /// `reason` lands in the log: user stop, new song, source changed, app quit, a download took
+    /// the LCD... Nothing is logged when Listen was already off.
+    func stop(reason: String = "user stop") {
+        if state.isActive { AppLog.log("listen: stopped (\(reason))") }
         teardown()
         session.end()
         publish()
     }
 
+    /// Logs each change of what Listen shows (key, %, BPM, lamp), never a repeat.
     private func publish() {
-        let d = LiveController.summary(session.state)
-        if d != lastLogged { AppLog.log("listen: \(d)\(session.isHeld ? " (held)" : "") source \(sourceName)"); lastLogged = d }
+        let d = LiveController.summary(session.state) + (session.isHeld ? " (held)" : "")
+        if let line = stateLine.next(d) { AppLog.log("listen: \(line) · source \(sourceName)") }
         state = session.state
         if isHeld != session.isHeld { isHeld = session.isHeld }
     }
@@ -555,15 +623,18 @@ final class LiveController: ObservableObject {
     func toggleHold() -> Bool { setHold(!session.isHeld) }
     var canHold: Bool { session.canHold }
 
-    /// The notice for `noticeSeconds`, then the lamp's own caption again.
-    private func showNotice(_ text: String, gen: Int) {
+    /// The notice for `seconds`, then the lamp's own caption again; nil = until cleared.
+    private func showNotice(_ text: String, gen: Int, seconds: TimeInterval? = LiveSourcePlan.noticeSeconds) {
+        noticeWork?.cancel()
+        noticeWork = nil
         notice = text
+        guard let secs = seconds else { return }
         let work = DispatchWorkItem { [weak self] in
             guard let self = self, gen == self.generation else { return }
             self.notice = nil
         }
         noticeWork = work
-        DispatchQueue.main.asyncAfter(deadline: .now() + LiveSourcePlan.noticeSeconds, execute: work)
+        DispatchQueue.main.asyncAfter(deadline: .now() + secs, execute: work)
     }
 
     private func teardown() {
@@ -583,22 +654,35 @@ final class LiveController: ObservableObject {
         fillLock.lock(); filler = nil; fillLock.unlock()
     }
 
-    private var lastLogged = ""
+    /// What took the LCD from Listen, for its stop reason ("download / analysis (downloading)").
+    static func engineLabel(_ s: ViewState) -> String {
+        switch s {
+        case .idle: return "idle"
+        case .working(let stage): return "a download or analysis (\(stage))"
+        case .done: return "a download's result"
+        case .analyzed: return "a file's result"
+        case .failed: return "an error"
+        case .needsLogin: return "a login prompt"
+        case .doctor: return "Run Doctor"
+        }
+    }
 
-    /// One log line's worth of Listen's state (the key list, not the whole Result).
+    /// One log line's worth of Listen's state (the key list, not the whole Result), with the lamp.
     static func summary(_ s: LiveState) -> String {
+        func keys(_ r: Result) -> String { r.keys.prefix(3).map { "\($0.0) \($0.1)%" }.joined(separator: ", ") }
+        let lamp = s.lamp.map { " · lamp \($0.logName)" } ?? ""
         switch s {
         case .off: return "off"
-        case .listening: return "listening"
+        case .listening: return "listening" + lamp
         case .failed(let m): return "FAILED: \(m)"
-        case .reading(let r): return "reading " + r.keys.prefix(3).map { "\($0.0) \($0.1)%" }.joined(separator: ", ") + " bpm \(r.bpm ?? "-")"
-        case .locked(let r): return "locked " + r.keys.prefix(3).map { "\($0.0) \($0.1)%" }.joined(separator: ", ") + " bpm \(r.bpm ?? "-")"
+        case .reading(let r): return "reading \(keys(r)) · bpm \(r.bpm ?? "-")" + lamp
+        case .locked(let r): return "locked \(keys(r)) · bpm \(r.bpm ?? "-")" + lamp
         }
     }
 
     private func fail(_ message: String, gen: Int) {
         guard gen == generation else { return }
-        AppLog.log("listen failed: \(message)")
+        AppLog.log("listen: stopped (error: \(message))")
         teardown()
         session.fail(message)
         publish()

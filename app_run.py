@@ -35,6 +35,14 @@ import downloader  # noqa: E402
 _KEY_RE = re.compile(r"^(.*?)\s*\((\d+(?:\.\d+)?)%\)\s*$")
 
 
+def log(msg):
+    """One line to stderr, which the app sends to ~/Library/Logs/Beat Key/analyzer.log (timestamped,
+    so it lines up with beatkey.log). Every failure that does not reach the app as an event lands here."""
+    from datetime import datetime
+    sys.stderr.write(f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S')} app_run: {msg}\n")
+    sys.stderr.flush()
+
+
 def emit(**event):
     sys.stdout.write(json.dumps(event, ensure_ascii=False) + "\n")
     sys.stdout.flush()
@@ -62,20 +70,33 @@ def analyze_file(path, timeout=120, extras=None):
     """Run bpm.py on a file. Returns (bpm_string | None, [(key, percent_int), ...]).
     extras (a dict) receives bpm.py's "name: value" lines after the keys: bpm_exact, tuning_cents,
     chroma (a list of 12 floats)."""
+    name = Path(path).name
     try:
         p = subprocess.run([sys.executable, str(HERE / "bpm.py"), str(path)],
                            capture_output=True, text=True, timeout=timeout)
-    except (subprocess.TimeoutExpired, OSError):
+    except subprocess.TimeoutExpired:
+        log(f"bpm.py timed out after {timeout} s on {name}")
         return None, []
+    except OSError as exc:
+        log(f"bpm.py could not start for {name}: {exc}")
+        return None, []
+    stderr = (getattr(p, "stderr", "") or "").strip()
+    if stderr:
+        # warnings (librosa fallback, decimal BPM skipped) and tracebacks, kept
+        for line in stderr.splitlines()[-20:]:
+            log(f"bpm.py [{name}]: {line}")
     if p.returncode != 0:
+        log(f"bpm.py exit {p.returncode} on {name}")
         return None, []
     lines = p.stdout.splitlines()
     if not lines:
+        log(f"bpm.py printed nothing for {name}")
         return None, []
     bpm = lines[0].strip()
     try:
         float(bpm)
     except ValueError:
+        log(f"bpm.py first line is not a BPM for {name}: {bpm[:80]!r}")
         return None, []
     keys = []
     for line in lines[1:4]:
@@ -97,7 +118,7 @@ def analyze_file(path, timeout=120, extras=None):
                         raise ValueError("not 12 values")
                     extras[name] = v
                 except (ValueError, TypeError):
-                    print(f"Warning: chroma line ignored: {value[:80]}", file=sys.stderr)
+                    log(f"Warning: chroma line ignored: {value[:80]}")
     return bpm, keys
 
 
@@ -142,9 +163,11 @@ def _upgrade_ytdlp():
     if not exe:
         return False
     try:
-        subprocess.run([exe, "-U"], capture_output=True, text=True, timeout=180)
-    except (subprocess.TimeoutExpired, OSError):
-        pass
+        r = subprocess.run([exe, "-U"], capture_output=True, text=True, timeout=180)
+        if r.returncode != 0:
+            log(f"yt-dlp -U exit {r.returncode}: {(r.stderr or r.stdout).strip()[-300:]}")
+    except (subprocess.TimeoutExpired, OSError) as exc:
+        log(f"yt-dlp -U failed: {exc}")
     return True
 
 
@@ -194,8 +217,8 @@ def write_last_run_log(url, cookies_file, outcome):
         p = last_run_log_path()
         p.parent.mkdir(parents=True, exist_ok=True)
         p.write_text("\n".join(lines) + "\n", encoding="utf-8")
-    except Exception:
-        pass  # the log must never cost a download
+    except Exception as exc:
+        log(f"could not write last-run.log: {exc}")  # the log must never cost a download
 
 
 def cmd_download(url, cookies_file=None):
@@ -243,6 +266,7 @@ def _cmd_download(url, cookies_file, outcome):
     if not path:
         msg = msg or "Download failed for an unknown reason."
         outcome[0] = f"error: {msg}"
+        log(f"download failed: {msg} (yt-dlp commands and their stderr: last-run.log)")
         emit(stage="error", message=msg)
         return
     outcome[0] = "downloaded"
@@ -251,8 +275,11 @@ def _cmd_download(url, cookies_file, outcome):
     extras = {}
     try:
         bpm, keys = analyze_file(path, extras=extras)
-    except Exception:
+    except Exception as exc:
+        log(f"analysis crashed on {path.name}: {exc!r}")
         bpm, keys = None, []
+    if not bpm:
+        log(f"no BPM for the download {path.name}; kept under its own name")
     final = path
     if bpm:
         try:
@@ -260,8 +287,9 @@ def _cmd_download(url, cookies_file, outcome):
             new = path.with_name(renamed_name(path.stem, path.suffix.lstrip("."), bpm, keys))
             os.replace(path, new)
             final = new
-        except Exception:
+        except Exception as exc:
             # Rename failed: keep the original file and its analysis.
+            log(f"rename failed for {path.name}: {exc}")
             final = path
             if not final.exists():
                 emit(stage="error", message="Could not rename the downloaded file.")
@@ -273,8 +301,8 @@ def _cmd_download(url, cookies_file, outcome):
         downloads_dir().mkdir(parents=True, exist_ok=True)
         with open(log_path(), "a", encoding="utf-8") as f:
             f.write(log_line(url, final.name))
-    except Exception:
-        pass  # a log failure must not lose the done event
+    except Exception as exc:
+        log(f"could not append to the links log {log_path()}: {exc}")  # must not lose the done event
     outcome[0] = "done"
     emit(stage="done", file=str(final), name=final.name, bpm=bpm or None,
          keys=[[k, p] for k, p in keys], **(extras if bpm else {}))
@@ -299,7 +327,8 @@ def cmd_analyze(files):
         extras = {}
         try:
             bpm, keys = analyze_file(path, extras=extras)
-        except Exception:
+        except Exception as exc:
+            log(f"analysis crashed on {path.name}: {exc!r}")
             bpm, keys = None, []
         try:
             full = str(path.resolve())
@@ -308,6 +337,7 @@ def cmd_analyze(files):
         extra = dict(extras) if bpm else {}
         if not bpm and read_error(path):
             extra["error"] = "permission"
+            log(f"macOS refused to let the helper read {path.name} (permission)")
         emit(stage="analyzed", file=full, name=path.name,
              bpm=bpm or None, keys=[[k, p] for k, p in keys], **extra)
 
@@ -318,6 +348,8 @@ def main(argv):
     except BaseException as exc:  # last resort: the app always gets a terminal event
         if isinstance(exc, KeyboardInterrupt):
             raise
+        import traceback
+        log("unexpected error: " + "".join(traceback.format_exception(type(exc), exc, exc.__traceback__)).strip())
         emit(stage="error", message=f"Unexpected error: {exc}")
         return 0
 

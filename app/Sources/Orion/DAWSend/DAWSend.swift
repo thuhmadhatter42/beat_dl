@@ -255,6 +255,7 @@ enum DAWSendController {
 
     static func analyzeSelection() {
         guard let d = DAWWatcher.shared.target else {
+            AppLog.log("analyze selection: no DAW open")
             alert("No DAW is open", "Analyze Selection reads the selected clip in Pro Tools, Ableton Live or REAPER.")
             return
         }
@@ -263,7 +264,10 @@ enum DAWSendController {
             let o = run(d) { files = try DAWDrivers.driver(d).selectionAudio(); return "" }
             DispatchQueue.main.async {
                 if o.ok, !files.isEmpty { Intake.receive(files, via: "daw selection") }
-                else { alert("Could not read the selection in \(d.name)", o.ok ? "Nothing came back." : o.message) }
+                else {
+                    AppLog.log("analyze selection in \(d.name) failed: \(o.ok ? "nothing came back" : o.message)")
+                    alert("Could not read the selection in \(d.name)", o.ok ? "Nothing came back." : o.message)
+                }
             }
         }
     }

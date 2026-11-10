@@ -9,8 +9,12 @@ import ScreenCaptureKit
 /// audio-only filter). Beat Key's own sound is left out. Needs the Screen (& System Audio)
 /// Recording permission; nothing is saved.
 @available(macOS 13.0, *)
-final class SystemAudioCapture: NSObject, AudioCapture, SCStreamOutput, SCStreamDelegate {
+final class SystemAudioCapture: NSObject, FilteredCapture, SCStreamOutput, SCStreamDelegate {
     private var stream: SCStream?
+    /// Told which filter each (re)opened stream uses: players only, or all apps.
+    var onFilter: ((CaptureFilter) -> Void)?
+    /// The silence guard widened this Listen to every app (queue only): no exclusions from now on.
+    private var allApps = false
     private let queue = DispatchQueue(label: "com.jshriver.orion.system-audio")
     private var onSamples: (([Float]) -> Void)?
     private var onError: ((String) -> Void)?
@@ -64,12 +68,14 @@ final class SystemAudioCapture: NSObject, AudioCapture, SCStreamOutput, SCStream
             // Done by LEAVING OUT every listed non-player, never by including the players: a
             // browser plays from helper processes SCK may not list (Studio D 2026-11-09: Chrome
             // listed alone, its audio helper absent, the stream heard silence).
+            // The silence guard (ListenLog.swift) sets allApps when the players stayed silent.
             let apps = content?.applications ?? []
-            let players = apps.filter { SystemAudioCapture.isPlayer($0.bundleIdentifier) }
+            let players = self.allApps ? [] : apps.filter { SystemAudioCapture.isPlayer($0.bundleIdentifier) }
             let others = players.isEmpty ? [] : apps.filter { !SystemAudioCapture.isPlayer($0.bundleIdentifier) }
-            AppLog.log("system audio: " + (players.isEmpty ? "all apps"
+            AppLog.log("system audio: " + (players.isEmpty ? "all apps\(self.allApps ? " (widened: no signal from players)" : "")"
                 : "players open (\(players.map { $0.bundleIdentifier }.joined(separator: ", "))); leaving out \(others.count) other apps: "
                   + others.map { $0.bundleIdentifier }.filter { !$0.isEmpty }.prefix(12).joined(separator: ", ")))
+            self.onFilter?(players.isEmpty ? .allApps : .playersOnly(players.map { $0.bundleIdentifier }))
             let filter = SCContentFilter(display: display, excludingApplications: others, exceptingWindows: [])
             let cfg = SCStreamConfiguration()
             cfg.capturesAudio = true
@@ -95,6 +101,19 @@ final class SystemAudioCapture: NSObject, AudioCapture, SCStreamOutput, SCStream
                 self?.queue.async { self?.reopen(now: false, why: "start failed") }
             }
             self.stream = s
+        }
+    }
+
+    /// The silence guard: the players gave nothing for 5 s, so reopen hearing every app.
+    func hearAllApps() {
+        queue.async { [weak self] in
+            guard let self = self, !self.stopped, !self.allApps else { return }
+            self.allApps = true
+            AppLog.log("system audio: reopening with all apps (no exclusions)")
+            self.retryWork?.cancel()
+            self.stream?.stopCapture { err in if let e = err { AppLog.log("system audio: stop before widening: \(e)") } }
+            self.stream = nil
+            self.begin()
         }
     }
 

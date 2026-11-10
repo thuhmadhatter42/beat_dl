@@ -518,5 +518,56 @@ class TestGuards(Base):
         self.assertEqual([e["stage"] for e in ev if e["stage"] in TERMINAL], ["error"])
 
 
+class TestFailuresLogToStderr(Base):
+    """Every failure that does not reach the app as an event writes a line to stderr, which the
+    app sends to analyzer.log (0.1.59: 'a missing log is a failure')."""
+
+    def _stderr(self, fn, *args):
+        err = io.StringIO()
+        with contextlib.redirect_stderr(err), contextlib.redirect_stdout(io.StringIO()):
+            out = fn(*args)
+        return out, err.getvalue()
+
+    def test_analyzer_exit_is_logged_with_its_stderr(self):
+        done = subprocess.CompletedProcess([], 3, stdout="", stderr="Traceback ...\nValueError: bad file\n")
+        with mock.patch.object(app_run.subprocess, "run", return_value=done):
+            out, err = self._stderr(app_run.analyze_file, "/x/song.wav")
+        self.assertEqual(out, (None, []))
+        self.assertIn("app_run: bpm.py [song.wav]: ValueError: bad file", err)
+        self.assertIn("app_run: bpm.py exit 3 on song.wav", err)
+
+    def test_analyzer_timeout_and_start_failure_are_logged(self):
+        with mock.patch.object(app_run.subprocess, "run", side_effect=subprocess.TimeoutExpired("bpm", 120)):
+            _, err = self._stderr(app_run.analyze_file, "/x/a.wav")
+        self.assertIn("bpm.py timed out after 120 s on a.wav", err)
+        with mock.patch.object(app_run.subprocess, "run", side_effect=OSError("no python")):
+            _, err = self._stderr(app_run.analyze_file, "/x/a.wav")
+        self.assertIn("bpm.py could not start for a.wav: no python", err)
+
+    def test_not_a_bpm_is_logged(self):
+        done = subprocess.CompletedProcess([], 0, stdout="Missing: numpy\n", stderr="")
+        with mock.patch.object(app_run.subprocess, "run", return_value=done):
+            _, err = self._stderr(app_run.analyze_file, "/x/a.wav")
+        self.assertIn("first line is not a BPM for a.wav", err)
+
+    def test_analysis_crash_is_logged(self):
+        with mock.patch.object(app_run, "analyze_file", side_effect=RuntimeError("boom")):
+            _, err = self._stderr(app_run.cmd_analyze, [str(WAV)])
+        self.assertIn("analysis crashed on", err)
+        self.assertIn("boom", err)
+
+    def test_download_failure_points_at_last_run_log(self):
+        p, ev = run_cli(["download", "https://example.com/v"], "fail-network", self.dl, self.state)
+        self.assertEqual(ev[-1]["stage"], "error")
+        self.assertIn("download failed: Network error", p.stderr)
+        self.assertIn("last-run.log", p.stderr)
+
+    def test_unexpected_error_logs_the_traceback(self):
+        with mock.patch.object(app_run, "cmd_download", side_effect=RuntimeError("boom")):
+            _, err = self._stderr(app_run.main, ["app_run.py", "download", "u"])
+        self.assertIn("unexpected error: Traceback", err)
+        self.assertIn("RuntimeError: boom", err)
+
+
 if __name__ == "__main__":
     unittest.main()

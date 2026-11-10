@@ -36,9 +36,14 @@ final class RealLauncher: ProcessLauncher {
         p.environment = environment.merging(["HOME": NSHomeDirectory()]) { a, _ in a }
         let out = Pipe()
         p.standardOutput = out
-        p.standardError = FileHandle.nullDevice
+        // app_run.py's stderr (its failure lines, bpm.py's warnings and tracebacks) → analyzer.log
+        let what = arguments.dropFirst().first ?? "?"
+        p.standardError = AppLog.analyzerHandle(header: "app_run.py \(what)") ?? FileHandle.nullDevice
         DispatchQueue.global(qos: .userInitiated).async {
-            do { try p.run() } catch { onExit(-1); return }
+            do { try p.run() } catch {
+                AppLog.log("helper (app_run.py \(what)) failed to start: \(error)")
+                onExit(-1); return
+            }
             var buf = Data()
             let h = out.fileHandleForReading
             while true {
@@ -53,6 +58,10 @@ final class RealLauncher: ProcessLauncher {
             }
             if !buf.isEmpty { onLine(String(decoding: buf, as: UTF8.self)) }
             p.waitUntilExit()
+            if p.terminationStatus != 0 || p.terminationReason != .exit {
+                AppLog.log("helper (app_run.py \(what)) exited: status \(p.terminationStatus), "
+                           + "reason \(p.terminationReason == .exit ? "exit" : "signal"); details in analyzer.log")
+            }
             onExit(p.terminationStatus)
         }
     }
@@ -60,7 +69,10 @@ final class RealLauncher: ProcessLauncher {
 
 final class Engine: ObservableObject {
     @Published var state: ViewState = .idle {
-        didSet { AppLog.log("engine: " + String(String(describing: state).prefix(400))) }
+        didSet {
+            AppLog.log("engine: " + String(String(describing: state).prefix(400)))
+            if let why = Engine.failureNote(state) { AppLog.log(why) }
+        }
     }
     /// Caption under a partial analysis ("2 FILES COULDN'T BE READ · ..."); nil otherwise.
     @Published var note: String?
@@ -238,13 +250,36 @@ final class Engine: ObservableObject {
                     arguments: [rt.script.path] + args,
                     environment: rt.environment(),
                     onLine: { line in
-                        guard let e = Event.parse(line: line) else { return }
+                        guard let e = Event.parse(line: line) else {
+                            if !line.trimmingCharacters(in: .whitespaces).isEmpty {
+                                AppLog.log("helper printed a non-event line: \(line.prefix(200))")
+                            }
+                            return
+                        }
                         DispatchQueue.main.async { if gen == self.generation { self.handle(e) } }
                     },
                     onExit: { code in
                         DispatchQueue.main.async { if gen == self.generation { self.finish(code) } }
                     })
             }
+        }
+    }
+
+    /// For a failure, or files with no reading: one line saying where its details are.
+    static func failureNote(_ s: ViewState) -> String? {
+        switch s {
+        case .failed(let m):
+            return "engine FAILED: \(m) (yt-dlp runs: last-run.log; helper stderr: analyzer.log)"
+        case .analyzed(let rs):
+            let bad = rs.filter { $0.bpm == nil }
+            guard !bad.isEmpty else { return nil }
+            return "engine: no reading for \(bad.count) of \(rs.count) file(s): "
+                + bad.prefix(5).map { "\($0.name)\($0.readError.map { " [\($0)]" } ?? "")" }.joined(separator: ", ")
+                + " (why: analyzer.log)"
+        case .done(let r) where r.bpm == nil:
+            return "engine: downloaded \(r.name) but no reading (why: analyzer.log)"
+        default:
+            return nil
         }
     }
 

@@ -99,7 +99,13 @@ enum MidiExport {
         panel.directoryURL = r.file.deletingLastPathComponent()
         guard panel.runModal() == .OK, let url = panel.url else { return }
         let bytes = data(bpm: bpmValue(r), key: key, trackName: (r.name as NSString).deletingPathExtension)
-        do { try bytes.write(to: url) } catch { NSAlert(error: error).runModal() }
+        do {
+            try bytes.write(to: url)
+            AppLog.log("export midi: wrote \(bytes.count) bytes to \(url.path)")
+        } catch {
+            AppLog.log("export midi: write to \(url.path) failed: \(error)")
+            NSAlert(error: error).runModal()
+        }
     }
 }
 

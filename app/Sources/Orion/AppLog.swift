@@ -35,9 +35,22 @@ enum AppLog {
             || p.processName.hasSuffix("PackageTests")
     }()
 
+    private static let sinkLock = NSLock()
+    private static var _sink: ((String) -> Void)?
+    /// Tests only: every line ("[Tag] text") also goes here, so a test can assert what would be
+    /// logged. Unit tests still never write the user's log file.
+    static var sink: ((String) -> Void)? {
+        get { sinkLock.lock(); defer { sinkLock.unlock() }; return _sink }
+        set { sinkLock.lock(); _sink = newValue; sinkLock.unlock() }
+    }
+
+    /// Waits until every line logged so far is on disk (before the app exits).
+    static func flush() { queue.sync {} }
+
     static func log(_ line: String, file: String = #fileID) {
-        guard !testing else { return }
         let tag = (file as NSString).lastPathComponent.replacingOccurrences(of: ".swift", with: "")
+        sink?("[\(tag)] \(line)")
+        guard !testing else { return }
         let text = "\(stamp.string(from: Date())) [\(tag)] \(line)\n"
         os.log("\(line, privacy: .public)")
         queue.async {
@@ -56,16 +69,22 @@ enum AppLog {
         }
     }
 
-    /// The analyzer's stderr (Python tracebacks), appended.
-    static func analyzerHandle() -> FileHandle? {
+    /// The analyzer's / helper's stderr (failure lines, warnings, Python tracebacks), appended,
+    /// after a timestamped "---- <header>" line so it lines up with beatkey.log. Tests: no file.
+    static func analyzerHandle(header: String) -> FileHandle? {
+        guard !testing else { return nil }
         let fm = FileManager.default
         try? fm.createDirectory(at: dir, withIntermediateDirectories: true)
         if let a = try? fm.attributesOfItem(atPath: analyzerURL.path), (a[.size] as? Int ?? 0) > 5_000_000 {
             try? fm.removeItem(at: analyzerURL)
         }
         if !fm.fileExists(atPath: analyzerURL.path) { fm.createFile(atPath: analyzerURL.path, contents: nil) }
-        guard let h = try? FileHandle(forWritingTo: analyzerURL) else { return nil }
+        guard let h = try? FileHandle(forWritingTo: analyzerURL) else {
+            log("analyzer.log could not be opened; the helper's stderr is lost this run")
+            return nil
+        }
         h.seekToEndOfFile()
+        h.write(Data("---- \(stamp.string(from: Date())) \(header)\n".utf8))
         return h
     }
 

@@ -125,6 +125,7 @@ final class InputCapture: AudioCapture {
     let channel: Int
     private let engine = AVAudioEngine()
     private var running = false
+    private var configObserver: NSObjectProtocol?
 
     static let deniedText = "ALLOW MICROPHONE ACCESS IN SYSTEM SETTINGS › PRIVACY & SECURITY › MICROPHONE"
 
@@ -155,10 +156,14 @@ final class InputCapture: AudioCapture {
             }
             let st = AudioUnitSetProperty(unit, kAudioOutputUnitProperty_CurrentDevice, kAudioUnitScope_Global, 0,
                                           &id, UInt32(MemoryLayout<AudioDeviceID>.size))
-            guard st == noErr else { onError("COULDN'T OPEN THAT INPUT (\(st))"); return }
+            guard st == noErr else {
+                AppLog.log("input capture: AudioUnitSetProperty(CurrentDevice) for uid \(uid) failed, OSStatus \(st)")
+                onError("COULDN'T OPEN THAT INPUT (\(st))"); return
+            }
         }
         let fmt = input.inputFormat(forBus: 0)
         guard fmt.channelCount > 0, fmt.sampleRate > 0, let resampler = Resampler(from: fmt.sampleRate) else {
+            AppLog.log("input capture: no usable input format (\(fmt.channelCount) ch, \(fmt.sampleRate) Hz)")
             onError("NO AUDIO INPUT FOUND"); return
         }
         let ch = channel
@@ -169,13 +174,25 @@ final class InputCapture: AudioCapture {
         do {
             try engine.start()
             running = true
+            // Unplugged, or its format changed: AVAudioEngine stops by itself and the meter would
+            // just go dead. Say so, in the log and on the LCD (source lost).
+            configObserver = NotificationCenter.default.addObserver(
+                forName: .AVAudioEngineConfigurationChange, object: engine, queue: .main) { [weak self] _ in
+                guard let self = self, self.running else { return }
+                AppLog.log("input capture: audio configuration changed (device unplugged or its format changed); engine running \(self.engine.isRunning)")
+                if !self.engine.isRunning { onError(InputCapture.lostText) }
+            }
         } catch {
             input.removeTap(onBus: 0)
+            AppLog.log("input capture: engine start failed: \(error)")
             onError("COULDN'T START THE INPUT: \(error.localizedDescription.uppercased())")
         }
     }
 
+    static let lostText = "THE INPUT WENT AWAY · CHECK IT AND START LISTENING AGAIN"
+
     func stop() {
+        if let o = configObserver { NotificationCenter.default.removeObserver(o); configObserver = nil }
         guard running else { return }
         running = false
         engine.inputNode.removeTap(onBus: 0)

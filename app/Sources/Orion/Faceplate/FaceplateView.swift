@@ -36,7 +36,7 @@ struct FaceplateView: View {
         .onDrop(of: ["public.file-url"], isTargeted: dropBinding, perform: drop)
         .onReceive(engine.$state) { s in
             // a download, an analysis, Run Doctor or a recent reading takes the LCD back from Listen
-            if s != .idle && live.state != .off { live.stop() }
+            if s != .idle && live.state != .off { live.stop(reason: "the LCD went to \(LiveController.engineLabel(s))") }
             switch s {
             case .done: model.url = ""; model.tempoFactor = .one
             case .analyzed(let rs): model.pager.reset(count: rs.count); model.picked = []; model.tempoFactor = .one

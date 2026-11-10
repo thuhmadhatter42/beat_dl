@@ -118,7 +118,7 @@ struct Runtime {
     /// maintenanceQueue.
     func ensureSeeded() {
         guard Runtime.seededPaths.insert(ytdlp.path).inserted else { return }
-        try? seedYtDlp()
+        do { try seedYtDlp() } catch { AppLog.log("yt-dlp seed into \(ytdlp.path) failed: \(error); downloads will fail") }
     }
 
     /// Copy the bundle's yt-dlp (signature intact) to App Support if missing or broken.
@@ -149,14 +149,22 @@ struct Runtime {
     }
 
     func upgradeYtDlpSync() {
-        _ = Runtime.run(ytdlp, ["-U"], timeout: Runtime.upgradeTimeout)
+        let up = Runtime.run(ytdlp, ["-U"], timeout: Runtime.upgradeTimeout)
+        if up.status != 0 {
+            AppLog.log("yt-dlp -U: status \(up.status): \(up.output.trimmingCharacters(in: .whitespacesAndNewlines).suffix(300))")
+        }
         if !runs(ytdlp) {
-            try? reseed()
+            AppLog.log("yt-dlp does not run after -U; restoring the bundled copy")
+            do { try reseed() } catch { AppLog.log("yt-dlp reseed failed: \(error)") }
         }
         if !runs(ytdlp) {
             // Blocked case: ad-hoc sign once and re-check.
+            AppLog.log("yt-dlp still does not run; ad-hoc signing it")
             _ = Runtime.run(URL(fileURLWithPath: "/usr/bin/codesign"), ["-s", "-", "-f", ytdlp.path])
-            if !runs(ytdlp) { try? reseed() }
+            if !runs(ytdlp) {
+                do { try reseed() } catch { AppLog.log("yt-dlp reseed failed: \(error)") }
+                if !runs(ytdlp) { AppLog.log("yt-dlp still does not run; downloads will fail (Run Doctor)") }
+            }
         }
         try? FileManager.default.createDirectory(at: support, withIntermediateDirectories: true)
         FileManager.default.createFile(atPath: stamp.path, contents: Data())

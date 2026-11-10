@@ -41,7 +41,8 @@ Everything is under the menus or in Settings (Beat Key > Settings, ⌘,). The gl
 - **Send to Auto-Tune.** One button (Reading > Send to Auto-Tune, ⌃⌥⌘A) hands the chosen key and your reference pitch to Auto-Tune Pro, in any open instance with Auto Key Detection on, and also writes a Waves Tune preset. Waves Tune does not change by itself: load the "Beat Key" preset in the plug-in (as of 0.1.31). Antares doesn't document the hand-off, so tell us if a version doesn't pick it up.
 - **Export MIDI Tempo/Key file.** File > Export MIDI Tempo/Key File… (⌃⌥⌘E) saves a small `.mid` with the tempo and key, for any DAW.
 - **Open at login.** Settings > General > Open at Login.
-- **Log.** `~/Library/Logs/Beat Key/beatkey.log` records launches, quits and crashes (analyzer output in `analyzer.log`); send it with a bug report.
+- **Log.** `~/Library/Logs/Beat Key/beatkey.log` records launches, quits and crashes, and every Listen session: what it hears (filter), the input level once a second, each reading change, and why it stopped. Analyzer and helper stderr go to `analyzer.log`, the last download's yt-dlp runs to `last-run.log`; send them with a bug report.
+- **Silent Listen.** System Audio with only players heard and 5 s of no signal reopens hearing every app (LCD: NO SOUND FROM PLAYERS · HEARING ALL APPS); still silent 5 s later, the LCD says NO SOUND · CHECK SOURCE until sound returns.
 
 Permissions macOS may ask for, each only when you use the feature:
 

@@ -244,7 +244,7 @@ final class LoginWindow: NSObject, NSWindowDelegate, WKNavigationDelegate, WKHTT
             guard ok else { return }
             self.saved = true
             do { try self.file.write(cookies) } catch {
-                LoginLog.write("cookie file write failed")
+                LoginLog.write("cookie file write failed: \(error)")
                 self.saved = false; return
             }
             LoginLog.write("saved \(self.file.url.path)")
@@ -267,7 +267,9 @@ final class LoginWindow: NSObject, NSWindowDelegate, WKNavigationDelegate, WKHTT
 enum LoginLog {
     static let path = ProcessInfo.processInfo.environment["ORION_LOGIN_LOG"].flatMap { $0.isEmpty ? nil : $0 }
 
+    /// Always to beatkey.log (cookie names only, never values); also to ORION_LOGIN_LOG when set.
     static func write(_ line: String) {
+        AppLog.log("youtube login: \(line)")
         guard let path = path else { return }
         let stamp = ISO8601DateFormatter.string(from: Date(), timeZone: .current, formatOptions: [.withInternetDateTime])
         let data = Data("\(stamp) \(line)\n".utf8)
