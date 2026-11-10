@@ -12,8 +12,8 @@ release must carry an `appcast.xml`, or update checks fail with a 404.
   `app/.build/artifacts/sparkle/Sparkle/bin/` after `swift package resolve`). The private key is
   in the login Keychain (account `beat-key`) and exported to
   `~/.config/beat-key/sparkle_ed25519_private` (chmod 600, outside the repo). build.sh signs
-  with the exported file (override: `SPARKLE_ED_FILE=<path>`). Never commit or print it; back it up
-  somewhere J keeps secrets. Losing it means the next update must change the key and the Developer ID
+  with the exported file (override: `SPARKLE_ED_FILE=<path>`). Never commit or print it (backed up:
+  on Sofia since 2026-10-29, signing keys in Passwords since 2026-11-09). Losing it means the next update must change the key and the Developer ID
   certificate cannot change in the same release (sparkle-project.org/documentation, "Rotating
   signing keys").
 - Public key: `SUPublicEDKey` in `app/Info.plist`. `generate_keys --account beat-key -p` prints it.
@@ -28,19 +28,22 @@ release must carry an `appcast.xml`, or update checks fail with a 404.
    `app/build/Beat-Key-<ver>.dmg` (signed, notarized, stapled) and `app/build/appcast.xml` (one
    item for that DMG, EdDSA-signed, enclosure
    `https://github.com/thuhmadhatter42/beat_dl/releases/download/Beat-Key-<ver>/Beat-Key-<ver>.dmg`).
-3. Commit, tag and publish the GitHub release with both files (auto mode blocks public pushes, so J runs the publish script; as of 2026-11-08 0.1.34 is the latest public release and 0.1.38 is built and installed on the MBP but unpublished; J runs `bash tools/publish.sh`, which reads `VERSION`):
-
-   ```sh
-   gh release create Beat-Key-<ver> -R thuhmadhatter42/beat_dl --title "Beat Key <ver>" \
-     app/build/Beat-Key-<ver>.dmg app/build/appcast.xml
-   ```
-
-   Check: `curl -sIL https://github.com/thuhmadhatter42/beat_dl/releases/latest/download/appcast.xml`
-   ends in `200`, and the file names `<ver>`.
-4. The site (Sofia, `~/fourletterrecords`): copy the DMG to
-   `~/fourletterrecords/beat-key-releases/Beat-Key-<ver>.dmg` (never overwrite an existing
-   version), then write `~/fourletterrecords/beat-key-latest.json` = `{"version": "<ver>"}`.
-   No restart. Check: `curl -sI https://fourletterrecords.com/account/download/beat-key` → 303.
+3. Commit everything (the script needs HEAD on `main` with tracked files clean), then publish with
+   `bash tools/publish.sh`, which reads `VERSION`. Since 0.1.62 it does all of this in three phases
+   and logs to `app/build/publish-<ver>.log`:
+   - checks, nothing changed anywhere: DMG stapled, `appcast.xml` names `<ver>`, the tag
+     `Beat-Key-<ver>` and the GitHub release do not exist yet, Sofia reachable and not already
+     holding `Beat-Key-<ver>.dmg`;
+   - publish: tag, push `main` and the tag, DMG to Sofia
+     `~/fourletterrecords/beat-key-releases/` (never overwrites), `beat-key-latest.json` =
+     `{"version": "<ver>"}`, the friends page, and last the GitHub release with the DMG and
+     `appcast.xml` (the step every installed Beat Key sees). No restart of anything;
+   - final check: `https://fourletterrecords.com/account/download/beat-key` answers 303 and
+     `beat-key-latest.json` on Sofia names `<ver>`. Only then it prints `PUBLISHED <ver>`; any
+     failure prints which public steps already happened.
+   Auto mode may block public pushes; then J runs it: `! bash ~/dev/beat_dl/tools/publish.sh`.
+4. After it: `curl -sIL https://github.com/thuhmadhatter42/beat_dl/releases/latest/download/appcast.xml`
+   ends in `200` and the file names `<ver>`.
 
 ## Testing an update without publishing
 
