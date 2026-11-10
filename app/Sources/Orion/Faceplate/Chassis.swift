@@ -73,10 +73,7 @@ struct Screw: View {
 
 /// The brushed header rail: chrome wordmark left, lamp + legend right.
 struct Rail: View {
-    let status: Status
-
-    /// live = listening, with the source's name (the popover header's LIVE · SOURCE).
-    enum Status: Equatable { case ready, working, failed, live(String) }
+    let status: AppStatus
 
     var body: some View {
         let shape = RoundedRectangle(cornerRadius: Theme.R.well, style: .continuous)
@@ -114,30 +111,90 @@ struct Wordmark: View {
     }
 }
 
-struct StatusLegend: View {
-    @Environment(\.palette) private var palette
-    let status: Rail.Status
+/// The app's status as both surfaces say it: the window's rail and the pocket's header draw the
+/// same StatusLegend from this one derivation, word and colour.
+enum AppStatus: Equatable {
+    /// live = listening, with the source's name (LIVE · SOURCE).
+    case ready, working, failed, live(String)
 
-    var body: some View {
-        let (word, text, lamp, glow): (String, Color, Color, Color) = {
-            switch status {
-            case .ready: return ("READY", Theme.greenText, Theme.green, Theme.greenGlow)
-            case .working: return ("WORKING", palette.amber, palette.amber, palette.amberGlow)
-            case .failed: return ("FAILED", Theme.redText, Theme.red, Theme.red.opacity(0.7))
-            case .live(let source): return ("LIVE · \(source)", Theme.redText, Theme.red, Theme.red.opacity(0.7))
+    /// LIVE · <source> while listening, else the readout's state; a failed Run Doctor is FAILED.
+    static func of(_ s: PocketState) -> AppStatus {
+        if s.listening { return .live(s.source.uppercased()) }
+        switch s.readout {
+        case .working: return .working
+        case .error: return .failed
+        case .doctor(let r): return r.outcome == .failed ? .failed : .ready
+        default: return .ready
+        }
+    }
+
+    var word: String {
+        switch self {
+        case .ready: return "READY"
+        case .working: return "WORKING"
+        case .failed: return "FAILED"
+        case .live(let source): return "LIVE · \(source)"
+        }
+    }
+
+    /// The lamp's outline (Lamp's colour-blind shapes): settled = the octagon, under way or
+    /// failed = the circle.
+    var shape: Lamp { self == .ready ? .locked : .listening }
+
+    /// The word's colour, the lamp's fill and its glow (High Contrast: no glow, as everywhere).
+    struct Look: Equatable {
+        let text: Color
+        let lamp: Color
+        let glow: Color
+    }
+
+    func look(_ palette: Palette) -> Look {
+        let l: Look = {
+            switch self {
+            case .ready: return Look(text: Theme.greenText, lamp: Theme.green, glow: Theme.greenGlow)
+            case .working: return Look(text: palette.amber, lamp: palette.amber, glow: palette.amberGlow)
+            case .failed, .live: return Look(text: Theme.redText, lamp: Theme.red, glow: Theme.red.opacity(0.7))
             }
         }()
-        return HStack(spacing: Theme.S.s) {
-            Circle().fill(lamp)
-                .overlay(Circle().stroke(Color.white.opacity(0.6), lineWidth: 0.5).blur(radius: 0.5).clipShape(Circle()))
-                .frame(width: 8, height: 8)
-                .shadow(color: glow, radius: 4)
-            Text(word).labelStyle().foregroundColor(text)
-                .lineLimit(1).truncationMode(.middle).frame(maxWidth: 250, alignment: .trailing)
+        return palette.highContrast ? Look(text: l.text, lamp: l.lamp, glow: .clear) : l
+    }
+}
+
+/// The status lamp and word (AppStatus), in the window's rail and the pocket's header; only the
+/// sizes differ (Metrics).
+struct StatusLegend: View {
+    @Environment(\.palette) private var palette
+    let status: AppStatus
+    var metrics: Metrics = .regular
+
+    struct Metrics: Equatable {
+        let lampSide: CGFloat
+        /// Lamp to word.
+        let gap: CGFloat
+        /// The word truncates in the middle past this (a long source name).
+        let maxWidth: CGFloat
+        let glowRadius: CGFloat
+
+        /// The window's 58 pt rail.
+        static let regular = Metrics(lampSide: 8, gap: Theme.S.s, maxWidth: 250, glowRadius: 4)
+        /// The pocket's H.sm header.
+        static let compact = Metrics(lampSide: 7, gap: 6, maxWidth: 200, glowRadius: 3)
+    }
+
+    var body: some View {
+        let look = status.look(palette)
+        let shape = LampShape(lamp: status.shape)
+        return HStack(spacing: metrics.gap) {
+            shape.fill(look.lamp)
+                .overlay(shape.stroke(Color.white.opacity(0.6), lineWidth: 0.5).blur(radius: 0.5).clipShape(shape))
+                .frame(width: metrics.lampSide, height: metrics.lampSide)
+                .shadow(color: look.glow, radius: metrics.glowRadius)
+            Text(status.word).labelStyle().foregroundColor(look.text)
+                .lineLimit(1).truncationMode(.middle).frame(maxWidth: metrics.maxWidth, alignment: .trailing)
                 .fixedSize(horizontal: true, vertical: false)
         }
         .accessibilityElement(children: .ignore)
-        .accessibility(label: Text("Status: \(word.lowercased())"))
+        .accessibility(label: Text("Status: \(status.word.lowercased())"))
         .helpTip(HelpText.status)
     }
 }

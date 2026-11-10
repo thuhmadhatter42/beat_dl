@@ -236,7 +236,7 @@ struct FaceplateFace: View {
         VStack(spacing: 0) {
             Plate(width: FaceplateView.plateWidth(advanced: state.advanced)) {
                 VStack(spacing: 0) {
-                    Rail(status: FaceplateFace.railStatus(state))
+                    Rail(status: .of(state))
                     HStack(alignment: .top, spacing: FaceplateView.columnGap) {
                         module.frame(width: FaceplateView.moduleWidth)
                         if state.advanced {
@@ -257,17 +257,6 @@ struct FaceplateFace: View {
         .helpTipLayer()
         // the desk runs up under the hidden title bar; SwiftUI adds the bar's 28 pt to the window
         .background(Theme.desk.edgesIgnoringSafeArea(.all))
-    }
-
-    /// The rail's legend: LIVE · <source> while listening, else the readout's state.
-    static func railStatus(_ s: PocketState) -> Rail.Status {
-        if s.listening { return .live(s.source.uppercased()) }
-        switch s.readout {
-        case .working: return .working
-        case .error: return .failed
-        case .doctor(let r): return r.outcome == .failed ? .failed : .ready
-        default: return .ready
-        }
     }
 
     private var highlighted: Bool {

@@ -196,10 +196,15 @@ final class PocketTests: XCTestCase {
                                download: true, options: ResultOptions(factor: .one, tuning: Tuning.meter(0, reference: 440),
                                                                       onCycleTempo: {}))
 
+        // Beat Key › Run Doctor could not fix it: the header says FAILED, as the window's rail does
+        var doctorFailed = idle
+        doctorFailed.readout = .doctor(DoctorReport(outcome: .failed, title: "DOWNLOADS BROKEN",
+                                                    line: "Reinstall Beat Key from the website"))
+
         let states: [(String, PocketState)] = [("idle", idle), ("downloading", working), ("listening", listening),
                                                ("unsure", unsure), ("locked", locked), ("high-contrast", hc),
                                                ("error", failed), ("held", held),
-                                               ("ab", ab), ("long", long)]
+                                               ("ab", ab), ("long", long), ("doctor-failed", doctorFailed)]
         for (name, s) in states {
             let view = PocketView(state: s, url: .constant(s.url))
                 .environment(\.palette, Palette(highContrast: name == "high-contrast"))
