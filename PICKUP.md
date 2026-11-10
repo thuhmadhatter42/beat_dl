@@ -1,6 +1,11 @@
 # PICKUP — beat_dl
 
-## CURRENT STATE — 2026-11-09 16:32
+## CURRENT STATE — 2026-11-09 20:06
+
+**0.1.57 PUBLIC (J published 16:58; GitHub release + appcast + beat-key-latest.json 0.1.57 verified).** FLR page: handoff/TO-FLR-SITE-2026-11-09-beat-key-full-page-update.md (updated 17:03: release public, screenshots ready in handoff/flr-assets/ — 7 shots .jpg+.png, MarketingRenderTests.swift); J starts it with `cd ~/goat-arc/obsidian-vault/goat-mind/02-4lr/infrastructure/flr-site && claude "Read ~/dev/beat_dl/handoff/TO-FLR-SITE-2026-11-09-beat-key-full-page-update.md and do it."`
+**OPEN (J via Loops 20:03): Beat Key on Studio D (macOS 14.7.5) can't hear YouTube; J says Screen & System Audio Recording IS granted.** Studio D is off limits: asked J 20:06 for a yes to ssh read-only (beatkey.log + version + SOURCE setting). Untested guesses until then: SOURCE set to an input not System Audio; app not relaunched after granting; old version (<0.1.23); YouTube in an app not in SystemAudio.playerIDs.
+
+## (previous) 2026-11-09 16:32
 
 **0.1.57 NOTARIZED, installed + running (16:31:14), ready to publish: J runs `! bash ~/dev/beat_dl/tools/publish.sh`.** Key names = Auto-Tune's Key menu spelling everywhere, always (J 16:15, standing rule; major C Db D Eb E F F# G Ab A Bb B, minor C C# D Eb E F F# G G# A Bb B). Sharps/flats switch removed (Reading menu toggle gone, dial click no longer flips); stored keySpelling wiped at launch (J's Mac had "flats" = why he saw Gb; log confirmed removal 16:31:15); old saved readings normalised on display (KeyChoice.autoTuneName). 397 tests; MotionFrameTests value-curve + meter-tick tests flake only under load. After publish: fresh FLR screenshots into handoff/flr-assets/.
 
