@@ -496,7 +496,6 @@ private struct PocketPlate: View {
 }
 
 private struct PocketHeader: View {
-    @Environment(\.palette) private var palette
     let state: PocketState
 
     var body: some View {
@@ -508,33 +507,9 @@ private struct PocketHeader: View {
                 .fixedSize()
                 .accessibility(label: Text(Brand.name))
             Spacer()
-            legend
+            StatusLegend(status: .of(state), metrics: .compact)
         }
         .frame(height: Theme.H.sm)
-    }
-
-    private var legend: some View {
-        let (word, lamp, color): (String, Lamp?, Color) = {
-            if state.listening { return ("LIVE · \(state.source.uppercased())", .listening, Theme.redText) }
-            switch state.readout {
-            case .working: return ("WORKING", .listening, palette.amber)
-            case .error: return ("FAILED", nil, Theme.redText)
-            default: return ("READY", .locked, Theme.greenText)
-            }
-        }()
-        return HStack(spacing: 6) {
-            if let l = lamp {
-                LampShape(lamp: l).fill(l == .listening && !state.listening ? palette.amber : l.color(palette.accent)).frame(width: 7, height: 7)
-                    .shadow(color: palette.highContrast ? .clear : l.color(palette.accent).opacity(0.7), radius: 3)
-            } else {
-                Circle().fill(Theme.red).frame(width: 7, height: 7)
-            }
-            Text(word).labelStyle().foregroundColor(color).lineLimit(1)
-                .truncationMode(.middle).frame(maxWidth: 200).fixedSize(horizontal: true, vertical: false)
-        }
-        .accessibilityElement(children: .ignore)
-        .accessibility(label: Text("Status: \(word.lowercased())"))
-        .helpTip(HelpText.status)
     }
 }
 

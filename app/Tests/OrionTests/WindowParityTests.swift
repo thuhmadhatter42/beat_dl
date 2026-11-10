@@ -12,16 +12,16 @@ final class WindowParityTests: XCTestCase {
 
     func testRailSaysLiveWhileListening() {
         var s = PocketState()
-        XCTAssertEqual(FaceplateFace.railStatus(s), .ready)
+        XCTAssertEqual(AppStatus.of(s), .ready)
         s.readout = .working(stage: "downloading", download: true)
-        XCTAssertEqual(FaceplateFace.railStatus(s), .working)
+        XCTAssertEqual(AppStatus.of(s), .working)
         s.readout = .error("x", download: true)
-        XCTAssertEqual(FaceplateFace.railStatus(s), .failed)
+        XCTAssertEqual(AppStatus.of(s), .failed)
         s.readout = .doctor(DoctorReport(outcome: .failed, title: "T", line: "L"))
-        XCTAssertEqual(FaceplateFace.railStatus(s), .failed)
+        XCTAssertEqual(AppStatus.of(s), .failed)
         s.listening = true
         s.source = "System Audio"
-        XCTAssertEqual(FaceplateFace.railStatus(s), .live("SYSTEM AUDIO"))
+        XCTAssertEqual(AppStatus.of(s), .live("SYSTEM AUDIO"))
     }
 
     func testDownloadPressedTakesLoginThenFieldThenClipboard() {
@@ -133,9 +133,14 @@ final class WindowParityTests: XCTestCase {
         var drop = idle
         drop.readout = .drop
 
+        var doctorFailed = idle
+        doctorFailed.readout = .doctor(DoctorReport(outcome: .failed, title: "DOWNLOADS BROKEN",
+                                                    line: "Reinstall Beat Key from the website"))
+
         let states: [(String, PocketState, [URL])] = [
             ("idle", idle, []), ("locked", locked, []), ("multi", multi, []), ("listening", listening, []),
-            ("held", held, []), ("login", login, []), ("drop", drop, [URL(fileURLWithPath: "/x/Beat A.wav")])]
+            ("held", held, []), ("login", login, []), ("drop", drop, [URL(fileURLWithPath: "/x/Beat A.wav")]),
+            ("doctor-failed", doctorFailed, [])]
         for (name, s, picked) in states {
             let view = FaceplateFace(state: s, picked: picked, url: .constant(s.url), fieldFocused: .constant(false),
                                      pickFocused: .constant(false))
