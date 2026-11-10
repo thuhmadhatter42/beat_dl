@@ -1,6 +1,18 @@
 # PICKUP — beat_dl
 
-## CURRENT STATE — 2026-11-09 20:06
+## CURRENT STATE — 2026-11-10 00:15
+
+**Beat Key 0.1.59 is PUBLIC (J published 00:12; verified: GitHub release Beat-Key-0.1.59 with DMG + appcast, latest appcast shortVersionString 0.1.59, DMG HTTP 200, Sofia beat-key-latest.json 0.1.59 — that file is read from disk by flr-store.py, never served over HTTP; a 404 on it is by design).** Installed + running on the MBP (notarized). 0.1.59 = Listen logging (start/filter, 1 s level, reading changes, stop reason) + SilenceGuard (players silent 5 s → all apps + LCD note; all silent → "NO SOUND · CHECK SOURCE") + analyzer/app_run.py stderr to analyzer.log + failure lines on every path. 0.1.58 = Studio D fix: SCContentFilter excludes non-players instead of including players (Chrome audio helper wasn't listed → silence).
+**FLR /beat-key page LIVE 2026-11-10 00:08** (J approved preview; Sofia eedb5b7; report handoff/FROM-FLR-SITE-2026-11-09-beat-key-page.md). Screenshots handoff/flr-assets/ (MarketingRenderTests.swift).
+
+**Owed by J (hands-on):**
+1. Studio D: Beat Key › Check for Updates → 0.1.59, YouTube in Chrome → LISTEN; meter should move; if not, beatkey.log shows what it heard. Studio D Tailscale node key expired (offline since ~11-06): log in at Studio D + disable key expiry in admin console so I can read logs.
+2. Studio D: System Settings › Privacy & Security › Accessibility → Beat Key on (Send to DAW sent nothing there 11-09 20:06).
+3. Older hand tests still untried: MINI MIDI into a DAW, live tuning with pitched Spotify, chord drag, MATCH TO, Send to DAW Pro Tools, ⇧⌘A, unplugged-interface fallback, ftC tempo on known beats.
+
+**Standing rules from today:** key names = Auto-Tune Key menu spelling, always (sharps/flats switch removed 0.1.57); a settled decision is never re-raised as a question.
+
+## (previous) 2026-11-09 20:06
 
 **0.1.57 PUBLIC (J published 16:58; GitHub release + appcast + beat-key-latest.json 0.1.57 verified).** FLR page: handoff/TO-FLR-SITE-2026-11-09-beat-key-full-page-update.md (updated 17:03: release public, screenshots ready in handoff/flr-assets/ — 7 shots .jpg+.png, MarketingRenderTests.swift); J starts it with `cd ~/goat-arc/obsidian-vault/goat-mind/02-4lr/infrastructure/flr-site && claude "Read ~/dev/beat_dl/handoff/TO-FLR-SITE-2026-11-09-beat-key-full-page-update.md and do it."`
 **23:47 0.1.59 NOTARIZED + installed (410 Swift / 120 Py tests), ready to publish (J runs tools/publish.sh; ships 0.1.58 Chrome-helper fix too):** every Listen logs start/filter, 1 s level (dBFS or silent), reading changes, stop reason; SilenceGuard: players-only silent 5 s → all apps + LCD note, all silent 5 s → "NO SOUND · CHECK SOURCE"; app_run.py/bpm.py stderr now to analyzer.log (was /dev/null); failure lines for download, Auto-Tune, Export MIDI, DAW, MINI, input. Hands-on proof still owed: YouTube in Brave/Chrome → Listen, then read beatkey.log.

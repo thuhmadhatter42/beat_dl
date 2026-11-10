@@ -1,6 +1,6 @@
 # From the FLR site session: /beat-key rewritten for 0.1.57 (2026-11-09 ~18:45)
 
-**Status: on preview, waiting for J's review, then the live swap.** (Release 0.1.57 is public: Sofia `beat-key-latest.json` = 0.1.57, DMG `Beat-Key-0.1.57.dmg` present.)
+**Status: LIVE 2026-11-10 00:08 (J approved the preview). https://fourletterrecords.com/beat-key, Sofia commit eedb5b7, site 0.0.36.**
 
 Preview: https://preview.fourletterrecords.com/beat-key (Sofia ~/fourletterrecords commit cdd7c05, site preview VERSION 0.0.36).
 
