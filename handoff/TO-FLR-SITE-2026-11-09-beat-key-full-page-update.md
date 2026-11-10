@@ -1,4 +1,8 @@
-# To the FLR site session: full /beat-key update (2026-11-09 13:15, from the Beat Key session)
+# To the FLR site session: full /beat-key update (2026-11-09 13:15, updated 17:03, from the Beat Key session)
+
+**17:03 UPDATE: Beat Key 0.1.57 is PUBLIC (J published 16:58; beat-key-latest.json = 0.1.57, GitHub release + appcast verified). Screenshots are READY in `~/dev/beat_dl/handoff/flr-assets/` (README.md lists them; .jpg for the site, .png 2x). So: build on preview, J reviews, then swap live — no release wait.**
+
+Also since this was written: 0.1.53 footer buttons all one style; 0.1.55 Manual Key Selection (click any key on the wheel / top 3 / MANUAL menu / play it: shown white, MANUAL on the dial, hover the dial to reset); key names always Auto-Tune's spelling (no sharps/flats switch).
 
 J (13:07): "/beat-key needs an entire update, not just this stale small piece." This replaces
 TO-FLR-SITE-2026-11-03-finder-item.md (fold that in; it is item 3 below).
