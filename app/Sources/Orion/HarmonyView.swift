@@ -33,6 +33,7 @@ struct HarmonyPrefs: Equatable {
 /// The column right of the window's module: one LCD glass with the wheel and the notes heard,
 /// the chords, and MATCH TO. Its height follows the module beside it.
 struct HarmonyPanel: View {
+    @Environment(\.palette) private var palette
     let state: PocketState
     var actions = PocketActions()
     /// The menu-bar pocket's fit (its 344 pt column): the wheel on its own, centred, its head in
@@ -78,7 +79,7 @@ struct HarmonyPanel: View {
                 wheel
                     .frame(width: KeyWheel.side, height: KeyWheel.side)
                     .frame(maxWidth: .infinity)
-                Text.cap("KEY WHEEL").helpTip(HelpText.keyWheel)
+                Text.cap("KEY WHEEL", palette).helpTip(HelpText.keyWheel)
             }
         } else {
             wideWheelAndNotes
@@ -88,13 +89,13 @@ struct HarmonyPanel: View {
     private var wideWheelAndNotes: some View {
         HStack(alignment: .top, spacing: Theme.S.l) {
             VStack(alignment: .leading, spacing: Theme.S.s) {
-                Text.cap("KEY WHEEL").helpTip(HelpText.keyWheel)
+                Text.cap("KEY WHEEL", palette).helpTip(HelpText.keyWheel)
                 wheel
                     .frame(width: KeyWheel.side, height: KeyWheel.side)
             }
             if let chroma = state.result?.chroma, chroma.count == 12 {
                 VStack(alignment: .leading, spacing: Theme.S.s) {
-                    Text.cap("NOTES HEARD")
+                    Text.cap("NOTES HEARD", palette)
                     NotesHeard(chroma: chroma, scale: state.scale).frame(height: KeyWheel.side)
                 }
                 .helpTip(HelpText.notesHeard)
@@ -115,7 +116,7 @@ struct HarmonyPanel: View {
             // "click = hear, drag = MIDI" lives in the chords' help tip (J, 2026-11-09: less text by
             // default); the key's name is already on the readout, so the head is just CHORDS
             HStack(spacing: Theme.S.m) {
-                Text.cap("CHORDS").helpTip(HelpText.chords)
+                Text.cap("CHORDS", palette).helpTip(HelpText.chords)
                 Spacer(minLength: 0)
                 HStack(spacing: Theme.S.s) {
                     SegmentedChips(options: ChordClip.barChoices.map { b in
@@ -123,7 +124,7 @@ struct HarmonyPanel: View {
                                    },
                                    selected: prefs.bars, width: .fixed(24),
                                    onSelect: { b in var p = prefs; p.bars = b; actions.setHarmony(p) })
-                    Text("BAR").captionStyle().foregroundColor(Theme.A.a3).accessibility(hidden: true)
+                    Text("BAR").captionStyle().foregroundColor(palette.a3).accessibility(hidden: true)
                 }
                 .helpTip(HelpText.bars)
                 LCDChip(title: "MINI", on: state.miniOpen, label: state.miniOpen ? "Close Beat Key Mini" : "Open Beat Key Mini",
@@ -134,7 +135,7 @@ struct HarmonyPanel: View {
             // a new key crossfades the whole grid in place (Motion.swap)
             Crossfade(key ?? "", alignment: .top) { _ in
                 if diatonic.isEmpty {
-                    Text("No key yet").font(Theme.T.caption).foregroundColor(Theme.A.a3)
+                    Text("No key yet").font(Theme.T.caption).foregroundColor(palette.a3)
                         .frame(maxWidth: .infinity, minHeight: ChordFace.height * 2 + 28)
                 } else {
                     ChordGrid(diatonic: diatonic, borrowed: borrowed) { c, tonic in
@@ -165,7 +166,8 @@ struct HarmonyPanel: View {
 
 /// The hairline between the harmony column's sections (the readout's KeyStrip rule).
 struct HarmonyRule: View {
-    var body: some View { Rectangle().fill(Theme.A.a4).frame(height: 1) }
+    @Environment(\.palette) private var palette
+    var body: some View { Rectangle().fill(palette.a4).frame(height: 1) }
 }
 
 /// The chord grid (J 2026-11-09, design audit F10): one 7-column grid for both rows. Row one is
@@ -173,6 +175,7 @@ struct HarmonyRule: View {
 /// each borrowed chord in the column of the degree it stands in for, the other columns empty.
 /// `cell` draws one chord (the window's click/drag cell, the Mini's press pad).
 struct ChordGrid<Cell: View>: View {
+    @Environment(\.palette) private var palette
     let diatonic: [Chord]
     /// Seven slots (Harmony.borrowedRow); nil = an empty column.
     let borrowed: [Chord?]
@@ -189,7 +192,7 @@ struct ChordGrid<Cell: View>: View {
             }
             .helpTip(rowTip)
             if borrowed.contains(where: { $0 != nil }) {
-                Text("BORROWED").captionStyle().foregroundColor(Theme.A.a3)
+                Text("BORROWED").captionStyle().foregroundColor(palette.a3)
                     .padding(.top, Theme.S.s).padding(.bottom, Theme.S.xs)
                     .accessibility(hidden: true)
                 HStack(spacing: gap) {
@@ -213,6 +216,7 @@ struct ChordGrid<Cell: View>: View {
 /// dashed: dashed reads as an empty slot) and a small dot top-right as its mark. `lit` =
 /// sounding (solid amber, dark ink); `hover` = an A4 wash.
 struct ChordFace: View {
+    @Environment(\.palette) private var palette
     let chord: Chord
     let tonic: Bool
     let lit: Bool
@@ -222,18 +226,17 @@ struct ChordFace: View {
     var hover = false
 
     static let height: CGFloat = 48
-    static var ink: Color { Theme.A.ink }
 
     var body: some View {
         let shape = RoundedRectangle(cornerRadius: Theme.R.cap, style: .continuous)
         let b = chord.borrowed
-        let fill: Color = lit ? Theme.A.a1 : hover ? Theme.A.a4 : b ? .clear : tonic ? Theme.A.a4 : Theme.A.a5
+        let fill: Color = lit ? palette.a1 : hover ? palette.a4 : b ? .clear : tonic ? palette.a4 : palette.a5
         return VStack(spacing: 2) {
             Text(chord.name).font(Theme.T.value)
-                .foregroundColor(lit ? ChordFace.ink : tonic ? Theme.A.a1 : Theme.A.a2)
+                .foregroundColor(lit ? palette.ink : tonic ? palette.a1 : palette.a2)
                 .lineLimit(1).minimumScaleFactor(0.8)
             Text(chord.roman).font(Theme.T.caption)
-                .foregroundColor(lit ? ChordFace.ink.opacity(0.8) : Theme.A.a3)
+                .foregroundColor(lit ? palette.ink.opacity(0.8) : palette.a3)
                 .lineLimit(1)
         }
         .padding(.horizontal, 3)
@@ -241,21 +244,21 @@ struct ChordFace: View {
         .frame(maxWidth: .infinity)
         .frame(height: height)
         .background(shape.fill(fill))
-        .overlay(shape.stroke(lit ? Color.clear : tonic ? Theme.A.a3 : Theme.A.a4, lineWidth: 1))
+        .overlay(shape.stroke(lit ? Color.clear : tonic ? palette.a3 : palette.a4, lineWidth: 1))
         .overlay(mark, alignment: .topTrailing)
         .overlay(hintLabel, alignment: .topLeading)
     }
 
     @ViewBuilder private var mark: some View {
         if chord.borrowed {
-            Circle().fill(lit ? ChordFace.ink.opacity(0.7) : Theme.A.a3).frame(width: 4, height: 4)
+            Circle().fill(lit ? palette.ink.opacity(0.7) : palette.a3).frame(width: 4, height: 4)
                 .padding(Theme.S.xs).accessibility(hidden: true)
         }
     }
 
     @ViewBuilder private var hintLabel: some View {
         if let h = hint {
-            Text(h).font(Theme.T.caption).foregroundColor(lit ? ChordFace.ink.opacity(0.7) : Theme.A.a3)
+            Text(h).font(Theme.T.caption).foregroundColor(lit ? palette.ink.opacity(0.7) : palette.a3)
                 .padding(.leading, Theme.S.xs).padding(.top, 2).accessibility(hidden: true)
         }
     }
@@ -302,6 +305,7 @@ struct ChordCell: View {
 
 /// MATCH TO: the project key picker and the −6…+6 strip, the shift that fits lit.
 struct MatchToRow: View {
+    @Environment(\.palette) private var palette
     let key: String?
     let target: String?
     let pick: () -> Void
@@ -314,14 +318,14 @@ struct MatchToRow: View {
     var body: some View {
         VStack(alignment: .leading, spacing: Theme.S.s) {
             HStack(spacing: Theme.S.s) {
-                Text.cap("MATCH TO").helpTip(HelpText.matchTo)
+                Text.cap("MATCH TO", palette).helpTip(HelpText.matchTo)
                 ChipMenuButton(title: target ?? "PICK KEY", tracked: target == nil, action: pick)
                     .accessibility(label: Text(target.map { "Project key \($0). Change it" } ?? "Pick your project's key"))
                     .helpTip(HelpText.matchTo)
                 Spacer(minLength: Theme.S.xs)
                 if let l = MatchToRow.line(target: target, shift: shift) {
                     Crossfade(l, alignment: .trailing) { l in
-                        Text(l).font(Theme.T.value).foregroundColor(Theme.A.a1)
+                        Text(l).font(Theme.T.value).foregroundColor(palette.a1)
                             .lineLimit(1).minimumScaleFactor(0.85)
                     }
                     .helpTip(HelpText.pitchToFit)
@@ -358,6 +362,7 @@ struct MatchToRow: View {
 /// faintly outlined; a click makes a key THE key (SpellingSettings.choose, the same path as a
 /// click on key 2 or 3).
 struct KeyWheel: View {
+    @Environment(\.palette) private var palette
     let keys: [(String, Int)]
     /// Manual Key Selection on show: its section is lit white (not the display colour), hovering
     /// it swaps its name for the reset arrow, and a click there clears it (`onClear`).
@@ -549,7 +554,7 @@ struct KeyWheel: View {
         ZStack {
             if let k = keys.first?.0, let code = Camelot.code(k) {
                 Crossfade(code) { code in
-                    Text(code).font(Theme.T.value).foregroundColor(Theme.A.a2)
+                    Text(code).font(Theme.T.value).foregroundColor(palette.a2)
                 }
             }
         }
@@ -585,6 +590,7 @@ struct RingSector: Shape {
 
 /// The three circles and the 12 lines between keys, drawn once over the sections.
 private struct KeyWheelGrid: View {
+    @Environment(\.palette) private var palette
     var body: some View {
         Canvas { ctx, size in
             let c = CGPoint(x: size.width / 2, y: size.height / 2)
@@ -597,8 +603,8 @@ private struct KeyWheelGrid: View {
                 lines.move(to: CGPoint(x: c.x + CGFloat(cos(a)) * r0, y: c.y + CGFloat(sin(a)) * r0))
                 lines.addLine(to: CGPoint(x: c.x + CGFloat(cos(a)) * r2, y: c.y + CGFloat(sin(a)) * r2))
             }
-            ctx.stroke(circles, with: .color(Theme.A.a4), lineWidth: 1)
-            ctx.stroke(lines, with: .color(Theme.A.a4), lineWidth: 1)
+            ctx.stroke(circles, with: .color(palette.a4), lineWidth: 1)
+            ctx.stroke(lines, with: .color(palette.a4), lineWidth: 1)
         }
         .frame(width: KeyWheel.side, height: KeyWheel.side)
     }
@@ -608,6 +614,7 @@ private struct KeyWheelGrid: View {
 /// a faint inset outline for a key that fits (quieter than a runner-up), an A4 wash on hover; the
 /// light eases in and out instead of jumping.
 private struct KeyWheelSection: View {
+    @Environment(\.palette) private var palette
     let index: Int
     let minor: Bool
     /// The key's name as the dial and the top 3 spell it (KeyWheel.name).
@@ -624,12 +631,12 @@ private struct KeyWheelSection: View {
         let inner = minor ? KeyWheel.innerRadius : KeyWheel.middleRadius
         let outer = minor ? KeyWheel.middleRadius : KeyWheel.outerRadius
         let shape = RingSector(index: index, inner: inner, outer: outer)
-        let fill: Color = manual ? ManualLook.white
-            : rank == 0 ? Theme.A.a1 : (rank == 1 || (hover && onChoose != nil)) ? Theme.A.a4 : .clear
+        let fill: Color = manual ? palette.manualWhite
+            : rank == 0 ? palette.a1 : (rank == 1 || (hover && onChoose != nil)) ? palette.a4 : .clear
         let mid = Double(index) * .pi / 6, r = (inner + outer) / 2
         let ink: Color = manual ? ManualLook.ink
-            : rank == 0 ? Theme.A.ink : (rank == 1 || hover) ? Theme.A.a1 : fit ? Theme.A.a2 : Theme.A.a3
-        let glow: Color = manual ? ManualLook.glow : rank == 0 && !Theme.highContrast ? Theme.amberGlow : .clear
+            : rank == 0 ? palette.ink : (rank == 1 || hover) ? palette.a1 : fit ? palette.a2 : palette.a3
+        let glow: Color = manual ? palette.manualGlow : rank == 0 && !palette.highContrast ? palette.amberGlow : .clear
         // Manual Key Selection hovered: the name gives way to the reset arrow (Motion.hover)
         let resetting = manual && hover && onClear != nil
         let label = ZStack {
@@ -649,7 +656,7 @@ private struct KeyWheelSection: View {
                 .shadow(color: glow, radius: 5)
             if fit && rank == nil {
                 RingSector(index: index, inner: inner, outer: outer, inset: 2.5)
-                    .stroke(Theme.A.a3, lineWidth: 1)
+                    .stroke(palette.a3, lineWidth: 1)
             }
             label
         }
@@ -694,6 +701,7 @@ private struct KeyWheelPress: ButtonStyle {
 /// The 12 pitch classes the analyzer heard, as LCD bars (strongest = full height). The key's
 /// scale notes are bright and dotted, the rest dim.
 struct NotesHeard: View {
+    @Environment(\.palette) private var palette
     let chroma: [Double]
     let scale: Scale?
 
@@ -712,9 +720,9 @@ struct NotesHeard: View {
                 VStack(spacing: Theme.S.xs) {
                     GeometryReader { g in
                         ZStack(alignment: .bottom) {
-                            RoundedRectangle(cornerRadius: 1.5).fill(Theme.A.a5)
+                            RoundedRectangle(cornerRadius: 1.5).fill(palette.a5)
                             RoundedRectangle(cornerRadius: 1.5)
-                                .fill(tonic ? Theme.A.a1 : inScale ? Theme.A.a2 : Theme.A.a4)
+                                .fill(tonic ? palette.a1 : inScale ? palette.a2 : palette.a4)
                                 .frame(height: max(2, g.size.height * CGFloat(lv[pc])))
                                 .animation(Theme.Motion.value, value: lv[pc])
                         }
@@ -722,10 +730,10 @@ struct NotesHeard: View {
                     .padding(.horizontal, 1)
                     Crossfade(scale?.name(pc) ?? Scale.sharpNames[pc]) { n in
                         Text(n).font(Theme.T.caption).fixedSize()
-                            .foregroundColor(inScale ? Theme.A.a2 : Theme.A.a3)
+                            .foregroundColor(inScale ? palette.a2 : palette.a3)
                     }
                     .frame(height: 12)
-                    Circle().fill(inScale ? Theme.A.a2 : .clear).frame(width: 3, height: 3)
+                    Circle().fill(inScale ? palette.a2 : .clear).frame(width: 3, height: 3)
                 }
                 .frame(maxWidth: .infinity)
             }

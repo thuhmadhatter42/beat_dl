@@ -23,10 +23,9 @@ final class MarketingRenderTests: XCTestCase {
         let savedManual = shared.manualKey
         Pocket.snapshot = true
         defer {
-            Pocket.snapshot = false; Theme.accent = .amber
+            Pocket.snapshot = false
             shared.manualKey = savedManual
         }
-        Theme.accent = .amber
         let out = URL(fileURLWithPath: dir)
         try FileManager.default.createDirectory(at: out, withIntermediateDirectories: true)
 
@@ -83,8 +82,6 @@ final class MarketingRenderTests: XCTestCase {
         write(MiniView(state: MiniViewState(key: "Cm", layout: MiniLayout(key: "Cm", quality: .triad))), "mini")
         write(window(manual), "window-manual")
 
-        Theme.accent = Accent(80, 170, 255)
-        write(window(file), "window-blue")
-        Theme.accent = .amber
+        write(window(file).environment(\.palette, Palette(accent: Accent(80, 170, 255))), "window-blue")
     }
 }

@@ -19,8 +19,7 @@ final class FooterReadoutRenderTests: XCTestCase {
         }
         guard #available(macOS 13.0, *) else { throw XCTSkip("ImageRenderer is macOS 13+") }
         Pocket.snapshot = true
-        defer { Pocket.snapshot = false; Theme.accent = .amber }
-        Theme.accent = .amber
+        defer { Pocket.snapshot = false }
         let out = URL(fileURLWithPath: dir)
         try FileManager.default.createDirectory(at: out, withIntermediateDirectories: true)
         func write<V: View>(_ v: V, _ name: String, crop bottom: CGFloat? = nil) throws {

@@ -21,7 +21,6 @@ struct FaceplateView: View {
     @ObservedObject private var watcher = DAWWatcher.shared
     @ObservedObject private var help = HelpSettings.shared
     @ObservedObject private var mini = MiniController.shared
-    @ObservedObject private var accent = AccentSettings.shared
     @State private var keyMonitor: Any?
     @State private var pasteboardCount = NSPasteboard.general.changeCount
     private let clipboardTick = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
@@ -30,8 +29,8 @@ struct FaceplateView: View {
         FaceplateFace(state: state, picked: model.picked, url: $model.url, fieldFocused: $model.fieldFocused,
                       pickFocused: $model.pickFocused, actions: windowActions,
                       files: FaceplateFace.FileActions(openAudio: openAudio, find: find))
-        // Theme.accent is read while drawing: a new display colour redraws the face (only then)
-        .id(accent.effective)
+        // the display colour and High Contrast, from their one owner each, for every view below
+        .paletteRoot(display: display)
         .environment(\.liveLevel, live.meter)   // the meter ticks on its own (LiveLevel)
         .onDrop(of: ["public.file-url"], isTargeted: dropBinding, perform: drop)
         .onReceive(engine.$state) { s in
@@ -288,7 +287,6 @@ struct FaceplateFace: View {
         let gap = FaceplateView.gridGap
         return VStack(spacing: 0) {
             LCD(state: state, highlighted: highlighted, actions: actions)
-                .id(state.highContrast)   // Theme.highContrast is read while drawing: redraw the readout
             HStack(spacing: gap) {
                 LinkField(text: $url, focused: $fieldFocused, onSubmit: { actions.downloadPressed(state) })
                 if state.needsLogin, let cap = Faceplate.loginCap(busy: state.busy) {

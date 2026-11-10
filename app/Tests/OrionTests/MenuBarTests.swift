@@ -52,7 +52,7 @@ final class MenuBarTests: XCTestCase {
 
     func testMenuBarImageExistsForEveryLamp() {
         for l in [Lamp.locked, .unsure, .listening] {
-            XCTAssertNotNil(MenuBarImage.make(l))
+            XCTAssertNotNil(MenuBarImage.make(l, palette: Palette()))
         }
     }
 }

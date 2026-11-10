@@ -199,6 +199,7 @@ enum HelpTipLogic {
 // MARK: the card (the key wheel's hover card: one look for every hover card)
 
 struct HelpCard: View {
+    @Environment(\.palette) private var palette
     let title: String
     let text: String
     var width: CGFloat = HelpCard.width
@@ -207,15 +208,15 @@ struct HelpCard: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: Theme.S.xs) {
-            Text(title).labelStyle().foregroundColor(Theme.A.a1)
-            Text(text).font(Theme.T.note).foregroundColor(Theme.A.a2)
+            Text(title).labelStyle().foregroundColor(palette.a1)
+            Text(text).font(Theme.T.note).foregroundColor(palette.a2)
                 .lineSpacing(1)
                 .fixedSize(horizontal: false, vertical: true)
         }
         .padding(.horizontal, Theme.S.s + 2).padding(.vertical, Theme.S.s)
         .frame(width: width, alignment: .leading)
         .background(RoundedRectangle(cornerRadius: Theme.R.well).fill(Theme.hex(0x15100a)))   // opaque: nothing ghosts through
-        .overlay(RoundedRectangle(cornerRadius: Theme.R.well).stroke(Theme.A.a3, lineWidth: 1))
+        .overlay(RoundedRectangle(cornerRadius: Theme.R.well).stroke(palette.a3, lineWidth: 1))
         .shadow(color: Color.black.opacity(0.5), radius: 6, y: 2)
     }
 }

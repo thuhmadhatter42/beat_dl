@@ -125,23 +125,23 @@ final class StatusItemController: NSObject, NSMenuDelegate {
         self.toggleListening = toggleListening
         self.newSong = newSong
         self.toggleHold = toggleHold
+        // the key is drawn in the display colour (and High Contrast's manual white): both come in
+        // here from their one owner, so a new colour redraws the key like a new reading does
+        let palette = AccentSettings.shared.$effective.removeDuplicates()
+            .combineLatest(display.$highContrast.removeDuplicates())
+            .map { Palette(accent: $0, highContrast: $1) }
         Publishers.CombineLatest(
             Publishers.CombineLatest4(engine.$state, model.$pager, model.$tempoFactor,
                                       live.$state.combineLatest(live.$sourceName)),
-            recents.$readings.combineLatest(live.$isHeld, SpellingSettings.shared.$manualKey))
+            recents.$readings.combineLatest(live.$isHeld, SpellingSettings.shared.$manualKey, palette))
             .receive(on: DispatchQueue.main)
             .sink { [weak self] a, b in
                 let (state, pager, factor, l) = a
-                let (readings, held, choice) = b
+                let (readings, held, choice, palette) = b
                 let r = MenuBarReadout.of(live: l.0, source: l.1, factor: factor, held: held, choice: choice)
                     ?? MenuBarReadout.of(state, page: pager.index, factor: factor, choice: choice)
-                _ = readings; self?.show(r)
+                _ = readings; self?.show(r, palette: palette)
             }
-            .store(in: &bag)
-        // a new display colour redraws the key (its image is drawn once per readout)
-        AccentSettings.shared.$effective.dropFirst().removeDuplicates()
-            .receive(on: DispatchQueue.main)
-            .sink { [weak self] _ in if let r = self?.readout { self?.show(r) } }
             .store(in: &bag)
 
         var actions = PocketActions.wired(surface: "pocket", engine: engine, model: model, live: live, tuning: tuning,
@@ -163,13 +163,14 @@ final class StatusItemController: NSObject, NSMenuDelegate {
         popover.contentSize = host.view.fittingSize
     }
 
-    func show(_ r: MenuBarReadout) {
+    /// Draws `r`, its key in `palette` (the display colour in use, from AccentSettings).
+    func show(_ r: MenuBarReadout, palette: Palette) {
         if r.manual != readout.manual { AppLog.log(StatusItemController.manualSwitchLine(r)) }
         readout = r
         guard let button = item?.button else { return }
         // The key (gold = no reading, white = Manual Key Selection, else the lamp's colour) sits
         // AFTER the reading, and the item is one fixed width, so nothing in the menu bar shifts.
-        button.image = MenuBarImage.make(r.lamp, manual: r.manual)
+        button.image = MenuBarImage.make(r.lamp, manual: r.manual, palette: palette)
         button.imagePosition = .imageTrailing
         button.alignment = .center
         let quiet = r.dim || r.text == nil
@@ -201,7 +202,7 @@ final class StatusItemController: NSObject, NSMenuDelegate {
     /// Wide enough for the longest reading ("G#m 188.8" + the key), so the item never resizes.
     static func fixedWidth(font: NSFont) -> CGFloat {
         let text = ("⏸ G#m 888.8 " as NSString).size(withAttributes: [.font: font]).width
-        return (text + MenuBarImage.key().size.width + 6).rounded(.up)
+        return (text + MenuBarImage.size(height: 12).width + 6).rounded(.up)
     }
 
     // MARK: click = popover, right-click = menu
@@ -410,25 +411,29 @@ enum MenuBarImage {
 
     /// The menu-bar key: gold with no reading, else the confidence lamp's colour (green locked,
     /// amber unsure, ...); `manual` = Manual Key Selection: white (no lamp), like the dial's white
-    /// MANUAL. `side` is kept for callers sizing it; the key is 12 pt tall by default.
-    static func make(_ lamp: Lamp?, manual: Bool = false, side: CGFloat = 12) -> NSImage? {
-        if manual { return key(height: side, manual: true) }
-        guard let lamp = lamp else { return key(height: side) }
-        return key(height: side, color: lamp.nsColor)
+    /// MANUAL. `side` is kept for callers sizing it; the key is 12 pt tall by default. `palette` = the
+    /// display colour (the gold, the unsure lamp) and High Contrast (the manual white) in use.
+    static func make(_ lamp: Lamp?, manual: Bool = false, side: CGFloat = 12, palette: Palette) -> NSImage? {
+        if manual { return key(height: side, manual: true, palette: palette) }
+        guard let lamp = lamp else { return key(height: side, palette: palette) }
+        return key(height: side, color: lamp.nsColor(palette.accent), palette: palette)
     }
+
+    /// The key's size at `height` (the item's fixed width counts it).
+    static func size(height: CGFloat) -> NSSize { NSSize(width: (height * 1.75).rounded(), height: height) }
 
     /// Beat Key's golden key (KeyGlyphShape: the app icon's dial head and toothed shaft): amber on
     /// a dark menu bar, a deeper gold on a light one, so it is findable either way.
     /// `manual` = the Manual Key Selection's white; a light menu bar can't show white, so there it
     /// is the bar's own near-black ink (still neutral, no lamp colour).
-    static func key(height: CGFloat = 12, color: NSColor? = nil, manual: Bool = false) -> NSImage {
-        let size = NSSize(width: (height * 1.75).rounded(), height: height)
+    static func key(height: CGFloat = 12, color: NSColor? = nil, manual: Bool = false, palette: Palette) -> NSImage {
+        let size = MenuBarImage.size(height: height)
         let img = NSImage(size: size, flipped: true) { rect in
             guard let ctx = NSGraphicsContext.current?.cgContext else { return false }
             let dark = NSAppearance.currentDrawing().bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
             // the display colour (amber unless COLOR picked another); a deeper shade on a light bar
-            let a = Theme.accent
-            let gold = manual ? MenuBarImage.manualInk(dark: dark) : color ?? (dark ? a.nsColor
+            let a = palette.accent
+            let gold = manual ? MenuBarImage.manualInk(dark: dark, palette: palette) : color ?? (dark ? a.nsColor
                             : a == .amber ? NSColor(srgbRed: 168 / 255, green: 104 / 255, blue: 0, alpha: 1)
                             : Accent(a.r * 0.66, a.g * 0.6, a.b * 0.5).nsColor)
             ctx.addPath(KeyGlyphShape().path(in: rect.insetBy(dx: 0.25, dy: 0.25)).cgPath)
@@ -443,9 +448,10 @@ enum MenuBarImage {
 }
 
 extension MenuBarImage {
-    /// The manual key's colour: ManualLook's white on a dark bar, near black on a light one.
-    static func manualInk(dark: Bool) -> NSColor {
-        dark ? (NSColor(ManualLook.white).usingColorSpace(.sRGB) ?? .white)
+    /// The manual key's colour: the manual white (palette.manualWhite) on a dark bar, near black on
+    /// a light one.
+    static func manualInk(dark: Bool, palette: Palette) -> NSColor {
+        dark ? (NSColor(palette.manualWhite).usingColorSpace(.sRGB) ?? .white)
             : NSColor(srgbRed: 0.11, green: 0.11, blue: 0.12, alpha: 1)
     }
 }
@@ -475,14 +481,13 @@ struct PocketContainer: View {
     @ObservedObject private var spelling = SpellingSettings.shared
     @ObservedObject private var watcher = DAWWatcher.shared
     @ObservedObject private var help = HelpSettings.shared
-    @ObservedObject private var accent = AccentSettings.shared
     @ObservedObject private var mini = MiniController.shared
     let actions: PocketActions
     let onSize: (CGSize) -> Void
 
     var body: some View {
         PocketView(state: state, url: $model.url, actions: actions)
-            .id(accent.effective)   // Theme.accent is read while drawing: a new colour redraws the pocket
+            .paletteRoot(display: display)   // the display colour and High Contrast for every view below
             .environment(\.liveLevel, live.meter)   // the meter ticks on its own (LiveLevel)
             .fixedSize()
             .background(GeometryReader { g in Color.clear.preference(key: PocketSizeKey.self, value: g.size) })
@@ -519,7 +524,6 @@ extension PocketState {
         s.clipboardLink = extras.clipboardLink
         s.daw = daw
         s.recents = recents.readings
-        s.highContrast = display.highContrast
         s.newSongKeys = shortcuts.shortcut(.newSong)?.display
         s.held = live.isHeld
         s.holdKeys = shortcuts.shortcut(.hold)?.display

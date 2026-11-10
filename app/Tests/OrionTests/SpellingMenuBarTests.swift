@@ -106,7 +106,7 @@ final class SpellingMenuBarTests: XCTestCase {
         XCTAssertTrue(m.manual)
         XCTAssertNil(m.lamp)                                       // was UNSURE at 0 %
         XCTAssertFalse(m.detail.contains("0%"), m.detail)
-        XCTAssertNotNil(MenuBarImage.make(m.lamp, manual: m.manual))
+        XCTAssertNotNil(MenuBarImage.make(m.lamp, manual: m.manual, palette: Palette()))
     }
 
     func testMenuBarNotManualIsUnchanged() {
@@ -146,10 +146,10 @@ final class SpellingMenuBarTests: XCTestCase {
     }
 
     func testManualInkIsNeutral() {
-        let w = MenuBarImage.manualInk(dark: true)
+        let w = MenuBarImage.manualInk(dark: true, palette: Palette())
         XCTAssertGreaterThan(w.redComponent, 0.94)
         XCTAssertEqual(w.redComponent, w.blueComponent, accuracy: 0.02)
-        let b = MenuBarImage.manualInk(dark: false)
+        let b = MenuBarImage.manualInk(dark: false, palette: Palette())
         XCTAssertLessThan(b.redComponent, 0.2)
     }
 
@@ -165,10 +165,9 @@ final class SpellingMenuBarTests: XCTestCase {
         let savedManual = shared.manualKey
         Pocket.snapshot = true
         defer {
-            Pocket.snapshot = false; Theme.accent = .amber
+            Pocket.snapshot = false
             shared.manualKey = savedManual
         }
-        Theme.accent = .amber
         let out = URL(fileURLWithPath: dir)
         try FileManager.default.createDirectory(at: out, withIntermediateDirectories: true)
         func write<V: View>(_ v: V, _ name: String) throws {
@@ -221,7 +220,7 @@ final class SpellingMenuBarTests: XCTestCase {
                     let text = NSAttributedString(string: (row.1.text ?? "") + " ", attributes: [
                         .font: font, .foregroundColor: quiet ? ink.withAlphaComponent(0.5) : ink])
                     text.draw(at: NSPoint(x: 8, y: y + 4))
-                    let img = MenuBarImage.make(row.1.lamp, manual: row.1.manual)!
+                    let img = MenuBarImage.make(row.1.lamp, manual: row.1.manual, palette: Palette())!
                     img.draw(in: NSRect(x: 8 + text.size().width, y: y + 6, width: img.size.width, height: img.size.height))
                     NSAttributedString(string: row.0, attributes: [.font: NSFont.systemFont(ofSize: 10),
                                                                     .foregroundColor: ink.withAlphaComponent(0.6)])

@@ -3,6 +3,7 @@ import SwiftUI
 
 /// The recessed `#050505` field (Artemis's plate) holding the link.
 struct LinkField: View {
+    @Environment(\.palette) private var palette
     @Binding var text: String
     @Binding var focused: Bool
     let onSubmit: () -> Void
@@ -18,7 +19,7 @@ struct LinkField: View {
             // `0 1px 0 rgba(255,255,255,.05)`: a lip of light under the recess
             .background(shape.fill(Color.white.opacity(0.05)).offset(y: 1).padding(-1))
             // the focus ring while the field waits for a link
-            .overlay(shape.stroke(Theme.A.a3, lineWidth: 2).padding(-2)
+            .overlay(shape.stroke(palette.a3, lineWidth: 2).padding(-2)
                 .opacity(focused && text.isEmpty ? 1 : 0))
             .helpTip(HelpText.linkField)
     }
@@ -41,6 +42,7 @@ struct LinkField: View {
 /// Click (or Space / Return while it is focused and empty) opens the audio-only open panel.
 /// Return with audio picked = FIND KEY/BPM.
 struct AudioPickField: View {
+    @Environment(\.palette) private var palette
     let label: String?
     @Binding var focused: Bool
     let onOpen: () -> Void
@@ -56,7 +58,7 @@ struct AudioPickField: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
             // the field's own small affordance: a folder-open chevron in faint amber
             Text("···").labelStyle()
-                .foregroundColor(Theme.A.a3)
+                .foregroundColor(palette.a3)
         }
         .padding(.horizontal, 12)
         .frame(height: Theme.H.lg)
@@ -65,7 +67,7 @@ struct AudioPickField: View {
         .ring(radius: Theme.R.well, spread: 1, Theme.black)
         .background(shape.fill(Color.white.opacity(0.05)).offset(y: 1).padding(-1))
         .overlay(Pocket.snapshot ? nil : PickControl(focused: $focused, onOpen: onOpen, onSubmit: onSubmit))
-        .overlay(shape.stroke(Theme.A.a3, lineWidth: 2).padding(-2).opacity(focused ? 1 : 0)
+        .overlay(shape.stroke(palette.a3, lineWidth: 2).padding(-2).opacity(focused ? 1 : 0)
             .allowsHitTesting(false))
         .pointingHand()
     }
@@ -125,6 +127,7 @@ struct URLTextField: NSViewRepresentable {
     @Binding var text: String
     @Binding var focused: Bool
     let onSubmit: () -> Void
+    @Environment(\.palette) private var palette
 
     func makeCoordinator() -> Coordinator { Coordinator(self) }
 
@@ -147,12 +150,14 @@ struct URLTextField: NSViewRepresentable {
         f.onFocus = { context.coordinator.setFocused(true) }
         f.setAccessibilityLabel("YouTube link")
         f.unregisterDraggedTypes()   // a dropped file goes to the window (analyze), not into the field
+        f.caret = palette.amberNS
         return f
     }
 
     func updateNSView(_ f: AmberCaretField, context: Context) {
         context.coordinator.parent = self
         if f.stringValue != text { f.stringValue = text }
+        if f.caret != palette.amberNS { f.caret = palette.amberNS }   // a new display colour, caret and all
     }
 
     final class Coordinator: NSObject, NSTextFieldDelegate {
@@ -179,11 +184,15 @@ struct URLTextField: NSViewRepresentable {
 
 final class AmberCaretField: NSTextField {
     var onFocus: (() -> Void)?
+    /// The caret's colour: the display colour, handed in by URLTextField from its palette.
+    var caret: NSColor = Accent.amber.nsColor {
+        didSet { (currentEditor() as? NSTextView)?.insertionPointColor = caret }
+    }
 
     override func becomeFirstResponder() -> Bool {
         let ok = super.becomeFirstResponder()
         if ok {
-            (currentEditor() as? NSTextView)?.insertionPointColor = Theme.amberNS
+            (currentEditor() as? NSTextView)?.insertionPointColor = caret
             onFocus?()
         }
         return ok
@@ -220,6 +229,7 @@ struct SSLCapStyle: ButtonStyle {
 
 /// The cap itself (a view, so it can track the hover).
 private struct CapBody<Label: View>: View {
+    @Environment(\.palette) private var palette
     let label: Label
     let pressed: Bool
     let lit: Bool
@@ -233,14 +243,14 @@ private struct CapBody<Label: View>: View {
         let shape = RoundedRectangle(cornerRadius: r, style: .continuous)
         let on = lit || ready
         return label   // a Text set by SSLCapStyle.label, or an icon
-            .foregroundColor(lit ? Theme.accent.litCap.legend.color : on ? Theme.hex(0x3a372f) : Theme.hex(0x4a463c, 0.45))
+            .foregroundColor(lit ? palette.accent.litCap.legend.color : on ? Theme.hex(0x3a372f) : Theme.hex(0x4a463c, 0.45))
             .shadow(color: Color.white.opacity(lit ? 0.35 : on ? 0.5 : 0.2), radius: 0, y: 1)
             .padding(.horizontal, padding)
             .frame(height: height - SSLCapStyle.ring * 2)
             .background(
                 ZStack(alignment: .top) {
                     if lit {
-                        let c = Theme.accent.litCap   // the display colour (COLOR)
+                        let c = palette.accent.litCap   // the display colour (COLOR)
                         Theme.vertical([(c.top.color, 0), (c.mid.color, 0.45), (c.bottom.color, 1)])
                     } else if on {
                         Theme.vertical([(Theme.hex(0xefede4), 0), (Theme.hex(0xd6d3c6), 0.45), (Theme.hex(0xb3b0a2), 1)])
@@ -266,7 +276,7 @@ private struct CapBody<Label: View>: View {
             .ring(radius: r, spread: SSLCapStyle.ring, Theme.hex(0x0a0a0b))
             .background(Group {
                 if lit {
-                    shape.fill(Theme.amberGlow).padding(-2).blur(radius: 5.5)
+                    shape.fill(palette.amberGlow).padding(-2).blur(radius: 5.5)
                 } else {
                     shape.fill(Color.black.opacity(0.6)).padding(-SSLCapStyle.ring).offset(y: 2).blur(radius: 1.5)
                 }

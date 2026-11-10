@@ -31,6 +31,7 @@ struct ResultOptions {
 /// (BPM and the key dial for a reading); under it the popover's own KeyStrip (TOP KEYS, the
 /// scale on a keyboard, the scale line), fed the same PocketState.
 struct LCD: View {
+    @Environment(\.palette) private var palette
     let state: PocketState
     let highlighted: Bool
     var actions = PocketActions()
@@ -61,9 +62,9 @@ struct LCD: View {
     /// `0 0 0 2px amber, 0 0 22px rgba(amber,.35)` when a file hovers over the window.
     private func dropRing(_ shape: RoundedRectangle) -> some View {
         ZStack {
-            RoundedRectangle(cornerRadius: r + 2, style: .continuous).fill(Theme.amber(0.35))
+            RoundedRectangle(cornerRadius: r + 2, style: .continuous).fill(palette.amber(0.35))
                 .padding(-2).blur(radius: 11)
-            RoundedRectangle(cornerRadius: r + 2, style: .continuous).fill(Theme.amber).padding(-2)
+            RoundedRectangle(cornerRadius: r + 2, style: .continuous).fill(palette.amber).padding(-2)
         }
     }
 
@@ -98,11 +99,19 @@ extension View {
     /// The amber-LCD glass (the window's readout, Advanced mode's harmony display, the pocket's
     /// readout, the Mini): the near-black face, the sheen across its top, the recess shadow and
     /// the black ring.
-    func lcdGlass(radius r: CGFloat) -> some View {
+    func lcdGlass(radius r: CGFloat) -> some View { modifier(LCDGlass(r: r)) }
+}
+
+/// The glass; High Contrast: pure black, no sheen.
+private struct LCDGlass: ViewModifier {
+    @Environment(\.palette) private var palette
+    let r: CGFloat
+
+    func body(content: Content) -> some View {
         let shape = RoundedRectangle(cornerRadius: r, style: .continuous)
-        return overlay(Theme.vertical([(Color.white.opacity(Theme.highContrast ? 0 : 0.07), 0), (Color.white.opacity(0), 0.45)])
+        return content.overlay(Theme.vertical([(Color.white.opacity(palette.highContrast ? 0 : 0.07), 0), (Color.white.opacity(0), 0.45)])
             .allowsHitTesting(false))
-        .background(Theme.highContrast ? Theme.vertical([(Theme.black, 0), (Theme.black, 1)])
+        .background(palette.highContrast ? Theme.vertical([(Theme.black, 0), (Theme.black, 1)])
                                        : Theme.vertical([(Theme.hex(0x0a0c09), 0), (Theme.hex(0x050604), 1)]))
         .clipShape(shape)
         .innerShadow(shape, Color.black.opacity(0.95), blur: 6, y: 2)
@@ -121,39 +130,42 @@ private struct Centered<C: View>: View {
 
 /// The start state: an invitation, not a skeleton of missing numbers (design pass F11).
 struct IdleReadout: View {
+    @Environment(\.palette) private var palette
     var body: some View {
         Centered {
-            Text("Drop a beat").font(Theme.T.title).foregroundColor(Theme.A.a2)
+            Text("Drop a beat").font(Theme.T.title).foregroundColor(palette.a2)
             Text("or paste a YouTube link, open a file or listen").font(Theme.T.caption)
-                .foregroundColor(Theme.A.a3).padding(.top, Theme.S.s)
+                .foregroundColor(palette.a3).padding(.top, Theme.S.s)
         }
         .accessibilityElement(children: .combine)
     }
 }
 
 struct DropReadout: View {
+    @Environment(\.palette) private var palette
     var body: some View {
         Centered {
             Text("DROP TO GET BPM AND KEY").font(Theme.T.title).tracking(Theme.T.titleTracking)
-                .foregroundColor(Theme.A.a1)
-            Text("The file stays where it is").font(Theme.T.caption).foregroundColor(Theme.A.a2)
+                .foregroundColor(palette.a1)
+            Text("The file stays where it is").font(Theme.T.caption).foregroundColor(palette.a2)
                 .padding(.top, Theme.S.s)
         }
     }
 }
 
 struct LoginReadout: View {
+    @Environment(\.palette) private var palette
     let first: String
     let second: String
     var caption: String?
     var body: some View {
         Centered {
             Text(first).font(Theme.T.title).tracking(Theme.T.titleTracking).multilineTextAlignment(.center)
-                .foregroundColor(Theme.A.a1)
-            Text(second).labelStyle().foregroundColor(Theme.A.a2).multilineTextAlignment(.center)
+                .foregroundColor(palette.a1)
+            Text(second).labelStyle().foregroundColor(palette.a2).multilineTextAlignment(.center)
                 .padding(.top, Theme.S.s)
             if let c = caption {
-                Text(c).font(Theme.T.caption).foregroundColor(Theme.A.a3)
+                Text(c).font(Theme.T.caption).foregroundColor(palette.a3)
                     .padding(.top, Theme.S.m)
             }
         }
@@ -163,13 +175,14 @@ struct LoginReadout: View {
 }
 
 struct WorkingReadout: View {
+    @Environment(\.palette) private var palette
     let stage: String
     let download: Bool
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             Text(Faceplate.stageText(stage)).font(Theme.T.title).tracking(Theme.T.titleTracking)
-                .foregroundColor(Theme.A.a1)
+                .foregroundColor(palette.a1)
                 .accessibility(label: Text(Faceplate.stageText(stage).capitalized))
             RunningBar().padding(.top, Theme.S.m)
             Spacer(minLength: 0)
@@ -195,12 +208,13 @@ struct WorkingReadout: View {
 /// Live listening before the first reading (and again after a gap): the empty readout, the
 /// running bar, the red lamp.
 struct ListeningReadout: View {
+    @Environment(\.palette) private var palette
     let status: String
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             Text("LISTENING").font(Theme.T.title).tracking(Theme.T.titleTracking)
-                .foregroundColor(Theme.A.a1)
+                .foregroundColor(palette.a1)
             RunningBar().padding(.top, Theme.S.m)
             Spacer(minLength: 0)
             StateLamp(lamp: .listening, text: status)
@@ -212,19 +226,20 @@ struct ListeningReadout: View {
 
 /// Beat Key › Run Doctor's result: amber DOCTOR OK / DOCTOR FIXED IT, or red with the one thing to do.
 struct DoctorReadout: View {
+    @Environment(\.palette) private var palette
     let report: DoctorReport
 
     var body: some View {
         let failed = report.outcome == .failed
         VStack(alignment: .leading, spacing: 0) {
-            Text.cap("DOCTOR")
+            Text.cap("DOCTOR", palette)
             Text(report.title).font(Theme.T.key).tracking(Theme.T.keySize * 0.03)
-                .foregroundColor(failed ? Theme.redText : Theme.A.a1)
+                .foregroundColor(failed ? Theme.redText : palette.a1)
                 .lineLimit(1).minimumScaleFactor(0.6)
                 .padding(.top, Theme.S.s)
             Spacer(minLength: 0)
             Text(report.line).captionStyle()
-                .foregroundColor(failed ? Theme.rgb(255, 106, 92, 0.85) : Theme.A.a2)
+                .foregroundColor(failed ? Theme.rgb(255, 106, 92, 0.85) : palette.a2)
                 .lineLimit(2)
                 .fixedSize(horizontal: false, vertical: true)
         }
@@ -234,20 +249,22 @@ struct DoctorReadout: View {
 }
 
 private struct StepLabel: View {
+    @Environment(\.palette) private var palette
     let name: String
     let step: Faceplate.Step
     var body: some View {
         let t = Text(step == .done ? "✓ \(name)" : name).captionStyle()
         switch step {
-        case .done: t.foregroundColor(Theme.A.a2)
-        case .on: t.foregroundColor(Theme.A.a1)
-        case .off: t.foregroundColor(Theme.A.a3)
+        case .done: t.foregroundColor(palette.a2)
+        case .on: t.foregroundColor(palette.a1)
+        case .off: t.foregroundColor(palette.a3)
         }
     }
 }
 
 /// A 3 pt track with a 40% amber slug sweeping across (static under Reduce Motion).
 struct RunningBar: View {
+    @Environment(\.palette) private var palette
     static let sweepAnimation = Animation.timingCurve(0.4, 0, 0.2, 1, duration: 1.4).repeatForever(autoreverses: false)
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var sweep = false
@@ -256,8 +273,8 @@ struct RunningBar: View {
         GeometryReader { g in
             let w = g.size.width * 0.4
             ZStack(alignment: .leading) {
-                Theme.A.a4
-                Theme.A.a1.frame(width: w)
+                palette.a4
+                palette.a1.frame(width: w)
                     .offset(x: reduceMotion ? 0 : (sweep ? w * 2.6 : -w))
                     // the repeat is scoped to the slug's offset alone
                     .animation(sweep ? RunningBar.sweepAnimation : nil, value: sweep)
@@ -278,6 +295,7 @@ struct RunningBar: View {
 }
 
 struct ResultReadout: View {
+    @Environment(\.palette) private var palette
     let result: Result
 
     let page: String?
@@ -324,7 +342,7 @@ struct ResultReadout: View {
     private var bpmColumn: some View {
         VStack(alignment: .leading, spacing: 0) {
             HStack(spacing: Theme.S.s) {
-                Text.cap("BPM")
+                Text.cap("BPM", palette)
                 if let period = Faceplate.tempoPeriod(bpmShown) {
                     TempoLight(period: period)
                 }
@@ -334,7 +352,7 @@ struct ResultReadout: View {
                 if state.advanced {
                     FactorChips(factor: options.factor, enabled: bpmShown != nil, set: actions.setFactor)
                 } else if let tag = options.factor.label, bpmShown != nil {
-                    Text(tag).font(Theme.T.caption.monospacedDigit()).foregroundColor(Theme.A.a2)
+                    Text(tag).font(Theme.T.caption.monospacedDigit()).foregroundColor(palette.a2)
                         .accessibility(label: Text(options.factor == .double ? "Double time" : "Half time"))
                         .helpTip(HelpText.tempoFactor)
                 }
@@ -367,7 +385,7 @@ struct ResultReadout: View {
                         if let p = page {
                             HStack(spacing: Theme.S.xs) {
                                 PageArrow(glyph: "‹", label: "Previous file") { actions.page(-1) }
-                                Text(p).captionStyle().foregroundColor(Theme.A.a2).accessibility(label: Text(p.lowercased()))
+                                Text(p).captionStyle().foregroundColor(palette.a2).accessibility(label: Text(p.lowercased()))
                                 PageArrow(glyph: "›", label: "Next file") { actions.page(1) }
                             }
                         }
@@ -380,7 +398,7 @@ struct ResultReadout: View {
     }
 
     private var fileText: Text {
-        if let n = note { return Text(n).font(Theme.T.caption).foregroundColor(Theme.A.a2) }
+        if let n = note { return Text(n).font(Theme.T.caption).foregroundColor(palette.a2) }
         let p = Faceplate.fileParts(result)
         return Text(p.name).font(Theme.T.body).foregroundColor(Theme.textHi)
             + Text("  ·  \(p.folder)").font(Theme.T.body).foregroundColor(Theme.textLo)
@@ -408,6 +426,7 @@ struct ResultReadout: View {
 
 /// SHOW IN FINDER ›: a text link, A2 brightening to A1 on hover.
 private struct FinderLink: View {
+    @Environment(\.palette) private var palette
     let file: URL
     @State private var hover = false
 
@@ -417,7 +436,7 @@ private struct FinderLink: View {
             NSWorkspace.shared.activateFileViewerSelecting([file])
         }) {
             Text("SHOW IN FINDER ›").captionStyle()
-                .foregroundColor(hover ? Theme.A.a1 : Theme.A.a2)
+                .foregroundColor(hover ? palette.a1 : palette.a2)
                 .fixedSize()
         }
         .buttonStyle(PlainButtonStyle())
@@ -431,14 +450,15 @@ private struct FinderLink: View {
 
 /// A small lit lamp and a caption: green LOCKED, amber UNSURE, red ANALYZING / LISTENING.
 struct StateLamp: View {
+    @Environment(\.palette) private var palette
     let lamp: Lamp
     let text: String
     var body: some View {
         HStack(spacing: Theme.S.s) {
             // the shape says the state without the colour (octagon / triangle / circle)
-            LampShape(lamp: lamp).fill(lamp.color).frame(width: 8, height: 8)
-                .shadow(color: Theme.highContrast ? .clear : lamp.color.opacity(0.8), radius: 3)
-            Text(text).captionStyle().foregroundColor(lamp.textColor).lineLimit(1)
+            LampShape(lamp: lamp).fill(lamp.color(palette.accent)).frame(width: 8, height: 8)
+                .shadow(color: palette.highContrast ? .clear : lamp.color(palette.accent).opacity(0.8), radius: 3)
+            Text(text).captionStyle().foregroundColor(lamp.textColor(palette.accent)).lineLimit(1)
         }
     }
 }
@@ -453,6 +473,7 @@ extension View {
 /// Flashes once per beat (20% on, `steps(1)`). Steady when Reduce Motion is on or the window
 /// is not key.
 struct TempoLight: View {
+    @Environment(\.palette) private var palette
     let period: TimeInterval
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.controlActiveState) private var active
@@ -460,9 +481,9 @@ struct TempoLight: View {
     @State private var timer: Timer?
 
     var body: some View {
-        Circle().fill(Theme.amber)
+        Circle().fill(palette.amber)
             .frame(width: 7, height: 7)
-            .shadow(color: Theme.amberGlow, radius: 4)
+            .shadow(color: palette.amberGlow, radius: 4)
             .opacity(lit ? 1 : 0.15)
             .onAppear(perform: restart)
             .onDisappear(perform: stop)
@@ -495,6 +516,7 @@ struct TempoLight: View {
 }
 
 struct ErrorReadout: View {
+    @Environment(\.palette) private var palette
     let message: String
     let download: Bool
     var hint: String? = nil
@@ -508,7 +530,7 @@ struct ErrorReadout: View {
                 .accessibility(label: Text(message))
             Text(hint ?? Faceplate.failureHint(download: download))
                 .captionStyle()
-                .foregroundColor(Theme.rgb(255, 106, 92, Theme.highContrast ? 1 : 0.75))
+                .foregroundColor(Theme.rgb(255, 106, 92, palette.highContrast ? 1 : 0.75))
                 .lineLimit(1)
                 .padding(.top, Theme.S.s)
         }

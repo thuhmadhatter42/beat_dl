@@ -244,19 +244,20 @@ final class MiniController: NSObject, ObservableObject, NSWindowDelegate {
         view.sound = defaults.bool(forKey: MiniController.soundKey)   // default off: MIDI is the point
     }
 
-    /// MINI: open the panel (fed by `source`, re-read whenever `changes` fires) or close it.
-    func toggle(source: @escaping () -> MiniFeed, changes: AnyPublisher<Void, Never>) {
-        if isOpen { close(from: "MINI") } else { open(source: source, changes: changes) }
+    /// MINI: open the panel (fed by `source`, re-read whenever `changes` fires; drawn in the display
+    /// colour and with `display`'s High Contrast) or close it.
+    func toggle(source: @escaping () -> MiniFeed, changes: AnyPublisher<Void, Never>, display: DisplaySettings) {
+        if isOpen { close(from: "MINI") } else { open(source: source, changes: changes, display: display) }
     }
 
-    func open(source: @escaping () -> MiniFeed, changes: AnyPublisher<Void, Never>) {
+    func open(source: @escaping () -> MiniFeed, changes: AnyPublisher<Void, Never>, display: DisplaySettings) {
         view.midiReady = MidiOut.shared.start()
         self.source = source
         // objectWillChange fires before the change lands: read on the next turn of the run loop
         watch = changes.receive(on: DispatchQueue.main).sink { [weak self] in self?.refresh() }
         helpWatch = HelpSettings.shared.$isOn.sink { [weak self] on in self?.view.help = on }
         refresh()
-        let p = panel ?? makePanel()
+        let p = panel ?? makePanel(display: display)
         panel = p
         p.orderFrontRegardless()
         isOpen = true
@@ -338,8 +339,8 @@ final class MiniController: NSObject, ObservableObject, NSWindowDelegate {
 
     // MARK: the panel
 
-    private func makePanel() -> MiniPanel {
-        let host = FirstMouseHostingView(rootView: MiniHost(controller: self))
+    private func makePanel(display: DisplaySettings) -> MiniPanel {
+        let host = FirstMouseHostingView(rootView: MiniHost(controller: self, display: display))
         let size = host.fittingSize
         let p = MiniPanel(contentRect: NSRect(origin: .zero, size: size),
                           styleMask: [.titled, .closable, .utilityWindow, .nonactivatingPanel],
@@ -401,15 +402,14 @@ final class FirstMouseHostingView<V: View>: NSHostingView<V> {
 
 private struct MiniHost: View {
     @ObservedObject var controller: MiniController
-    @ObservedObject private var accent = AccentSettings.shared
+    let display: DisplaySettings
 
     var body: some View {
         MiniView(state: controller.view,
                  press: { controller.press($0, via: "pad") },
                  release: { controller.release($0) },
                  toggleSound: { controller.toggleSound() })
-            // a new display colour redraws the pads (MiniPadView releases a held pad as it goes)
-            .id(accent.effective)
+            .paletteRoot(display: display)   // the display colour and High Contrast: a held pad stays held
     }
 }
 
@@ -418,6 +418,7 @@ private struct MiniHost: View {
 /// The Mini's face: the key and SOUND on top, then the pads (the window's chord grid, with the
 /// computer key on each), on Beat Key's amber LCD glass.
 struct MiniView: View {
+    @Environment(\.palette) private var palette
     let state: MiniViewState
     var press: (MiniPad) -> Void = { _ in }
     var release: (MiniPad) -> Void = { _ in }
@@ -435,7 +436,7 @@ struct MiniView: View {
             header
             if state.layout.isEmpty {
                 Text("No key yet. Read a beat in the window.").font(Theme.T.caption)
-                    .foregroundColor(Theme.A.a3)
+                    .foregroundColor(palette.a3)
                     .frame(width: MiniView.gridWidth, height: MiniView.padHeight * 2 + 30)
             } else {
                 ChordGrid(diatonic: state.layout.diatonic, borrowed: state.layout.borrowed, gap: MiniView.gap,
@@ -460,13 +461,13 @@ struct MiniView: View {
         HStack(alignment: .firstTextBaseline, spacing: Theme.S.m) {
             Crossfade(scale.map { "\($0.tonicName) \($0.minor ? "minor" : "major")" } ?? "No key", alignment: .leading) { name in
                 Text(name)
-                    .font(Theme.T.title).foregroundColor(scale == nil ? Theme.A.a3 : Theme.A.a1)
+                    .font(Theme.T.title).foregroundColor(scale == nil ? palette.a3 : palette.a1)
                     .modifier(PocketGlow(on: scale != nil))
             }
             .helpTip(HelpText.miniPanel)
             Text(state.midiReady ? "MIDI out: \(MidiOut.sourceName)" : "MIDI unavailable: see the log")
                 .font(Theme.T.caption)
-                .foregroundColor(state.midiReady ? Theme.A.a3 : Theme.redText)
+                .foregroundColor(state.midiReady ? palette.a3 : Theme.redText)
                 .lineLimit(1)
             Spacer(minLength: 0)
             LCDChip(title: "SOUND", on: state.sound, label: state.sound ? "Built-in sound on" : "Built-in sound off",
@@ -508,11 +509,6 @@ private struct MiniPadView: View {
                     guard down, let p = pad else { return }
                     down = false; release(p)
                 })
-            // redrawn away mid-hold (a new display colour): the note still stops
-            .onDisappear {
-                guard down, let p = pad else { return }
-                down = false; release(p)
-            }
             .accessibilityElement(children: .ignore)
             .accessibility(label: Text("\(chord.name), \(chord.roman)\(chord.borrowed ? ", borrowed" : "")"))
             .accessibility(hint: Text("Plays the chord into MIDI while held"))

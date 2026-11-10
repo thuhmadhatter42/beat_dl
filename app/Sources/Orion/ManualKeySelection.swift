@@ -85,12 +85,11 @@ struct ManualKey: Equatable {
 }
 
 /// The colours of a Manual Key Selection: white instead of the display colour, the same in every
-/// accent. High Contrast: pure white, no glow (white is already the most contrast the LCD has).
+/// accent. High Contrast: pure white, no glow (white is already the most contrast the LCD has):
+/// that white and glow are the palette's (`palette.manualWhite`, `palette.manualGlow`).
 enum ManualLook {
-    static var white: Color { Theme.highContrast ? Theme.rgb(255, 255, 255) : Theme.rgb(244, 244, 247) }
     /// Ink on a white fill (the wheel's lit section): near black in every accent.
     static let ink = Theme.hex(0x111113)
-    static var glow: Color { Theme.highContrast ? .clear : Theme.rgb(255, 255, 255, 0.55) }
     /// The reset arrow: NEW SONG's glyph (the reset key beside HOLD).
     static let resetSymbol = "arrow.counterclockwise"
     /// The status line under the dial's key, and the top-3 slot's label.
