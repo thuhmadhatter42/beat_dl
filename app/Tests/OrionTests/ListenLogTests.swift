@@ -2,7 +2,7 @@ import XCTest
 @testable import Orion
 
 /// Listen logs what it hears (J, 2026-11-09 23:22: "a missing log is a failure"): the level once a
-/// second, each reading change, why it stopped, and the silence guard that widens System Audio.
+/// second, each reading change, why it stopped, and the NO SOUND notice after a silence.
 final class ListenLogTests: XCTestCase {
     typealias FakePipe = LiveTests.FakePipe
     typealias FakeCapture = LiveTests.FakeCapture
@@ -75,42 +75,30 @@ final class ListenLogTests: XCTestCase {
 
     // MARK: the silence guard
 
-    func testPlayersSilentFallsBackToAllAppsThenSaysNoSound() {
+    /// One behaviour for every source: silent `seconds` → NO SOUND once; sound back → cleared.
+    func testSilentForFiveSecondsSaysNoSoundOnceThenSoundBackClearsIt() {
         var g = SilenceGuard()
-        g.filterChosen(.playersOnly(["com.google.Chrome"]))
         for _ in 0..<4 { XCTAssertEqual(g.second(ListenLogTests.nothing), .none) }
-        XCTAssertEqual(g.second(ListenLogTests.quiet), .hearAllApps(from: "players only (com.google.Chrome)"))
-        XCTAssertEqual(g.filter, .allApps)
-        g.filterChosen(.allApps)                                 // the reopened stream reports in
-        for _ in 0..<4 { XCTAssertEqual(g.second(ListenLogTests.nothing), .none) }
-        XCTAssertEqual(g.second(ListenLogTests.nothing), .noSound(from: "all apps"))
-        XCTAssertEqual(g.second(ListenLogTests.nothing), .none)  // said once, not every second
-        XCTAssertEqual(g.second(ListenLogTests.nothing), .none)
-        XCTAssertEqual(g.second(ListenLogTests.loud), .soundBack(after: 7))
+        XCTAssertEqual(g.second(ListenLogTests.quiet), .noSound)
+        for _ in 0..<20 { XCTAssertEqual(g.second(ListenLogTests.nothing), .none) }   // said once, never widened
+        XCTAssertEqual(g.second(ListenLogTests.loud), .soundBack(after: 25))
         XCTAssertEqual(g.second(ListenLogTests.loud), .none)
+        for _ in 0..<4 { XCTAssertEqual(g.second(ListenLogTests.nothing), .none) }   // and again next time
+        XCTAssertEqual(g.second(ListenLogTests.nothing), .noSound)
     }
 
     func testSignalResetsTheCount() {
         var g = SilenceGuard()
-        g.filterChosen(.playersOnly(["com.spotify.client"]))
         for _ in 0..<4 { _ = g.second(ListenLogTests.nothing) }
         XCTAssertEqual(g.second(ListenLogTests.loud), .none)      // never warned: nothing to clear
         for _ in 0..<4 { XCTAssertEqual(g.second(ListenLogTests.nothing), .none) }
-        XCTAssertEqual(g.second(ListenLogTests.nothing), .hearAllApps(from: "players only (com.spotify.client)"))
+        XCTAssertEqual(g.second(ListenLogTests.nothing), .noSound)
     }
 
-    func testAllAppsOrInputSilentSaysNoSoundStraightAway() {
-        var a = SilenceGuard()
-        a.filterChosen(.allApps)
-        for _ in 0..<4 { _ = a.second(ListenLogTests.nothing) }
-        XCTAssertEqual(a.second(ListenLogTests.nothing), .noSound(from: "all apps"))
-        var i = SilenceGuard()
-        i.filterChosen(.input("Scarlett 4i4 · Ch 3"))
-        for _ in 0..<4 { _ = i.second(ListenLogTests.quiet) }
-        XCTAssertEqual(i.second(ListenLogTests.quiet), .noSound(from: "input Scarlett 4i4 · Ch 3"))
-        var none = SilenceGuard()                                // the capture never said
-        for _ in 0..<4 { _ = none.second(ListenLogTests.nothing) }
-        XCTAssertEqual(none.second(ListenLogTests.nothing), .noSound(from: "system audio (no filter chosen yet)"))
+    func testWhatListenHearsIsNamedPerSource() {
+        XCTAssertEqual(LiveController.hearing(.system, name: "System Audio"), "all apps except Beat Key")
+        XCTAssertEqual(LiveController.hearing(.input(uid: "x", channel: 3), name: "Scarlett 4i4 · Ch 3"),
+                       "input Scarlett 4i4 · Ch 3")
     }
 
     // MARK: reading changes, only on change
@@ -163,50 +151,35 @@ final class ListenLogTests: XCTestCase {
         c.stop()
     }
 
-    // MARK: the controller with a System Audio stand-in
+    // MARK: the controller on System Audio
 
-    final class FakeSystemCapture: FilteredCapture {
-        var onSamples: (([Float]) -> Void)?
-        var onFilter: ((CaptureFilter) -> Void)?
-        var widened = 0
-        func start(onSamples: @escaping ([Float]) -> Void, onError: @escaping (String) -> Void) { self.onSamples = onSamples }
-        func stop() {}
-        func hearAllApps() { widened += 1; onFilter?(.allApps) }
-    }
-
-    func testControllerWidensSilentPlayersThenSaysNoSoundThenClears() {
+    func testControllerSaysNoSoundThenClearsOnSystemAudio() {
         var clock = t0
-        let cap = FakeSystemCapture()
+        let cap = FakeCapture()
         let s = LiveSettings(defaults: defaults(), systemAvailable: true)
         s.source = .system
         let c = LiveController(settings: s, launch: { _, _, _ in FakePipe() }, makeCapture: { _ in cap },
                                now: { clock }, devices: { [] })
         c.start()
-        cap.onFilter?(.playersOnly(["com.google.Chrome"]))
-        drainMain()
-        for _ in 0..<5 { clock += 1; c.tickLevel() }             // nothing arrives for 5 s
-        drainMain()                                               // the reopened stream's report
-        XCTAssertEqual(cap.widened, 1)
-        XCTAssertEqual(c.notice, SilenceGuard.wideningNotice)
+        for _ in 0..<4 { clock += 1; c.tickLevel() }
+        XCTAssertNil(c.notice)
+        clock += 1; c.tickLevel()                                 // 5 s with nothing arriving
+        XCTAssertEqual(c.notice, SilenceGuard.noSoundNotice)
         guard case .listening(let status)? = Faceplate.liveReadout(c.state, source: c.sourceName, factor: .one,
                                                                     notice: c.notice) else { return XCTFail() }
-        XCTAssertEqual(status, "NO SOUND FROM PLAYERS · HEARING ALL APPS")
-        for _ in 0..<5 { clock += 1; c.tickLevel() }             // all apps silent too
+        XCTAssertEqual(status, "NO SOUND · CHECK SOURCE")
+        for _ in 0..<10 { clock += 1; c.tickLevel() }            // still silent: the notice stands, nothing else
         XCTAssertEqual(c.notice, SilenceGuard.noSoundNotice)
-        XCTAssertEqual(cap.widened, 1)
         cap.onSamples?([Float](repeating: 0.3, count: 4410))      // sound comes back
         clock += 1; c.tickLevel()
         XCTAssertNil(c.notice)
         c.stop(reason: "user stop")
         let got = logged().filter { $0.hasPrefix("[LiveSession]") }
         let text = got.joined(separator: "\n")
-        XCTAssertTrue(got.contains("[LiveSession] listen: hearing players only (com.google.Chrome)"), text)
-        XCTAssertTrue(got.contains("[LiveSession] listen: no signal for 5 s from players only (com.google.Chrome)"), text)
-        XCTAssertTrue(got.contains { $0.hasPrefix("[LiveSession] listen: falling back to all apps") }, text)
-        XCTAssertTrue(got.contains("[LiveSession] listen: hearing all apps"), text)
-        XCTAssertTrue(got.contains { $0.hasPrefix("[LiveSession] listen: no signal for 5 s from all apps") }, text)
-        XCTAssertTrue(got.contains("[LiveSession] listen: signal back after 5 s silent"), text)
-        XCTAssertEqual(got.filter { $0 == "[LiveSession] listen: level silent (no audio arriving)" }.count, 10, text)
+        XCTAssertTrue(got.contains("[LiveSession] listen: hearing all apps except Beat Key"), text)
+        XCTAssertEqual(got.filter { $0.hasPrefix("[LiveSession] listen: no signal for 5 s from all apps except Beat Key") }.count, 1, text)
+        XCTAssertTrue(got.contains("[LiveSession] listen: signal back after 15 s silent"), text)
+        XCTAssertEqual(got.filter { $0 == "[LiveSession] listen: level silent (no audio arriving)" }.count, 15, text)
         XCTAssertTrue(got.contains { $0.hasPrefix("[LiveSession] listen: level -10.5 dBFS peak") }, text)
     }
 

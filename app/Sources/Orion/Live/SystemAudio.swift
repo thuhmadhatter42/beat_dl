@@ -6,15 +6,12 @@ import ScreenCaptureKit
 
 /// Everything the Mac plays, through ScreenCaptureKit's audio (macOS 13+): the main display's
 /// stream with audio on and the picture shrunk to 2 x 2 px at one frame a second (SCK has no
-/// audio-only filter). Beat Key's own sound is left out. Needs the Screen (& System Audio)
-/// Recording permission; nothing is saved.
+/// audio-only filter). Every app is heard; only Beat Key's own sound is left out
+/// (`excludesCurrentProcessAudio`). Needs the Screen (& System Audio) Recording permission;
+/// nothing is saved.
 @available(macOS 13.0, *)
-final class SystemAudioCapture: NSObject, FilteredCapture, SCStreamOutput, SCStreamDelegate {
+final class SystemAudioCapture: NSObject, AudioCapture, SCStreamOutput, SCStreamDelegate {
     private var stream: SCStream?
-    /// Told which filter each (re)opened stream uses: players only, or all apps.
-    var onFilter: ((CaptureFilter) -> Void)?
-    /// The silence guard widened this Listen to every app (queue only): no exclusions from now on.
-    private var allApps = false
     private let queue = DispatchQueue(label: "com.jshriver.orion.system-audio")
     private var onSamples: (([Float]) -> Void)?
     private var onError: ((String) -> Void)?
@@ -63,20 +60,8 @@ final class SystemAudioCapture: NSObject, FilteredCapture, SCStreamOutput, SCStr
                 self.queue.async { self.reopen(now: false, why: "no display") }
                 return
             }
-            // A music player open (Spotify, a browser, Music...) = hear only the players, so a mic
-            // monitored through Artemis or a DAW never mixes into the key. None open = everything.
-            // Done by LEAVING OUT every listed non-player, never by including the players: a
-            // browser plays from helper processes SCK may not list (Studio D 2026-11-09: Chrome
-            // listed alone, its audio helper absent, the stream heard silence).
-            // The silence guard (ListenLog.swift) sets allApps when the players stayed silent.
-            let apps = content?.applications ?? []
-            let players = self.allApps ? [] : apps.filter { SystemAudioCapture.isPlayer($0.bundleIdentifier) }
-            let others = players.isEmpty ? [] : apps.filter { !SystemAudioCapture.isPlayer($0.bundleIdentifier) }
-            AppLog.log("system audio: " + (players.isEmpty ? "all apps\(self.allApps ? " (widened: no signal from players)" : "")"
-                : "players open (\(players.map { $0.bundleIdentifier }.joined(separator: ", "))); leaving out \(others.count) other apps: "
-                  + others.map { $0.bundleIdentifier }.filter { !$0.isEmpty }.prefix(12).joined(separator: ", ")))
-            self.onFilter?(players.isEmpty ? .allApps : .playersOnly(players.map { $0.bundleIdentifier }))
-            let filter = SCContentFilter(display: display, excludingApplications: others, exceptingWindows: [])
+            // Every app, always (J, 2026-11-10). Mic isolation is the Input choice in Settings.
+            let filter = SCContentFilter(display: display, excludingApplications: [], exceptingWindows: [])
             let cfg = SCStreamConfiguration()
             cfg.capturesAudio = true
             cfg.excludesCurrentProcessAudio = true
@@ -101,19 +86,6 @@ final class SystemAudioCapture: NSObject, FilteredCapture, SCStreamOutput, SCStr
                 self?.queue.async { self?.reopen(now: false, why: "start failed") }
             }
             self.stream = s
-        }
-    }
-
-    /// The silence guard: the players gave nothing for 5 s, so reopen hearing every app.
-    func hearAllApps() {
-        queue.async { [weak self] in
-            guard let self = self, !self.stopped, !self.allApps else { return }
-            self.allApps = true
-            AppLog.log("system audio: reopening with all apps (no exclusions)")
-            self.retryWork?.cancel()
-            self.stream?.stopCapture { err in if let e = err { AppLog.log("system audio: stop before widening: \(e)") } }
-            self.stream = nil
-            self.begin()
         }
     }
 
@@ -162,18 +134,6 @@ final class SystemAudioCapture: NSObject, FilteredCapture, SCStreamOutput, SCStr
     static func isPermission(_ error: Error) -> Bool {
         let e = error as NSError
         return e.domain == SCStreamErrorDomain && e.code == SCStreamError.userDeclined.rawValue
-    }
-
-    /// Apps that play songs (bundle id prefixes, so a browser's helper processes count too).
-    static let playerIDs = ["com.spotify.client", "com.apple.Music", "com.apple.Safari", "com.apple.WebKit",
-                            "com.brave.Browser", "com.google.Chrome", "company.thebrowser", "org.mozilla.firefox",
-                            "com.microsoft.edgemac", "com.operasoftware", "com.vivaldi", "com.apple.TV",
-                            "com.apple.QuickTimePlayerX", "org.videolan.vlc", "com.colliderli.iina",
-                            "com.tidal.desktop", "com.amazon.music", "com.soundcloud", "com.deezer",
-                            "com.google.android.youtube", "com.apple.podcasts"]
-
-    static func isPlayer(_ bundleID: String) -> Bool {
-        playerIDs.contains { bundleID == $0 || bundleID.hasPrefix($0 + ".") }
     }
 
     /// A rate SCK actually supports (8000, 16000, 24000, 48000).

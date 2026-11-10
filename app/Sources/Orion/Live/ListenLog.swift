@@ -2,7 +2,7 @@ import Foundation
 
 // What Listen writes to beatkey.log (J, 2026-11-09 23:22: "a missing log is a failure"; Studio D's
 // dead meter left no trace of what it heard). Pure pieces, unit-tested: the once-a-second input
-// level, the silence guard that widens System Audio to every app, and the on-change reading line.
+// level, the silence guard's NO SOUND notice, and the on-change reading line.
 
 /// One second of input, as the log prints it.
 struct LevelSecond: Equatable {
@@ -54,59 +54,22 @@ struct LevelWindow {
     }
 }
 
-/// What a capture is hearing, once it knows (System Audio picks its filter asynchronously).
-enum CaptureFilter: Equatable {
-    /// System Audio with music players open: every listed non-player left out.
-    case playersOnly([String])
-    /// System Audio, every app.
-    case allApps
-    /// An input device (no other apps to widen to).
-    case input(String)
-
-    var label: String {
-        switch self {
-        case .playersOnly(let ids): return "players only (" + (ids.isEmpty ? "none listed" : ids.joined(separator: ", ")) + ")"
-        case .allApps: return "all apps"
-        case .input(let name): return "input \(name)"
-        }
-    }
-}
-
-/// A capture that can tell what it hears and be widened to every app (System Audio).
-protocol FilteredCapture: AudioCapture {
-    /// Set before start; may be called on any queue, more than once (each reopen).
-    var onFilter: ((CaptureFilter) -> Void)? { get set }
-    /// Reopen hearing every app, no exclusions, for the rest of this Listen.
-    func hearAllApps()
-}
-
 /// The silence guard: never a dead meter with no explanation. Fed one LevelSecond a second.
-/// Players-only System Audio silent for `seconds` → widen to all apps. Anything else silent that
-/// long → a NO SOUND notice, which clears when sound comes back.
+/// Silent for `seconds` → a NO SOUND notice (once), which clears when sound comes back.
 struct SilenceGuard {
     static let seconds = 5
-    static let wideningNotice = "NO SOUND FROM PLAYERS · HEARING ALL APPS"
     static let noSoundNotice = "NO SOUND · CHECK SOURCE"
 
     enum Action: Equatable {
         case none
-        /// Log, reopen System Audio with every app, show `wideningNotice`.
-        case hearAllApps(from: String)
         /// Log, show `noSoundNotice` until sound returns.
-        case noSound(from: String)
+        case noSound
         /// The NO SOUND notice can go; `after` = silent seconds before it.
         case soundBack(after: Int)
     }
 
-    private(set) var filter: CaptureFilter?
     private(set) var silentSeconds = 0
     private(set) var warned = false
-
-    /// The capture said what it hears (again, after a reopen): the count starts over.
-    mutating func filterChosen(_ f: CaptureFilter) {
-        filter = f
-        silentSeconds = 0
-    }
 
     mutating func second(_ s: LevelSecond) -> Action {
         guard s.silent else {
@@ -117,14 +80,8 @@ struct SilenceGuard {
         }
         silentSeconds += 1
         guard silentSeconds >= SilenceGuard.seconds, !warned else { return .none }
-        let from = filter?.label ?? "system audio (no filter chosen yet)"
-        if case .playersOnly? = filter {
-            filter = .allApps      // the capture reports it again once reopened
-            silentSeconds = 0
-            return .hearAllApps(from: from)
-        }
         warned = true
-        return .noSound(from: from)
+        return .noSound
     }
 }
 
