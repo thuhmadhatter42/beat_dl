@@ -37,6 +37,12 @@ def silence(secs, sr=SR):
     return np.zeros(int(secs * sr), np.float32)
 
 
+def hiss(secs, rms_db, sr=SR, seed=0):
+    """White noise at `rms_db` dB RMS: a quiet source that is not digital silence."""
+    x = np.random.default_rng(seed).standard_normal(int(secs * sr))
+    return (x * 10 ** (rms_db / 20) / np.sqrt(np.mean(x ** 2))).astype(np.float32)
+
+
 def run_stream(audio, *args):
     """Pipe audio through `bpm.py --stream`; returns the parsed events and the exit code."""
     p = subprocess.run([sys.executable, str(ROOT / "bpm.py"), "--stream", *args],
@@ -90,9 +96,59 @@ class TestLiveAnalyzer(unittest.TestCase):
         self.assertNotIn("reset", [e["event"] for e in evs])
         self.assertEqual(live.heard, 8.0)
 
-    def test_silence_alone_says_nothing(self):
+    def test_silence_alone_says_silence_once_and_nothing_else(self):
         live = bpm.LiveAnalyzer(hop=2.0, gap=3.0)
-        self.assertEqual(self.feed(live, silence(10)), [])
+        self.assertEqual(self.feed(live, silence(10)), [{"event": "silence", "db": -120.0}])
+
+    # Silence has one owner (2026-11-10): the analyzer's own rule (a chunk under silence_db, for
+    # `gap` s of sample time) is announced as "silence"; the app shows NO SOUND from it alone.
+
+    def pushes(self, live, audio, chunk=0.5):
+        """The events of each 0.5 s push, in order (sample time = push index * 0.5 s)."""
+        n = int(chunk * SR)
+        return [live.push(audio[i:i + n]) for i in range(0, len(audio), n)]
+
+    def test_silence_is_said_the_moment_the_gap_rule_trips_with_the_reset(self):
+        live = bpm.LiveAnalyzer(hop=2.0, gap=3.0)
+        per = self.pushes(live, np.concatenate([click_drone(5), silence(6)]))
+        quiet = per[10:]                                     # pushes 10.. are the silence
+        said = [i for i, evs in enumerate(quiet) if any(e["event"] == "silence" for e in evs)]
+        self.assertEqual(said, [5])                          # the 6th silent push = 3.0 s: once
+        kinds = [e["event"] for e in quiet[5]]
+        self.assertEqual(kinds, ["silence", "reading", "reset"])   # one moment: notice and reset
+        self.assertEqual(quiet[5][0], {"event": "silence", "db": -120.0})
+        self.assertTrue(all(evs == [] for evs in quiet[:5] + quiet[6:]))
+
+    def test_quiet_source_over_the_old_app_line_is_silence_too(self):
+        # The owner's complaint: -60 dB RMS hiss peaks well over the app's old -70 dB peak line, so
+        # the app said nothing while the analyzer restarted the reading. Now the analyzer says so.
+        quiet = hiss(6, -60.0)
+        self.assertGreater(20 * np.log10(np.abs(quiet).max()), -70)
+        live = bpm.LiveAnalyzer(hop=2.0, gap=3.0)
+        per = self.pushes(live, np.concatenate([click_drone(5), quiet]))[10:]
+        sil = [(i, e) for i, evs in enumerate(per) for e in evs if e["event"] == "silence"]
+        self.assertEqual(len(sil), 1)
+        self.assertEqual(sil[0][0], 5)
+        self.assertAlmostEqual(sil[0][1]["db"], -60.0, delta=0.5)
+        self.assertIn("reset", [e["event"] for e in per[5]])
+
+    def test_sound_back_is_said_on_the_first_loud_push_after_silence(self):
+        live = bpm.LiveAnalyzer(hop=2.0, gap=3.0)
+        per = self.pushes(live, np.concatenate([click_drone(5), silence(4), click_drone(3)]))
+        back = per[18:]                                      # 10 loud + 8 silent pushes before it
+        self.assertEqual(back[0][0]["event"], "sound")
+        self.assertEqual(back[0][0]["after"], 4.0)           # s of silence, sample time
+        self.assertGreater(back[0][0]["db"], -50)
+        flat = [e["event"] for evs in per for e in evs]
+        self.assertEqual(flat.count("silence"), 1)
+        self.assertEqual(flat.count("sound"), 1)
+        self.assertLess(flat.index("silence"), flat.index("sound"))
+
+    def test_short_pause_says_neither_silence_nor_sound(self):
+        live = bpm.LiveAnalyzer(hop=2.0, gap=3.0)
+        kinds = [e["event"] for e in self.feed(live, np.concatenate([click_drone(5), silence(2.5), click_drone(3)]))]
+        self.assertNotIn("silence", kinds)
+        self.assertNotIn("sound", kinds)
 
     def test_buffers_stay_bounded(self):
         live = bpm.LiveAnalyzer(hop=4.0, key_window=10.0)
@@ -229,6 +285,8 @@ class TestStreamCli(unittest.TestCase):
         kinds = [e["event"] for e in events]
         self.assertIn("reading", kinds)
         self.assertEqual(kinds[-1], "reset")
+        self.assertEqual(kinds.count("silence"), 1)
+        self.assertLess(kinds.index("silence"), kinds.index("reset"))
         with_bpm = [e for e in events if e["event"] == "reading" and e["bpm"]]
         self.assertTrue(with_bpm, events)
         self.assertEqual(round(float(with_bpm[-1]["bpm"])), 120)

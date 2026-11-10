@@ -180,7 +180,7 @@ final class SongTracker: ObservableObject {
             title = nil
         case .ready:
             analyzerReady = true
-        case .error:
+        case .error, .silence, .sound:                 // silence ends a song only through its reset
             break
         }
     }

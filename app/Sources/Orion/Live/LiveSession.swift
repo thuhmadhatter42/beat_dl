@@ -13,6 +13,11 @@ enum LiveEvent: Equatable {
     case reset
     /// A new song with no pause (SongBoundary.swift): the analyzer has flushed, start over.
     case boundary(LiveBoundary)
+    /// The analyzer's silence rule tripped (`gap` s under its line); db = the level it measured.
+    /// The one judge of silence: the LCD's NO SOUND goes up on this and nothing else.
+    case silence(db: Double)
+    /// Sound again after a `silence`; after = s of silence it ended. NO SOUND clears.
+    case sound(db: Double, after: Double)
     case error(String)
 
     /// `song` = the identity of the song being heard when this line arrives (LiveSession.songFile):
@@ -25,6 +30,10 @@ enum LiveEvent: Equatable {
         case "ready": return .ready
         case "reset": return .reset
         case "boundary": return .boundary(LiveBoundary(json: obj))
+        case "silence": return (obj["db"] as? Double).map { .silence(db: $0) }
+        case "sound":
+            guard let db = obj["db"] as? Double, let after = obj["after"] as? Double else { return nil }
+            return .sound(db: db, after: after)
         case "error": return .error((obj["message"] as? String) ?? "The analyzer stopped.")
         case "reading":
             // keys, bpm, bpm_exact, tuning_cents (null under 50 %), chroma: the same parser as files.
@@ -146,7 +155,7 @@ struct LiveSession {
     mutating func feed(_ e: LiveEvent, now: Date = Date()) {
         guard current.isActive else { return }
         switch e {
-        case .ready:
+        case .ready, .silence, .sound:   // the notice is the controller's, the reading stands
             break
         case .reset:
             begin(why: "gap reset")
@@ -381,7 +390,8 @@ final class LiveProcess: LivePipe {
 }
 
 /// A capture that has gone quiet (system audio sends nothing while nothing plays) still has to
-/// read as silence, or the gap would never be seen. Counts the zeros to send.
+/// read as silence, or the analyzer would never see the gap (nor say "silence" for NO SOUND).
+/// Counts the zeros to send.
 struct SilenceFiller {
     let rate: Int
     let tick: TimeInterval
@@ -459,10 +469,9 @@ final class LiveController: ObservableObject {
     private var fillTimer: Timer?
     private var levelTimer: Timer?
     private var peak: Float = 0
-    /// This second's input, for the log's level line and the silence guard (fillLock guards it).
+    /// This second's input, for the log's level line (fillLock guards it).
     private var window = LevelWindow()
     private var windowSince = Date.distantPast
-    private var silence = SilenceGuard()
     private var stateLine = ChangeLine(last: LiveController.summary(.off))   // off at launch: nothing to say
     private var quitObserver: NSObjectProtocol?
     private let fillLock = NSLock()
@@ -525,7 +534,6 @@ final class LiveController: ObservableObject {
         AppLog.log("listen: start · source \(sourceName) (\(plan.source.stored)) · gap \(settings.gap) s")
         hearingLabel = LiveController.hearing(plan.source, name: sourceName)
         AppLog.log("listen: hearing \(hearingLabel)")
-        silence = SilenceGuard()
         if case .fallback(_, let uid, let ch) = plan {
             AppLog.log("listen: saved input missing (uid \(uid), ch \(ch); connected: "
                        + (devs.isEmpty ? "none" : devs.map { "\($0.name) [\($0.uid)]" }.joined(separator: ", "))
@@ -574,7 +582,7 @@ final class LiveController: ObservableObject {
     }
 
     /// The meter (20 Hz): the loudest sample since the last tick, falling back at most 20 % per
-    /// tick. Once a second it also logs the level and runs the silence guard; never per tick.
+    /// tick. Once a second it also logs the level; never per tick.
     func tickLevel() {
         let t = now()
         fillLock.lock()
@@ -584,22 +592,21 @@ final class LiveController: ObservableObject {
         fillLock.unlock()
         let next = max(LevelMeter.scale(pk), level * 0.8)
         if abs(next - level) > 0.004 { meter.value = next < 0.01 ? 0 : next }
-        if let s = second { levelSecond(s) }
+        if let s = second, state.isActive { AppLog.log("listen: " + s.text) }
     }
 
-    private func levelSecond(_ s: LevelSecond) {
-        guard state.isActive else { return }
-        AppLog.log("listen: " + s.text)
-        switch silence.second(s) {
-        case .none:
-            break
-        case .noSound:
-            AppLog.log("listen: no signal for \(SilenceGuard.seconds) s from \(hearingLabel); LCD says \"\(SilenceGuard.noSoundNotice)\"")
-            showNotice(SilenceGuard.noSoundNotice, gen: generation, seconds: nil)
-        case .soundBack(let after):
-            AppLog.log("listen: signal back after \(after) s silent")
-            if notice == SilenceGuard.noSoundNotice { noticeWork?.cancel(); noticeWork = nil; notice = nil }
-        }
+    static let noSoundNotice = "NO SOUND · CHECK SOURCE"
+
+    /// NO SOUND from the analyzer's own silence events, the one judge of silence: up when its
+    /// rule trips (the same moment it resets the reading), cleared when it hears sound again.
+    private func noSound(db: Double) {
+        AppLog.log("listen: analyzer says silence (it measured \(String(format: "%.1f", db)) dB rms) from \(hearingLabel); LCD says \"\(LiveController.noSoundNotice)\"")
+        showNotice(LiveController.noSoundNotice, gen: generation, seconds: nil)
+    }
+
+    private func soundBack(db: Double, after: Double) {
+        AppLog.log("listen: analyzer says sound back (it measured \(String(format: "%.1f", db)) dB rms) after \(String(format: "%.1f", after)) s silent; NO SOUND cleared")
+        if notice == LiveController.noSoundNotice { noticeWork?.cancel(); noticeWork = nil; notice = nil }
     }
 
     /// What a source hears, for the log: System Audio is every app but Beat Key itself.
@@ -730,6 +737,10 @@ final class LiveController: ObservableObject {
     func handle(_ e: LiveEvent, gen: Int? = nil) {
         if let g = gen, g != generation { return }
         if case .error(let m) = e { fail(m, gen: generation); return }
+        if state.isActive {
+            if case .silence(let db) = e { noSound(db: db) }
+            if case .sound(let db, let after) = e { soundBack(db: db, after: after) }
+        }
         songs.observe(e)
         session.feed(e, now: now())
         publish()

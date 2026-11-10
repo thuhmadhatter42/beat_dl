@@ -19,9 +19,15 @@ final class LiveTests: XCTestCase {
     // MARK: 3.3 the analyzer's lines
 
     func testParsesStreamLines() {
-        XCTAssertEqual(LiveEvent.parse(line: #"{"event":"ready"}"#, song: LiveSession.songFile(1)), .ready)
-        XCTAssertEqual(LiveEvent.parse(line: #"{"event":"reset"}"#, song: LiveSession.songFile(1)), .reset)
-        XCTAssertEqual(LiveEvent.parse(line: #"{"event":"error","message":"x"}"#, song: LiveSession.songFile(1)), .error("x"))
+        let s1 = LiveSession.songFile(1)
+        XCTAssertEqual(LiveEvent.parse(line: #"{"event":"ready"}"#, song: s1), .ready)
+        XCTAssertEqual(LiveEvent.parse(line: #"{"event":"reset"}"#, song: s1), .reset)
+        XCTAssertEqual(LiveEvent.parse(line: #"{"event": "silence", "db": -61.3}"#, song: s1), .silence(db: -61.3))
+        XCTAssertEqual(LiveEvent.parse(line: #"{"event": "sound", "db": -14.2, "after": 4.5}"#, song: s1),
+                       .sound(db: -14.2, after: 4.5))
+        XCTAssertNil(LiveEvent.parse(line: #"{"event": "silence"}"#, song: s1))             // no level: not the analyzer's
+        XCTAssertNil(LiveEvent.parse(line: #"{"event": "sound", "db": -14.2}"#, song: s1))
+        XCTAssertEqual(LiveEvent.parse(line: #"{"event":"error","message":"x"}"#, song: s1), .error("x"))
         let line = #"{"event":"reading","bpm":"128.0","bpm_exact":128.02,"keys":[["Ebm",85],["F#",8],["Bbm",4]],"secs":14.0}"#
         XCTAssertEqual(LiveEvent.parse(line: line, song: LiveSession.songFile(1)), .reading(reading()))
         let early = #"{"event":"reading","bpm":null,"bpm_exact":null,"keys":[["Ebm",85],["F#",8],["Bbm",4]],"secs":4.0}"#
