@@ -1,7 +1,7 @@
 import XCTest
 @testable import Orion
 
-/// Hold (a button, never automatic) and the sharp / flat respelling of keys (J, 2026-11-01).
+/// Hold (a button, never automatic), and how the scale and the MIDI key signature spell a key.
 final class HoldSpellingTests: XCTestCase {
     let t0 = Date(timeIntervalSince1970: 1_000_000)
 
@@ -87,63 +87,7 @@ final class HoldSpellingTests: XCTestCase {
         XCTAssertFalse(c.isHeld)
     }
 
-    // MARK: spelling
-
-    /// All 24 keys, both ways: the analyzer's spelling > sharps > flats.
-    func testEnharmonicMappingForAll24Keys() {
-        let pairs = [("Db", "C#"), ("Eb", "D#"), ("Gb", "F#"), ("Ab", "G#"), ("Bb", "A#")]
-        for (flat, sharp) in pairs {
-            for m in ["", "m"] {
-                XCTAssertEqual(KeySpelling.respell(flat + m, to: .sharps), sharp + m)
-                XCTAssertEqual(KeySpelling.respell(sharp + m, to: .flats), flat + m)
-                XCTAssertEqual(KeySpelling.respell(flat + m, to: .flats), flat + m)
-                XCTAssertEqual(KeySpelling.respell(sharp + m, to: .sharps), sharp + m)
-                XCTAssertEqual(KeySpelling.respell(flat + m, to: nil), flat + m)
-            }
-        }
-        for n in ["C", "D", "E", "F", "G", "A", "B"] {
-            for m in ["", "m"] {
-                XCTAssertEqual(KeySpelling.respell(n + m, to: .sharps), n + m)
-                XCTAssertEqual(KeySpelling.respell(n + m, to: .flats), n + m)
-                XCTAssertNil(KeySpelling.clickTarget(for: n + m))
-                XCTAssertFalse(KeySpelling.isBlack(n + m))
-            }
-        }
-        XCTAssertEqual(KeySpelling.respell("Ebm", to: .sharps), "D#m")
-        XCTAssertEqual(KeySpelling.respell("Bbm", to: .sharps), "A#m")
-        XCTAssertEqual(KeySpelling.respell("nonsense", to: .sharps), "nonsense")
-    }
-
-    func testClickTargetSwitchesToTheOtherSpelling() {
-        XCTAssertEqual(KeySpelling.clickTarget(for: "Ebm"), .sharps)
-        XCTAssertEqual(KeySpelling.clickTarget(for: "D#m"), .flats)
-        XCTAssertEqual(KeySpelling.clickTarget(for: "F#"), .flats)
-        XCTAssertEqual(KeySpelling.clickTarget(for: "Gb"), .sharps)
-        XCTAssertEqual(KeySpelling.clickTarget(for: "E♭"), .sharps)
-    }
-
-    func testRespelledResultCoversTheTopKeyAndTheList() {
-        let r = reading("Ebm").respelled(.sharps)
-        XCTAssertEqual(r.keys.map { $0.0 }, ["D#m", "F#", "A#m"])
-        XCTAssertEqual(r.keys.map { $0.1 }, [85, 8, 4])
-        XCTAssertEqual(r.bpm, "128.0")
-        XCTAssertEqual(reading("Ebm").respelled(nil), reading("Ebm"))
-        XCTAssertEqual(r.respelled(.flats).keys.map { $0.0 }, ["Ebm", "Gb", "Bbm"])
-    }
-
-    func testSpellingIsAlwaysAutoTunes() {
-        // J 2026-11-09: names follow Auto-Tune's Key menu, no sharps/flats switch.
-        let d = UserDefaults(suiteName: "spell-\(UUID())")!
-        d.set("flats", forKey: SpellingSettings.key)              // left over from the old switch
-        let s = SpellingSettings(defaults: d)
-        XCTAssertNil(s.preference)
-        XCTAssertNil(d.string(forKey: SpellingSettings.key))      // wiped at launch
-        XCTAssertFalse(s.click(on: "Ebm"))
-        XCTAssertNil(s.preference)
-        for (old, at) in [("Gb", "F#"), ("D#m", "Ebm"), ("Abm", "G#m"), ("C#", "Db"), ("A#m", "Bbm")] {
-            XCTAssertEqual(reading(old).respelled(nil, choice: nil).keys.first?.0, at)
-        }
-    }
+    // MARK: spelling (Scale and the MIDI key signature follow the key's own name)
 
     func testScaleSpellingFollowsTheKeyName() {
         XCTAssertEqual(Scale.of("Ebm")!.spelled, ["E♭", "F", "G♭", "A♭", "B♭", "C♭", "D♭"])
@@ -182,19 +126,6 @@ final class HoldSpellingTests: XCTestCase {
         XCTAssertEqual(sig("D#"), -3)
         XCTAssertEqual(sig("A#"), -2)
         XCTAssertEqual(MidiExport.keySignature("G#")?.minor, false)
-    }
-
-    func testReadingsShownFollowThePreference() {
-        let live = LiveState.reading(reading("Ebm"))
-        let r = PocketState.shown(.idle, live: live, page: Pager(), spelling: .sharps)
-        XCTAssertEqual(r?.keys.first?.0, "D#m")
-        XCTAssertEqual(PocketState.shown(.idle, live: live, page: Pager(), spelling: nil)?.keys.first?.0, "Ebm")
-        let m = MenuBarReadout.of(live: live, source: "x", factor: .one, spelling: .sharps)
-        XCTAssertEqual(m?.text, "D#m 128.0")
-        guard case .result(let shown, _, _, _, _)? = Faceplate.liveReadout(live, source: "x", factor: .one, spelling: .sharps)
-        else { return XCTFail() }
-        XCTAssertEqual(shown.keys.map { $0.0 }, ["D#m", "F#", "A#m"])
-        XCTAssertEqual(MidiExport.current(.done(reading("Ebm")), spelling: .sharps)?.keys.first?.0, "D#m")
     }
 
     func testHoldHotkeyDefaultsAppended() {

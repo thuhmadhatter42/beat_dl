@@ -227,7 +227,7 @@ final class HarmonyTests: XCTestCase {
     func testChromaSurvivesRespellAndRecents() throws {
         let ch = [1.0, 0, 0.5, 0, 0, 0.2, 0, 0.8, 0, 0, 0.1, 0]
         let r = Result(file: URL(fileURLWithPath: "/x/a.wav"), name: "a.wav", bpm: "90.0", keys: [("Ebm", 80)], chroma: ch)
-        XCTAssertEqual(r.respelled(.sharps, choice: nil).chroma, ch)
+        XCTAssertEqual(r.respelled(choice: nil).chroma, ch)
         let saved = try JSONDecoder().decode(Reading.self, from: JSONEncoder().encode(Reading(r)))
         XCTAssertEqual(saved.result.chroma, ch)
         // a reading saved before chroma existed still loads

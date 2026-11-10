@@ -25,8 +25,6 @@ struct ResultOptions {
     /// Live listening: the lamp and caption it chose (instead of the key's own confidence), and
     /// the source in place of the file line (no Show in Finder: there is no file).
     var live: (lamp: Lamp, status: String, source: String)? = nil
-    /// A click on the key switches its spelling (Ebm <-> D#m); nil = no click.
-    var onToggleSpelling: (() -> Void)? = nil
 }
 
 /// The amber LCD: Artemis's `.lcd-hero` grown into the whole face. The top shows the state
@@ -285,7 +283,7 @@ struct ResultReadout: View {
     let page: String?
     var note: String? = nil
     var options = ResultOptions()
-    /// The popover's state and controls: the dial (key, confidence, respell) and the factor chips.
+    /// The popover's state and controls: the dial (key, confidence, manual reset) and the factor chips.
     var state = PocketState()
     var actions = PocketActions()
 
@@ -315,7 +313,7 @@ struct ResultReadout: View {
         // file) sit the group in the same place and neither leaves an empty strip.
         HStack(alignment: .center, spacing: ResultReadout.groupGap) {
             bpmColumn.frame(width: ResultReadout.bpmWidth, alignment: .leading)
-            Dial(state: state, actions: actions, side: ResultReadout.dialSide, keySize: ResultReadout.dialKeySize)
+            Dial(state: state, side: ResultReadout.dialSide, keySize: ResultReadout.dialKeySize)
                 .frame(width: ResultReadout.dialSide, height: ResultReadout.dialSide)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)

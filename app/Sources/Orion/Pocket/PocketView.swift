@@ -14,8 +14,6 @@ struct PocketActions {
     var newSong: () -> Void = {}
     /// Hold / Release: freeze the reading on show (never automatic).
     var toggleHold: () -> Void = {}
-    /// A click on the key: sharp <-> flat.
-    var respellKey: () -> Void = {}
     /// MANUAL ⌄: the 24-key menu; the pick becomes THE key and is saved as a teach record.
     var teachKey: () -> Void = {}
     var pickSource: () -> Void = {}
@@ -585,7 +583,7 @@ private struct PocketLCD: View {
         let shape = RoundedRectangle(cornerRadius: Theme.R.well, style: .continuous)
         VStack(alignment: .leading, spacing: 0) {
             HStack(alignment: .center, spacing: Theme.S.l) {
-                Dial(state: state, actions: actions).frame(width: Dial.side, height: Dial.side)
+                Dial(state: state).frame(width: Dial.side, height: Dial.side)
                 right.frame(maxWidth: .infinity, alignment: .leading)
             }
             .frame(height: Dial.side)
@@ -863,7 +861,6 @@ struct ChipMenuButton: View {
 /// each new reading with Motion.value; the lamp's word is the small label under it.
 struct Dial: View {
     let state: PocketState
-    var actions = PocketActions()
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var spin = false
 
@@ -924,7 +921,7 @@ struct Dial: View {
                     .onAppear { if !reduceMotion && !Pocket.snapshot { DispatchQueue.main.async { spin = true } } }
             }
             VStack(spacing: Theme.S.xs) {
-                keyButton(key)
+                keyName(key)
                 if manual {
                     // MANUAL in white where LOCKED / UNSURE / the % would be, no lamp glyph
                     Text(ManualLook.word).captionStyle().foregroundColor(ManualLook.white)
@@ -995,8 +992,9 @@ struct Dial: View {
         return false
     }
 
-    /// The big key; a click on a black-key tonic switches sharp / flat.
-    @ViewBuilder private func keyButton(_ key: String?) -> some View {
+    /// The big key: plain text, Auto-Tune's name, no click of its own. During a Manual Key
+    /// Selection the dial's click resets it and hovering swaps the name for the reset arrow.
+    @ViewBuilder private func keyName(_ key: String?) -> some View {
         // a new key crossfades over the old one in the same spot (Motion.swap)
         let manual = self.manual
         let text = Crossfade(key ?? "--") { k in
@@ -1017,21 +1015,17 @@ struct Dial: View {
                     .opacity(resetting ? 1 : 0)
             }
             .animation(Theme.Motion.hover, value: resetting)
-        } else if state.canRespell {
-            Button(action: actions.respellKey) { text.contentShape(Rectangle()) }
-                .buttonStyle(PlainButtonStyle())
-                .pointingHand()
         } else {
             text
         }
     }
 
-    private var dialLabel: String {
+    /// VoiceOver's label for the dial (the tests read it).
+    var dialLabel: String {
         guard let k = state.result?.keys.first else { return state.lamp == .listening ? "Listening" : "No key yet" }
         if manual { return "Key \(k.0), selected manually. Click to reset manual selection" }
         return "Key \(k.0), \(k.1) percent" + (state.lamp.map { ", \($0.spoken)" } ?? "")
             + (state.held ? ", held" : "")
-            + (state.canRespell ? ". Click to switch between sharp and flat spelling" : "")
     }
 }
 

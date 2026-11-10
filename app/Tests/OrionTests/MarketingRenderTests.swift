@@ -20,11 +20,11 @@ final class MarketingRenderTests: XCTestCase {
         }
         guard #available(macOS 13.0, *) else { throw XCTSkip("ImageRenderer is macOS 13+") }
         let shared = SpellingSettings.shared
-        let (savedPref, savedManual) = (shared.preference, shared.manualKey)
+        let savedManual = shared.manualKey
         Pocket.snapshot = true
         defer {
             Pocket.snapshot = false; Theme.accent = .amber
-            shared.preference = savedPref; shared.manualKey = savedManual
+            shared.manualKey = savedManual
         }
         Theme.accent = .amber
         let out = URL(fileURLWithPath: dir)
@@ -69,13 +69,10 @@ final class MarketingRenderTests: XCTestCase {
         listening.level = 0.62
 
         // Manual Key Selection: Eb, the runner-up
-        let d = UserDefaults(suiteName: "MarketingRenderTests")!
-        d.removePersistentDomain(forName: "MarketingRenderTests")
-        let s = SpellingSettings(defaults: d)
-        s.preference = nil
+        let s = SpellingSettings()
         s.setManualKey("Eb", of: r, from: .topKeys)
         var manual = adv
-        manual.readout = .result(r.respelled(s.preference, choice: s.manualKey), page: nil, download: true,
+        manual.readout = .result(r.respelled(choice: s.manualKey), page: nil, download: true,
                                  options: ResultOptions(factor: .one, tuning: Tuning.meter(3, reference: 440), onCycleTempo: {}))
         manual.manualKey = ManualKey.of(s.manualKey, raw: r)
 

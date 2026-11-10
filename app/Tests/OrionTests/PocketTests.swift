@@ -187,13 +187,6 @@ final class PocketTests: XCTestCase {
         held.holdKeys = "⌃⌥⌘H"
         held.level = 0.7
 
-        // the same reading after a click on the key: D#m, F#, A#m, and the scale in sharps
-        var sharps = held
-        sharps.held = false
-        let hs = h.respelled(.sharps)
-        sharps.readout = .result(hs, page: nil, download: false, options: ResultOptions(
-            factor: .one, tuning: nil, onCycleTempo: {}, live: (.locked, "LOCKED 86%", "System Audio")))
-
         // J 2026-11-09 03:42: the reading he looked at, and a long one
         var ab = locked
         ab.readout = .result(result([("Ab", 85), ("Db", 9), ("Fm", 2)], exact: 139.02, cents: 0), page: nil,
@@ -206,7 +199,7 @@ final class PocketTests: XCTestCase {
 
         let states: [(String, PocketState)] = [("idle", idle), ("downloading", working), ("listening", listening),
                                                ("unsure", unsure), ("locked", locked), ("high-contrast", hc),
-                                               ("error", failed), ("held", held), ("sharps", sharps),
+                                               ("error", failed), ("held", held),
                                                ("ab", ab), ("long", long)]
         for (name, s) in states {
             Theme.highContrast = s.highContrast

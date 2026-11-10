@@ -10,16 +10,12 @@ final class ManualKeySelectionTests: XCTestCase {
     let raw = Result(file: URL(fileURLWithPath: "/x/Beats/Beat A.wav"), name: "Beat A.wav", bpm: "141.98",
                      keys: [("Ebm", 80), ("F#", 12), ("Bbm", 8)], bpmExact: 141.98, tuningCents: 12)
 
-    private func settings() -> SpellingSettings {
-        let d = UserDefaults(suiteName: "ManualKeySelectionTests")!
-        d.removePersistentDomain(forName: "ManualKeySelectionTests")
-        return SpellingSettings(defaults: d)
-    }
+    private func settings() -> SpellingSettings { SpellingSettings() }
 
     /// The state both surfaces draw for `raw` under `s`'s selection (what PocketState.make does).
     private func state(_ s: SpellingSettings, advanced: Bool = false) -> PocketState {
         var p = PocketState()
-        let shown = raw.respelled(nil, choice: s.manualKey)
+        let shown = raw.respelled(choice: s.manualKey)
         p.readout = .result(shown, page: nil, download: true, options: ResultOptions(
             factor: .one, tuning: Tuning.meter(12, reference: 440), onCycleTempo: {}))
         p.manualKey = ManualKey.of(s.manualKey, raw: raw)
@@ -97,6 +93,30 @@ final class ManualKeySelectionTests: XCTestCase {
         XCTAssertFalse(d.manual)
         d.resetManual(s)
         XCTAssertNil(s.manualKey)
+    }
+
+    /// Click-to-respell is gone (2026-11-10): a black-key reading with no Manual Key Selection has
+    /// nothing clickable on the key name. The dial's one click is the manual reset, and it is off;
+    /// no action for the key exists on either surface; VoiceOver promises no click.
+    func testBlackKeyNameIsPlainTextWithoutManual() {
+        XCTAssertFalse(Mirror(reflecting: PocketActions()).children.contains { ($0.label ?? "").lowercased().contains("spell") })
+        let s = settings()
+        for key in ["Db", "Eb", "F#", "Ab", "Bb", "C#m", "Ebm", "F#m", "G#m", "Bbm"] {
+            let r = Result(file: raw.file, name: raw.name, bpm: "120", keys: [(key, 80), ("C", 10)], bpmExact: 120)
+            var p = PocketState()
+            p.readout = .result(r.respelled(choice: nil), page: nil, download: true, options: ResultOptions())
+            let d = Dial(state: p)
+            XCTAssertFalse(d.manual, key)
+            XCTAssertFalse(d.resetting, key)
+            XCTAssertTrue(d.dialLabel.hasPrefix("Key \(KeyChoice.autoTuneName(key)), 80 percent"), d.dialLabel)
+            XCTAssertFalse(d.dialLabel.contains("Click"), d.dialLabel)
+            XCTAssertFalse(d.dialLabel.contains("sharp"), d.dialLabel)
+            d.resetManual(s)                                       // a click: nothing to do
+            XCTAssertNil(s.manualKey, key)
+        }
+        // manual: the label still offers the reset, and only that
+        s.setManualKey("Eb", of: raw, from: .topKeys)
+        XCTAssertEqual(Dial(state: state(s)).dialLabel, "Key Eb, selected manually. Click to reset manual selection")
     }
 
     func testClearWithNothingSetReportsFalse() {

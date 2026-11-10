@@ -360,27 +360,25 @@ extension Faceplate {
     /// the menu-bar popover. Listen's reading wins while it is on; else the engine's state.
     static func readout(_ state: ViewState, live: LiveState, liveSource: String, page: Pager,
                         factor: TempoFactor, lastAction: LastAction, note: String?, reference: Double,
-                        onCycleTempo: (() -> Void)?, held: Bool = false, spelling: KeySpelling? = nil,
-                        onToggleSpelling: (() -> Void)? = nil, liveNotice: String? = nil) -> Readout {
+                        onCycleTempo: (() -> Void)?, held: Bool = false, liveNotice: String? = nil) -> Readout {
         if let l = liveReadout(live, source: liveSource, factor: factor, onCycleTempo: onCycleTempo, held: held,
-                               spelling: spelling, onToggleSpelling: onToggleSpelling,
                                reference: reference, notice: liveNotice) { return l }
         let dl = lastAction == .download
         func options(_ r: Result) -> ResultOptions {
             ResultOptions(factor: factor, tuning: Tuning.meter(r.tuningCents, reference: reference),
-                          onCycleTempo: onCycleTempo, onToggleSpelling: onToggleSpelling)
+                          onCycleTempo: onCycleTempo)
         }
         switch state {
         case .idle: return .idle
         case .working(let s): return .working(stage: s, download: dl)
         case .doctor(let r): return .doctor(r)
         case .done(let r0):
-            let r = r0.respelled(spelling)
+            let r = r0.respelled()
             return .result(r, page: nil, download: true, options: options(r))
         case .analyzed(let rs):
             guard !rs.isEmpty else { return .idle }
             let i = min(page.index, rs.count - 1)
-            let r = rs[i].respelled(spelling)
+            let r = rs[i].respelled()
             return .result(r, page: page.caption, download: false, note: note, options: options(r))
         case .failed(let m): return .error(m, download: dl)
         case .needsLogin(let p):

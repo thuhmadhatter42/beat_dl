@@ -21,10 +21,10 @@ struct MenuBarReadout: Equatable {
     /// The reading `r` as the menu bar shows it: top key, then the BPM to one decimal at `factor`.
     /// `choice` = the Manual Key Selection; when it belongs to `r0` its key shows, in the manual look.
     static func of(_ r0: Result, factor: TempoFactor = .one, lamp: Lamp? = nil, status: String? = nil,
-                   held: Bool = false, spelling: KeySpelling? = nil,
+                   held: Bool = false,
                    choice: KeyChoice? = SpellingSettings.shared.manualKey) -> MenuBarReadout {
         let manual = choice?.matches(r0) ?? false
-        let r = r0.respelled(spelling, choice: choice)
+        let r = r0.respelled(choice: choice)
         let bpm = Tempo.text(r, factor: factor).flatMap(Double.init).map { String(format: "%.1f", $0) }
         let key = r.keys.first?.0
         let parts = [key, bpm].compactMap { $0 }
@@ -39,13 +39,13 @@ struct MenuBarReadout: Equatable {
     }
 
     /// The engine's reading: the finished download, or the file paged to on the LCD.
-    static func of(_ state: ViewState, page: Int, factor: TempoFactor, spelling: KeySpelling? = nil,
+    static func of(_ state: ViewState, page: Int, factor: TempoFactor,
                    choice: KeyChoice? = SpellingSettings.shared.manualKey) -> MenuBarReadout {
         switch state {
         case .done(let r):
-            return of(r, factor: factor, spelling: spelling, choice: choice)
+            return of(r, factor: factor, choice: choice)
         case .analyzed(let rs) where !rs.isEmpty:
-            return of(rs[min(max(page, 0), rs.count - 1)], factor: factor, spelling: spelling, choice: choice)
+            return of(rs[min(max(page, 0), rs.count - 1)], factor: factor, choice: choice)
         case .working(let s):
             return MenuBarReadout(text: nil, lamp: .listening, detail: Faceplate.stageText(s).capitalized)
         default:
@@ -55,7 +55,6 @@ struct MenuBarReadout: Equatable {
 
     /// Listen's reading; nil when Listen is off (the engine's reading shows).
     static func of(live: LiveState, source: String, factor: TempoFactor, held: Bool = false,
-                   spelling: KeySpelling? = nil,
                    choice: KeyChoice? = SpellingSettings.shared.manualKey) -> MenuBarReadout? {
         switch live {
         case .off:
@@ -66,7 +65,7 @@ struct MenuBarReadout: Equatable {
             return MenuBarReadout(text: nil, lamp: .listening, detail: "Listening · \(source)")
         case .reading(let r), .locked(let r):
             let m = of(r, factor: factor, lamp: live.lamp, status: live.status(source: source), held: held,
-                       spelling: spelling, choice: choice)
+                       choice: choice)
             // No key in the menu bar until Beat Key is sure (green): an unsure guess is not a key.
             // The coloured key says how far along it is; the popover still shows the top 3.
             // A Manual Key Selection is not a guess: its key shows at once.
@@ -129,16 +128,13 @@ final class StatusItemController: NSObject, NSMenuDelegate {
         Publishers.CombineLatest(
             Publishers.CombineLatest4(engine.$state, model.$pager, model.$tempoFactor,
                                       live.$state.combineLatest(live.$sourceName)),
-            recents.$readings.combineLatest(live.$isHeld,
-                                            SpellingSettings.shared.$preference.combineLatest(SpellingSettings.shared.$manualKey)))
+            recents.$readings.combineLatest(live.$isHeld, SpellingSettings.shared.$manualKey))
             .receive(on: DispatchQueue.main)
             .sink { [weak self] a, b in
                 let (state, pager, factor, l) = a
-                let (readings, held, sm) = b
-                let (spelling, choice) = sm
-                let r = MenuBarReadout.of(live: l.0, source: l.1, factor: factor, held: held, spelling: spelling,
-                                          choice: choice)
-                    ?? MenuBarReadout.of(state, page: pager.index, factor: factor, spelling: spelling, choice: choice)
+                let (readings, held, choice) = b
+                let r = MenuBarReadout.of(live: l.0, source: l.1, factor: factor, held: held, choice: choice)
+                    ?? MenuBarReadout.of(state, page: pager.index, factor: factor, choice: choice)
                 _ = readings; self?.show(r)
             }
             .store(in: &bag)
@@ -328,11 +324,6 @@ extension PocketActions {
         a.toggleListen = { log(live.state.isActive ? "stop listening" : "start listening"); toggleListening() }
         a.newSong = { log("new song (reset listening)"); newSong() }
         a.toggleHold = { log(live.isHeld ? "release hold" : "hold reading"); toggleHold() }
-        a.respellKey = {
-            guard let k = shown()?.keys.first?.0 else { return }
-            log("respell key")
-            SpellingSettings.shared.click(on: k)
-        }
         a.teachKey = {
             guard let r = shown() else { NSSound.beep(); return }
             log("manual key menu")
@@ -518,7 +509,7 @@ extension PocketState {
                                       factor: model.tempoFactor, lastAction: model.lastAction, note: engine.note,
                                       reference: tuning.reference,
                                       onCycleTempo: { [model] in model.tempoFactor = model.tempoFactor.next },
-                                      held: live.isHeld, spelling: spelling.preference, liveNotice: live.notice)
+                                      held: live.isHeld, liveNotice: live.notice)
         s.listening = live.state.isActive
         s.source = live.state.isActive ? live.sourceName : extras.sourceName
         s.level = live.level
