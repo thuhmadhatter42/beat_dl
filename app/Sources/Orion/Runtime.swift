@@ -58,12 +58,6 @@ struct Runtime {
         return e
     }
 
-    private func runs(_ exe: URL) -> Bool {
-        guard FileManager.default.isExecutableFile(atPath: exe.path) else { return false }
-        // A PyInstaller one-file yt-dlp unpacks itself on every call: ~33 s on a 2013 Intel Mac.
-        return Runtime.run(exe, ["--version"], timeout: Runtime.versionTimeout).status == 0
-    }
-
     static let versionTimeout: TimeInterval = 120
     static let upgradeTimeout: TimeInterval = 300
 
@@ -103,7 +97,10 @@ struct Runtime {
         Runtime.maintenanceQueue.async {
             self.ensureSeeded()
             self.warmJSRuntime()
-            if self.needsWeeklyUpgrade { self.upgradeYtDlpSync() }
+            if self.needsWeeklyUpgrade {
+                // repairYtDlp logs every step and the failure itself; Run Doctor shows it on the LCD.
+                do { _ = try self.repairYtDlp() } catch {}
+            }
         }
     }
 
@@ -121,14 +118,11 @@ struct Runtime {
         do { try seedYtDlp() } catch { AppLog.log("yt-dlp seed into \(ytdlp.path) failed: \(error); downloads will fail") }
     }
 
-    /// Copy the bundle's yt-dlp (signature intact) to App Support if missing or broken.
-    func seedYtDlp() throws {
-        if runs(ytdlp) { return }
-        try reseed()
+    /// Copy the bundle's yt-dlp (signature intact) to App Support if missing or broken. No -U.
+    func seedYtDlp(runner: CommandRunner = RealRunner(), reseed: (() throws -> Void)? = nil) throws {
+        let (_, restored) = try restoreIfBroken(runner, reseed ?? { try self.reseed() })
         // The bundled yt-dlp is as fresh as this build: the first weekly -U is 7 days from now.
-        try? FileManager.default.createDirectory(at: support, withIntermediateDirectories: true)
-        FileManager.default.createFile(atPath: stamp.path, contents: Data())
-        try? FileManager.default.setAttributes([.modificationDate: Date()], ofItemAtPath: stamp.path)
+        if restored { touchStamp() }
     }
 
     func reseed() throws {
@@ -144,30 +138,107 @@ struct Runtime {
         return Date().timeIntervalSince(m) > 7 * 24 * 3600
     }
 
-    func upgradeYtDlp() async {
-        await Task.detached { self.upgradeYtDlpSync() }.value
-    }
+    /// The one "make yt-dlp work again" ladder, for the weekly upgrade and Run Doctor alike. Call
+    /// only on maintenanceQueue. Each step runs only if the one before left yt-dlp not running:
+    ///   1 it doesn't run → restore the bundled copy (-U needs a yt-dlp that runs)
+    ///   2 `yt-dlp -U` (always; a failed -U on a yt-dlp that still runs is logged, not a failure)
+    ///   3 the update doesn't run → ad-hoc sign it once (spec §6: a self-updated binary blocked
+    ///     by code signing) and re-check, so a good update is kept
+    ///   4 still doesn't run → restore the bundled copy
+    ///   5 still doesn't run → throw .wontRun. Otherwise write the stamp (the one writer).
+    /// A failed restore throws .reseedFailed at once. Every step that changes or fails logs here.
+    func repairYtDlp(runner: CommandRunner = RealRunner(),
+                     reseed: (() throws -> Void)? = nil) throws -> YtDlpRepair {
+        let restore = reseed ?? { try self.reseed() }
+        let (before, restoredFirst) = try restoreIfBroken(runner, restore)
+        var restored = restoredFirst
 
-    func upgradeYtDlpSync() {
-        let up = Runtime.run(ytdlp, ["-U"], timeout: Runtime.upgradeTimeout)
+        let up = runner.run(ytdlp, ["-U"], environment: nil, timeout: Runtime.upgradeTimeout)
         if up.status != 0 {
             AppLog.log("yt-dlp -U: status \(up.status): \(up.output.trimmingCharacters(in: .whitespacesAndNewlines).suffix(300))")
         }
-        if !runs(ytdlp) {
-            AppLog.log("yt-dlp does not run after -U; restoring the bundled copy")
-            do { try reseed() } catch { AppLog.log("yt-dlp reseed failed: \(error)") }
-        }
-        if !runs(ytdlp) {
-            // Blocked case: ad-hoc sign once and re-check.
-            AppLog.log("yt-dlp still does not run; ad-hoc signing it")
-            _ = Runtime.run(URL(fileURLWithPath: "/usr/bin/codesign"), ["-s", "-", "-f", ytdlp.path])
-            if !runs(ytdlp) {
-                do { try reseed() } catch { AppLog.log("yt-dlp reseed failed: \(error)") }
-                if !runs(ytdlp) { AppLog.log("yt-dlp still does not run; downloads will fail (Run Doctor)") }
+        var after = ytdlpVersion(runner)
+        if after == nil {
+            AppLog.log("yt-dlp does not run after -U; ad-hoc signing it")
+            let sign = runner.run(URL(fileURLWithPath: "/usr/bin/codesign"), ["-s", "-", "-f", ytdlp.path],
+                                  environment: nil, timeout: 30)
+            if sign.status != 0 {
+                AppLog.log("yt-dlp ad-hoc sign: status \(sign.status): \(sign.output.trimmingCharacters(in: .whitespacesAndNewlines).suffix(300))")
             }
+            after = ytdlpVersion(runner)
         }
-        try? FileManager.default.createDirectory(at: support, withIntermediateDirectories: true)
-        FileManager.default.createFile(atPath: stamp.path, contents: Data())
-        try? FileManager.default.setAttributes([.modificationDate: Date()], ofItemAtPath: stamp.path)
+        if after == nil {
+            try restoreBundled(restore)
+            restored = true
+            after = ytdlpVersion(runner)
+        }
+        guard let now = after else {
+            AppLog.log("yt-dlp still does not run; downloads will fail (Run Doctor)")
+            throw YtDlpRepairError.wontRun
+        }
+        if before != now { AppLog.log("yt-dlp is now \(now) (was \(before ?? "not running"))") }
+        touchStamp()
+        return YtDlpRepair(restored: restored, before: before, after: now)
+    }
+
+    /// The version line of `yt-dlp --version`, or nil when it does not run. The only "does yt-dlp
+    /// run" check. A PyInstaller one-file yt-dlp unpacks itself on every call: ~33 s on a 2013 Intel Mac.
+    func ytdlpVersion(_ runner: CommandRunner) -> String? {
+        let r = runner.run(ytdlp, ["--version"], environment: nil, timeout: Runtime.versionTimeout)
+        guard r.status == 0 else { return nil }
+        let v = r.output.split(whereSeparator: \.isNewline).last.map(String.init)?
+            .trimmingCharacters(in: .whitespaces) ?? ""
+        return v.isEmpty ? nil : v
+    }
+
+    /// Step 1 of both seed and repair: (the version, nil if it didn't run; whether it was restored).
+    private func restoreIfBroken(_ runner: CommandRunner,
+                                 _ restore: () throws -> Void) throws -> (String?, Bool) {
+        if let v = ytdlpVersion(runner) { return (v, false) }
+        try restoreBundled(restore)
+        return (nil, true)
+    }
+
+    private func restoreBundled(_ restore: () throws -> Void) throws {
+        AppLog.log("yt-dlp does not run; restoring the bundled copy")
+        do { try restore() } catch {
+            AppLog.log("yt-dlp: restoring the bundled copy failed: \(error)")
+            throw YtDlpRepairError.reseedFailed("\(error)")
+        }
+    }
+
+    /// The one writer of the weekly-upgrade stamp.
+    func touchStamp() {
+        let fm = FileManager.default
+        do {
+            try fm.createDirectory(at: support, withIntermediateDirectories: true)
+            if !fm.fileExists(atPath: stamp.path) { fm.createFile(atPath: stamp.path, contents: Data()) }
+            try fm.setAttributes([.modificationDate: Date()], ofItemAtPath: stamp.path)
+        } catch {
+            AppLog.log("yt-dlp upgrade stamp \(stamp.path) not written: \(error); the next launch upgrades again")
+        }
+    }
+}
+
+/// What Runtime.repairYtDlp did, for the log and Run Doctor's LCD line.
+struct YtDlpRepair: Equatable {
+    let restored: Bool     // the bundled copy was put back (step 1 or 4)
+    let before: String?    // version before -U; nil = it did not run
+    let after: String      // version now running
+}
+
+enum YtDlpRepairError: Error, Equatable {
+    case reseedFailed(String)   // copying the bundled yt-dlp to App Support failed
+    case wontRun                // every step tried, yt-dlp still does not run
+}
+
+/// Runs a command and returns (status, output). Injected so tests never spawn anything.
+protocol CommandRunner {
+    func run(_ exe: URL, _ args: [String], environment: [String: String]?, timeout: TimeInterval) -> (status: Int32, output: String)
+}
+
+struct RealRunner: CommandRunner {
+    func run(_ exe: URL, _ args: [String], environment: [String: String]?, timeout: TimeInterval) -> (status: Int32, output: String) {
+        Runtime.run(exe, args, environment: environment, timeout: timeout)
     }
 }

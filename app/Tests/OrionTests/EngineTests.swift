@@ -176,7 +176,7 @@ final class EngineTests: XCTestCase {
         try r.seedYtDlp()
         XCTAssertFalse(r.needsWeeklyUpgrade)     // a fresh seed is as new as the build
         XCTAssertTrue(FileManager.default.isExecutableFile(atPath: r.ytdlp.path))
-        r.upgradeYtDlpSync()
+        _ = try r.repairYtDlp()
         XCTAssertFalse(r.needsWeeklyUpgrade)
     }
 }

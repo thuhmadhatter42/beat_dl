@@ -140,11 +140,13 @@ final class BeatKeyTests: XCTestCase {
 
     func testDoctorReseedsABrokenYtDlp() {
         let r = FakeRunner()
-        // won't run before, still won't after -U, runs after the re-seed
+        // won't run before (re-seeded), won't run after -U (ad-hoc signed), runs after the signing
         r.answers["yt-dlp --version"] = [(1, ""), (1, ""), (0, "2026.08.19")]
         let n = Counter()
         let rep = doctor(r, reseeds: n).run { _ in }
-        XCTAssertEqual(n.n, 2)
+        XCTAssertEqual(n.n, 1)
+        XCTAssertEqual(Array(r.calls.prefix(5)), ["yt-dlp --version", "yt-dlp -U", "yt-dlp --version",
+                                                  "codesign -s", "yt-dlp --version"])
         XCTAssertEqual(rep, DoctorReport(outcome: .fixed, title: "DOCTOR FIXED IT", line: "RESTORED YT-DLP · YT-DLP 2026.08.19"))
     }
 
