@@ -145,6 +145,10 @@ final class Engine: ObservableObject {
                 DispatchQueue.main.async {
                     guard gen == self.generation else { return }
                     self.state = .doctor(report)
+                    if report.outcome == .failed, report.line == Doctor.permissionHint.uppercased() {
+                        AppLog.log("doctor: permission failure; opening the permission guide")
+                        PermissionGuide.shared.need(nil, why: "Run Doctor permission hint")
+                    }
                     // the tools are checked; now the app itself (Sparkle's own window)
                     self.afterDoctor()
                 }

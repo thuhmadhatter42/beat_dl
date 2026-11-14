@@ -217,7 +217,7 @@ struct CGKeys: AXKeys {
 enum AXTrust {
     private static var prompted = false
     static func isTrusted(prompt: Bool) -> Bool {
-        if AXIsProcessTrusted() { return true }
+        if SystemPermissions.isGranted(.accessibility) { return true }
         guard prompt, !prompted else { return false }
         prompted = true
         let opts = [kAXTrustedCheckOptionPrompt.takeUnretainedValue() as String: true] as CFDictionary

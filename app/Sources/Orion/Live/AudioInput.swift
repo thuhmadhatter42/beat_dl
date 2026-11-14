@@ -135,14 +135,21 @@ final class InputCapture: AudioCapture {
     }
 
     func start(onSamples: @escaping ([Float]) -> Void, onError: @escaping (String) -> Void) {
-        switch AVCaptureDevice.authorizationStatus(for: .audio) {
-        case .authorized:
+        switch SystemPermissions.shared.state(.microphone) {
+        case .granted:
             begin(onSamples, onError)
         case .notDetermined:
             AVCaptureDevice.requestAccess(for: .audio) { ok in
-                DispatchQueue.main.async { ok ? self.begin(onSamples, onError) : onError(InputCapture.deniedText) }
+                DispatchQueue.main.async {
+                    if ok { self.begin(onSamples, onError); return }
+                    AppLog.log("input capture: microphone refused at the system prompt; opening the permission guide")
+                    PermissionGuide.shared.need(.microphone, why: "Listen on an input")
+                    onError(InputCapture.deniedText)
+                }
             }
-        default:
+        case .denied:
+            AppLog.log("input capture: microphone not allowed; opening the permission guide")
+            PermissionGuide.shared.need(.microphone, why: "Listen on an input")
             onError(InputCapture.deniedText)
         }
     }
