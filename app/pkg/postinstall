@@ -1,0 +1,33 @@
+#!/bin/bash
+# Beat Key installer, postinstall. Runs as root, after the files are in place. Opens Beat Key for the
+# person who is logged in at the screen (never as root). Never fails the install: whatever happens
+# here, the exit is 0. Installer scripts' output goes to /var/log/install.log; every line is
+# prefixed "Beat Key postinstall:" and also sent to syslog (logger -t BeatKeyInstaller).
+# $1 = package path, $2 = install location, $3 = target volume, $4 = installer's script directory.
+APP="/Applications/Beat Key.app"
+say() { echo "Beat Key postinstall: $*"; /usr/bin/logger -t BeatKeyInstaller "postinstall: $*" 2>/dev/null; }
+
+say "start: package '${1:-?}', location '${2:-?}', target volume '${3:-?}', uid $(/usr/bin/id -u)"
+V="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "${3%/}$APP/Contents/Info.plist" 2>/dev/null || echo '?')"
+say "installed version on disk: $V (${3%/}$APP)"
+
+if [ "${3:-/}" != "/" ]; then
+  say "target volume is not /, not opening Beat Key"; exit 0
+fi
+U="$(/usr/bin/stat -f%Su /dev/console 2>/dev/null)"
+if [ -z "$U" ] || [ "$U" = root ] || [ "$U" = loginwindow ]; then
+  say "no one is logged in at the console (console user '${U:-none}'), not opening Beat Key"; exit 0
+fi
+UID_="$(/usr/bin/id -u "$U" 2>/dev/null)"
+if [ -z "$UID_" ]; then say "cannot resolve user '$U', not opening Beat Key"; exit 0; fi
+if /usr/bin/pgrep -x Orion >/dev/null 2>&1; then
+  say "Beat Key (Orion) is still running (the person continued with it open); not starting a second copy. The new version loads the next time Beat Key is opened."
+  exit 0
+fi
+say "opening Beat Key as $U (uid $UID_)"
+if /bin/launchctl asuser "$UID_" /usr/bin/sudo -u "$U" /usr/bin/open "$APP"; then
+  say "open returned 0"
+else
+  say "open FAILED (exit $?)"
+fi
+exit 0

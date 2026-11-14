@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Beat Key installer (built by productbuild). The version in the pkg-ref below is filled in by app/build.sh.
+     Reference: Apple, Distribution Definition XML Schema Reference (installation-check, script) and
+     Installer JS (system.applications.fromIdentifier, my.result.title / .message / .type). -->
+<installer-gui-script minSpecVersion="2">
+  <title>Beat Key</title>
+  <organization>com.jshriver</organization>
+  <options customize="never" require-scripts="false" hostArchitectures="arm64,x86_64"/>
+  <os-version min="12.0"/>
+  <domains enable_anywhere="false" enable_currentUserHome="false" enable_localSystem="true"/>
+  <installation-check script="beatKeyClosedCheck()"/>
+  <script><![CDATA[
+// Beat Key must not be running while it is replaced. Installer JS:
+//   system.applications.fromIdentifier(bundleID) -> array of the RUNNING apps with that bundle id
+//   system.applications.all()                    -> array of all running apps (ProcessInformation: BundlePath, pid)
+//   my.result.title / .message / .type ('Fatal' = cannot continue: an open Beat Key is never replaced underneath itself)
+// Returning false after setting my.result shows the message before the installer starts.
+function beatKeyClosedCheck() {
+  var running = [];
+  try {
+    var byId = system.applications.fromIdentifier('com.jshriver.orion');
+    for (var i = 0; byId && i < byId.length; i++) { running.push(byId[i]); }
+  } catch (e) { system.log('Beat Key check: fromIdentifier failed: ' + e); }
+  if (running.length == 0) {
+    // an old copy that fromIdentifier does not report: look at every running app's bundle path
+    try {
+      var all = system.applications.all();
+      for (var j = 0; all && j < all.length; j++) {
+        var p = String(all[j]['BundlePath'] || '');
+        if (/\/(Beat Key|Orion)\.app\/?$/.test(p)) { running.push(all[j]); }
+      }
+    } catch (e2) { system.log('Beat Key check: all() failed: ' + e2); }
+  }
+  system.log('Beat Key check: ' + running.length + ' running copy(ies) of Beat Key');
+  if (running.length == 0) { return true; }
+  my.result.title = 'Beat Key is open';
+  my.result.message = 'Quit Beat Key (Beat Key menu > Quit), then open this installer again.';
+  my.result.type = 'Fatal';
+  return false;
+}
+]]></script>
+  <choices-outline>
+    <line choice="default">
+      <line choice="com.jshriver.orion.pkg"/>
+    </line>
+  </choices-outline>
+  <choice id="default"/>
+  <choice id="com.jshriver.orion.pkg" visible="false" title="Beat Key" description="Beat Key in Applications">
+    <pkg-ref id="com.jshriver.orion.pkg"/>
+  </choice>
+  <pkg-ref id="com.jshriver.orion.pkg" version="@VERSION@" onConclusion="none">Beat-Key-component.pkg</pkg-ref>
+</installer-gui-script>

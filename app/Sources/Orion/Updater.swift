@@ -23,6 +23,22 @@ final class AppUpdater: ObservableObject {
         bundle.bundleURL.pathExtension == "app" && bundle.object(forInfoDictionaryKey: "SUFeedURL") is String
     }
 
+    private var checkedAtLaunch = false
+
+    /// Once per launch: Sparkle's silent check (Sparkle's own scheduled check waits out its 24 h
+    /// interval, so a Beat Key opened an hour after the last check would not look). Shows a window
+    /// only when a newer Beat Key exists; "up to date" and errors stay silent. Same updater as the menu item.
+    func checkInBackgroundAtLaunch() {
+        guard !checkedAtLaunch else { return }
+        checkedAtLaunch = true
+        guard let c = controller else {
+            AppLog.log("update check: no updater (not a bundled app with a feed); launch check skipped")
+            return
+        }
+        AppLog.log("update check: launch check (Sparkle, in the background)")
+        c.updater.checkForUpdatesInBackground()
+    }
+
     /// A user-initiated check: Sparkle shows "up to date", the update offer, or the error.
     func checkForUpdates() {
         DispatchQueue.main.async {

@@ -1,7 +1,7 @@
 import AppKit
 
 /// The one way Beat Key quits and opens itself again. Used by the permission walkthrough's
-/// Quit & Reopen and by the install guard's Relaunch Now.
+/// Quit & Reopen.
 enum AppRelaunch {
     /// Schedules `open -n` of this bundle one second from now, then quits. False = could not
     /// (an unbundled `swift run`, or the helper would not start); the app stays running.

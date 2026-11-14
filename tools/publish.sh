@@ -1,8 +1,9 @@
 #!/bin/bash
 # Publish the Beat Key release named in VERSION (J runs this; auto mode blocks public pushes).
-# Needs app/build/Beat-Key-<V>.dmg (notarized, from app/build.sh) and app/build/appcast.xml.
+# Needs app/build/Beat-Key-<V>.pkg (the download for people) and Beat-Key-<V>.dmg (Sparkle updates),
+# both signed, notarized and stapled by app/build.sh, and app/build/appcast.xml.
 # Three phases. 1: read-only checks, nothing changes anywhere; any failure stops here.
-# 2: publish: tag + push main + push tag, DMG and beat-key-latest.json to the FLR site on Sofia,
+# 2: publish: tag + push main + push tag, DMG, pkg and beat-key-latest.json to the FLR site on Sofia,
 # friends page, and last (the step every installed Beat Key sees) the GitHub release.
 # 3: final check: download page answers 303 and beat-key-latest.json names <V>; only then PUBLISHED.
 # The whole run is also appended with timestamps to app/build/publish-<V>.log.
@@ -13,6 +14,7 @@ SSH_RC=${SSH_RC:-$HOME/.claude/scripts/ssh-rc}   # the required wrapper: plain s
 HOST=js-mac-pro
 V=$(tr -d '[:space:]' < VERSION)
 D=app/build/Beat-Key-$V.dmg
+P=app/build/Beat-Key-$V.pkg
 A=app/build/appcast.xml
 TAG=Beat-Key-$V
 REPO=thuhmadhatter42/beat_dl
@@ -36,6 +38,10 @@ echo "== publishing $V: phase 1, checks (read-only)"
 [ -f "$D" ] || fail "$D missing; run app/build.sh"
 xcrun stapler validate "$D" >/dev/null 2>&1 || fail "$D is not stapled; run app/build.sh"
 ok "DMG exists and is stapled"
+[ -f "$P" ] || fail "$P missing; run app/build.sh"
+pkgutil --check-signature "$P" >/dev/null 2>&1 || fail "$P is not signed (pkgutil --check-signature); run app/build.sh"
+xcrun stapler validate "$P" >/dev/null 2>&1 || fail "$P is not stapled; run app/build.sh"
+ok "pkg exists, is signed and stapled"
 [ -f "$A" ] || fail "$A missing; run app/build.sh"
 grep -qF "<sparkle:version>$V</sparkle:version>" "$A" \
   && grep -qF "<sparkle:shortVersionString>$V</sparkle:shortVersionString>" "$A" \
@@ -54,7 +60,8 @@ case "$REL" in *"release not found"*) ;; *) fail "could not ask GitHub about rel
 ok "no GitHub release $TAG yet"
 "$SSH_RC" "$HOST" true >/dev/null || fail "$HOST not reachable"
 "$SSH_RC" "$HOST" "test ! -e $REMOTE_DMG/Beat-Key-$V.dmg" || fail "$HOST already holds Beat-Key-$V.dmg (never overwrite)"
-ok "$HOST reachable and does not hold Beat-Key-$V.dmg"
+"$SSH_RC" "$HOST" "test ! -e $REMOTE_DMG/Beat-Key-$V.pkg" || fail "$HOST already holds Beat-Key-$V.pkg (never overwrite)"
+ok "$HOST reachable and does not hold Beat-Key-$V.dmg or Beat-Key-$V.pkg"
 [ -f friends-page/index.html ] || fail "friends-page/index.html missing"
 ok "friends-page/index.html exists"
 
@@ -63,9 +70,10 @@ pub "tag $TAG" git tag "$TAG"
 pub "push main" git push origin main
 pub "push tag" git push origin "$TAG"
 pub "DMG to $HOST" scp "$D" "$HOST:fourletterrecords/beat-key-releases/"
+pub "pkg to $HOST" scp "$P" "$HOST:fourletterrecords/beat-key-releases/"
 pub "beat-key-latest.json" "$SSH_RC" "$HOST" "printf '{\"version\": \"$V\"}\n' > $REMOTE_JSON && cat $REMOTE_JSON"
 pub "friends page" scp friends-page/index.html "$HOST:beatkey/"
-pub "GitHub release" gh release create "$TAG" -R "$REPO" --title "Beat Key $V" "$D" "$A"
+pub "GitHub release" gh release create "$TAG" -R "$REPO" --title "Beat Key $V" "$P" "$D" "$A"
 
 echo "== phase 3, final check"
 CODE=$(curl -s -o /dev/null -w '%{http_code}' "$PAGE") || fail "could not reach $PAGE"

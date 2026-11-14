@@ -25,18 +25,20 @@ release must carry an `appcast.xml`, or update checks fail with a 404.
    `CFBundleShortVersionString`, and Sparkle compares it, so it must only go up.
 2. Build: `app/build.sh` (on a Mac someone is using, add
    `DMG_LAYOUT_FROM=<an earlier Beat Key DMG>` so no Finder window opens). It ends with
-   `app/build/Beat-Key-<ver>.dmg` (signed, notarized, stapled) and `app/build/appcast.xml` (one
+   `app/build/Beat-Key-<ver>.pkg` (the download for people), `app/build/Beat-Key-<ver>.dmg` (for
+   Sparkle updates only), both signed (the pkg with `Developer ID Installer: J Shriver (9WTFGV63S2)`,
+   override `PKG_SIGN_IDENTITY`), notarized and stapled, and `app/build/appcast.xml` (one
    item for that DMG, EdDSA-signed, enclosure
    `https://github.com/thuhmadhatter42/beat_dl/releases/download/Beat-Key-<ver>/Beat-Key-<ver>.dmg`).
 3. Commit everything (the script needs HEAD on `main` with tracked files clean), then publish with
    `bash tools/publish.sh`, which reads `VERSION`. Since 0.1.62 it does all of this in three phases
    and logs to `app/build/publish-<ver>.log`:
-   - checks, nothing changed anywhere: DMG stapled, `appcast.xml` names `<ver>`, the tag
+   - checks, nothing changed anywhere: DMG and pkg stapled, pkg signed (`pkgutil --check-signature`), `appcast.xml` names `<ver>`, the tag
      `Beat-Key-<ver>` and the GitHub release do not exist yet, Sofia reachable and not already
-     holding `Beat-Key-<ver>.dmg`;
-   - publish: tag, push `main` and the tag, DMG to Sofia
+     holding `Beat-Key-<ver>.dmg` or `Beat-Key-<ver>.pkg`;
+   - publish: tag, push `main` and the tag, DMG and pkg to Sofia
      `~/fourletterrecords/beat-key-releases/` (never overwrites), `beat-key-latest.json` =
-     `{"version": "<ver>"}`, the friends page, and last the GitHub release with the DMG and
+     `{"version": "<ver>"}`, the friends page, and last the GitHub release with the pkg, the DMG and
      `appcast.xml` (the step every installed Beat Key sees). No restart of anything;
    - final check: `https://fourletterrecords.com/account/download/beat-key` answers 303 and
      `beat-key-latest.json` on Sofia names `<ver>`. Only then it prints `PUBLISHED <ver>`; any
@@ -44,6 +46,18 @@ release must carry an `appcast.xml`, or update checks fail with a 404.
    Auto mode may block public pushes; then J runs it: `! bash ~/dev/beat_dl/tools/publish.sh`.
 4. After it: `curl -sIL https://github.com/thuhmadhatter42/beat_dl/releases/latest/download/appcast.xml`
    ends in `200` and the file names `<ver>`.
+
+## The pkg installer
+
+`app/pkg/distribution.xml` + `app/pkg/postinstall`, assembled by build.sh (`pkgbuild` with a component
+plist that sets `BundleIsRelocatable = false`, so it always installs `/Applications/Beat Key.app`;
+`productbuild` signs it). The installer's `installation-check` (Installer JS
+`system.applications.fromIdentifier('com.jshriver.orion')`, plus a scan of `system.applications.all()`
+for an `Orion.app` / `Beat Key.app` bundle path) shows "Beat Key is open. Quit Beat Key, then click
+Continue." while Beat Key runs. `postinstall` opens Beat Key as the logged-in console user. Both log
+to `/var/log/install.log` (lines `JS: Beat Key check:` and `Beat Key postinstall:`).
+Sparkle keeps using the DMG (it quits Beat Key itself before installing); the pkg is only the download.
+Every launch, Beat Key also asks Sparkle for one background check (no timer).
 
 ## Testing an update without publishing
 
