@@ -124,20 +124,7 @@ final class SystemPermissions: PermissionChecking {
         return false
     }
 
-    func relaunch() -> Bool {
-        let bundle = Bundle.main.bundleURL
-        guard bundle.pathExtension == "app" else { return false }
-        let p = Process()
-        p.executableURL = URL(fileURLWithPath: "/bin/sh")
-        // wait for this process to quit, then open the same bundle again
-        p.arguments = ["-c", "sleep 1; /usr/bin/open -n \"$0\"", bundle.path]
-        do { try p.run() } catch {
-            AppLog.log("permissions: relaunch could not start: \(error)")
-            return false
-        }
-        DispatchQueue.main.async { NSApp.terminate(nil) }
-        return true
-    }
+    func relaunch() -> Bool { AppRelaunch.now(why: "permissions") }
 }
 
 enum StepStatus: Equatable {
