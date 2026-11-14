@@ -1,6 +1,22 @@
 # PICKUP — beat_dl
 
-## CURRENT STATE — 2026-11-10 04:46
+## CURRENT STATE — 2026-11-13 22:00
+
+**0.1.71 PUBLIC (21:0x, tools/publish.sh, PUBLISHED 0.1.71; appcast live = 0.1.71).** = permission walkthrough (`app/Sources/Orion/Permissions/`): one window, Screen & System Audio Recording → Microphone (skippable) → Accessibility, opens the exact Settings pane, polls 1 s while open, "Quit & Reopen" for Screen Recording; opens at launch if missing, on Listen/Send-to-DAW permission errors, menu "Set Up Permissions…", Doctor permission hint. MBP has notarized 0.1.71 installed, not opened.
+**0.1.72 on main (a912a1b), NOT yet published: notarized build was running at 22:00 (log `app/build/build-0.1.72.log`); J said YES publish (21:31 + 21:48).** Next: check build log (submission Accepted, pkg + DMG stapled), run `bash tools/publish.sh`, verify release has pkg+DMG+appcast, install on MBP (pgrep -x Orion first). 0.1.72 = downloads switch to signed+notarized `Beat-Key-<V>.pkg` (app/pkg/distribution.xml: installation-check refuses with Fatal "Quit Beat Key… then open this installer again" when com.jshriver.orion or an Orion.app/Beat Key.app is running; postinstall opens Beat Key as console user); DMG + appcast kept for Sparkle; one Sparkle background check at every launch (`AppUpdater.checkInBackgroundAtLaunch`); `TwinCheck` at launch quits an older running copy. The 5-second InstallGuard poll was built then REMOVED on J's order ("don't do it every five seconds… overhead") — never add periodic checks.
+**Notarization:** Apple 403 "agreement missing" 20:26; J accepted the new Apple Developer Program License Agreement ~20:50; notary live 20:52. Agent summary of the agreement given to J (indemnity covers Beat Key incl. YouTube-copyright claims; Apple can revoke cert/notarization at will; keep contact info current).
+**Studio D finding:** it runs Beat Key **0.1.8** (Oct 27, before Sparkle 0.1.18), so Check for Updates never existed there; J dragged a new copy in while 0.1.8 was running and the old process stayed. Fix for J at Studio D: ⌘Q (or Activity Monitor → Orion → Quit), install 0.1.72 pkg (or 0.1.71 DMG), open, About must say the new version.
+**Handoff waiting for the FLR site session:** `handoff/TO-FLR-SITE-2026-11-13-beat-key-pkg.md` (serve the .pkg, "open the installer" copy, and the older Listen-hears-only-players fix).
+
+**Owed by J (hands-on):**
+1. Studio D: quit Beat Key 0.1.8, install the new version, walk the permission guide, YouTube in Chrome → LISTEN; Accessibility on for Send to DAW. Tailscale key there still expired.
+2. MBP: open 0.1.7x and look: permission guide, Listen quiet passage (NO SOUND ~3 s), song change clears picked key + ×2, black-key reading in pocket, COLOR drag with Mini pad held, High Contrast, READY lamp octagon vs circle. Same list on Loops Live decide D-143c883a4a.
+3. Run the 0.1.72 .pkg once with Beat Key open: it must refuse; with it closed: installs and opens Beat Key.
+4. Older hand tests still untried: MINI MIDI into a DAW, live tuning with pitched Spotify, chord drag, MATCH TO, Send to DAW Pro Tools, ⇧⌘A, unplugged-interface fallback, ftC tempo on known beats.
+**Review findings J has not ruled on:** unchanged from the 2026-11-10 04:46 block below.
+**J said no (do not re-raise):** New Song keeps its full restart; no periodic background polls.
+
+## (previous) 2026-11-10 04:46 (superseded by the block above)
 
 **Beat Key 0.1.70 is PUBLIC (published 04:44 by `tools/publish.sh`, run by the agent on J's 03:51 order; log `app/build/publish-0.1.70.log` ends `PUBLISHED 0.1.70`).** Verified after: GitHub release Beat-Key-0.1.70 (not a draft) with `Beat-Key-0.1.70.dmg` + `appcast.xml`; latest appcast shortVersionString 0.1.70; DMG URL HTTP 200; Sofia `~/fourletterrecords/beat-key-latest.json` = 0.1.70 and the DMG there has the same sha256 prefix b16358d7a85d7d74 as the build; download page answers 303; main = origin/main = b31cff2 at publish, tag Beat-Key-0.1.70.
 **Installed, not launched:** MBP `/Applications/Beat Key.app` 0.1.70 (old 0.1.59 in Trash) and Mac Pro `/Applications/Beat Key.app` 0.1.70 (old 0.1.17 in its Trash); on both: spctl "Notarized Developer ID", `codesign --verify --deep --strict` ok, bundled `bpm.py --check` exit 0. MBP smoke: installed analyzer on `tests/fixtures/click120.wav` → 120.0. Build log `app/build/build-0.1.70.log`. Nothing has been opened or listened to in the real app yet.
