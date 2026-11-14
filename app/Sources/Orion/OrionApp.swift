@@ -233,6 +233,9 @@ struct OrionApp: App {
         let l = live
         PlayToFind.shared.install(shown: { PocketState.shown(e.state, live: l.state, page: m.pager) },
                                   sendAutoTune: windowActions.sendAutoTune)
+        // The bundle on disk replaced while running (Finder drag-install): offer a relaunch.
+        InstallGuard.shared.isBusy = { e.state.isBusy || l.state.isActive }
+        InstallGuard.shared.start()
         // Seed yt-dlp into Application Support, then the weekly self-update, on the shared
         // maintenance queue. The Engine stays idle; downloads and Run Doctor wait their turn.
         Runtime.appDefault().launchMaintenance()
@@ -246,6 +249,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     func applicationDidFinishLaunching(_ n: Notification) {
         AppLog.launched()
+        TwinCheck.run()   // another Beat Key already running: take over from it, or yield to a newer one
         // Finder › Services › Analyze with Beat Key. Registered under the NSPortName in Info.plist,
         // and as the default provider, so the name does not have to match the process name.
         NSRegisterServicesProvider(services, Brand.name)
