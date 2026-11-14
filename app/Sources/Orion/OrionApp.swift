@@ -99,6 +99,7 @@ struct OrionApp: App {
                 CheckForUpdatesButton(updater: updater)
                 Button(Brand.runDoctor) { engine.runDoctor() }
                     .disabled(engine.state.isBusy)
+                Button(Brand.setUpPermissions) { PermissionGuide.shared.open(at: nil, why: "menu") }
                 Button(Brand.licenses) { Licenses.open() }
                 if login.loggedIn && YouTubeLogin.inApp {
                     Button("Log Out of YouTube") { login.logOut() }
@@ -235,6 +236,8 @@ struct OrionApp: App {
         // Seed yt-dlp into Application Support, then the weekly self-update, on the shared
         // maintenance queue. The Engine stays idle; downloads and Run Doctor wait their turn.
         Runtime.appDefault().launchMaintenance()
+        // Permissions Beat Key needs and doesn't have: the walkthrough, once the window is up.
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) { PermissionGuide.shared.openAtLaunch() }
     }
 }
 

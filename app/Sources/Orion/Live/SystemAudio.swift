@@ -48,9 +48,11 @@ final class SystemAudioCapture: NSObject, AudioCapture, SCStreamOutput, SCStream
 
     private func begin() {
         guard !stopped, let onError = onError else { return }
-        // First time: macOS shows its own prompt and says no for now; the user allows it in
-        // System Settings and starts again.
-        guard CGPreflightScreenCaptureAccess() || CGRequestScreenCaptureAccess() else {
+        // Not allowed yet: the permission guide walks the user through it (it also asks macOS, which
+        // lists Beat Key in the pane); Listen stops with the one line until they start again.
+        guard SystemPermissions.isGranted(.screen) else {
+            AppLog.log("system audio: screen & system audio recording not allowed; opening the permission guide")
+            PermissionGuide.shared.need(.screen, why: "Listen on Mac audio")
             onError(SystemAudioCapture.permissionText); return
         }
         SCShareableContent.getExcludingDesktopWindows(false, onScreenWindowsOnly: false) { [weak self] content, error in
@@ -81,7 +83,10 @@ final class SystemAudioCapture: NSObject, AudioCapture, SCStreamOutput, SCStream
             }
             s.startCapture { [weak self] err in
                 guard let err = err else { return }
-                if SystemAudioCapture.isPermission(err) { onError(SystemAudioCapture.text(err)); return }
+                if SystemAudioCapture.isPermission(err) {
+                    PermissionGuide.shared.need(.screen, why: "Listen on Mac audio (start refused)")
+                    onError(SystemAudioCapture.text(err)); return
+                }
                 AppLog.log("system audio: start failed (\(err)), retrying")
                 self?.queue.async { self?.reopen(now: false, why: "start failed") }
             }
@@ -112,7 +117,10 @@ final class SystemAudioCapture: NSObject, AudioCapture, SCStreamOutput, SCStream
     func stream(_ stream: SCStream, didStopWithError error: Error) {
         guard !stopped else { return }
         AppLog.log("system audio stopped: \(error)")
-        if SystemAudioCapture.isPermission(error) { onError?(SystemAudioCapture.text(error)); return }
+        if SystemAudioCapture.isPermission(error) {
+            PermissionGuide.shared.need(.screen, why: "Listen on Mac audio (stream stopped)")
+            onError?(SystemAudioCapture.text(error)); return
+        }
         queue.async { self.reopen(now: false, why: "stream stopped") }
     }
 

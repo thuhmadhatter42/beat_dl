@@ -191,10 +191,9 @@ struct AXDAWDriver: DAWDriver {
         if let b = p.bpm, !AXFieldKind.tempoRange.contains(b) {
             throw DAWError(String(format: "Tempo %.2f is outside 20-999 BPM; nothing sent.", b))
         }
-        guard AXIsProcessTrusted() else {
-            let shown = AXTrust.promptOnce()
-            AppLog.log("daw send: accessibility not allowed (system prompt \(shown ? "shown" : "already shown")); nothing sent")
-            throw AXPermissionPending(promptShown: shown)
+        guard SystemPermissions.isGranted(.accessibility) else {
+            AppLog.log("daw send: accessibility not allowed; nothing sent (the permission guide takes it from here)")
+            throw AXPermissionPending(promptShown: false)
         }
         guard let app = AXApps.running(d) else { throw DAWError("\(d.name) is not open.") }
         let tree = AXElement.app(pid: app.processIdentifier)

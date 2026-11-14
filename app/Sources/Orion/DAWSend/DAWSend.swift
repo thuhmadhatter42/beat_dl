@@ -237,11 +237,9 @@ enum DAWSendController {
             DispatchQueue.main.async {
                 busy = false
                 for o in outcomes { AppLog.log("send to DAW: \(o.daw.name) \(o.ok ? "ok" : o.permission != nil ? "needs Accessibility" : "failed"): \(o.message)") }
-                // Accessibility not allowed: the system prompt says it; else one line, no failure alert.
+                // Accessibility not allowed: the permission guide walks the user through it; no failure alert.
                 if outcomes.allSatisfy({ $0.permission != nil }) {
-                    if !outcomes.contains(where: { $0.permission?.promptShown ?? false }) {
-                        alert("Allow Beat Key in Accessibility, then send again", "")
-                    }
+                    PermissionGuide.shared.need(.accessibility, why: "Send to DAW")
                     return
                 }
                 let title = outcomes.count == 1 ? (outcomes[0].ok ? "Sent to \(outcomes[0].daw.name)" : "\(outcomes[0].daw.name) did not take it")
