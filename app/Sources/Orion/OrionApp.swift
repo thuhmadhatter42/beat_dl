@@ -233,9 +233,9 @@ struct OrionApp: App {
         let l = live
         PlayToFind.shared.install(shown: { PocketState.shown(e.state, live: l.state, page: m.pager) },
                                   sendAutoTune: windowActions.sendAutoTune)
-        // The bundle on disk replaced while running (Finder drag-install): offer a relaunch.
-        InstallGuard.shared.isBusy = { e.state.isBusy || l.state.isActive }
-        InstallGuard.shared.start()
+        // Is this the latest version? One Sparkle background check per launch (the same updater as
+        // Check for Updates…); it only shows a window when a newer Beat Key exists.
+        updater.checkInBackgroundAtLaunch()
         // Seed yt-dlp into Application Support, then the weekly self-update, on the shared
         // maintenance queue. The Engine stays idle; downloads and Run Doctor wait their turn.
         Runtime.appDefault().launchMaintenance()

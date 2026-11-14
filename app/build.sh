@@ -1,8 +1,9 @@
 #!/bin/bash
-# Builds "Beat Key.app" and its signed, notarized, stapled DMG.
+# Builds "Beat Key.app", its signed, notarized, stapled DMG (Sparkle updates) and the signed,
+# notarized, stapled .pkg installer (the download for people).
 # Public name Beat Key; the executable (Orion), bundle ID and code stay Orion.
-#   app/build.sh                  -> app/build/Beat Key.app, app/build/Beat-Key-<VERSION>.dmg (notarized)
-#   app/build.sh --no-notarize    same, stops after signing the DMG
+#   app/build.sh                  -> app/build/Beat Key.app, Beat-Key-<VERSION>.dmg, Beat-Key-<VERSION>.pkg (notarized)
+#   app/build.sh --no-notarize    same, stops after signing the DMG and the pkg
 # Signing is inside-out and never --deep: runtime.sh signs every Mach-O of the tool runtime
 # (yt-dlp and deno with their own entitlements), then the app itself is signed. --deep is for verify only.
 # Nothing is written into the bundle after it is signed.
@@ -18,6 +19,9 @@ NOTARIZE=1
 APP_NAME="Beat Key"                     # = Brand.name (FaceplateTests checks it)
 OUTAPP="$B/$APP_NAME.app"
 DMG="$B/Beat-Key-$VER.dmg"
+PKG="$B/Beat-Key-$VER.pkg"
+PKG_IDENTITY="${PKG_SIGN_IDENTITY:-Developer ID Installer: J Shriver (9WTFGV63S2)}"
+BUNDLE_ID="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$APP/Info.plist")"   # com.jshriver.orion
 # Spotlight finds the app by name for "beat" and "key"; this Finder comment + keywords carry
 # "bpm" and "download". They are xattrs on the bundle folder: not sealed by the signature, and
 # Finder / ditto keep them through the DMG and the drag to Applications.
@@ -28,6 +32,12 @@ WIN_W=600; WIN_H=380; ICON=112; APP_X=160; LINK_X=440; ICON_Y=190
 
 security find-identity -v -p codesigning | grep -qF "\"$IDENTITY\"" \
   || { echo "no '$IDENTITY' signing identity in the keychain"; exit 1; }
+# Installer certificates are not "codesigning" identities: list them all
+security find-identity -v | grep -qF "\"$PKG_IDENTITY\"" \
+  || { echo "no '$PKG_IDENTITY' installer identity in the keychain"; exit 1; }
+for f in "$APP/pkg/distribution.xml" "$APP/pkg/postinstall"; do
+  [ -f "$f" ] || { echo "missing $f"; exit 1; }
+done
 for f in "$APP/icon/Orion.icns" "$APP/icon/Assets.xcassets/AppIcon.appiconset/Contents.json" "$APP/dmg/background.png" "$APP/dmg/background@2x.png"; do
   [ -f "$f" ] || { echo "missing $f (icon: app/icon/Orion.icns from source-golden-key.png; DMG art: app/dmg/make_background.swift)"; exit 1; }
 done
@@ -201,21 +211,59 @@ codesign --force --timestamp --sign "$IDENTITY" "$DMG"
 codesign --verify --strict --verbose=2 "$DMG"
 echo "dmg: $DMG ($(du -h "$DMG" | cut -f1))"
 
+echo "== pkg"
+# Installs to /Applications/Beat Key.app and nowhere else: BundleIsRelocatable=false, or Installer
+# "upgrades" a copy it finds elsewhere (app/build/Beat Key.app, a DMG volume) instead.
+# distribution.xml's installation-check stops the installer while Beat Key is running;
+# postinstall opens Beat Key for the logged-in user (log lines "Beat Key postinstall:" in /var/log/install.log).
+PK="$B/pkg-stage"
+rm -rf "$PK" "$PKG"
+mkdir -p "$PK/root" "$PK/scripts" "$PK/pkgs"
+ditto "$OUTAPP" "$PK/root/$APP_NAME.app"
+cp "$APP/pkg/postinstall" "$PK/scripts/postinstall"; chmod 755 "$PK/scripts/postinstall"
+cat > "$PK/component.plist" <<XML
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0"><array><dict>
+  <key>RootRelativeBundlePath</key><string>$APP_NAME.app</string>
+  <key>BundleIsRelocatable</key><false/>
+  <key>BundleIsVersionChecked</key><false/>
+  <key>BundleHasStrictIdentifier</key><false/>
+  <key>BundleOverwriteAction</key><string>upgrade</string>
+</dict></array></plist>
+XML
+plutil -lint "$PK/component.plist" >/dev/null
+pkgbuild --root "$PK/root" --component-plist "$PK/component.plist" --scripts "$PK/scripts" \
+  --identifier "$BUNDLE_ID.pkg" --version "$VER" --install-location /Applications \
+  "$PK/pkgs/Beat-Key-component.pkg"
+sed "s/@VERSION@/$VER/g" "$APP/pkg/distribution.xml" > "$PK/distribution.xml"
+xmllint --noout "$PK/distribution.xml"
+productbuild --distribution "$PK/distribution.xml" --package-path "$PK/pkgs" --sign "$PKG_IDENTITY" --timestamp "$PKG"
+pkgutil --check-signature "$PKG"
+rm -rf "$PK"
+echo "pkg: $PKG ($(du -h "$PKG" | cut -f1))"
+
 [ "$NOTARIZE" = 1 ] || { echo "== skipped notarization (--no-notarize)"; exit 0; }
 
-echo "== notarize (profile $PROFILE)"
-OUTJ="$B/notary-$VER.json"
-xcrun notarytool submit "$DMG" --keychain-profile "$PROFILE" --wait --output-format json | tee "$OUTJ"
-ID="$(/usr/bin/plutil -extract id raw -o - "$OUTJ" 2>/dev/null || true)"
-STATUS="$(/usr/bin/plutil -extract status raw -o - "$OUTJ" 2>/dev/null || true)"
-echo "submission $ID: $STATUS"
-if [ "$STATUS" != Accepted ]; then
-  [ -n "$ID" ] && xcrun notarytool log "$ID" --keychain-profile "$PROFILE" || true
-  echo "notarization not Accepted: $STATUS"; exit 1
-fi
-xcrun stapler staple "$DMG"
-xcrun stapler validate "$DMG"
+notarize_and_staple() {   # $1 = the DMG or the pkg: notarize with $PROFILE, then staple
+  local F="$1" OUTJ ID STATUS
+  echo "== notarize $(basename "$F") (profile $PROFILE)"
+  OUTJ="$B/notary-$(basename "$F").json"
+  xcrun notarytool submit "$F" --keychain-profile "$PROFILE" --wait --output-format json | tee "$OUTJ"
+  ID="$(/usr/bin/plutil -extract id raw -o - "$OUTJ" 2>/dev/null || true)"
+  STATUS="$(/usr/bin/plutil -extract status raw -o - "$OUTJ" 2>/dev/null || true)"
+  echo "submission $ID: $STATUS"
+  if [ "$STATUS" != Accepted ]; then
+    [ -n "$ID" ] && xcrun notarytool log "$ID" --keychain-profile "$PROFILE" || true
+    echo "notarization of $(basename "$F") not Accepted: $STATUS"; exit 1
+  fi
+  xcrun stapler staple "$F"
+  xcrun stapler validate "$F"
+}
+notarize_and_staple "$DMG"
 spctl -a -vv -t open --context context:primary-signature "$DMG"
+notarize_and_staple "$PKG"
+spctl -a -vv -t install "$PKG"
 
 # ---- BEGIN sparkle: appcast.xml for this DMG (attach both to the GitHub release) ----
 # One <item>: the stapled DMG, EdDSA-signed by sign_update with the exported signing file (no
@@ -253,4 +301,4 @@ xmllint --noout "$APPCAST"
   "$(sed -n 's/.*sparkle:edSignature="\([^"]*\)".*/\1/p' <<<"$ENC")"
 echo "appcast: $APPCAST"
 # ---- END sparkle ----
-echo "done: $DMG"
+echo "done: $DMG $PKG"

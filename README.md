@@ -10,9 +10,9 @@ Tested and working on both Apple Silicon and Intel Macs.
 
 Beat Key is the same tool as a normal Mac app. No Terminal, nothing to install first.
 
-1. Download the Beat Key disk image (the `.dmg` file) and double-click it.
-2. Drag **Beat Key** onto the **Applications** folder in the window that opens.
-3. Open **Beat Key** from Applications. The first time, macOS asks "Are you sure you want to open it?". Click **Open**.
+1. Download the Beat Key installer (the `.pkg` file) and double-click it.
+2. Click **Continue** through the installer. If Beat Key is open it asks you to quit it first. Beat Key goes into **Applications** and opens by itself when the installer finishes.
+3. Next time, open **Beat Key** from Applications.
 4. Paste a YouTube link and press Return. The MP3 lands in your Downloads folder with the BPM and key in its name, for example `Some Beat (140.0 BPM Cm Eb Gm).mp3`.
 5. To read the BPM and key of a file you already have, drop the audio file onto the Beat Key window. The file isn't changed.
 
